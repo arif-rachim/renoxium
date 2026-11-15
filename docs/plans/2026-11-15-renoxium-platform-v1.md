@@ -17,6 +17,7 @@
 - Which environments does an app have? → Two stages, not three: **preview** (draft version, where the agent develops and automatic checks run) and **live**. Preview runs on a snapshot copy of the live database (or template sample data for a new app), and all outside effects are sandboxed: payment gateway in sandbox mode, WhatsApp/email captured to the log instead of sent, jobs not scheduled. Migrations are proven on the copy before they touch live data.
 - What telemetry exists? → One event pipeline feeds three consumers: agent-readable logs, per-tenant usage counters (quotas/billing), and operator health metrics.
 - Can other agents use a built app? → Yes. Every app serves its own MCP endpoint at `<app>.renoxium.app/mcp`, separate from the builder MCP at renoxium.com. Tools are generated from the app's **actions** (named, typed operations with a permission level); the admin panel, HTTP routes and the app MCP all call the same actions, so there is one permission model. v1: owner tools behind OAuth (orders, stock, products) and public read-only tools (search/get products). Buyer agents get a checkout link; they never pay on the buyer's behalf.
+- Custom domains (e.g. `www.tokoku.com` bound to `tokoku.renoxium.app`, Netlify-style)? → Planned right after v1, as a paid feature. v1 must not block it: tenant routing looks the request host up in a domain table (never parses the subdomain), and all generated links, redirects, payment callbacks and the app MCP URL come from one "canonical host" helper. Later design: merchant adds CNAME (`www`) or A record (apex) plus a TXT ownership record; platform verifies, then issues TLS automatically with a pure-Go ACME library (CertMagic), only for domains present in the domain table; the renoxium.app address redirects to the custom domain.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
@@ -48,7 +49,7 @@
 ### Out (later or never)
 - Agents writing or compiling Go.
 - Enterprise features: SSO, audit log, HA/multi-region, compliance.
-- Custom domains, marketplace of third-party templates, Renoxium billing.
+- Custom domains (first feature after v1; routing is prepared for it), selling domains, marketplace of third-party templates, Renoxium billing.
 - Buyer agents completing payment inside the chat (agentic checkout protocols); v1 returns a checkout link instead.
 - Two-way WhatsApp, mobile apps, client-side SPA features.
 - A Renoxium-owned chat UI.
@@ -80,6 +81,7 @@
 - Browser log intake abused (spam, fake errors, text aimed at steering the agent) → rate limits, grouping, size caps, and logs always presented to the agent as untrusted data.
 - Free tenants host phishing/abuse pages using free-form HTML/JS → report button, basic scanning, app domain on the Public Suffix List, fast takedown.
 - App MCP used to scrape, spam or inject instructions into other agents via product text → rate limits, public tools read-only, no payment or destructive action without a human-confirmed step, tenant text returned as data.
+- Custom domain hijack (stale DNS pointing at Renoxium claimed by another tenant) → TXT ownership proof before binding, binding removed when an app is deleted, certificates only for verified domains.
 - Schema change destroys live data → additive migrations by default, snapshot before every publish, destructive changes need an explicit confirmed flag.
 - Dependence on ChatGPT/Claude distribution rules → plain MCP + OAuth, no vendor-specific features; admin panel works without any chat platform.
 - SQLite single-writer limits → accept for v1; one busy tenant only slows itself.
