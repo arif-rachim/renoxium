@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/web"
@@ -30,6 +31,7 @@ func main() {
 	baseURL := flag.String("base-url", "", "public origin of the Renoxium site, e.g. https://renoxium.com; defaults to http://localhost<addr port>")
 	appsDomain := flag.String("apps-domain", "localhost", "apps are served on <name>.<apps-domain>; use renoxium.app in production")
 	trustedIPHeader := flag.String("trusted-ip-header", "", `header with the visitor address set by a local tunnel, e.g. "CF-Connecting-IP"; trusted only on loopback connections`)
+	emailFrom := flag.String("email-from", "Renoxium <no-reply@renoxium.com>", "sender of account emails; its domain must be verified in Resend")
 	workers := flag.Int("workers", 4, "number of script worker processes")
 	flag.Parse()
 
@@ -65,6 +67,11 @@ func main() {
 	defer acc.Close()
 	site := web.New(*baseURL, acc, p)
 	site.TrustedIPHeader = *trustedIPHeader
+	if key := os.Getenv("RESEND_API_KEY"); key != "" {
+		site.Mailer = &email.Resend{Key: key, From: *emailFrom}
+	} else {
+		slog.Warn("RESEND_API_KEY is not set: emails are written to the log instead of being sent")
+	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !p.ServeApp(w, r) {

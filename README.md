@@ -11,7 +11,7 @@ Plan: [docs/plans/2026-11-15-renoxium-platform-v1.md](docs/plans/2026-11-15-reno
 
 Working today:
 
-- Accounts on the Renoxium site (email and password, argon2id), a dashboard listing your apps.
+- Accounts on the Renoxium site (email and password, argon2id), a dashboard listing your apps, email confirmation, and password reset by emailed link (sent through Resend; a reset signs out every session and agent token).
 - OAuth 2.1 for agents, as ChatGPT and Claude expect: protected resource and authorization server metadata, dynamic client registration, PKCE (S256 only), consent screen, rotating refresh tokens, revocation on code replay.
 - Connection help at `/connect` and `/llms.txt`, written so an assistant that reads them tells the user how to add the connector. A browser or fetch-tool visit to `/mcp` gets the same help with its 401, while MCP clients still get the plain OAuth challenge.
 - Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app`, `get_app`, `get_example`, `apply_change`, `patch_app`, `test_request`, `publish` (also rollback), `upload_file` and `get_logs`. `get_example` returns complete working definitions from `examples/` (a shop and a CRUD task list); `patch_app` changes one template, script, route list or table without resending the whole definition; `test_request` sends GET or POST requests to preview (GET only to live) and returns the response with that request's log, so agents can verify forms and parameter routes themselves. Every tool acts only on apps the signed-in user owns.
@@ -23,7 +23,7 @@ Working today:
 - Templates with any HTML/CSS/browser JavaScript, auto-escaped data.
 - One log per app: requests, script errors with stack traces, script console output, and browser errors reported by an injected snippet, linked by request ID.
 
-Not built yet (see the plan): email verification and password reset, staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp, custom domains, quotas.
+Not built yet (see the plan): sign-in for app visitors, staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp, custom domains, quotas.
 
 ## Run
 

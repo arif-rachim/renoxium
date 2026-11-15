@@ -90,6 +90,23 @@ sudo install -D -m 755 ~/renoxium /opt/renoxium/renoxium && sudo install -m 755 
 sudo cp ~/renoxium.service /etc/systemd/system/renoxium.service && sudo systemctl daemon-reload && sudo systemctl enable --now renoxium
 ```
 
+### Email (Resend)
+
+Renoxium sends account emails (email confirmation and password reset) through Resend. In the Resend
+dashboard, verify the domain of the sender address first (by default `no-reply@renoxium.com`, so the
+`renoxium.com` domain). Then store the API key on the VPS, readable only by root:
+
+```bash
+sudo install -d -m 700 /etc/renoxium && echo 'RESEND_API_KEY=re_your_key' | sudo tee /etc/renoxium/env >/dev/null && sudo chmod 600 /etc/renoxium/env
+```
+
+```bash
+sudo systemctl restart renoxium
+```
+
+Without a key Renoxium still runs, but it writes emails to its log instead of sending them. To use
+another sender address, add `-email-from "Renoxium <hello@renoxium.com>"` to `ExecStart`.
+
 Check that the server is up. This must print `ok`:
 
 ```bash
@@ -279,4 +296,5 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | The agent cannot connect, `/mcp` returns 401 | Normal before sign-in; the problem is in the OAuth steps | open `/.well-known/oauth-authorization-server` and check it uses `https://renoxium.com` |
 | The site returns 404 "not found" | The browser address differs from the host in `-base-url` (for example with or without www) | use the address in `-base-url`, or fix the redirect in Cloudflare |
 | Everyone gets "too many attempts" | `-trusted-ip-header` is missing from the service | `systemctl cat renoxium` |
+| No confirmation or reset email arrives | Missing `RESEND_API_KEY`, or the sender domain is not verified in Resend | `sudo journalctl -u renoxium \| grep -i email` |
 | Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |

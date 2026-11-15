@@ -41,8 +41,9 @@ var (
 
 // User is a Renoxium account.
 type User struct {
-	ID    string
-	Email string
+	ID       string
+	Email    string
+	Verified bool
 }
 
 // Client is an OAuth client registered dynamically by an agent platform.
@@ -80,6 +81,8 @@ func Open(path string) (*Store, error) {
 		`CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, name TEXT NOT NULL, redirect_uris TEXT NOT NULL, created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS codes (hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id TEXT NOT NULL, redirect_uri TEXT NOT NULL,
 			challenge TEXT NOT NULL, scope TEXT NOT NULL, expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE TABLE IF NOT EXISTS email_tokens (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), purpose TEXT NOT NULL,
+			expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS tokens (access_hash TEXT PRIMARY KEY, refresh_hash TEXT NOT NULL UNIQUE, client_id TEXT NOT NULL,
 			user_id TEXT NOT NULL, scope TEXT NOT NULL, access_expires_at INTEGER NOT NULL, refresh_expires_at INTEGER NOT NULL)`,
 	} {
@@ -87,6 +90,10 @@ func Open(path string) (*Store, error) {
 			db.Close()
 			return nil, err
 		}
+	}
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN verified_at TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		db.Close()
+		return nil, err
 	}
 	return &Store{db: db, now: time.Now}, nil
 }
@@ -199,11 +206,140 @@ func (s *Store) Authenticate(email, password string) (User, error) {
 // User looks up an account by ID.
 func (s *Store) User(id string) (User, error) {
 	u := User{ID: id}
-	err := s.db.QueryRow(`SELECT email FROM users WHERE id = ?`, id).Scan(&u.Email)
+	var verified sql.NullString
+	err := s.db.QueryRow(`SELECT email, verified_at FROM users WHERE id = ?`, id).Scan(&u.Email, &verified)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
+	u.Verified = verified.Valid
 	return u, err
+}
+
+// Token purposes for emailed links.
+const (
+	PurposeVerify = "verify"
+	PurposeReset  = "reset"
+)
+
+// Lifetimes of emailed links.
+const (
+	VerifyTTL = 7 * 24 * time.Hour
+	ResetTTL  = time.Hour
+)
+
+// UserByEmail looks up an account by email.
+func (s *Store) UserByEmail(email string) (User, error) {
+	email, err := NormalizeEmail(email)
+	if err != nil {
+		return User{}, ErrNotFound
+	}
+	var id string
+	if err := s.db.QueryRow(`SELECT id FROM users WHERE email = ?`, email).Scan(&id); err != nil {
+		return User{}, ErrNotFound
+	}
+	return s.User(id)
+}
+
+// CreateEmailToken issues a single-use token for an emailed link. Earlier
+// unused tokens of the same purpose stop working.
+func (s *Store) CreateEmailToken(userID, purpose string) (string, error) {
+	ttl := VerifyTTL
+	if purpose == PurposeReset {
+		ttl = ResetTTL
+	}
+	token := randomToken("eml_")
+	tx, err := s.db.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?`, userID, purpose); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(`INSERT INTO email_tokens (hash, user_id, purpose, expires_at) VALUES (?, ?, ?, ?)`,
+		hash(token), userID, purpose, s.now().Add(ttl).Unix()); err != nil {
+		return "", err
+	}
+	return token, tx.Commit()
+}
+
+// CheckEmailToken returns the user of a live token without using it.
+func (s *Store) CheckEmailToken(token, purpose string) (User, error) {
+	var id string
+	err := s.db.QueryRow(`SELECT user_id FROM email_tokens WHERE hash = ? AND purpose = ? AND used = 0 AND expires_at > ?`,
+		hash(token), purpose, s.now().Unix()).Scan(&id)
+	if err != nil {
+		return User{}, ErrNotFound
+	}
+	return s.User(id)
+}
+
+func (s *Store) useEmailToken(tx *sql.Tx, token, purpose string) (string, error) {
+	var id string
+	err := tx.QueryRow(`SELECT user_id FROM email_tokens WHERE hash = ? AND purpose = ? AND used = 0 AND expires_at > ?`,
+		hash(token), purpose, s.now().Unix()).Scan(&id)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	if _, err := tx.Exec(`UPDATE email_tokens SET used = 1 WHERE hash = ?`, hash(token)); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// VerifyEmail marks the email of the token's user as verified.
+func (s *Store) VerifyEmail(token string) (User, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback()
+	id, err := s.useEmailToken(tx, token, PurposeVerify)
+	if err != nil {
+		return User{}, err
+	}
+	if _, err := tx.Exec(`UPDATE users SET verified_at = coalesce(verified_at, ?) WHERE id = ?`, s.now().UTC().Format(time.RFC3339), id); err != nil {
+		return User{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return User{}, err
+	}
+	return s.User(id)
+}
+
+// ResetPassword sets a new password with a reset token. It signs the user
+// out everywhere: browser sessions and agent tokens are revoked. Receiving the
+// reset email also proves the address, so it is marked verified.
+func (s *Store) ResetPassword(token, password string) (User, error) {
+	if utf8.RuneCountInString(password) < MinPassword || len(password) > 512 {
+		return User{}, fmt.Errorf("the password must be at least %d characters", MinPassword)
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback()
+	id, err := s.useEmailToken(tx, token, PurposeReset)
+	if err != nil {
+		return User{}, err
+	}
+	for _, stmt := range []string{
+		`UPDATE users SET password_hash = ?, verified_at = coalesce(verified_at, ?) WHERE id = ?`,
+		`DELETE FROM sessions WHERE user_id = ?`,
+		`DELETE FROM tokens WHERE user_id = ?`,
+	} {
+		args := []any{id}
+		if strings.HasPrefix(stmt, "UPDATE") {
+			args = []any{hashPassword(password), s.now().UTC().Format(time.RFC3339), id}
+		}
+		if _, err := tx.Exec(stmt, args...); err != nil {
+			return User{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return User{}, err
+	}
+	return s.User(id)
 }
 
 // --- browser sessions ---

@@ -27,6 +27,7 @@ import (
 const redirectURI = "http://localhost:9999/callback"
 
 type env struct {
+	mail   *mailbox
 	t      *testing.T
 	server *httptest.Server
 	base   string
@@ -50,9 +51,12 @@ func newEnv(t *testing.T) *env {
 			site.ServeHTTP(w, r)
 		}
 	}))
-	site = web.New(srv.URL, acc, p)
+	ws := web.New(srv.URL, acc, p)
+	mb := &mailbox{}
+	ws.Mailer = mb
+	site = ws
 	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })
-	return &env{t: t, server: srv, base: srv.URL, p: p}
+	return &env{t: t, server: srv, base: srv.URL, p: p, mail: mb}
 }
 
 // browser is a cookie-keeping client that does not follow redirects.

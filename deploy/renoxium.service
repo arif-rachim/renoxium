@@ -14,6 +14,8 @@ ExecStart=/opt/renoxium/renoxium \
   -trusted-ip-header CF-Connecting-IP \
   -workers 2
 # -workers 2 suits a 1 GB node; use 4 on 2 GB or more.
+# Secrets such as RESEND_API_KEY=... live in this file (mode 600), not here.
+EnvironmentFile=-/etc/renoxium/env
 Restart=always
 RestartSec=2
 # Hardening: the process can only write its data directory.

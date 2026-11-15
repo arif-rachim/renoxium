@@ -23,6 +23,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/mcpserver"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
@@ -44,6 +45,12 @@ type Site struct {
 	mux      *http.ServeMux
 	limiter  *limiter
 
+	// Mailer sends account emails. New sets it to email.Log; set a real
+	// sender before serving.
+	Mailer email.Sender
+	// mailLimiter caps emails per address or user.
+	mailLimiter *limiter
+
 	// TrustedIPHeader names the header that carries the visitor's address
 	// when the site runs behind a local tunnel, e.g. "CF-Connecting-IP".
 	TrustedIPHeader string
@@ -57,7 +64,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 		host = h
 	}
 	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
-		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute)}
+		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
 	s.mcp = mcpserver.Handler(mcpserver.New(p), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
 	s.mux.HandleFunc("GET /{$}", s.home)
@@ -81,6 +88,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.mux.HandleFunc("GET /connect", s.connectPage)
 	s.mux.HandleFunc("GET /llms.txt", s.llmsTxt)
 	s.registerAdmin()
+	s.registerEmailFlows()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	return s
 }
@@ -230,6 +238,7 @@ func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
 		render(w, http.StatusBadRequest, "signup", map[string]any{"CSRF": s.csrfToken(w, r), "Next": next, "Error": err.Error(), "Email": r.PostFormValue("email")})
 		return
 	}
+	s.sendVerification(r.Context(), u)
 	s.startSession(w, r, u, next)
 }
 
@@ -556,6 +565,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
 <p class="muted">Signed in as {{.User.Email}}</p>
+{{if not .User.Verified}}<form method="post" action="/verify/resend"><p class="muted">Confirm your email so you can reset your password if you forget it. <input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin-top:4px">Send the link again</button></p></form>{{end}}
 {{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
 {{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
 <p class="muted">Connector address for your agent:</p><p><code>{{.MCP}}</code> · <a href="/connect">how to connect</a></p>
@@ -573,7 +583,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<button>Sign in</button><p class="muted" style="margin-top:16px">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "bottom"}}{{end}}
+<button>Sign in</button><p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "bottom"}}{{end}}
 
 {{define "consent"}}{{template "top" "Allow access"}}<form class="card" method="post" action="/oauth/authorize"><h1>Allow {{.Client}}?</h1>
 <p><strong>{{.Client}}</strong> wants to create, change and publish your Renoxium apps, and read their logs.</p>
@@ -621,6 +631,19 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "connect"}}{{template "wide" "Connect"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
 {{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "forgot"}}{{template "top" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
+<p class="muted">Enter your email and we will send you a link to choose a new password.</p>
+<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required>
+<button>Send the link</button></form>{{template "bottom"}}{{end}}
+
+{{define "reset"}}{{template "top" "New password"}}<form class="card" method="post" action="/reset"><h1>Choose a new password</h1>
+{{with .Email}}<p class="muted">For {{.}}</p>{{end}}{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="token" value="{{.Token}}">
+<label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
+<button>Save and sign in</button><p class="muted" style="margin-top:16px">You will be signed out on every other device, and agents will need to connect again.</p></form>{{template "bottom"}}{{end}}
+
+{{define "notice"}}{{template "top" .Title}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">Continue</a></p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "error"}}{{template "top" "Error"}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
 `))
