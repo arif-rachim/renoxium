@@ -210,6 +210,12 @@ func Handler(s *mcp.Server, verify auth.TokenVerifier, resourceMetadataURL strin
 	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return s }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true,
 		// Room for a 10 MB image sent to upload_file as base64. The token
 		// check runs before the body is read.
-		MaxRequestBodyBytes: 16 << 20})
+		MaxRequestBodyBytes: 16 << 20,
+		// Behind Cloudflare Tunnel every request reaches 127.0.0.1 with the
+		// public Host (www.renoxium.com), which the SDK's localhost
+		// DNS-rebinding check rejects with 403. That check protects
+		// unauthenticated local servers; here the site answers only on its own
+		// host (web.Site.ServeHTTP) and every call needs an OAuth bearer token.
+		DisableLocalhostProtection: true})
 	return auth.RequireBearerToken(verify, &auth.RequireBearerTokenOptions{ResourceMetadataURL: resourceMetadataURL})(h)
 }

@@ -510,3 +510,68 @@ func TestMCPEndpointExplainsHowToConnect(t *testing.T) {
 		}
 	}
 }
+
+// tunnel sends every request to the test server's loopback address while the
+// Host header keeps the public name, as cloudflared does in production.
+type tunnel struct {
+	addr, token string
+}
+
+func (t tunnel) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.Host = r.URL.Host
+	r.URL.Scheme, r.URL.Host = "http", t.addr
+	r.Header.Set("Authorization", "Bearer "+t.token)
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+// Behind Cloudflare Tunnel the site listens on 127.0.0.1 and requests arrive
+// with Host www.renoxium.test. The MCP endpoint must serve them: the go-sdk's
+// localhost DNS-rebinding check would answer 403 "invalid Host header".
+func TestMCPWorksBehindTunnel(t *testing.T) {
+	dir := t.TempDir()
+	p, err := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	acc, err := accounts.Open(filepath.Join(dir, "accounts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const base = "https://www.renoxium.test"
+	srv := httptest.NewServer(web.New(base, acc, p))
+	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })
+
+	u, err := acc.CreateUser("owner@example.com", "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := acc.RegisterClient("Claude", []string{redirectURI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifier, challenge := pkce()
+	code, err := acc.CreateCode(c.ID, u.ID, redirectURI, challenge, "apps")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := acc.ExchangeCode(code, c.ID, redirectURI, verifier)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "claude", Version: "1"}, nil)
+	s, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint: base + "/mcp", HTTPClient: &http.Client{Transport: tunnel{addr: srv.Listener.Addr().String(), token: tok.AccessToken}}, DisableStandaloneSSE: true}, nil)
+	if err != nil {
+		t.Fatalf("connect through the tunnel: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	tools, err := s.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("list tools through the tunnel: %v", err)
+	}
+	if len(tools.Tools) == 0 {
+		t.Fatal("no tools listed")
+	}
+}
