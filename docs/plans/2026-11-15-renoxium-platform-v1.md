@@ -11,6 +11,7 @@
 ## Decisions
 - How is agent-submitted logic executed? → Declarative schema + routes + HTML templates + small sandboxed scripts inside the Go runtime. Agents do not write Go. (Only option that is both safe and memory-cheap in one multi-tenant process.)
 - Who is v1 for? → Non-technical sellers using ChatGPT/Claude. (Platform must own everything technical.)
+- Is enterprise a target? → No. Renoxium is for UMKM (small businesses) only; large-enterprise needs (HA, SSO, compliance certification) are not a goal, not just deferred.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
