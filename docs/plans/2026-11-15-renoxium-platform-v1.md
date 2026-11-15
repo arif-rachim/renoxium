@@ -14,6 +14,8 @@
 - Is enterprise a target? → No. Renoxium is for UMKM (small businesses) only; large-enterprise needs (HA, SSO, compliance certification) are not a goal, not just deferred.
 - May templates contain arbitrary client-side JavaScript? → Yes. Agents can put any HTML/JS in templates; it runs in the visitor's browser, not on the server. Guard rails: one origin per app, admin panel and Renoxium dashboard on a separate domain, auto-escaping of visitor data, card data only on the gateway's page.
 - How does the agent find out what broke? → One unified log per app covering server and browser, readable through the MCP `get_logs` tool (see Approach step 6a).
+- Which environments does an app have? → Two stages, not three: **preview** (draft version, where the agent develops and automatic checks run) and **live**. Preview runs on a snapshot copy of the live database (or template sample data for a new app), and all outside effects are sandboxed: payment gateway in sandbox mode, WhatsApp/email captured to the log instead of sent, jobs not scheduled. Migrations are proven on the copy before they touch live data.
+- What telemetry exists? → One event pipeline feeds three consumers: agent-readable logs, per-tenant usage counters (quotas/billing), and operator health metrics.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
@@ -53,7 +55,7 @@
 2. **Tenant store.** `internal/tenantdb`: open/pool SQLite per tenant, WAL, size quota, declarative migrations generated from table definitions (add table/column only; destructive changes require explicit flag).
 3. **Runtime + SSR.** `internal/runtime`: host-based tenant routing, load active app version, render `html/template` with data from declarative queries. Benchmark target: p95 < 20 ms for a catalog page.
 4. **Script sandbox.** `internal/sandbox`: `Sandbox` interface, goja implementation, host API (`db`, `http.respond`, `auth`, `log`), CPU-time and step limits, no filesystem/network. Isolation and runaway-script tests.
-5. **Versioning.** Immutable app versions, preview URL per version, publish, rollback (schema snapshot + restore).
+5. **Versioning and stages.** Immutable app versions; preview URL per version backed by a snapshot copy of the live database with sandboxed primitives; automatic checks on preview; publish; rollback (schema snapshot + restore).
 6. **MCP server.** `internal/mcp`: OAuth, tools `create_app`, `get_app`, `apply_change`, `preview`, `publish`, `rollback`, `list_templates`, `use_template`, `get_logs`. Tool descriptions teach the agent to ask the user for missing info and to offer templates first.
 6a. **Unified logs.** `internal/applog`: one append-only, size-capped log per app, stored in a separate SQLite file from the app data. Every event carries app version, request ID, source (`server`/`browser`/`job`), level and timestamp.
    - Server events: request (route, status, duration, script CPU ms), script errors with stack and script line, `console.log` from scripts, DB and migration errors, job runs, primitive failures (payment webhook, WhatsApp, email).
@@ -61,6 +63,7 @@
    - Intake is public, so: rate limit, size cap, group identical errors with a counter, redact secrets and personal data.
    - `get_logs` filters by version, time, level, source and request ID, and returns "new errors since version N". `preview` and `publish` render every route once and return any errors directly in the tool result.
    - Log text is untrusted input: tool results mark it as data, never as instructions to the agent.
+6b. **Usage counters and operator metrics.** From the same event pipeline: per-tenant counters (requests, script CPU ms, storage bytes, messages sent) for quotas, and platform metrics (error rate, latency, per-tenant CPU, slow queries) exposed for the operator.
 7. **Primitives.** `internal/primitives`: auth/sessions, uploads, email, payments (one gateway + webhook), WhatsApp notify, job scheduler.
 8. **Admin panel.** `internal/admin`: generated list/detail/edit screens per table, owner login, order view.
 9. **Store reference template.** `templates/store`: catalog, cart, checkout, order, stock, order-notification job. This is the v1 acceptance test.
