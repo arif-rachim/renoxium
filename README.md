@@ -16,12 +16,11 @@ Working today:
 - Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app`, `get_app`, `apply_change`, `publish` (also rollback) and `get_logs`. Every tool acts only on apps the signed-in user owns.
 - Preview and live stages per app. Preview runs on a snapshot of live data; publish backs up live data first.
 - Additive schema migrations, seed data.
-- Server scripts in goja with a 2 s limit, no filesystem, network or timers, and a SQLite authorizer that allows data statements only.
+- Server scripts in goja, run in a pool of separate worker processes: 2 s time limit, a heap watchdog inside each worker (64 MiB), and the parent kills any worker over 256 MiB resident and starts a new one. At most 2 scripts of one app run at once, so one app cannot occupy every worker. No filesystem, network or timers; a SQLite authorizer allows data statements only.
 - Templates with any HTML/CSS/browser JavaScript, auto-escaped data.
 - One log per app: requests, script errors with stack traces, script console output, and browser errors reported by an injected snippet, linked by request ID.
 
-Not built yet (see the plan): email verification and password reset, script worker processes with OS memory limits (scripts run in-process today),
-admin panel, per-app MCP, Stripe, WhatsApp, custom domains, quotas.
+Not built yet (see the plan): email verification and password reset, admin panel, per-app MCP, Stripe, WhatsApp, custom domains, quotas.
 
 ## Run
 
