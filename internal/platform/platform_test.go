@@ -1,8 +1,11 @@
 package platform_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -336,5 +339,73 @@ func TestMemoryHungryTenantIsContained(t *testing.T) {
 	order := do(t, p, "POST", "good-shop.renoxium.test", "/orders", url.Values{"product_id": {"1"}, "customer_name": {"Mariam"}, "phone": {"0501112222"}})
 	if order.status != 200 || !strings.Contains(order.body, "order #1") {
 		t.Fatalf("good shop order: %d %s", order.status, order.body)
+	}
+}
+
+func pngFile(t *testing.T, shade uint8) []byte {
+	t.Helper()
+	img := image.NewGray(image.Rect(0, 0, 3, 3))
+	img.Pix[0] = shade
+	var buf bytes.Buffer
+	png.Encode(&buf, img)
+	return buf.Bytes()
+}
+
+// Files are stored once on disk but each app serves only its own.
+func TestFilesAreSharedOnDiskAndServedPerApp(t *testing.T) {
+	p := newPlatform(t)
+	p.CreateApp("usr_test", "shop-a")
+	p.CreateApp("usr_test", "shop-b")
+	logo := pngFile(t, 10)
+
+	a, err := p.AddFile("shop-a", bytes.NewReader(logo))
+	if err != nil || a.Reused || !strings.HasPrefix(a.URL, "/_rx/files/") || !strings.HasSuffix(a.URL, ".png") {
+		t.Fatalf("add: %+v %v", a, err)
+	}
+	again, _ := p.AddFile("shop-a", bytes.NewReader(logo))
+	if again.URL != a.URL || !again.Reused {
+		t.Fatalf("same file again: %+v", again)
+	}
+
+	// Served on the app's live and preview hosts, before any version exists.
+	for _, host := range []string{"shop-a.renoxium.test", "shop-a--preview.renoxium.test"} {
+		r := do(t, p, "GET", host, a.URL, nil)
+		if r.status != 200 || r.body != string(logo) || r.header.Get("Content-Type") != "image/png" ||
+			!strings.Contains(r.header.Get("Cache-Control"), "immutable") || r.header.Get("Content-Security-Policy") == "" {
+			t.Fatalf("%s: %d %v", host, r.status, r.header)
+		}
+	}
+	// Not served by another app, even though the bytes are on disk.
+	if r := do(t, p, "GET", "shop-b.renoxium.test", a.URL, nil); r.status != 404 {
+		t.Fatalf("shop-b served shop-a's file: %d", r.status)
+	}
+	// Once shop-b uploads the same content it reuses the stored copy.
+	b, _ := p.AddFile("shop-b", bytes.NewReader(logo))
+	if b.URL != a.URL || !b.Reused {
+		t.Fatalf("shop-b upload: %+v", b)
+	}
+	if r := do(t, p, "GET", "shop-b.renoxium.test", a.URL, nil); r.status != 200 {
+		t.Fatalf("shop-b own file: %d", r.status)
+	}
+	// Wrong extension, unknown hash, and conditional requests.
+	if r := do(t, p, "GET", "shop-a.renoxium.test", strings.TrimSuffix(a.URL, ".png")+".jpg", nil); r.status != 404 {
+		t.Fatalf("wrong extension: %d", r.status)
+	}
+	if r := do(t, p, "GET", "shop-a.renoxium.test", "/_rx/files/"+strings.Repeat("0", 64)+".png", nil); r.status != 404 {
+		t.Fatalf("unknown hash: %d", r.status)
+	}
+	req := httptest.NewRequest("GET", "http://shop-a.renoxium.test"+a.URL, nil)
+	req.Header.Set("If-None-Match", `"`+strings.TrimSuffix(strings.TrimPrefix(a.URL, "/_rx/files/"), ".png")+`"`)
+	w := httptest.NewRecorder()
+	p.ServeApp(w, req)
+	if w.Code != 304 {
+		t.Fatalf("conditional request: %d", w.Code)
+	}
+	list, _ := p.Files("shop-a")
+	if len(list) != 1 || list[0].URL != a.URL {
+		t.Fatalf("files = %+v", list)
+	}
+	if _, err := p.AddFile("shop-a", strings.NewReader("<svg onload=alert(1)>")); err == nil {
+		t.Fatal("non-image accepted")
 	}
 }

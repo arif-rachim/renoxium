@@ -212,7 +212,19 @@ echo '17 3 * * * root /opt/renoxium/backup.sh >/dev/null' | sudo tee /etc/cron.d
 ```
 
 A backup on the same VPS does not help if the VPS is lost. Copy the archives somewhere else regularly,
-for example to Cloudflare R2 or other object storage with `rclone`.
+for example to another server or object storage with `rsync` or `rclone`.
+
+### Uploaded images
+
+Images live in `/var/lib/renoxium/files`, one file per distinct content, and are not part of the daily
+archive. A stored file never changes, so an incremental copy is enough and only sends new files:
+
+```bash
+sudo rsync -a /var/lib/renoxium/files/ BACKUP-HOST:/backups/renoxium-files/
+```
+
+Schedule it next to the database backup, for example every hour. To restore, copy the folder back before
+starting Renoxium and run `sudo chown -R renoxium:renoxium /var/lib/renoxium`.
 
 ### Restoring from a backup
 
@@ -254,6 +266,7 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | Status | `systemctl status renoxium cloudflared` |
 | Memory use | `ps -o rss,args -u renoxium` (RSS in KB) |
 | Data size | `sudo du -sh /var/lib/renoxium` |
+| Image storage size | `sudo du -sh /var/lib/renoxium/files` |
 
 ## Troubleshooting
 

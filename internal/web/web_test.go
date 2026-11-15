@@ -247,7 +247,7 @@ func TestAgentBuildsAppForSignedInUser(t *testing.T) {
 	for _, tool := range tools.Tools {
 		names = append(names, tool.Name)
 	}
-	if got := strings.Join(names, ","); got != "apply_change,create_app,get_app,get_logs,list_apps,publish" {
+	if got := strings.Join(names, ","); got != "apply_change,create_app,get_app,get_logs,list_apps,publish,upload_file" {
 		t.Fatalf("tools = %s", got)
 	}
 

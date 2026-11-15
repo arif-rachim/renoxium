@@ -13,11 +13,12 @@ Working today:
 
 - Accounts on the Renoxium site (email and password, argon2id), a dashboard listing your apps.
 - OAuth 2.1 for agents, as ChatGPT and Claude expect: protected resource and authorization server metadata, dynamic client registration, PKCE (S256 only), consent screen, rotating refresh tokens, revocation on code replay.
-- Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app`, `get_app`, `apply_change`, `publish` (also rollback) and `get_logs`. Every tool acts only on apps the signed-in user owns.
+- Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app`, `get_app`, `apply_change`, `publish` (also rollback), `upload_file` and `get_logs`. Every tool acts only on apps the signed-in user owns.
 - Preview and live stages per app. Preview runs on a snapshot of live data; publish backs up live data first.
 - Additive schema migrations, seed data.
 - Server scripts in goja, run in a pool of separate worker processes: 2 s time limit, a heap watchdog inside each worker (64 MiB), and the parent kills any worker over 256 MiB resident and starts a new one. At most 2 scripts of one app run at once, so one app cannot occupy every worker. No filesystem, network or timers; a SQLite authorizer allows data statements only.
 - Admin panel on the Renoxium site at `/apps/<app>`, generated from the live schema: tables with row counts, recent errors, a searchable and paginated list per table, and add/edit/delete forms whose inputs follow column types. Owner only; every change is written to the app log.
+- Image uploads through the `upload_file` tool or the admin panel, stored on local disk under the SHA-256 of their content: identical images are stored once, even across apps, and uploading again returns the same URL. Each app serves only the files recorded for it, at `/_rx/files/<hash>.<ext>` with immutable cache headers. Columns of type `image` hold these URLs.
 - Templates with any HTML/CSS/browser JavaScript, auto-escaped data.
 - One log per app: requests, script errors with stack traces, script console output, and browser errors reported by an injected snippet, linked by request ID.
 

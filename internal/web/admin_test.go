@@ -34,6 +34,11 @@ func (e *env) publishShop(c *http.Client, app string) {
 		Templates: map[string]string{"t": "shop"},
 		Routes:    []appdef.Route{{Method: "GET", Path: "/", Template: "t"}},
 	}
+	e.publishDef(c, app, def)
+}
+
+func (e *env) publishDef(c *http.Client, app string, def *appdef.App) {
+	e.t.Helper()
 	raw, _ := json.Marshal(def)
 	var defMap map[string]any
 	json.Unmarshal(raw, &defMap)

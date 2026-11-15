@@ -28,6 +28,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	if !ok {
 		return false
 	}
+	if strings.HasPrefix(r.URL.Path, FilesPrefix) {
+		p.serveFile(w, r, app)
+		return true
+	}
 	st, err := p.loadStage(app, stageName)
 	if err != nil {
 		http.Error(w, "this app is temporarily unavailable", http.StatusServiceUnavailable)

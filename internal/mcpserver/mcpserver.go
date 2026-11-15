@@ -3,15 +3,19 @@
 package mcpserver
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
@@ -32,6 +36,12 @@ App definition:
   Return {template: "name", data: {...}} for HTML (full page or fragment), {json: value} for JSON, {text: "..."}, or {redirect: "/path"}; add status to change the HTTP status.
 - routes: {method: GET|POST, path: "/products/:id", template or script}.
 - seed: rows inserted when a table is first created (sample products).
+
+Images:
+- Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
+  Uploading the same image again returns the same url without storing it twice.
+- Store that url in a column of type image and render it with <img src="{{.image}}" alt="...">. The url works on live, preview and custom domains.
+- The owner can also upload images in the admin panel at the Renoxium site, /apps/<app>.
 
 Security rules for what you write:
 - Render visitor-supplied text through templates (they escape automatically) or element.textContent. Never build HTML strings from visitor data in browser JavaScript.
@@ -126,6 +136,28 @@ func New(p *platform.Platform) *mcp.Server {
 			return nil, res, err
 		})
 
+	type uploadIn struct {
+		App        string `json:"app"`
+		DataBase64 string `json:"data_base64" jsonschema:"the image file content, base64-encoded (standard alphabet, padding optional)"`
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "upload_file",
+		Description: "Upload an image for an app and get its url. Identical content is stored once and returns the same url."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in uploadIn) (*mcp.CallToolResult, platform.FileInfo, error) {
+			if err := owns(p, req, in.App); err != nil {
+				return nil, platform.FileInfo{}, err
+			}
+			data := strings.TrimRight(strings.Join(strings.Fields(in.DataBase64), ""), "=")
+			if base64.RawStdEncoding.DecodedLen(len(data)) > files.MaxSize {
+				return nil, platform.FileInfo{}, files.ErrTooLarge
+			}
+			raw, err := base64.RawStdEncoding.DecodeString(data)
+			if err != nil {
+				return nil, platform.FileInfo{}, errors.New("data_base64 is not valid base64")
+			}
+			info, err := p.AddFile(in.App, bytes.NewReader(raw))
+			return nil, info, err
+		})
+
 	type logsIn struct {
 		App          string `json:"app"`
 		Stage        string `json:"stage,omitempty" jsonschema:"live or preview; omit for both"`
@@ -175,6 +207,9 @@ func owns(p *platform.Platform, req *mcp.CallToolRequest, app string) error {
 // access token accepted by verify; unauthenticated requests get a 401 that
 // points the agent at resourceMetadataURL to start the OAuth flow.
 func Handler(s *mcp.Server, verify auth.TokenVerifier, resourceMetadataURL string) http.Handler {
-	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return s }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
+	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return s }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true,
+		// Room for a 10 MB image sent to upload_file as base64. The token
+		// check runs before the body is read.
+		MaxRequestBodyBytes: 16 << 20})
 	return auth.RequireBearerToken(verify, &auth.RequireBearerTokenOptions{ResourceMetadataURL: resourceMetadataURL})(h)
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
 )
@@ -45,9 +46,10 @@ type Config struct {
 
 // Platform is safe for concurrent use.
 type Platform struct {
-	cfg Config
-	db  *sql.DB
-	sb  sandbox.Sandbox
+	cfg   Config
+	db    *sql.DB
+	sb    sandbox.Sandbox
+	files *files.Store
 
 	change sync.Mutex // serialises ApplyChange and Publish
 
@@ -126,6 +128,9 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		`CREATE TABLE IF NOT EXISTS versions (app TEXT NOT NULL, n INTEGER NOT NULL, definition TEXT NOT NULL,
 			created_at TEXT NOT NULL, PRIMARY KEY (app, n))`,
 		`CREATE TABLE IF NOT EXISTS domains (host TEXT PRIMARY KEY, app TEXT NOT NULL, stage TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS blobs (hash TEXT PRIMARY KEY, size INTEGER NOT NULL, content_type TEXT NOT NULL, created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS app_files (app TEXT NOT NULL, hash TEXT NOT NULL REFERENCES blobs(hash), created_at TEXT NOT NULL,
+			PRIMARY KEY (app, hash))`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			db.Close()
@@ -137,10 +142,15 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	store, err := files.Open(filepath.Join(cfg.DataDir, "files"))
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
 	if cfg.ScriptsPerApp <= 0 {
 		cfg.ScriptsPerApp = 2
 	}
-	return &Platform{cfg: cfg, db: db, sb: sb,
+	return &Platform{cfg: cfg, db: db, sb: sb, files: store,
 		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}}, nil
 }
 

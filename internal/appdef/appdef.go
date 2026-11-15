@@ -29,10 +29,11 @@ type Table struct {
 	Columns []Column `json:"columns"`
 }
 
-// Column is a table column. Type is one of text, integer, real, boolean, datetime, json.
+// Column is a table column. Type is one of text, integer, real, boolean,
+// datetime, json or image; an image column holds the URL of an uploaded file.
 type Column struct {
 	Name     string `json:"name"`
-	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json"`
+	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file)"`
 	Required bool   `json:"required,omitempty"`
 	Unique   bool   `json:"unique,omitempty"`
 }
@@ -50,7 +51,7 @@ var identRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 // ColumnTypes maps definition types to SQLite column types.
 var ColumnTypes = map[string]string{
 	"text": "TEXT", "integer": "INTEGER", "real": "REAL",
-	"boolean": "INTEGER", "datetime": "TEXT", "json": "TEXT",
+	"boolean": "INTEGER", "datetime": "TEXT", "json": "TEXT", "image": "TEXT",
 }
 
 // ValidIdent reports whether s is usable as a table or column name.
@@ -100,7 +101,7 @@ func (a *App) Validate() []string {
 			}
 			cols[c.Name] = true
 			if _, ok := ColumnTypes[c.Type]; !ok {
-				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime or json)", t.Name, c.Name, c.Type)
+				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime, json or image)", t.Name, c.Name, c.Type)
 			}
 		}
 	}

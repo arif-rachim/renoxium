@@ -12,6 +12,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
@@ -166,6 +167,7 @@ func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
 func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, app string, t appdef.Table, id int64, row map[string]any,
 	values map[string]string, errs platform.FieldErrors, saved bool) {
 	var fields []field
+	hasImage := false
 	for _, c := range t.Columns {
 		f := field{Name: c.Name, Label: label(c.Name), Type: c.Type, Value: values[c.Name], Required: c.Required, Error: errs[c.Name]}
 		switch c.Type {
@@ -177,6 +179,9 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 			f.Input = "datetime-local"
 		case "json":
 			f.Input = "textarea"
+		case "image":
+			f.Input = "image"
+			hasImage = true
 		default:
 			f.Input = "text"
 			if len(f.Value) > 80 || strings.ContainsAny(f.Value, "\n") || longText(c.Name) {
@@ -191,6 +196,10 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 			other = label(k) + ": " + v
 		}
 	}
+	liveURL := ""
+	if info, err := s.platform.Info(app); err == nil {
+		liveURL = info.LiveURL
+	}
 	created := ""
 	if row != nil {
 		created = display(row["created_at"], "datetime")
@@ -198,6 +207,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 	render(w, status, "admin_form", map[string]any{
 		"App": app, "Table": t.Name, "Label": label(t.Name), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
+		"HasImage": hasImage, "LiveURL": liveURL,
 	})
 }
 
@@ -205,6 +215,19 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	u, app, ok := s.owner(w, r)
 	if !ok {
 		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, files.MaxSize+1<<20)
+	if ct := r.Header.Get("Content-Type"); strings.HasPrefix(ct, "multipart/form-data") {
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			var tooBig *http.MaxBytesError
+			if errors.As(err, &tooBig) {
+				render(w, http.StatusRequestEntityTooLarge, "error", map[string]any{"Message": files.ErrTooLarge.Error() + ". Go back and choose a smaller image."})
+				return
+			}
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+		defer r.MultipartForm.RemoveAll()
 	}
 	if !checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
@@ -224,10 +247,31 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	values := map[string]string{}
+	uploadErrs := platform.FieldErrors{}
 	for _, c := range t.Columns {
 		values[c.Name] = r.PostFormValue(c.Name)
+		if c.Type != "image" {
+			continue
+		}
+		if r.PostFormValue(c.Name+"__remove") == "1" {
+			values[c.Name] = ""
+		}
+		if file, _, err := r.FormFile(c.Name + "__upload"); err == nil {
+			info, err := s.platform.AddFile(app, file)
+			file.Close()
+			if err != nil {
+				uploadErrs[c.Name] = err.Error()
+				continue
+			}
+			values[c.Name] = info.URL
+		}
 	}
-	newID, err := s.platform.AdminSave(r.Context(), app, table, id, values, u.Email)
+	var newID int64
+	if len(uploadErrs) > 0 {
+		err = uploadErrs
+	} else {
+		newID, err = s.platform.AdminSave(r.Context(), app, table, id, values, u.Email)
+	}
 	var ferr platform.FieldErrors
 	switch {
 	case errors.As(err, &ferr):
@@ -324,6 +368,11 @@ func display(v any, typ string) string {
 	switch x := v.(type) {
 	case nil:
 		return ""
+	case string:
+		if typ == "image" && x != "" {
+			return "Image"
+		}
+		return x
 	case int64:
 		if typ == "boolean" {
 			if x != 0 {
@@ -334,8 +383,6 @@ func display(v any, typ string) string {
 		return strconv.FormatInt(x, 10)
 	case float64:
 		return strconv.FormatFloat(x, 'f', -1, 64)
-	case string:
-		return x
 	}
 	return fmt.Sprint(v)
 }
@@ -343,6 +390,9 @@ func display(v any, typ string) string {
 // formValue formats a stored value for an input field.
 func formValue(v any, typ string) string {
 	switch typ {
+	case "image":
+		s, _ := v.(string)
+		return s
 	case "boolean":
 		if x, ok := v.(int64); ok && x != 0 {
 			return "1"
