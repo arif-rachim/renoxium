@@ -1,6 +1,6 @@
 # Deploying Renoxium behind Cloudflare Tunnel
 
-A full step-by-step guide in Indonesian for a small Ubuntu VPS, including backups and updates, is in
+A full step-by-step guide for a small Ubuntu VPS, including backups and updates, is in
 [docs/deploy-ubuntu.md](../docs/deploy-ubuntu.md).
 
 Cloudflare terminates HTTPS and forwards requests through `cloudflared` to

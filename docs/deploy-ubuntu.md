@@ -1,45 +1,45 @@
-# Deploy Renoxium di VPS Ubuntu kecil
+# Deploying Renoxium on a small Ubuntu VPS
 
-Panduan ini untuk satu VPS Ubuntu 22.04 atau 24.04 berukuran kecil (sekitar 1 vCPU dan 1–2 GB RAM),
-dengan HTTPS dari Cloudflare Tunnel. VPS tidak perlu membuka port apa pun selain SSH.
+This guide is for one small Ubuntu 22.04 or 24.04 VPS (about 1 vCPU and 1–2 GB RAM), with HTTPS
+provided by Cloudflare Tunnel. The VPS opens no ports other than SSH.
 
 ```
-Pengunjung / ChatGPT / Claude
+Visitors / ChatGPT / Claude
         │ HTTPS
         ▼
-   Cloudflare  (sertifikat untuk renoxium.com dan *.renoxium.app)
-        │ tunnel keluar dari VPS
+   Cloudflare  (certificates for renoxium.com and *.renoxium.app)
+        │ tunnel, opened outbound from the VPS
         ▼
-   cloudflared ──► Renoxium di 127.0.0.1:8080 ──► /var/lib/renoxium (SQLite)
+   cloudflared ──► Renoxium on 127.0.0.1:8080 ──► /var/lib/renoxium (SQLite)
 ```
 
-## Yang perlu disiapkan
+## Before you start
 
-- VPS Ubuntu dengan akses SSH dan `sudo`.
-- Domain `renoxium.com` dan `renoxium.app` sudah menjadi zone di akun Cloudflare yang sama.
-- Komputer dengan Go 1.26 atau lebih baru untuk build. Go versi lama akan mengunduh 1.26 sendiri.
+- An Ubuntu VPS with SSH access and `sudo`.
+- `renoxium.com` and `renoxium.app` are both zones in the same Cloudflare account.
+- A computer with Go 1.26 or newer to build the binary. An older Go downloads 1.26 by itself.
 
-## Perkiraan memori
+## Memory budget
 
-| Bagian | Normal | Paling buruk |
+| Part | Normal | Worst case |
 | --- | --- | --- |
-| Proses utama | 30–60 MB | tumbuh dengan jumlah toko yang aktif |
-| Tiap worker skrip | sekitar 24 MB | 256 MB, lalu dibunuh dan diganti |
+| Main process | 30–60 MB | grows with the number of active apps |
+| Each script worker | about 24 MB | 256 MB, then it is killed and replaced |
 | cloudflared | 30–50 MB | |
 
-Dengan `-workers 2` (bawaan di `deploy/renoxium.service`), pemakaian normal sekitar 150 MB dan paling buruk
-sekitar 650 MB. Untuk VPS 1 GB itu cukup, ditambah swap 1 GB sebagai cadangan. Untuk 2 GB atau lebih,
-ubah menjadi `-workers 4`.
+With `-workers 2` (the setting in `deploy/renoxium.service`), normal use is about 150 MB and the worst
+case about 650 MB. That fits a 1 GB VPS with 1 GB of swap as a safety margin. On 2 GB or more, use
+`-workers 4`.
 
-## 1. Siapkan server
+## 1. Prepare the server
 
-Login ke VPS, lalu perbarui paket dan pasang `sqlite3` (dipakai untuk backup):
+Log in to the VPS, update packages and install `sqlite3` (used for backups):
 
 ```bash
 sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y sqlite3
 ```
 
-Tambahkan swap 1 GB kalau VPS hanya punya 1 GB RAM:
+Add 1 GB of swap if the VPS has only 1 GB of RAM:
 
 ```bash
 sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
@@ -49,13 +49,13 @@ sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapf
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-Tutup semua port masuk kecuali SSH. Tunnel hanya membuat koneksi keluar, jadi port 80 dan 443 tidak perlu dibuka:
+Close every inbound port except SSH. The tunnel only makes outbound connections, so ports 80 and 443 stay closed:
 
 ```bash
 sudo ufw default deny incoming && sudo ufw default allow outgoing && sudo ufw allow OpenSSH && sudo ufw --force enable
 ```
 
-Buat user sistem dan folder data:
+Create a system user and the data directory:
 
 ```bash
 sudo useradd --system --home /var/lib/renoxium --shell /usr/sbin/nologin renoxium
@@ -65,22 +65,22 @@ sudo useradd --system --home /var/lib/renoxium --shell /usr/sbin/nologin renoxiu
 sudo install -d -o renoxium -g renoxium -m 700 /var/lib/renoxium
 ```
 
-## 2. Build dan kirim aplikasi
+## 2. Build and copy the binary
 
-Di komputermu, dari folder repo. Pakai `GOARCH=arm64` kalau VPS-mu ARM (cek dengan `uname -m` di VPS:
-`x86_64` berarti amd64, `aarch64` berarti arm64).
+On your computer, from the repository folder. Use `GOARCH=arm64` if the VPS is ARM (run `uname -m` on
+the VPS: `x86_64` means amd64, `aarch64` means arm64).
 
 ```bash
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o renoxium ./cmd/renoxium
 ```
 
 ```bash
-scp renoxium deploy/renoxium.service deploy/backup.sh deploy/cloudflared-config.yml USER@IP-VPS:~
+scp renoxium deploy/renoxium.service deploy/backup.sh deploy/cloudflared-config.yml USER@VPS-IP:~
 ```
 
-## 3. Jalankan Renoxium sebagai service
+## 3. Run Renoxium as a service
 
-Di VPS:
+On the VPS:
 
 ```bash
 sudo install -D -m 755 ~/renoxium /opt/renoxium/renoxium && sudo install -m 755 ~/backup.sh /opt/renoxium/backup.sh
@@ -90,21 +90,21 @@ sudo install -D -m 755 ~/renoxium /opt/renoxium/renoxium && sudo install -m 755 
 sudo cp ~/renoxium.service /etc/systemd/system/renoxium.service && sudo systemctl daemon-reload && sudo systemctl enable --now renoxium
 ```
 
-Cek bahwa server hidup. Perintah ini harus mencetak `ok`:
+Check that the server is up. This must print `ok`:
 
 ```bash
 curl -s 127.0.0.1:8080/healthz
 ```
 
-Kalau tidak, lihat log-nya:
+If it does not, read the log:
 
 ```bash
 sudo journalctl -u renoxium -n 50 --no-pager
 ```
 
-## 4. Pasang Cloudflare Tunnel
+## 4. Set up Cloudflare Tunnel
 
-Pasang `cloudflared` dari repository resmi Cloudflare:
+Install `cloudflared` from Cloudflare's official repository:
 
 ```bash
 sudo mkdir -p --mode=0755 /usr/share/keyrings && curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
@@ -118,29 +118,30 @@ echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudf
 sudo apt-get update && sudo apt-get install -y cloudflared
 ```
 
-Login ke Cloudflare. Perintah ini mencetak sebuah link; buka di browser dan pilih zone `renoxium.com`:
+Log in to Cloudflare. The command prints a link; open it in a browser and choose the `renoxium.com` zone:
 
 ```bash
 cloudflared tunnel login
 ```
 
-Buat tunnel. Catat ID yang dicetak (bentuknya seperti `6ff42ae2-765d-4adf-8112-31c55c1551ef`):
+Create the tunnel and note the ID it prints (it looks like `6ff42ae2-765d-4adf-8112-31c55c1551ef`):
 
 ```bash
 cloudflared tunnel create renoxium
 ```
 
-Pindahkan konfigurasi dan kredensial ke `/etc/cloudflared`. Ganti `TUNNEL_ID` dengan ID tadi:
+Move the configuration and credentials to `/etc/cloudflared`. Replace `TUNNEL_ID` and `YOUR-TUNNEL-ID`
+with that ID:
 
 ```bash
 sudo mkdir -p /etc/cloudflared && sudo cp ~/.cloudflared/TUNNEL_ID.json /etc/cloudflared/
 ```
 
 ```bash
-sed 's/TUNNEL_ID/ID-TUNNEL-KAMU/g' ~/cloudflared-config.yml | sudo tee /etc/cloudflared/config.yml
+sed 's/TUNNEL_ID/YOUR-TUNNEL-ID/g' ~/cloudflared-config.yml | sudo tee /etc/cloudflared/config.yml
 ```
 
-Arahkan DNS kedua domain ke tunnel:
+Point both domains at the tunnel:
 
 ```bash
 cloudflared tunnel route dns renoxium renoxium.com
@@ -150,22 +151,22 @@ cloudflared tunnel route dns renoxium renoxium.com
 cloudflared tunnel route dns renoxium '*.renoxium.app'
 ```
 
-Kalau perintah kedua menolak karena `renoxium.app` zone yang berbeda, tambahkan record DNS secara manual
-di dashboard Cloudflare untuk `renoxium.app`: tipe `CNAME`, nama `*`, target `TUNNEL_ID.cfargotunnel.com`,
-dengan proxy menyala (awan oranye).
+If the second command refuses because `renoxium.app` is a different zone, add the DNS record by hand
+in the Cloudflare dashboard for `renoxium.app`: type `CNAME`, name `*`, target
+`TUNNEL_ID.cfargotunnel.com`, proxy on (orange cloud).
 
-Jalankan tunnel sebagai service:
+Run the tunnel as a service:
 
 ```bash
 sudo cloudflared service install && sudo systemctl enable --now cloudflared
 ```
 
-Di dashboard Cloudflare, untuk kedua zone, buka **SSL/TLS → Edge Certificates** dan nyalakan
+In the Cloudflare dashboard, for both zones, open **SSL/TLS → Edge Certificates** and turn on
 **Always Use HTTPS**.
 
-## 5. Cek dari luar
+## 5. Check from outside
 
-Dari komputer mana saja:
+From any computer:
 
 ```bash
 curl -s https://renoxium.com/healthz
@@ -175,83 +176,84 @@ curl -s https://renoxium.com/healthz
 curl -s https://renoxium.com/.well-known/oauth-authorization-server
 ```
 
-Yang pertama mencetak `ok`. Yang kedua mengembalikan JSON yang berisi `"issuer":"https://renoxium.com"`.
+The first prints `ok`. The second returns JSON containing `"issuer":"https://renoxium.com"`.
 
-Lalu coba alur lengkapnya:
+Then try the whole flow:
 
-1. Buka `https://renoxium.com`, buat akun.
-2. Di ChatGPT (aktifkan developer mode) atau Claude, tambahkan connector kustom dengan alamat
-   `https://renoxium.com/mcp`. Agen akan membuka layar login dan persetujuan Renoxium.
-3. Minta agen: "Buatkan toko online parfum dengan tiga produk, lalu publish."
-4. Buka toko di `https://NAMA-TOKO.renoxium.app`, dan kelola datanya di `https://renoxium.com/apps/NAMA-TOKO`.
+1. Open `https://renoxium.com` and create an account.
+2. In ChatGPT (with developer mode on) or Claude, add a custom connector with the address
+   `https://renoxium.com/mcp`. The agent opens the Renoxium sign-in and consent screens.
+3. Ask the agent: "Build an online perfume store with three products, then publish it."
+4. Open the store at `https://STORE-NAME.renoxium.app` and manage its data at
+   `https://renoxium.com/apps/STORE-NAME`.
 
-## 6. Backup otomatis
+## 6. Automatic backups
 
-`backup.sh` menyalin semua database dengan aman walaupun server sedang berjalan, lalu membuat satu arsip
-`.tar.gz` di `/var/backups/renoxium` dan menghapus arsip yang lebih tua dari 14 hari. Coba sekali:
+`backup.sh` copies every database safely while the server runs, writes one `.tar.gz` archive to
+`/var/backups/renoxium` and deletes archives older than 14 days. Run it once:
 
 ```bash
 sudo /opt/renoxium/backup.sh
 ```
 
-Jadwalkan setiap hari pukul 03:17 waktu server:
+Schedule it every day at 03:17 server time:
 
 ```bash
 echo '17 3 * * * root /opt/renoxium/backup.sh >/dev/null' | sudo tee /etc/cron.d/renoxium-backup
 ```
 
-Backup di VPS yang sama tidak menolong kalau VPS-nya hilang. Salin arsipnya secara rutin ke tempat lain,
-misalnya Cloudflare R2 atau object storage lain dengan `rclone`.
+A backup on the same VPS does not help if the VPS is lost. Copy the archives somewhere else regularly,
+for example to Cloudflare R2 or other object storage with `rclone`.
 
-### Memulihkan dari backup
+### Restoring from a backup
 
 ```bash
 sudo systemctl stop renoxium
 ```
 
 ```bash
-sudo mkdir -p /tmp/restore && sudo tar -C /tmp/restore -xzf /var/backups/renoxium/renoxium-TANGGAL.tar.gz
+sudo mkdir -p /tmp/restore && sudo tar -C /tmp/restore -xzf /var/backups/renoxium/renoxium-STAMP.tar.gz
 ```
 
 ```bash
-sudo rsync -a --delete /tmp/restore/TANGGAL/ /var/lib/renoxium/ && sudo chown -R renoxium:renoxium /var/lib/renoxium
+sudo rsync -a --delete /tmp/restore/STAMP/ /var/lib/renoxium/ && sudo chown -R renoxium:renoxium /var/lib/renoxium
 ```
 
 ```bash
 sudo systemctl start renoxium
 ```
 
-Database preview tidak ikut di-backup karena isinya hanya salinan data live. Preview akan dibuat ulang
-pada `apply_change` berikutnya.
+Preview databases are not backed up because they only hold a copy of live data. The next
+`apply_change` creates the preview again.
 
-## 7. Memperbarui ke versi baru
+## 7. Updating to a new version
 
-Build dan kirim binary baru seperti langkah 2, lalu di VPS:
+Build and copy the new binary as in step 2, then on the VPS:
 
 ```bash
 sudo /opt/renoxium/backup.sh && sudo install -m 755 ~/renoxium /opt/renoxium/renoxium && sudo systemctl restart renoxium
 ```
 
-Restart hanya beberapa detik. Request yang sedang berjalan saat itu bisa gagal, jadi lakukan di jam sepi.
+A restart takes a few seconds. Requests in flight at that moment can fail, so update at a quiet time.
 
-## Perintah sehari-hari
+## Everyday commands
 
-| Untuk | Perintah |
+| For | Command |
 | --- | --- |
-| Log Renoxium langsung | `sudo journalctl -u renoxium -f` |
-| Log tunnel | `sudo journalctl -u cloudflared -f` |
+| Follow the Renoxium log | `sudo journalctl -u renoxium -f` |
+| Follow the tunnel log | `sudo journalctl -u cloudflared -f` |
 | Status | `systemctl status renoxium cloudflared` |
-| Pemakaian memori | `ps -o rss,args -u renoxium` (angka RSS dalam KB) |
-| Ukuran data | `sudo du -sh /var/lib/renoxium` |
+| Memory use | `ps -o rss,args -u renoxium` (RSS in KB) |
+| Data size | `sudo du -sh /var/lib/renoxium` |
 
-## Kalau ada masalah
+## Troubleshooting
 
-| Gejala | Penyebab yang mungkin | Yang dicek |
+| Symptom | Likely cause | What to check |
 | --- | --- | --- |
-| Halaman error Cloudflare 1033 atau 502 | `cloudflared` atau Renoxium mati | `systemctl status cloudflared renoxium` |
-| `https://renoxium.com` jalan, toko tidak | DNS `*.renoxium.app` belum ada | record `*` di zone `renoxium.app` |
-| Toko menampilkan "not published yet" | Aplikasi belum di-publish | minta agen menjalankan `publish` |
-| Login terus kembali ke form login | `-base-url` tidak sama dengan alamat yang dibuka | harus persis `https://renoxium.com` |
-| Agen gagal connect, `/mcp` memberi 401 | Normal sebelum login; masalah ada di langkah OAuth | buka `/.well-known/oauth-authorization-server`, cek isinya memakai `https://renoxium.com` |
-| Semua orang terkena "too many attempts" | `-trusted-ip-header` hilang dari service | `systemctl cat renoxium` |
-| Memori penuh | Terlalu banyak worker untuk ukuran VPS | turunkan `-workers`, pastikan swap aktif dengan `free -h` |
+| Cloudflare error page 1033 or 502 | `cloudflared` or Renoxium is down | `systemctl status cloudflared renoxium` |
+| `https://renoxium.com` works, stores do not | No DNS record for `*.renoxium.app` | the `*` record in the `renoxium.app` zone |
+| A store shows "not published yet" | The app was never published | ask the agent to run `publish` |
+| Sign-in keeps returning to the sign-in form | `-base-url` differs from the address in the browser | it must be exactly `https://renoxium.com` |
+| The agent cannot connect, `/mcp` returns 401 | Normal before sign-in; the problem is in the OAuth steps | open `/.well-known/oauth-authorization-server` and check it uses `https://renoxium.com` |
+| Everyone gets "too many attempts" | `-trusted-ip-header` is missing from the service | `systemctl cat renoxium` |
+| Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |
