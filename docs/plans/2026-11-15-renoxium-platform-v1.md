@@ -11,7 +11,7 @@
 ## Decisions
 - How is agent-submitted logic executed? → Declarative schema + routes + HTML templates + small sandboxed scripts inside the Go runtime. Agents do not write Go. (Only option that is both safe and memory-cheap in one multi-tenant process.)
 - Who is v1 for? → Non-technical sellers using ChatGPT/Claude. (Platform must own everything technical.)
-- Is enterprise a target? → No. Renoxium is for UMKM (small businesses) only; large-enterprise needs (HA, SSO, compliance certification) are not a goal, not just deferred.
+- Is enterprise a target? → No. Renoxium is for small businesses only; large-enterprise needs (HA, SSO, compliance certification) are not a goal, not just deferred.
 - May templates contain arbitrary client-side JavaScript? → Yes. Agents can put any HTML/JS in templates; it runs in the visitor's browser, not on the server. Guard rails: one origin per app, admin panel and Renoxium dashboard on a separate domain, auto-escaping of visitor data, card data only on the gateway's page.
 - How does the agent find out what broke? → One unified log per app covering server and browser, readable through the MCP `get_logs` tool (see Approach step 6a).
 - Which environments does an app have? → Two stages, not three: **preview** (draft version, where the agent develops and automatic checks run) and **live**. Preview runs on a snapshot copy of the live database (or template sample data for a new app), and all outside effects are sandboxed: payment gateway in sandbox mode, WhatsApp/email captured to the log instead of sent, jobs not scheduled. Migrations are proven on the copy before they touch live data.
@@ -20,6 +20,10 @@
 - Custom domains (e.g. `www.tokoku.com` bound to `tokoku.renoxium.app`, Netlify-style)? → Planned right after v1, as a paid feature. v1 must not block it: tenant routing looks the request host up in a domain table (never parses the subdomain), and all generated links, redirects, payment callbacks and the app MCP URL come from one "canonical host" helper. Later design: merchant adds CNAME (`www`) or A record (apex) plus a TXT ownership record; platform verifies, then issues TLS automatically with a pure-Go ACME library (CertMagic), only for domains present in the domain table; the renoxium.app address redirects to the custom domain.
 - Which script engine? → goja (pure Go JavaScript interpreter), behind a `Sandbox` interface, executed in a small pool of separate worker processes with OS memory limits (goja has no hard memory cap). QuickJS-on-wazero is the upgrade path if in-process memory caps or newer JS syntax become necessary.
 - Build constraints → no cgo anywhere: pure-Go SQLite driver (`modernc.org/sqlite`), no `v8go`, no embedded V8/Deno. Keeps builds fast and cross-compilation trivial.
+- Which market? → United Arab Emirates (not Indonesia). Consequences for v1: prices in AED, 5% UAE VAT on orders and invoices, English and Arabic including right-to-left layouts in templates and the admin panel, cash on delivery as an order payment method, personal data handled under the UAE data protection law (PDPL).
+- Payments → Stripe. Each merchant connects their own Stripe account (Stripe Connect), checkout happens on Stripe-hosted pages, the platform receives webhooks. Connect also leaves the door open for a per-transaction platform fee later.
+- Already in place (owner confirmed) → domains `renoxium.com` (site, dashboard, builder MCP) and `renoxium.app` (tenant apps), a VPS, a Stripe account, a WhatsApp Business setup, and a registered legal entity.
+- Client-side libraries → none bundled or required. The agent writes its own browser JavaScript. Routes can return a full page, an HTML fragment (a partial template) or JSON. Builder tool guidance tells the agent to render visitor-supplied data through server templates (auto-escaped) or `textContent`, never by building HTML strings in the browser.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
@@ -30,7 +34,6 @@
 - Single node, single Go binary, SQLite in WAL mode, Litestream-style backup to object storage. No clustering in v1.
 - One MCP server (remote, OAuth) serves ChatGPT, Claude and other agents. No separate per-vendor plugin.
 - Apps are served on `<app>.renoxium.app`; custom domains later.
-- Payments: one Indonesian gateway (Midtrans or Xendit, QRIS included) behind a `payments` primitive. Merchant uses their own gateway account.
 - WhatsApp is outbound notifications only in v1 (no two-way bot).
 - Every change by the agent creates a new immutable app version; production points at one version.
 - Pricing/billing for Renoxium itself is out of v1; hard quotas per tenant are in.
@@ -86,14 +89,14 @@
 - Schema change destroys live data → additive migrations by default, snapshot before every publish, destructive changes need an explicit confirmed flag.
 - Dependence on ChatGPT/Claude distribution rules → plain MCP + OAuth, no vendor-specific features; admin panel works without any chat platform.
 - SQLite single-writer limits → accept for v1; one busy tenant only slows itself.
-- Competing with Shopify/Lovable/Replit → compete on local payments, WhatsApp, price and speed; revisit after first 10 real sellers.
+- Competing with Shopify/Lovable/Replit → compete on a store that sells out of the box for the UAE (AED, VAT, Arabic/RTL, cash on delivery, WhatsApp), no build credits, price and speed; revisit after first 10 real sellers.
 
 ## Verification
 - Automated: Go unit tests per package; sandbox isolation and timeout tests; migration and rollback tests; an end-to-end test that applies the store template via the MCP tools and places an order over HTTP.
 - Manual: from ChatGPT, install the MCP server, ask for a store, place a paid test order (gateway sandbox), see it in the admin panel and receive the WhatsApp message.
 
 ## Open questions deferred
-- Midtrans vs Xendit; WhatsApp provider.
-- Hosting provider and backup target.
+- Backup target (object storage) and whether the existing VPS has a fixed IP.
+- Which UAE shipping carriers to integrate first.
 - Renoxium's own pricing and free-tier quotas.
 - When and whether to add custom domains and a template marketplace.
