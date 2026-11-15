@@ -16,10 +16,10 @@ const MaxSize = 1 << 20
 
 // App is one version of an app definition.
 type App struct {
-	Tables    []Table                      `json:"tables,omitempty" jsonschema:"database tables; every table automatically gets id and created_at columns"`
-	Templates map[string]string            `json:"templates,omitempty" jsonschema:"named Go html/template sources; may contain any HTML, CSS and browser JavaScript"`
-	Scripts   map[string]string            `json:"scripts,omitempty" jsonschema:"named server-side JavaScript sources, each defining function handle(req)"`
-	Routes    []Route                      `json:"routes" jsonschema:"HTTP routes served by the app"`
+	Tables    []Table                     `json:"tables,omitempty" jsonschema:"database tables; every table automatically gets id and created_at columns"`
+	Templates map[string]string           `json:"templates,omitempty" jsonschema:"named Go html/template sources; may contain any HTML, CSS and browser JavaScript"`
+	Scripts   map[string]string           `json:"scripts,omitempty" jsonschema:"named server-side JavaScript sources, each defining function handle(req)"`
+	Routes    []Route                     `json:"routes" jsonschema:"HTTP routes served by the app"`
 	Seed      map[string][]map[string]any `json:"seed,omitempty" jsonschema:"rows inserted into a table when that table is first created, keyed by table name"`
 }
 

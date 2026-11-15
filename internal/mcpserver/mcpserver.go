@@ -10,8 +10,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
@@ -58,7 +58,7 @@ func New(p *platform.Platform) *mcp.Server {
 	}
 	type getAppOut struct {
 		platform.AppInfo
-		Version    int          `json:"version" jsonschema:"version of the definition returned; 0 if none yet"`
+		Version    int         `json:"version" jsonschema:"version of the definition returned; 0 if none yet"`
 		Definition *appdef.App `json:"definition,omitempty"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "get_app", Description: "Read an app's URLs, live and preview versions, and a stored definition."},
@@ -79,7 +79,7 @@ func New(p *platform.Platform) *mcp.Server {
 		})
 
 	type applyIn struct {
-		App        string      `json:"app"`
+		App        string     `json:"app"`
 		Definition appdef.App `json:"definition" jsonschema:"the complete app definition; replaces the previous version"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "apply_change",

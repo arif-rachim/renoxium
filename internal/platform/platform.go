@@ -20,8 +20,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
 )

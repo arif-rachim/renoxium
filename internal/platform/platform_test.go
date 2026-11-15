@@ -13,8 +13,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/mcpserver"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
