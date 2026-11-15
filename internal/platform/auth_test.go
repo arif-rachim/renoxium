@@ -121,7 +121,8 @@ func membersApp() *appdef.App {
 func newAuthPlatform(t *testing.T) (*platform.Platform, *outbox) {
 	t.Helper()
 	box := &outbox{}
-	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Mailer: box}, sandbox.NewGoja())
+	owners := func(id string) (string, bool) { return "owner@club.ae", id == "usr_test" }
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Mailer: box, OwnerEmail: owners}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +179,7 @@ func TestVisitorAccounts(t *testing.T) {
 
 	// Confirmation email from the live app, with the app's sender name.
 	msg := box.last(t, "visitor_verify")
-	if msg.To != "salma@mail.ae" || msg.FromName != "club via Renoxium" {
+	if msg.To != "salma@mail.ae" || msg.FromName != "club via Renoxium" || msg.ReplyTo != "owner@club.ae" {
 		t.Fatalf("verify email: %+v", msg)
 	}
 	link := tokenLink.FindString(msg.Text)

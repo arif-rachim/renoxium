@@ -301,6 +301,14 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
 		return
 	}
 	m.FromName = st.app + " via Renoxium"
+	if p.cfg.OwnerEmail != nil {
+		var owner string
+		if p.db.QueryRowContext(ctx, `SELECT owner FROM apps WHERE name = ?`, st.app).Scan(&owner) == nil {
+			if addr, ok := p.cfg.OwnerEmail(owner); ok {
+				m.ReplyTo = addr
+			}
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 	if p.cfg.Mailer == nil {

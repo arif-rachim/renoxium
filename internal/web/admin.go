@@ -24,6 +24,8 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/{id}", s.adminForm)
 	s.mux.HandleFunc("POST /apps/{app}/t/{table}/{id}", s.adminSave)
 	s.mux.HandleFunc("POST /apps/{app}/t/{table}/{id}/delete", s.adminDelete)
+	s.mux.HandleFunc("GET /apps/{app}/visitors", s.adminVisitors)
+	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
 }
 
 // owner returns the signed-in user if they own the app in the path. It has
@@ -72,7 +74,8 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, tableRow{Name: t.Name, Label: label(t.Name), Rows: total})
 	}
 	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
-	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems})
+	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
+	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors})
 }
 
 type column struct {
@@ -313,6 +316,48 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/apps/"+app+"/t/"+table, http.StatusSeeOther)
+}
+
+func (s *Site) adminVisitors(w http.ResponseWriter, r *http.Request) {
+	_, app, ok := s.owner(w, r)
+	if !ok {
+		return
+	}
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	q := r.URL.Query().Get("q")
+	list, total, err := s.platform.Visitors(r.Context(), app, q, page)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	render(w, http.StatusOK, "admin_visitors", map[string]any{
+		"App": app, "Visitors": list, "Total": total, "Query": q, "Page": page,
+		"Pages": int(math.Ceil(float64(total) / platform.AdminPageSize)), "Prev": page - 1, "Next": page + 1, "CSRF": s.csrfToken(w, r),
+	})
+}
+
+func (s *Site) adminDeleteVisitor(w http.ResponseWriter, r *http.Request) {
+	u, app, ok := s.owner(w, r)
+	if !ok {
+		return
+	}
+	if !checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		notFound(w, err)
+		return
+	}
+	if err := s.platform.DeleteVisitor(r.Context(), app, id, u.Email); err != nil {
+		notFound(w, err)
+		return
+	}
+	http.Redirect(w, r, "/apps/"+app+"/visitors", http.StatusSeeOther)
 }
 
 func (s *Site) table(app, name string) (appdef.Table, error) {

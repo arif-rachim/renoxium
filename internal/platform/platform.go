@@ -47,6 +47,9 @@ type Config struct {
 	Mailer email.Sender
 	// TrustedIPHeader carries the visitor address behind a local tunnel.
 	TrustedIPHeader string
+	// OwnerEmail returns an app owner's verified email address, used as the
+	// reply-to address of visitor emails. ok is false when there is none.
+	OwnerEmail func(ownerID string) (address string, ok bool)
 }
 
 // Platform is safe for concurrent use.

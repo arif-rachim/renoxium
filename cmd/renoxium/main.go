@@ -59,18 +59,23 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
-	p, err := platform.New(cfg, pool)
-	if err != nil {
-		slog.Error("start platform", "err", err)
-		os.Exit(1)
-	}
-	defer p.Close()
+	// accounts opens first so visitor emails can reply to the app owner.
 	acc, err := accounts.Open(filepath.Join(*dataDir, "accounts.db"))
 	if err != nil {
 		slog.Error("open accounts", "err", err)
 		os.Exit(1)
 	}
 	defer acc.Close()
+	cfg.OwnerEmail = func(id string) (string, bool) {
+		u, err := acc.User(id)
+		return u.Email, err == nil && u.Verified
+	}
+	p, err := platform.New(cfg, pool)
+	if err != nil {
+		slog.Error("start platform", "err", err)
+		os.Exit(1)
+	}
+	defer p.Close()
 	site := web.New(*baseURL, acc, p)
 	site.TrustedIPHeader = *trustedIPHeader
 	site.Mailer = mailer

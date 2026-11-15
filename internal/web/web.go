@@ -598,6 +598,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <p class="muted">Preview (version {{.Info.PreviewVersion}}): <a href="{{.Info.PreviewURL}}">{{.Info.PreviewURL}}</a></p>
 {{if .Tables}}<h1 style="margin-top:24px">Data</h1><ul>{{range .Tables}}<li><a href="/apps/{{$.Info.App}}/t/{{.Name}}">{{.Label}}</a> <span class="muted">{{.Rows}} rows</span></li>{{end}}</ul>
 {{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app from your agent to manage its data here.{{end}}</p>{{end}}
+{{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
 {{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
 </div>{{template "bottom"}}{{end}}
 
@@ -610,6 +611,17 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "admin_visitors"}}{{template "wide" "Visitors"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
+<div class="bar"><h1 style="margin:0">Visitor accounts <span class="muted">({{.Total}})</span></h1>
+<form method="get"><input name="q" value="{{.Query}}" placeholder="Search email or name" aria-label="Search"><button class="secondary">Search</button></form></div>
+<p class="muted">People who created an account on your app. Passwords are never shown to anyone.</p>
+{{if .Visitors}}<div class="scroll"><table><thead><tr><th>#</th><th>Email</th><th>Name</th><th>Confirmed</th><th>Joined</th><th></th></tr></thead><tbody>
+{{range .Visitors}}<tr><td>{{.ID}}</td><td>{{.Email}}</td><td>{{.Name}}</td><td>{{if .Verified}}Yes{{else}}No{{end}}</td><td>{{.CreatedAt}}</td>
+<td><form method="post" action="/apps/{{$.App}}/visitors/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" style="margin:0;padding:4px 10px">Delete</button></form></td></tr>{{end}}
+</tbody></table></div>
+{{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
+{{else}}<p>{{if .Query}}Nobody matches "{{.Query}}".{{else}}No visitor accounts yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a></p>
 <form class="card" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>
