@@ -76,5 +76,9 @@ sudo cloudflared service install
   subdomain. That is why previews use `<app>--preview.renoxium.app` rather than a nested subdomain.
 - Renoxium listens on `127.0.0.1` only, so the `CF-Connecting-IP` header it trusts for rate limits can
   only come from `cloudflared`.
+- Add `renoxium.app` to the [Public Suffix List](https://github.com/publicsuffix/list) (private section) once the
+  domain is live, so browsers treat every app as its own site. Until then the platform refuses cross-origin POSTs itself.
+- In Cloudflare, add a rate limiting rule for `*.renoxium.app` and `renoxium.com/login` as an outer layer.
+- `preview.key` in the data directory signs preview links. It is created on first start; keep it with the backups.
 - Data lives in `/var/lib/renoxium`: `platform.db`, `accounts.db` and one folder per app. Back up that
   directory; backups are not automated yet.

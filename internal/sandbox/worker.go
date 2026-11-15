@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"runtime/debug"
 	"runtime/metrics"
@@ -50,7 +51,11 @@ func serveWorker(stdin *os.File, stdout *os.File, heapLimit int64, timeout time.
 		default:
 			reply = message{Type: "done", Error: "unknown request " + m.Type}
 		}
-		if send(out, reply) != nil || out.Flush() != nil {
+		err = send(out, reply)
+		if errors.Is(err, errTooLarge) {
+			err = send(out, message{Type: "done", ScriptError: fmt.Sprintf("the response is larger than %d MB", maxLine>>20)})
+		}
+		if err != nil || out.Flush() != nil {
 			return 1
 		}
 		// Give memory from a large script back before the next one.

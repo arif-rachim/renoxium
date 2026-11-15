@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"flag"
 	"log/slog"
@@ -49,7 +50,13 @@ func main() {
 	} else {
 		slog.Warn("RESEND_API_KEY is not set: emails are written to the log instead of being sent")
 	}
-	cfg := platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: "https", Mailer: mailer, TrustedIPHeader: *trustedIPHeader}
+	previewKey, err := loadKey(filepath.Join(*dataDir, "preview.key"))
+	if err != nil {
+		slog.Error("preview key", "err", err)
+		os.Exit(1)
+	}
+	cfg := platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: "https", Mailer: mailer, TrustedIPHeader: *trustedIPHeader,
+		SiteURL: strings.TrimRight(*baseURL, "/"), PreviewKey: previewKey}
 	if token, number, tmpl := os.Getenv("WHATSAPP_TOKEN"), os.Getenv("WHATSAPP_PHONE_NUMBER_ID"), os.Getenv("WHATSAPP_OTP_TEMPLATE"); token != "" && number != "" && tmpl != "" {
 		cfg.WhatsApp = &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl,
 			Language: os.Getenv("WHATSAPP_TEMPLATE_LANGUAGE"), Version: os.Getenv("WHATSAPP_API_VERSION")}
@@ -92,6 +99,12 @@ func main() {
 			site.ServeHTTP(w, r)
 		}
 	})
+	go func() {
+		for range time.Tick(time.Hour) {
+			acc.Cleanup()
+			p.Cleanup(context.Background())
+		}
+	}()
 	srv := &http.Server{Addr: *addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
 	go func() {
 		slog.Info("listening", "addr", *addr, "site", *baseURL, "mcp", *baseURL+"/mcp", "apps", "*."+*appsDomain)
@@ -106,4 +119,20 @@ func main() {
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.Shutdown(shutdown)
+}
+
+// loadKey reads a 32-byte secret, creating it on first start. It signs
+// preview links, so it never leaves the data directory.
+func loadKey(path string) ([]byte, error) {
+	if b, err := os.ReadFile(path); err == nil && len(b) == 32 {
+		return b, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	return b, os.WriteFile(path, b, 0o600)
 }

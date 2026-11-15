@@ -26,6 +26,16 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("POST /apps/{app}/t/{table}/{id}/delete", s.adminDelete)
 	s.mux.HandleFunc("GET /apps/{app}/visitors", s.adminVisitors)
 	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
+	s.mux.HandleFunc("GET /apps/{app}/preview", s.adminPreview)
+}
+
+// adminPreview sends the owner to their app's private preview with a
+// short-lived link that unlocks it in this browser.
+func (s *Site) adminPreview(w http.ResponseWriter, r *http.Request) {
+	if _, app, ok := s.owner(w, r); ok {
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		http.Redirect(w, r, s.platform.PreviewLink(app), http.StatusSeeOther)
+	}
 }
 
 // owner returns the signed-in user if they own the app in the path. It has
@@ -232,7 +242,7 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.MultipartForm.RemoveAll()
 	}
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
@@ -297,7 +307,7 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
@@ -344,7 +354,7 @@ func (s *Site) adminDeleteVisitor(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}

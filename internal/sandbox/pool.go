@@ -191,12 +191,19 @@ type wireResponse struct {
 	Redirect string `json:"redirect,omitempty"`
 }
 
-const maxLine = 64 << 20
+// maxLine caps one protocol message, such as a script's response or a
+// query result, so a worker cannot make the parent parse huge JSON.
+const maxLine = 8 << 20
+
+var errTooLarge = errors.New("message too large")
 
 func send(w io.Writer, m message) error {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return err
+	}
+	if len(b) > maxLine {
+		return errTooLarge
 	}
 	_, err = w.Write(append(b, '\n'))
 	return err
@@ -371,7 +378,11 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 			} else {
 				reply.Rows = rows
 			}
-			if err := send(w.in, reply); err != nil {
+			err := send(w.in, reply)
+			if errors.Is(err, errTooLarge) {
+				err = send(w.in, message{Type: "result", Error: fmt.Sprintf("query result is larger than %d MB; select fewer rows or columns", maxLine>>20)})
+			}
+			if err != nil {
 				return fail(err)
 			}
 		case "exec":

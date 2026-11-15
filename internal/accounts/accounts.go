@@ -86,6 +86,9 @@ func Open(path string) (*Store, error) {
 			expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE TABLE IF NOT EXISTS tokens (access_hash TEXT PRIMARY KEY, refresh_hash TEXT NOT NULL UNIQUE, client_id TEXT NOT NULL,
 			user_id TEXT NOT NULL, scope TEXT NOT NULL, access_expires_at INTEGER NOT NULL, refresh_expires_at INTEGER NOT NULL)`,
+		// Refresh tokens already rotated away. Seeing one again means it was
+		// copied: the whole grant is revoked.
+		`CREATE TABLE IF NOT EXISTS used_refresh (hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			db.Close()
@@ -96,7 +99,24 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	return &Store{db: db, now: time.Now}, nil
+	s := &Store{db: db, now: time.Now}
+	s.Cleanup()
+	return s, nil
+}
+
+// Cleanup deletes expired sessions, codes, links and tokens. Call it
+// periodically.
+func (s *Store) Cleanup() {
+	now := s.now().Unix()
+	for _, stmt := range []string{
+		`DELETE FROM sessions WHERE expires_at < ?`,
+		`DELETE FROM codes WHERE expires_at < ? - 86400`, // kept a day so a replay is still recognised
+		`DELETE FROM email_tokens WHERE expires_at < ? OR used = 1`,
+		`DELETE FROM tokens WHERE refresh_expires_at < ?`,
+		`DELETE FROM used_refresh WHERE expires_at < ?`,
+	} {
+		s.db.Exec(stmt, now)
+	}
 }
 
 // Close closes the database.
@@ -461,10 +481,22 @@ func (s *Store) Refresh(refreshToken, clientID string) (Tokens, error) {
 	var expires int64
 	err = tx.QueryRow(`SELECT user_id, client_id, scope, refresh_expires_at FROM tokens WHERE refresh_hash = ?`, hash(refreshToken)).
 		Scan(&userID, &wantClient, &scope, &expires)
+	if errors.Is(err, sql.ErrNoRows) {
+		var usedClient, usedUser string
+		if tx.QueryRow(`SELECT client_id, user_id FROM used_refresh WHERE hash = ?`, hash(refreshToken)).Scan(&usedClient, &usedUser) == nil {
+			tx.Exec(`DELETE FROM tokens WHERE client_id = ? AND user_id = ?`, usedClient, usedUser)
+			tx.Commit()
+		}
+		return Tokens{}, ErrInvalidGrant
+	}
 	if err != nil || wantClient != clientID || expires < s.now().Unix() {
 		return Tokens{}, ErrInvalidGrant
 	}
 	if _, err := tx.Exec(`DELETE FROM tokens WHERE refresh_hash = ?`, hash(refreshToken)); err != nil {
+		return Tokens{}, err
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO used_refresh (hash, client_id, user_id, expires_at) VALUES (?, ?, ?, ?)`,
+		hash(refreshToken), clientID, userID, expires); err != nil {
 		return Tokens{}, err
 	}
 	t, err := s.issue(tx, clientID, userID, scope)

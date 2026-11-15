@@ -18,7 +18,7 @@ func (e *env) signUpVisitor(host, addr, name string) *http.Cookie {
 	csrf := csrfRE.FindStringSubmatch(w.Body.String())[1]
 	var csrfCookie *http.Cookie
 	for _, c := range w.Result().Cookies() {
-		if c.Name == "rx_csrf" {
+		if c.Name == "__Host-rx_csrf" {
 			csrfCookie = c
 		}
 	}
@@ -29,7 +29,7 @@ func (e *env) signUpVisitor(host, addr, name string) *http.Cookie {
 	rec := httptest.NewRecorder()
 	e.p.ServeApp(rec, r)
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == "rx_session" {
+		if c.Name == "__Host-rx_session" {
 			return c
 		}
 	}

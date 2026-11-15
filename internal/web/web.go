@@ -105,6 +105,16 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	if s.secure {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	}
+	// Forms that rely on the session cookie must come from this site's own
+	// pages. Bearer-token and anonymous endpoints are meant for other origins.
+	if r.Method == http.MethodPost && platform.CrossSite(r) &&
+		r.URL.Path != "/oauth/token" && r.URL.Path != "/oauth/register" && r.URL.Path != "/mcp" {
+		http.Error(w, "this form must be sent from the Renoxium site", http.StatusForbidden)
+		return
+	}
 	if r.Method == http.MethodOptions {
 		// CORS preflight. Everything reachable cross-origin uses bearer tokens or
 		// no credentials at all, never cookies.
@@ -142,7 +152,7 @@ func (s *Site) verify(ctx context.Context, token string, _ *http.Request) (*auth
 // --- sessions and CSRF ---
 
 func (s *Site) currentUser(r *http.Request) (accounts.User, bool) {
-	c, err := r.Cookie(sessionCookie)
+	c, err := r.Cookie(s.cookieName(sessionCookie))
 	if err != nil {
 		return accounts.User{}, false
 	}
@@ -150,14 +160,23 @@ func (s *Site) currentUser(r *http.Request) (accounts.User, bool) {
 	return u, err == nil
 }
 
+// cookieName adds the __Host- prefix on HTTPS, so no other host (such as
+// a subdomain) can set or overwrite the cookie.
+func (s *Site) cookieName(name string) string {
+	if s.secure {
+		return "__Host-" + name
+	}
+	return name
+}
+
 func (s *Site) setCookie(w http.ResponseWriter, name, value string, maxAge time.Duration) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", HttpOnly: true, Secure: s.secure,
+	http.SetCookie(w, &http.Cookie{Name: s.cookieName(name), Value: value, Path: "/", HttpOnly: true, Secure: s.secure,
 		SameSite: http.SameSiteLaxMode, MaxAge: int(maxAge.Seconds())})
 }
 
 // csrfToken returns the double-submit token for this browser, setting it if needed.
 func (s *Site) csrfToken(w http.ResponseWriter, r *http.Request) string {
-	if c, err := r.Cookie(csrfCookie); err == nil && len(c.Value) >= 32 {
+	if c, err := r.Cookie(s.cookieName(csrfCookie)); err == nil && len(c.Value) >= 32 {
 		return c.Value
 	}
 	var b [24]byte
@@ -167,8 +186,8 @@ func (s *Site) csrfToken(w http.ResponseWriter, r *http.Request) string {
 	return v
 }
 
-func checkCSRF(r *http.Request) bool {
-	c, err := r.Cookie(csrfCookie)
+func (s *Site) checkCSRF(r *http.Request) bool {
+	c, err := r.Cookie(s.cookieName(csrfCookie))
 	return err == nil && len(c.Value) >= 32 && subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("csrf"))) == 1
 }
 
@@ -196,11 +215,11 @@ func (s *Site) clientIP(r *http.Request) string {
 	if s.TrustedIPHeader != "" {
 		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
 			if fwd := strings.TrimSpace(r.Header.Get(s.TrustedIPHeader)); net.ParseIP(fwd) != nil {
-				return fwd
+				return platform.RateKey(fwd)
 			}
 		}
 	}
-	return host
+	return platform.RateKey(host)
 }
 
 // --- pages ---
@@ -225,7 +244,7 @@ func (s *Site) signupForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
 	next := safeNext(r.PostFormValue("next"))
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
@@ -248,7 +267,7 @@ func (s *Site) loginForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) login(w http.ResponseWriter, r *http.Request) {
 	next := safeNext(r.PostFormValue("next"))
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
@@ -276,11 +295,11 @@ func (s *Site) startSession(w http.ResponseWriter, r *http.Request, u accounts.U
 }
 
 func (s *Site) logout(w http.ResponseWriter, r *http.Request) {
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
-	if c, err := r.Cookie(sessionCookie); err == nil {
+	if c, err := r.Cookie(s.cookieName(sessionCookie)); err == nil {
 		s.accounts.DeleteSession(c.Value)
 	}
 	s.setCookie(w, sessionCookie, "", -time.Second)
@@ -357,8 +376,40 @@ func (s *Site) authorize(w http.ResponseWriter, r *http.Request) {
 	redirect, _ := url.Parse(req.redirectURI)
 	render(w, http.StatusOK, "consent", map[string]any{
 		"User": u, "Client": req.client.Name, "RedirectHost": redirect.Host, "CSRF": s.csrfToken(w, r),
-		"Params": authorizeParams(r.URL.Query()), "Switch": "/login?next=" + url.QueryEscape(r.URL.RequestURI()),
+		"Warning": impersonation(req.client.Name, redirect.Hostname()),
+		"Params":  authorizeParams(r.URL.Query()), "Switch": "/login?next=" + url.QueryEscape(r.URL.RequestURI()),
 	})
+}
+
+// knownAgents maps words in well-known agent names to the domains their
+// redirects really use. Anyone can register a client with any name.
+var knownAgents = map[string][]string{
+	"claude":  {"claude.ai", "claude.com", "anthropic.com"},
+	"chatgpt": {"chatgpt.com", "openai.com"},
+	"openai":  {"chatgpt.com", "openai.com"},
+}
+
+// impersonation returns a warning when a client's name claims a well-known
+// agent but its redirect goes to a host that agent does not use.
+func impersonation(name, host string) string {
+	host = strings.ToLower(host)
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return ""
+	}
+	lower := strings.ToLower(name)
+	for word, domains := range knownAgents {
+		if !strings.Contains(lower, word) {
+			continue
+		}
+		for _, d := range domains {
+			if host == d || strings.HasSuffix(host, "."+d) {
+				return ""
+			}
+		}
+		return "This agent calls itself \"" + name + "\", but it returns to " + host +
+			", which does not belong to it. It may be someone pretending. Choose Cancel unless you are sure."
+	}
+	return ""
 }
 
 // authorizeParams keeps only the OAuth parameters, so a crafted link cannot
@@ -383,7 +434,7 @@ func (s *Site) approve(w http.ResponseWriter, r *http.Request) {
 		render(w, http.StatusBadRequest, "error", map[string]any{"Message": fatal.Error()})
 		return
 	}
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back to your agent and connect again", http.StatusForbidden)
 		return
 	}
@@ -514,7 +565,16 @@ func (l *limiter) allow(key string) bool {
 	defer l.mu.Unlock()
 	now := time.Now()
 	if len(l.hits) > 100000 {
-		l.hits = map[string][]time.Time{}
+		// Drop only keys with no recent hits; clearing everything would
+		// reset the limits of whoever filled the map.
+		for k, hits := range l.hits {
+			if len(hits) == 0 || now.Sub(hits[len(hits)-1]) >= l.window {
+				delete(l.hits, k)
+			}
+		}
+		if len(l.hits) > 200000 {
+			return false
+		}
 	}
 	kept := l.hits[key][:0]
 	for _, t := range l.hits[key] {
@@ -587,7 +647,8 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 
 {{define "consent"}}{{template "top" "Allow access"}}<form class="card" method="post" action="/oauth/authorize"><h1>Allow {{.Client}}?</h1>
 <p><strong>{{.Client}}</strong> wants to create, change and publish your Renoxium apps, and read their logs.</p>
-<p class="muted">After you allow, you return to <strong>{{.RedirectHost}}</strong>. Only allow if you just connected Renoxium in your agent.</p>
+{{with .Warning}}<p class="error"><strong>Warning:</strong> {{.}}</p>{{end}}
+<p>After you allow, you return to <code>{{.RedirectHost}}</code>. Only allow if you just connected Renoxium in your agent and you recognise this address.</p>
 <p class="muted">Signed in as {{.User.Email}} · <a href="{{.Switch}}">use another account</a></p>
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 {{range $k, $v := .Params}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}

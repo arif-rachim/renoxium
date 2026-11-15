@@ -163,7 +163,7 @@ func TestVisitorAccounts(t *testing.T) {
 	if w.Code != 303 || w.Header().Get("Location") != "/account" {
 		t.Fatalf("signup: %d %s", w.Code, w.Body.String())
 	}
-	sc := v.cookies["rx_session"]
+	sc := v.cookies["__Host-rx_session"]
 	if sc == nil || !sc.HttpOnly || !sc.Secure || sc.SameSite != http.SameSiteLaxMode {
 		t.Fatalf("session cookie: %+v", sc)
 	}
@@ -221,14 +221,14 @@ func TestVisitorAccounts(t *testing.T) {
 	p.ApplyChange(context.Background(), "other-club", membersApp())
 	p.Publish("other-club", 0)
 	o := newVisitor(t, p, "other-club.renoxium.test")
-	o.cookies["rx_session"] = v.cookies["rx_session"]
+	o.cookies["__Host-rx_session"] = v.cookies["__Host-rx_session"]
 	if w := o.do("GET", "/account", nil); w.Code != 303 {
 		t.Fatal("session worked on another app")
 	}
 
 	// Password reset signs out other sessions.
 	other := newVisitor(t, p, host)
-	other.cookies["rx_session"] = v.cookies["rx_session"]
+	other.cookies["__Host-rx_session"] = v.cookies["__Host-rx_session"]
 	r := newVisitor(t, p, host)
 	if w := r.submit("/_rx/auth/forgot", "/_rx/auth/forgot", url.Values{"email": {"salma@mail.ae"}}); w.Code != 200 || !strings.Contains(w.Body.String(), "If an account exists") {
 		t.Fatalf("forgot: %d", w.Code)

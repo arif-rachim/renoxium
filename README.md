@@ -15,7 +15,7 @@ Working today:
 - OAuth 2.1 for agents, as ChatGPT and Claude expect: protected resource and authorization server metadata, dynamic client registration, PKCE (S256 only), consent screen, rotating refresh tokens, revocation on code replay.
 - Connection help at `/connect` and `/llms.txt`, written so an assistant that reads them tells the user how to add the connector. A browser or fetch-tool visit to `/mcp` gets the same help with its 401, while MCP clients still get the plain OAuth challenge.
 - Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app`, `get_app`, `get_example`, `apply_change`, `patch_app`, `test_request`, `publish` (also rollback), `upload_file` and `get_logs`. `get_example` returns complete working definitions from `examples/` (a shop and a CRUD task list); `patch_app` changes one template, script, route list or table without resending the whole definition; `test_request` sends GET or POST requests to preview (GET only to live) and returns the response with that request's log, so agents can verify forms and parameter routes themselves. Every tool acts only on apps the signed-in user owns.
-- Preview and live stages per app. Preview runs on a snapshot of live data; publish backs up live data first.
+- Preview and live stages per app. Preview runs on a snapshot of live data; publish backs up live data first (the newest 3 backups are kept). Previews are private: the owner opens them from `/apps/<app>/preview` on the Renoxium site, which unlocks the preview in that browser for 12 hours. Publishing needs a confirmed email.
 - Additive schema migrations, seed data.
 - Server scripts in goja, run in a pool of separate worker processes: 2 s time limit, a heap watchdog inside each worker (64 MiB), and the parent kills any worker over 256 MiB resident and starts a new one. At most 2 scripts of one app run at once, so one app cannot occupy every worker. No filesystem, network or timers; a SQLite authorizer allows data statements only.
 - Admin panel on the Renoxium site at `/apps/<app>`, generated from the live schema: tables with row counts, recent errors, a searchable and paginated list per table, and add/edit/delete forms whose inputs follow column types. Owner only; every change is written to the app log.
@@ -26,7 +26,11 @@ Working today:
 
 - The admin panel lists an app's visitor accounts (email, WhatsApp number, name, confirmed) with search and delete; visitor emails reply to the owner's confirmed address.
 
-Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp order notifications, custom domains, quotas.
+- Abuse limits: 10 apps per account, 300 files or 300 MB per app, the newest 50 versions per app; 300 requests per minute per visitor address (IPv6 grouped per /64); daily caps on visitor emails (300 per app, 3000 in all) and WhatsApp codes (100 per app, 1000 in all); at most 10 code guesses per number per hour.
+- Platform-side limits on tenant code: pages at most 4 MB, script statements at most 2 s with SQLite length and depth limits, script messages at most 8 MB, at most 4 password hashes at once.
+- Browser protections: POSTs from other origins are refused on app hosts and on the site (other apps share the renoxium.app site), cookies use the `__Host-` prefix on HTTPS, and HSTS. `/_rx/log` only accepts reports for pages the app served.
+
+Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp order notifications, custom domains, billing-based quotas.
 
 ## Run
 

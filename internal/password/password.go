@@ -30,8 +30,18 @@ func Validate(pw string) error {
 	return nil
 }
 
+// slots caps how many hashes run at once. Each takes about 19 MiB, so
+// without a cap a burst of logins could exhaust memory on a small server.
+var slots = make(chan struct{}, 4)
+
+func acquire() func() {
+	slots <- struct{}{}
+	return func() { <-slots }
+}
+
 // Hash returns an encoded argon2id hash with a random salt.
 func Hash(pw string) string {
+	defer acquire()()
 	salt := make([]byte, 16)
 	rand.Read(salt)
 	key := argon2.IDKey([]byte(pw), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
@@ -55,6 +65,12 @@ func Check(encoded, pw string) bool {
 	if err1 != nil || err2 != nil {
 		return false
 	}
+	// Only hashes this package wrote are accepted, so a stored value cannot
+	// ask for an expensive computation.
+	if t != argonTime || m != argonMemory || p != argonThreads || len(want) != argonKeyLen {
+		return false
+	}
+	defer acquire()()
 	got := argon2.IDKey([]byte(pw), salt, t, m, p, uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1
 }

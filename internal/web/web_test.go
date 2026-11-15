@@ -322,11 +322,23 @@ func TestRefreshTokenRotates(t *testing.T) {
 	if r.StatusCode != 200 || second.AccessToken == "" || second.RefreshToken == first.RefreshToken {
 		t.Fatalf("refresh: %d", r.StatusCode)
 	}
+	if _, errText := call(t, e.mcpSession(second.AccessToken), "list_apps", map[string]any{}); errText != "" {
+		t.Fatal(errText)
+	}
+	// Presenting a rotated-away refresh token means it was copied: it fails,
+	// and every token of that grant is revoked.
 	if r, _ := refresh(first.RefreshToken); r.StatusCode != 400 {
 		t.Fatal("old refresh token still works")
 	}
-	if _, errText := call(t, e.mcpSession(second.AccessToken), "list_apps", map[string]any{}); errText != "" {
-		t.Fatal(errText)
+	if r, _ := refresh(second.RefreshToken); r.StatusCode != 400 {
+		t.Fatal("refresh token of a replayed grant still works")
+	}
+	req, _ := http.NewRequest("POST", e.base+"/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Authorization", "Bearer "+second.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if r, err := http.DefaultClient.Do(req); err != nil || r.StatusCode != 401 {
+		t.Fatalf("access token of a replayed grant still works: %v %v", err, r)
 	}
 }
 
@@ -577,5 +589,52 @@ func TestMCPWorksBehindTunnel(t *testing.T) {
 	}
 	if len(tools.Tools) == 0 {
 		t.Fatal("no tools listed")
+	}
+}
+
+func TestConsentWarnsAboutImpersonatingAgents(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "dina@example.com")
+	consent := func(name, redirect string) string {
+		r, _ := http.Post(e.base+"/oauth/register", "application/json",
+			strings.NewReader(`{"client_name":"`+name+`","redirect_uris":["`+redirect+`"]}`))
+		var out map[string]any
+		json.Unmarshal([]byte(read(t, r)), &out)
+		_, challenge := pkce()
+		page, err := c.Get(e.base + "/oauth/authorize?" + url.Values{"response_type": {"code"}, "client_id": {out["client_id"].(string)},
+			"redirect_uri": {redirect}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}.Encode())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return read(t, page)
+	}
+	if body := consent("Claude", "https://evil.example/callback"); !strings.Contains(body, "Warning:") || !strings.Contains(body, "evil.example") {
+		t.Fatalf("no warning for a fake Claude: %s", body)
+	}
+	if body := consent("Claude", "https://claude.ai/api/mcp/auth_callback"); strings.Contains(body, "Warning:") {
+		t.Fatal("warning for the real Claude")
+	}
+	if body := consent("My own agent", "https://agent.example/cb"); strings.Contains(body, "Warning:") {
+		t.Fatal("warning for an agent that claims no known name")
+	}
+}
+
+func TestSiteRefusesCrossSiteForms(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	token := e.csrf(c, "/signup")
+	req, _ := http.NewRequest("POST", e.base+"/signup", strings.NewReader(url.Values{"csrf": {token}, "email": {"x@example.com"}, "password": {"correct horse battery"}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", "https://evil.example")
+	if r, err := c.Do(req); err != nil || r.StatusCode != 403 {
+		t.Fatalf("cross-site signup: %v %v", err, r)
+	}
+	// Token and registration endpoints are for other origins by design.
+	req, _ = http.NewRequest("POST", e.base+"/oauth/token", strings.NewReader("grant_type=refresh_token&refresh_token=x"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", "https://claude.ai")
+	if r, err := http.DefaultClient.Do(req); err != nil || r.StatusCode != 400 {
+		t.Fatalf("cross-origin token request: %v %v", err, r)
 	}
 }

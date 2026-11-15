@@ -26,6 +26,15 @@ import (
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 )
 
+// Daily caps on messages that cost money or sender reputation. Each send
+// is also limited per visitor address and per recipient.
+const (
+	emailsPerAppPerDay   = 300
+	emailsPerDay         = 3000
+	whatsappPerAppPerDay = 100
+	whatsappPerDay       = 1000
+)
+
 // AuthPrefix is where every app serves its visitor sign-in pages.
 const AuthPrefix = "/_rx/auth/"
 
@@ -50,7 +59,7 @@ func sha(s string) string {
 
 // visitor returns the signed-in visitor of a request, or nil.
 func (p *Platform) visitor(st *stage, r *http.Request) *sandbox.Visitor {
-	c, err := r.Cookie(visitorSessionCookie)
+	c, err := r.Cookie(p.cookieName(visitorSessionCookie))
 	if err != nil || c.Value == "" {
 		return nil
 	}
@@ -76,22 +85,22 @@ func (p *Platform) startVisitorSession(ctx context.Context, w http.ResponseWrite
 	_, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`,
 		sha(token), userID, time.Now().Add(visitorSessionTTL).Unix())
 	if err == nil {
-		p.cookie(w, visitorSessionCookie, token, visitorSessionTTL)
+		p.cookie(w, p.cookieName(visitorSessionCookie), token, visitorSessionTTL)
 	}
 	return err
 }
 
 func (p *Platform) csrf(w http.ResponseWriter, r *http.Request) string {
-	if c, err := r.Cookie(visitorCSRFCookie); err == nil && len(c.Value) >= 32 {
+	if c, err := r.Cookie(p.cookieName(visitorCSRFCookie)); err == nil && len(c.Value) >= 32 {
 		return c.Value
 	}
 	v := secretToken()
-	p.cookie(w, visitorCSRFCookie, v, 24*time.Hour)
+	p.cookie(w, p.cookieName(visitorCSRFCookie), v, 24*time.Hour)
 	return v
 }
 
-func validCSRF(r *http.Request) bool {
-	c, err := r.Cookie(visitorCSRFCookie)
+func (p *Platform) validCSRF(r *http.Request) bool {
+	c, err := r.Cookie(p.cookieName(visitorCSRFCookie))
 	return err == nil && len(c.Value) >= 32 && subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("csrf"))) == 1
 }
 
@@ -118,11 +127,11 @@ func (p *Platform) clientIP(r *http.Request) string {
 	if p.cfg.TrustedIPHeader != "" {
 		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
 			if fwd := strings.TrimSpace(r.Header.Get(p.cfg.TrustedIPHeader)); net.ParseIP(fwd) != nil {
-				return fwd
+				return RateKey(fwd)
 			}
 		}
 	}
-	return host
+	return RateKey(host)
 }
 
 // allow is a per-key rate limit shared by the visitor auth pages.
@@ -132,9 +141,18 @@ func (p *Platform) allow(key string, max int, period time.Duration) bool {
 	w := p.limits[key]
 	if w == nil || time.Since(w.start) > period {
 		if len(p.limits) > 100000 {
-			p.limits = map[string]*window{}
+			// Drop only finished windows; clearing everything would reset
+			// the limits of whoever filled the map.
+			for k, old := range p.limits {
+				if time.Since(old.start) > old.period {
+					delete(p.limits, k)
+				}
+			}
+			if len(p.limits) > 200000 {
+				return false
+			}
 		}
-		w = &window{start: time.Now()}
+		w = &window{start: time.Now(), period: period}
 		p.limits[key] = w
 	}
 	w.count++
@@ -149,9 +167,9 @@ func (p *Platform) serveAuth(w http.ResponseWriter, r *http.Request, st *stage) 
 	page := strings.TrimPrefix(r.URL.Path, AuthPrefix)
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-		// Sign-out needs no token: the session cookie is SameSite=Lax, so a
-		// POST from another site does not carry it and cannot sign anyone out.
-		if page != "logout" && !validCSRF(r) {
+		// Sign-out needs no token: ServeApp already refuses POSTs from other
+		// origins, including other apps on the same parent domain.
+		if page != "logout" && !p.validCSRF(r) {
 			p.authPage(w, r, st, http.StatusForbidden, "message", authData{Title: "Please try again", Message: "The form expired. Go back, reload the page and try again."})
 			return
 		}
@@ -172,10 +190,10 @@ func (p *Platform) serveAuth(w http.ResponseWriter, r *http.Request, st *stage) 
 	case page == "logout" && r.Method == http.MethodGet:
 		p.authPage(w, r, st, http.StatusOK, "logout", authData{})
 	case page == "logout" && r.Method == http.MethodPost:
-		if c, err := r.Cookie(visitorSessionCookie); err == nil {
+		if c, err := r.Cookie(p.cookieName(visitorSessionCookie)); err == nil {
 			st.admin.ExecContext(r.Context(), `DELETE FROM rx_sessions WHERE hash = ?`, sha(c.Value))
 		}
-		p.cookie(w, visitorSessionCookie, "", -time.Second)
+		p.cookie(w, p.cookieName(visitorSessionCookie), "", -time.Second)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	case page == "forgot" && r.Method == http.MethodGet:
 		p.authPage(w, r, st, http.StatusOK, "forgot", authData{})
@@ -320,6 +338,10 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
 		p.event(st, "email", "warn", "", "email not sent: no mail service configured: "+m.Subject)
 		return
 	}
+	if !p.allow("mail-day:"+st.app, emailsPerAppPerDay, 24*time.Hour) || !p.allow("mail-day", emailsPerDay, 24*time.Hour) {
+		p.event(st, "email", "error", "", "email not sent: the daily email limit was reached: "+m.Subject)
+		return
+	}
 	if err := p.cfg.Mailer.Send(ctx, m); err != nil {
 		slog.Error("visitor email", "app", st.app, "err", err)
 		p.event(st, "email", "error", "", "email to a visitor failed: "+err.Error())
@@ -409,14 +431,14 @@ func (p *Platform) authPage(w http.ResponseWriter, r *http.Request, st *stage, s
 	d.WhatsApp = p.whatsappAvailable(st)
 	var buf bytes.Buffer
 	if t := st.tmpl.Lookup("auth_" + page); t != nil {
-		if err := t.Execute(&buf, d.templateData()); err == nil {
+		lw := &limitedWriter{max: maxPage}
+		if err := t.Execute(lw, d.templateData()); err == nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(status)
-			w.Write(buf.Bytes())
+			w.Write(lw.buf)
 			return
 		} else {
 			p.event(st, "server", "error", "", "template auth_"+page+": "+err.Error())
-			buf.Reset()
 		}
 	}
 	if err := defaultAuthPages.ExecuteTemplate(&buf, page, d.templateData()); err != nil {

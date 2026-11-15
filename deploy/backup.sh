@@ -2,6 +2,8 @@
 # Consistent backup of every Renoxium SQLite database while the server runs.
 # Usage: backup.sh [data-dir] [backup-root] [days-to-keep]
 set -euo pipefail
+# Archives hold every visitor account and order: readable by root only.
+umask 077
 
 DATA="${1:-/var/lib/renoxium}"
 ROOT="${2:-/var/backups/renoxium}"

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // VisitorRow is one visitor account as the owner sees it. Password hashes
@@ -75,4 +76,33 @@ func (p *Platform) DeleteVisitor(ctx context.Context, app string, id int64, by s
 	}
 	p.event(st, "admin", "warn", "", fmt.Sprintf("%s deleted visitor account #%d", by, id))
 	return nil
+}
+
+// Cleanup deletes expired visitor sessions, links and codes of every
+// running stage. Call it periodically.
+func (p *Platform) Cleanup(ctx context.Context) {
+	p.mu.Lock()
+	stages := make([]*stage, 0, len(p.stages))
+	for _, st := range p.stages {
+		stages = append(stages, st)
+	}
+	p.mu.Unlock()
+	now := time.Now().Unix()
+	for _, st := range stages {
+		st.admin.ExecContext(ctx, `DELETE FROM rx_sessions WHERE expires_at < ?`, now)
+		st.admin.ExecContext(ctx, `DELETE FROM rx_email_tokens WHERE expires_at < ? OR used = 1`, now)
+		st.admin.ExecContext(ctx, `DELETE FROM rx_phone_codes WHERE expires_at < ?`, now)
+	}
+	p.mu.Lock()
+	for k, e := range p.rids {
+		if time.Now().After(e.expires) {
+			delete(p.rids, k)
+		}
+	}
+	for k, w := range p.limits {
+		if time.Since(w.start) > w.period {
+			delete(p.limits, k)
+		}
+	}
+	p.mu.Unlock()
 }

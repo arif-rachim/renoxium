@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -17,7 +19,16 @@ import (
 const (
 	phoneCodeTTL      = 10 * time.Minute
 	phoneCodeAttempts = 5
+	// phoneGuessesPerHour caps wrong and right guesses for one number.
+	phoneGuessesPerHour = 10
 )
+
+func rowsAffected(res sql.Result, err error) (int64, error) {
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
 
 func sixDigits() string {
 	n, _ := rand.Int(rand.Reader, big.NewInt(1000000))
@@ -88,6 +99,10 @@ func (p *Platform) sendCode(ctx context.Context, st *stage, phone, code string) 
 		p.event(st, "whatsapp", "info", "", fmt.Sprintf("not sent from preview: sign-in code %s for %s", code, phone))
 		return nil
 	}
+	if !p.allow("wa-day:"+st.app, whatsappPerAppPerDay, 24*time.Hour) || !p.allow("wa-day", whatsappPerDay, 24*time.Hour) {
+		p.event(st, "whatsapp", "error", "", "sign-in code not sent: the daily WhatsApp limit was reached")
+		return errors.New("daily WhatsApp limit reached")
+	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 	if err := p.cfg.WhatsApp.SendCode(ctx, phone, code); err != nil {
@@ -104,24 +119,36 @@ func (p *Platform) verifyPhoneCode(w http.ResponseWriter, r *http.Request, st *s
 	data := authData{Next: next, Phone: phone}
 	ctx := r.Context()
 
+	// Guesses are limited per number across every code sent to it, and per
+	// visitor address, so asking for new codes does not buy more guesses.
+	if !p.allow("phone-verify:"+st.app+":"+phone, phoneGuessesPerHour, time.Hour) || !p.allow("phone-verify-ip:"+st.app+":"+p.clientIP(r), 30, time.Hour) {
+		data.Error = "Too many attempts. Try again in an hour."
+		p.authPage(w, r, st, http.StatusTooManyRequests, "phone", data)
+		return
+	}
+	// Count the attempt before comparing, in one statement, so parallel
+	// requests cannot test more codes than the limit allows.
+	res, err := st.admin.ExecContext(ctx, `UPDATE rx_phone_codes SET attempts = attempts + 1 WHERE phone = ? AND attempts < ? AND expires_at >= ?`,
+		phone, phoneCodeAttempts, time.Now().Unix())
 	var want string
-	var expires int64
-	var attempts int
-	err := st.admin.QueryRowContext(ctx, `SELECT code_hash, expires_at, attempts FROM rx_phone_codes WHERE phone = ?`, phone).Scan(&want, &expires, &attempts)
-	if err != nil || expires < time.Now().Unix() || attempts >= phoneCodeAttempts {
+	if n, _ := rowsAffected(res, err); n == 1 {
+		err = st.admin.QueryRowContext(ctx, `SELECT code_hash FROM rx_phone_codes WHERE phone = ?`, phone).Scan(&want)
+	} else {
+		err = errors.New("no live code")
+	}
+	if err != nil {
 		data.Error = "This code has expired. Ask for a new one."
 		p.authPage(w, r, st, http.StatusBadRequest, "phone", data)
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(sha(phone+":"+code)), []byte(want)) != 1 {
-		st.admin.ExecContext(ctx, `UPDATE rx_phone_codes SET attempts = attempts + 1 WHERE phone = ?`, phone)
 		data.Error = "That code is not right. Check the WhatsApp message and try again."
 		p.authPage(w, r, st, http.StatusUnauthorized, "phone_code", data)
 		return
 	}
 	// A code works once.
-	res, err := st.admin.ExecContext(ctx, `DELETE FROM rx_phone_codes WHERE phone = ? AND code_hash = ?`, phone, want)
-	if n, _ := res.RowsAffected(); err != nil || n != 1 {
+	res, err = st.admin.ExecContext(ctx, `DELETE FROM rx_phone_codes WHERE phone = ? AND code_hash = ?`, phone, want)
+	if n, err := rowsAffected(res, err); err != nil || n != 1 {
 		data.Error = "This code has expired. Ask for a new one."
 		p.authPage(w, r, st, http.StatusBadRequest, "phone", data)
 		return

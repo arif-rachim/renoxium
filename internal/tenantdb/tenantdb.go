@@ -12,8 +12,10 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 )
@@ -24,7 +26,23 @@ const (
 	MaxRows = 5000
 	// maxPages caps a tenant database at about 200 MB (4 KiB pages).
 	maxPages = 51200
+	// QueryTimeout stops one script statement that runs too long, such as a
+	// runaway recursive query. It runs in the platform process, so the
+	// script worker's own time limit does not reach it.
+	QueryTimeout = 2 * time.Second
 )
+
+// scriptLimits bound what one script statement can make SQLite allocate in
+// the platform process.
+var scriptLimits = map[int]int{
+	sqlite3.SQLITE_LIMIT_LENGTH:              4 << 20, // largest string or blob value
+	sqlite3.SQLITE_LIMIT_SQL_LENGTH:          100 << 10,
+	sqlite3.SQLITE_LIMIT_EXPR_DEPTH:          100,
+	sqlite3.SQLITE_LIMIT_COMPOUND_SELECT:     50,
+	sqlite3.SQLITE_LIMIT_LIKE_PATTERN_LENGTH: 1000,
+	sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER:     999,
+	sqlite3.SQLITE_LIMIT_FUNCTION_ARG:        32,
+}
 
 var registerOnce sync.Once
 
@@ -35,6 +53,9 @@ func register() {
 			for _, pragma := range []string{
 				"PRAGMA busy_timeout = 5000",
 				"PRAGMA foreign_keys = ON",
+				// Sorting and temporary results spill to disk instead of memory.
+				"PRAGMA temp_store = FILE",
+				"PRAGMA cache_size = -8000",
 				fmt.Sprintf("PRAGMA max_page_count = %d", maxPages),
 			} {
 				if _, err := conn.ExecContext(context.Background(), pragma, nil); err != nil {
@@ -94,6 +115,21 @@ func Open(path string) (*DB, error) {
 	return &DB{pool: pool}, nil
 }
 
+// conn takes a connection from the pool with the script limits applied.
+func (d *DB) conn(ctx context.Context) (*sql.Conn, error) {
+	c, err := d.pool.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for id, v := range scriptLimits {
+		if _, err := sqlite.Limit(c, id, v); err != nil {
+			c.Close()
+			return nil, err
+		}
+	}
+	return c, nil
+}
+
 // Close releases the pool.
 func (d *DB) Close() error { return d.pool.Close() }
 
@@ -102,7 +138,14 @@ func (d *DB) Query(ctx context.Context, query string, args []any) ([]map[string]
 	if err := CheckScriptSQL(query); err != nil {
 		return nil, err
 	}
-	rows, err := d.pool.QueryContext(ctx, query, args...)
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeout)
+	defer cancel()
+	c, err := d.conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	rows, err := c.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +185,14 @@ func (d *DB) Exec(ctx context.Context, query string, args []any) (rowsAffected, 
 	if err := CheckScriptSQL(query); err != nil {
 		return 0, 0, err
 	}
-	res, err := d.pool.ExecContext(ctx, query, args...)
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeout)
+	defer cancel()
+	c, err := d.conn(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer c.Close()
+	res, err := c.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, 0, err
 	}

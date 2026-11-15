@@ -90,6 +90,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	if ctype != "" {
 		req.Header.Set("Content-Type", ctype)
 	}
+	if stage == Preview && len(p.cfg.PreviewKey) > 0 {
+		req.AddCookie(p.previewCookie(app))
+	}
 	if in.UserEmail != "" {
 		if stage != Preview {
 			return TestResponse{}, errors.New("user_email works only on preview")
@@ -109,13 +112,13 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 			return TestResponse{}, err
 		}
 		defer st.admin.Exec(`DELETE FROM rx_sessions WHERE hash = ?`, sha(token))
-		req.AddCookie(&http.Cookie{Name: visitorSessionCookie, Value: token})
+		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorSessionCookie), Value: token})
 	}
 	// Test requests carry a valid CSRF pair, so platform forms such as
 	// /_rx/auth/signup can be exercised too.
 	if method == http.MethodPost && strings.HasPrefix(in.Path, AuthPrefix) {
 		token := secretToken()
-		req.AddCookie(&http.Cookie{Name: visitorCSRFCookie, Value: token})
+		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorCSRFCookie), Value: token})
 		if len(in.Form) > 0 {
 			form := url.Values{"csrf": {token}}
 			for k, v := range in.Form {

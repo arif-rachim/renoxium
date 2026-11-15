@@ -29,6 +29,16 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	if !ok {
 		return false
 	}
+	if p.cfg.PublicScheme == "https" {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && CrossSite(r) {
+		http.Error(w, "this form must be sent from the app's own pages", http.StatusForbidden)
+		return true
+	}
+	if stageName == Preview && !p.guardPreview(w, r, app) {
+		return true
+	}
 	if strings.HasPrefix(r.URL.Path, FilesPrefix) {
 		p.serveFile(w, r, app)
 		return true
@@ -50,6 +60,11 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if strings.HasPrefix(r.URL.Path, AuthPrefix) {
 		p.serveAuth(w, r, st)
+		return true
+	}
+	if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)
 		return true
 	}
 	rid := newRequestID()
@@ -190,25 +205,29 @@ func (p *Platform) render(st *stage, status int, name string, data any, rid stri
 	if t == nil {
 		return failure(http.StatusInternalServerError, fmt.Sprintf("template %q is not defined", name))
 	}
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, data); err != nil {
+	buf := &limitedWriter{max: maxPage}
+	if err := t.Execute(buf, data); err != nil {
 		return failure(http.StatusInternalServerError, "template "+name+": "+err.Error())
 	}
-	return result{status: status, contentType: "text/html; charset=utf-8", body: injectTelemetry(buf.Bytes(), rid)}
+	page, injected := injectTelemetry(buf.buf, rid)
+	if injected {
+		p.issueRID(st.app, rid)
+	}
+	return result{status: status, contentType: "text/html; charset=utf-8", body: page}
 }
 
-func injectTelemetry(page []byte, rid string) []byte {
+func injectTelemetry(page []byte, rid string) ([]byte, bool) {
 	lower := bytes.ToLower(page)
 	at := bytes.Index(lower, []byte("<head>"))
 	if at < 0 {
-		return page // a fragment, not a full document
+		return page, false // a fragment, not a full document
 	}
 	at += len("<head>")
 	snippet := strings.Replace(telemetryJS, "__RID__", template.JSEscapeString(rid), 1)
 	out := make([]byte, 0, len(page)+len(snippet))
 	out = append(out, page[:at]...)
 	out = append(out, snippet...)
-	return append(out, page[at:]...)
+	return append(out, page[at:]...), true
 }
 
 // telemetryJS reports browser errors to /_rx/log. It is small on purpose.
@@ -244,20 +263,24 @@ func (p *Platform) browserLog(w http.ResponseWriter, r *http.Request, st *stage)
 	if in.Level != "warn" {
 		in.Level = "error"
 	}
-	if len(in.RID) > 32 {
-		in.RID = in.RID[:32]
+	// Only pages this app served may report, so the log, which the
+	// building agent reads, does not take text from anyone on the internet.
+	if !p.useRID(st.app, in.RID) {
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
 	if len(in.Page) > 200 {
 		in.Page = in.Page[:200]
 	}
-	p.event(st, "browser", in.Level, in.RID, "page "+in.Page+": "+in.Message)
+	p.event(st, "browser", in.Level, in.RID, "page "+in.Page+" (untrusted browser report): "+in.Message)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // window is a fixed one-minute rate limit counter.
 type window struct {
-	start time.Time
-	count int
+	start  time.Time
+	period time.Duration
+	count  int
 }
 
 const intakePerMinute = 120

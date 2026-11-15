@@ -31,6 +31,14 @@ func (p *Platform) AddFile(app string, r io.Reader) (FileInfo, error) {
 	if _, err := p.Info(app); err != nil {
 		return FileInfo{}, err
 	}
+	var count, size int64
+	if err := p.db.QueryRow(`SELECT count(*), coalesce(sum(b.size), 0) FROM app_files f JOIN blobs b ON b.hash = f.hash WHERE f.app = ?`, app).
+		Scan(&count, &size); err != nil {
+		return FileInfo{}, err
+	}
+	if count >= MaxFilesPerApp || size >= MaxBytesPerApp {
+		return FileInfo{}, fmt.Errorf("this app already has %d files (%d MB); the limit is %d files or %d MB", count, size>>20, MaxFilesPerApp, MaxBytesPerApp>>20)
+	}
 	b, existed, err := p.files.Put(r)
 	if err != nil {
 		return FileInfo{}, err

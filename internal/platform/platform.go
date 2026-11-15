@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -54,6 +55,13 @@ type Config struct {
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
 	OwnerEmail func(ownerID string) (address string, ok bool)
+	// SiteURL is the public origin of the Renoxium site, e.g.
+	// https://renoxium.com, where owners open their private previews.
+	SiteURL string
+	// PreviewKey signs preview access. When set, previews are private:
+	// only a browser that opened a link from the owner's dashboard sees
+	// them. Empty leaves previews open (development and tests).
+	PreviewKey []byte
 }
 
 // Platform is safe for concurrent use.
@@ -72,6 +80,7 @@ type Platform struct {
 	intake map[string]*window
 	slots  map[string]chan struct{} // per-app script concurrency
 	limits map[string]*window       // visitor sign-in rate limits
+	rids   map[string]*ridEntry     // request IDs of served pages
 }
 
 type stage struct {
@@ -121,9 +130,31 @@ type PublishResult struct {
 
 var (
 	appNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]{1,38}[a-z0-9]$`)
-	reserved  = map[string]bool{"www": true, "api": true, "mcp": true, "admin": true, "app": true, "preview": true, "renoxium": true, "mail": true}
+	reserved  = map[string]bool{}
 	// ErrNotFound is returned for an unknown app or version.
 	ErrNotFound = errors.New("not found")
+)
+
+// Names nobody may use for an app: platform words, and words that make a
+// phishing page on <name>.renoxium.app look official.
+func init() {
+	for _, n := range strings.Fields(`www api mcp admin app apps preview renoxium mail email smtp imap pop ftp ns ns1 ns2 dns cdn static assets
+		files status help support docs blog billing pay payment payments invoice account accounts login signin signup auth oauth sso
+		secure security verify verification password reset update wallet bank banking dashboard console root system official
+		google gmail apple icloud microsoft outlook office paypal stripe facebook meta instagram whatsapp telegram amazon netflix
+		chatgpt openai claude anthropic cloudflare github`) {
+		reserved[n] = true
+	}
+}
+
+// Quotas per account and per app. There is no billing yet, so these keep
+// one account from filling the server's disk.
+const (
+	MaxAppsPerOwner = 10
+	keepVersions    = 50 // older versions are deleted, except the live one
+	keepBackups     = 3  // publish backups kept per app
+	MaxFilesPerApp  = 300
+	MaxBytesPerApp  = 300 << 20
 )
 
 // New opens (or creates) the platform under cfg.DataDir.
@@ -165,7 +196,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		cfg.ScriptsPerApp = 2
 	}
 	return &Platform{cfg: cfg, db: db, sb: sb, files: store,
-		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}}, nil
+		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}, nil
 }
 
 // Close releases every open database.
@@ -197,6 +228,15 @@ func (p *Platform) host(app, stageName string) string {
 	return app + "." + p.cfg.AppsDomain
 }
 
+// previewURL is where people open a preview: the owner's dashboard link
+// when previews are private, else the preview host itself.
+func (p *Platform) previewURL(app string) string {
+	if len(p.cfg.PreviewKey) > 0 {
+		return p.cfg.SiteURL + "/apps/" + app + "/preview"
+	}
+	return p.URL(app, Preview)
+}
+
 // URL is the public address of an app stage.
 func (p *Platform) URL(app, stageName string) string {
 	return p.cfg.PublicScheme + "://" + p.host(app, stageName) + p.cfg.PublicPort
@@ -207,8 +247,18 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if owner == "" {
 		return AppInfo{}, errors.New("an app needs an owner")
 	}
-	if !appNameRE.MatchString(name) || strings.Contains(name, "--") || reserved[name] {
+	if !appNameRE.MatchString(name) || strings.Contains(name, "--") {
 		return AppInfo{}, fmt.Errorf("app name %q is not allowed: use 3-40 characters, lowercase letters, digits and single hyphens, starting with a letter", name)
+	}
+	if reserved[name] {
+		return AppInfo{}, fmt.Errorf("app name %q is reserved; choose a name that includes the business name", name)
+	}
+	var count int
+	if err := p.db.QueryRow(`SELECT count(*) FROM apps WHERE owner = ?`, owner).Scan(&count); err != nil {
+		return AppInfo{}, err
+	}
+	if count >= MaxAppsPerOwner {
+		return AppInfo{}, fmt.Errorf("an account can have at most %d apps", MaxAppsPerOwner)
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {
 		return AppInfo{}, err
@@ -272,7 +322,7 @@ func (p *Platform) Apps(user string) ([]AppInfo, error) {
 
 // Info returns the current state of an app.
 func (p *Platform) Info(name string) (AppInfo, error) {
-	info := AppInfo{App: name, LiveURL: p.URL(name, Live), PreviewURL: p.URL(name, Preview)}
+	info := AppInfo{App: name, LiveURL: p.URL(name, Live), PreviewURL: p.previewURL(name)}
 	err := p.db.QueryRow(`SELECT live_version, preview_version FROM apps WHERE name = ?`, name).
 		Scan(&info.LiveVersion, &info.PreviewVersion)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -365,7 +415,8 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 		return ApplyResult{}, err
 	}
 
-	res := ApplyResult{OK: true, Version: n, PreviewURL: p.URL(name, Preview), Migrations: migrations}
+	p.db.Exec(`DELETE FROM versions WHERE app = ? AND n <= ? AND n != (SELECT live_version FROM apps WHERE name = ?)`, name, n-keepVersions, name)
+	res := ApplyResult{OK: true, Version: n, PreviewURL: p.previewURL(name), Migrations: migrations}
 	st, err := p.loadStage(name, Preview)
 	if err != nil {
 		return res, err
@@ -398,6 +449,9 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 	if err != nil {
 		return PublishResult{}, err
 	}
+	if err := p.ownerVerified(name); err != nil {
+		return PublishResult{}, err
+	}
 
 	p.change.Lock()
 	defer p.change.Unlock()
@@ -408,6 +462,7 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 		if err := tenantdb.Snapshot(live, backup); err != nil {
 			return PublishResult{}, fmt.Errorf("backup live data: %w", err)
 		}
+		p.pruneBackups(name)
 	}
 	migrations, err := tenantdb.Migrate(live, def.Tables, def.Seed)
 	if err != nil {
@@ -526,5 +581,24 @@ func (p *Platform) dropStage(app, stageName string) {
 		st.db.Close()
 		st.admin.Close()
 		delete(p.stages, key)
+	}
+}
+
+// pruneBackups keeps the newest keepBackups publish backups of an app.
+func (p *Platform) pruneBackups(app string) {
+	paths, _ := filepath.Glob(filepath.Join(p.appDir(app), "backup-before-v*.db"))
+	type backup struct {
+		path string
+		mod  time.Time
+	}
+	var list []backup
+	for _, path := range paths {
+		if fi, err := os.Stat(path); err == nil {
+			list = append(list, backup{path, fi.ModTime()})
+		}
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].mod.After(list[j].mod) })
+	for i := keepBackups; i < len(list); i++ {
+		os.Remove(list[i].path)
 	}
 }

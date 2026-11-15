@@ -52,7 +52,7 @@ func (s *Site) forgotForm(w http.ResponseWriter, r *http.Request) {
 // forgot always gives the same answer, so it does not reveal which emails
 // have an account.
 func (s *Site) forgot(w http.ResponseWriter, r *http.Request) {
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
@@ -88,7 +88,7 @@ func (s *Site) resetForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) reset(w http.ResponseWriter, r *http.Request) {
 	noReferrer(w)
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; open the link from your email again", http.StatusForbidden)
 		return
 	}
@@ -123,7 +123,7 @@ func (s *Site) resendVerification(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	if !checkCSRF(r) {
+	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
