@@ -1,0 +1,86 @@
+{
+  "tables": [
+    {
+      "name": "tasks",
+      "columns": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "done",
+          "type": "boolean"
+        },
+        {
+          "name": "due",
+          "type": "datetime"
+        }
+      ]
+    }
+  ],
+  "seed": {
+    "tasks": [
+      {
+        "title": "Order new oud stock",
+        "done": 0
+      },
+      {
+        "title": "Photograph White Musk",
+        "done": 1
+      }
+    ]
+  },
+  "templates": {
+    "top": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Tasks</title><style>body{font-family:system-ui;max-width:640px;margin:0 auto;padding:16px}li{display:flex;gap:8px;align-items:center;margin:6px 0}.done{text-decoration:line-through;color:#888}form{display:inline}</style></head><body><h1><a href=\"/\">Tasks</a></h1>",
+    "list": "{{template \"top\"}}<p>{{.open}} open, {{.closed}} done · <a href=\"/\">All</a> · <a href=\"/?show=open\">Open</a> · <a href=\"/?show=done\">Done</a></p><form method=\"post\" action=\"/tasks\"><input name=\"title\" required placeholder=\"New task\"> <button>Add</button></form><ul>{{range .tasks}}<li><form method=\"post\" action=\"/tasks/{{.id}}/toggle\"><button aria-label=\"Toggle\">{{if eq .done 1}}✓{{else}}○{{end}}</button></form><span class=\"{{if eq .done 1}}done{{end}}\">{{.title}}</span> <a href=\"/tasks/{{.id}}\">Edit</a></li>{{else}}<li>No tasks.</li>{{end}}</ul></body></html>",
+    "edit": "{{template \"top\"}}<form method=\"post\" action=\"/tasks/{{.task.id}}\"><input name=\"title\" required value=\"{{.task.title}}\"> <label><input type=\"checkbox\" name=\"done\" value=\"1\"{{if eq .task.done 1}} checked{{end}}> Done</label> <button>Save</button></form><form method=\"post\" action=\"/tasks/{{.task.id}}/delete\"><button>Delete</button></form></body></html>",
+    "not_found": "{{template \"top\"}}<p>Task not found.</p></body></html>"
+  },
+  "scripts": {
+    "list": "// GET / and GET /?show=open|done\nfunction handle(req) {\n  // Booleans are stored as 0 or 1.\n  let where = '';\n  if (req.query.show === 'open') where = ' WHERE done = 0';\n  if (req.query.show === 'done') where = ' WHERE done = 1';\n  const tasks = db.query('SELECT id, title, done FROM tasks' + where + ' ORDER BY id DESC');\n  // Alias aggregates: the key is the alias, the value a number.\n  const counts = db.query('SELECT SUM(done = 0) AS open, SUM(done = 1) AS closed FROM tasks')[0];\n  return {template: 'list', data: {tasks: tasks, open: counts.open || 0, closed: counts.closed || 0}};\n}",
+    "create": "// POST /tasks  form: title\nfunction handle(req) {\n  const title = (req.form.title || '').trim();  // form values are strings\n  if (!title) return {text: 'title is required', status: 400};\n  db.exec('INSERT INTO tasks (title, done) VALUES (?, 0)', title);\n  return {redirect: '/'};\n}",
+    "edit_form": "// GET /tasks/:id\nfunction handle(req) {\n  const rows = db.query('SELECT id, title, done FROM tasks WHERE id = ?', Number(req.params.id));\n  if (rows.length === 0) return {template: 'not_found', status: 404};\n  return {template: 'edit', data: {task: rows[0]}};\n}",
+    "update": "// POST /tasks/:id  form: title, done (checkbox: present as '1' when checked, absent otherwise)\nfunction handle(req) {\n  const title = (req.form.title || '').trim();\n  if (!title) return {text: 'title is required', status: 400};\n  const done = req.form.done === '1' ? 1 : 0;\n  const r = db.exec('UPDATE tasks SET title = ?, done = ? WHERE id = ?', title, done, Number(req.params.id));\n  if (r.rowsAffected === 0) return {template: 'not_found', status: 404};\n  return {redirect: '/'};\n}",
+    "toggle": "// POST /tasks/:id/toggle\nfunction handle(req) {\n  const r = db.exec('UPDATE tasks SET done = 1 - done WHERE id = ?', Number(req.params.id));\n  if (r.rowsAffected === 0) return {template: 'not_found', status: 404};\n  return {redirect: '/'};\n}",
+    "delete": "// POST /tasks/:id/delete\nfunction handle(req) {\n  db.exec('DELETE FROM tasks WHERE id = ?', Number(req.params.id));\n  return {redirect: '/'};\n}",
+    "api": "// GET /api/tasks returns JSON for browser JavaScript\nfunction handle(req) {\n  return {json: db.query('SELECT id, title, done FROM tasks ORDER BY id')};\n}"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "script": "list"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks",
+      "script": "create"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id",
+      "script": "edit_form"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id",
+      "script": "update"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/toggle",
+      "script": "toggle"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/delete",
+      "script": "delete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "script": "api"
+    }
+  ]
+}

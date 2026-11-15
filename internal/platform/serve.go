@@ -106,7 +106,7 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		return p.render(st, http.StatusOK, route.Template, map[string]any{"params": params, "query": query}, rid)
 	}
 
-	req := sandbox.Request{Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}}
+	req := sandbox.Request{Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}, FormAll: map[string][]string{}}
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
 		ct, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -121,6 +121,7 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		} else if err := r.ParseForm(); err == nil {
 			for k, v := range r.PostForm {
 				req.Form[k] = v[0]
+				req.FormAll[k] = v
 			}
 		}
 	}

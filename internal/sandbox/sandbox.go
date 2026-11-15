@@ -29,7 +29,10 @@ type Request struct {
 	Params map[string]string `json:"params"`
 	Query  map[string]string `json:"query"`
 	Form   map[string]string `json:"form"`
-	Body   any               `json:"body"`
+	// FormAll holds every value of every form field, for repeated fields
+	// such as several checkboxes with one name.
+	FormAll map[string][]string `json:"form_all"`
+	Body    any                 `json:"body"`
 }
 
 // Response is what a script returns. Exactly one of Template, JSON, Text or
@@ -178,7 +181,7 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 	}
 	val, err := handle(goja.Undefined(), vm.ToValue(map[string]any{
 		"method": req.Method, "path": req.Path, "params": strMap(req.Params),
-		"query": strMap(req.Query), "form": strMap(req.Form), "body": req.Body,
+		"query": strMap(req.Query), "form": strMap(req.Form), "formAll": strSliceMap(req.FormAll), "body": req.Body,
 	}))
 	if err != nil {
 		return Response{}, &ScriptError{Message: describe(err)}
@@ -201,6 +204,18 @@ func strMap(m map[string]string) map[string]any {
 	out := make(map[string]any, len(m))
 	for k, v := range m {
 		out[k] = v
+	}
+	return out
+}
+
+func strSliceMap(m map[string][]string) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		vals := make([]any, len(v))
+		for i, s := range v {
+			vals[i] = s
+		}
+		out[k] = vals
 	}
 	return out
 }

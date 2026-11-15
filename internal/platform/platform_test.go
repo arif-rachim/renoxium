@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arif-rachim/renoxium/examples"
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/platform"
@@ -407,5 +408,41 @@ func TestFilesAreSharedOnDiskAndServedPerApp(t *testing.T) {
 	}
 	if _, err := p.AddFile("shop-a", strings.NewReader("<svg onload=alert(1)>")); err == nil {
 		t.Fatal("non-image accepted")
+	}
+}
+
+// Every bundled example applies cleanly and every checked route renders.
+func TestExamplesApply(t *testing.T) {
+	p := newPlatform(t)
+	for _, ex := range examples.All() {
+		def, problems := appdef.Parse(ex.JSON)
+		if len(problems) > 0 {
+			t.Fatalf("%s: %v", ex.Name, problems)
+		}
+		app := "example-" + ex.Name
+		p.CreateApp("usr_test", app)
+		res, err := p.ApplyChange(context.Background(), app, def)
+		if err != nil || !res.OK || len(res.Checks) == 0 {
+			t.Fatalf("%s: %v %+v", ex.Name, err, res)
+		}
+		for _, c := range res.Checks {
+			if c.Status != 200 {
+				t.Errorf("%s %s: %d %s", ex.Name, c.Route, c.Status, c.Error)
+			}
+		}
+	}
+}
+
+func TestRepeatedFormFields(t *testing.T) {
+	p := newPlatform(t)
+	p.CreateApp("usr_test", "form-shop")
+	def := &appdef.App{
+		Scripts: map[string]string{"s": "function handle(req) { return {json: {first: req.form.size, all: req.formAll.size}} }"},
+		Routes:  []appdef.Route{{Method: "POST", Path: "/", Script: "s"}},
+	}
+	p.ApplyChange(context.Background(), "form-shop", def)
+	r := do(t, p, "POST", "form-shop--preview.renoxium.test", "/", url.Values{"size": {"S", "M", "L"}})
+	if r.body != `{"all":["S","M","L"],"first":"S"}` {
+		t.Fatalf("got %s", r.body)
 	}
 }
