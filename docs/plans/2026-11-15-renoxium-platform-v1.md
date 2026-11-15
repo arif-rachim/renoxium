@@ -12,6 +12,8 @@
 - How is agent-submitted logic executed? → Declarative schema + routes + HTML templates + small sandboxed scripts inside the Go runtime. Agents do not write Go. (Only option that is both safe and memory-cheap in one multi-tenant process.)
 - Who is v1 for? → Non-technical sellers using ChatGPT/Claude. (Platform must own everything technical.)
 - Is enterprise a target? → No. Renoxium is for UMKM (small businesses) only; large-enterprise needs (HA, SSO, compliance certification) are not a goal, not just deferred.
+- May templates contain arbitrary client-side JavaScript? → Yes. Agents can put any HTML/JS in templates; it runs in the visitor's browser, not on the server. Guard rails: one origin per app, admin panel and Renoxium dashboard on a separate domain, auto-escaping of visitor data, card data only on the gateway's page.
+- How does the agent find out what broke? → One unified log per app covering server and browser, readable through the MCP `get_logs` tool (see Approach step 6a).
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
@@ -36,6 +38,7 @@
 - Platform primitives: auth, payments, uploads, email, WhatsApp notify, scheduled jobs.
 - Auto-generated admin panel from the schema.
 - Store reference template (catalog, cart, checkout, orders, stock).
+- Unified per-app logs (server + browser) readable by the agent.
 - Versioning with preview URL and rollback, including schema migrations.
 
 ### Out (later or never)
@@ -52,6 +55,12 @@
 4. **Script sandbox.** `internal/sandbox`: `Sandbox` interface, goja implementation, host API (`db`, `http.respond`, `auth`, `log`), CPU-time and step limits, no filesystem/network. Isolation and runaway-script tests.
 5. **Versioning.** Immutable app versions, preview URL per version, publish, rollback (schema snapshot + restore).
 6. **MCP server.** `internal/mcp`: OAuth, tools `create_app`, `get_app`, `apply_change`, `preview`, `publish`, `rollback`, `list_templates`, `use_template`, `get_logs`. Tool descriptions teach the agent to ask the user for missing info and to offer templates first.
+6a. **Unified logs.** `internal/applog`: one append-only, size-capped log per app, stored in a separate SQLite file from the app data. Every event carries app version, request ID, source (`server`/`browser`/`job`), level and timestamp.
+   - Server events: request (route, status, duration, script CPU ms), script errors with stack and script line, `console.log` from scripts, DB and migration errors, job runs, primitive failures (payment webhook, WhatsApp, email).
+   - Browser events: a small platform-injected snippet reports `window.onerror`, unhandled promise rejections, `console.error`, failed fetches/resources and CSP violations to `/_rx/log` via `sendBeacon`, tagged with the request ID of the page render so server and browser events line up.
+   - Intake is public, so: rate limit, size cap, group identical errors with a counter, redact secrets and personal data.
+   - `get_logs` filters by version, time, level, source and request ID, and returns "new errors since version N". `preview` and `publish` render every route once and return any errors directly in the tool result.
+   - Log text is untrusted input: tool results mark it as data, never as instructions to the agent.
 7. **Primitives.** `internal/primitives`: auth/sessions, uploads, email, payments (one gateway + webhook), WhatsApp notify, job scheduler.
 8. **Admin panel.** `internal/admin`: generated list/detail/edit screens per table, owner login, order view.
 9. **Store reference template.** `templates/store`: catalog, cart, checkout, order, stock, order-notification job. This is the v1 acceptance test.
@@ -61,6 +70,8 @@
 - Sandbox escape or noisy neighbour → no fs/network in scripts, tenant-bound DB handle, step/time limits, automated isolation tests; swap engine to WASM-hosted JS if memory caps prove insufficient.
 - Agent-generated logic is wrong (prices, stock, auth) → money, auth and stock decrement live in platform primitives; preview before publish; one-call rollback.
 - "General builder" spreads effort thin → the store template is the only acceptance test for v1; a primitive is built only if the store needs it.
+- Browser log intake abused (spam, fake errors, text aimed at steering the agent) → rate limits, grouping, size caps, and logs always presented to the agent as untrusted data.
+- Free tenants host phishing/abuse pages using free-form HTML/JS → report button, basic scanning, app domain on the Public Suffix List, fast takedown.
 - Schema change destroys live data → additive migrations by default, snapshot before every publish, destructive changes need an explicit confirmed flag.
 - Dependence on ChatGPT/Claude distribution rules → plain MCP + OAuth, no vendor-specific features; admin panel works without any chat platform.
 - SQLite single-writer limits → accept for v1; one busy tenant only slows itself.
