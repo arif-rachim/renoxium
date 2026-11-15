@@ -20,6 +20,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/web"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 func main() {
@@ -49,6 +50,12 @@ func main() {
 		slog.Warn("RESEND_API_KEY is not set: emails are written to the log instead of being sent")
 	}
 	cfg := platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: "https", Mailer: mailer, TrustedIPHeader: *trustedIPHeader}
+	if token, number, tmpl := os.Getenv("WHATSAPP_TOKEN"), os.Getenv("WHATSAPP_PHONE_NUMBER_ID"), os.Getenv("WHATSAPP_OTP_TEMPLATE"); token != "" && number != "" && tmpl != "" {
+		cfg.WhatsApp = &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl,
+			Language: os.Getenv("WHATSAPP_TEMPLATE_LANGUAGE"), Version: os.Getenv("WHATSAPP_API_VERSION")}
+	} else {
+		slog.Warn("WhatsApp is not configured: sign-in with WhatsApp works on previews only (codes in the app log)")
+	}
 	if *appsDomain == "localhost" {
 		cfg.PublicScheme, cfg.PublicPort = "http", port
 	}

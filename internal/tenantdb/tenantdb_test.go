@@ -148,3 +148,46 @@ func TestScriptsCannotReachPlatformTables(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A database from before phone sign-in keeps its visitors and sessions.
+func TestUpgradeOldVisitorTable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.db")
+	db, err := openAdmin(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range []string{
+		`CREATE TABLE rx_users (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL DEFAULT '',
+			password_hash TEXT NOT NULL, verified_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+		`CREATE TABLE rx_sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)`,
+		`INSERT INTO rx_users (id, email, name, password_hash) VALUES (7, 'a@b.ae', 'Ali', 'argon2id$x')`,
+		`INSERT INTO rx_sessions VALUES ('h', 7, 9999999999)`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	if err := EnsurePlatformTables(path); err != nil {
+		t.Fatal(err)
+	}
+	adm, _ := OpenAdmin(path)
+	defer adm.Close()
+	var email, sess string
+	if err := adm.QueryRow(`SELECT u.email, s.hash FROM rx_sessions s JOIN rx_users u ON u.id = s.user_id`).Scan(&email, &sess); err != nil || email != "a@b.ae" {
+		t.Fatalf("after upgrade: %v %s", err, email)
+	}
+	if _, err := adm.Exec(`INSERT INTO rx_users (phone) VALUES ('+971501234567')`); err != nil {
+		t.Fatalf("phone-only visitor: %v", err)
+	}
+	// Foreign keys still cascade on the new table.
+	adm.Exec(`DELETE FROM rx_users WHERE id = 7`)
+	var n int
+	adm.QueryRow(`SELECT count(*) FROM rx_sessions`).Scan(&n)
+	if n != 0 {
+		t.Fatal("sessions not deleted with their visitor")
+	}
+	if err := EnsurePlatformTables(path); err != nil {
+		t.Fatal("second upgrade:", err)
+	}
+}

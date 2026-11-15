@@ -241,10 +241,8 @@ func Migrate(path string, tables []appdef.Table, seed map[string][]map[string]an
 	}
 	defer tx.Rollback()
 
-	for _, stmt := range platformTables {
-		if _, err := tx.Exec(stmt); err != nil {
-			return nil, fmt.Errorf("platform tables: %w", err)
-		}
+	if err := upgradePlatformTables(tx); err != nil {
+		return nil, fmt.Errorf("platform tables: %w", err)
 	}
 	var applied []string
 	for _, t := range tables {
@@ -292,25 +290,71 @@ func Migrate(path string, tables []appdef.Table, seed map[string][]map[string]an
 	return applied, tx.Commit()
 }
 
+// usersTable is the current rx_users definition. A visitor has an email and
+// password, a WhatsApp number, or both.
+const usersTable = `CREATE TABLE IF NOT EXISTS rx_users (id INTEGER PRIMARY KEY, email TEXT UNIQUE, phone TEXT UNIQUE,
+	name TEXT NOT NULL DEFAULT '', password_hash TEXT, verified_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`
+
 // platformTables hold the app's visitor accounts. Scripts cannot reach them.
 var platformTables = []string{
-	`CREATE TABLE IF NOT EXISTS rx_users (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL DEFAULT '',
-		password_hash TEXT NOT NULL, verified_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+	usersTable,
 	`CREATE TABLE IF NOT EXISTS rx_sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
 		expires_at INTEGER NOT NULL)`,
 	`CREATE TABLE IF NOT EXISTS rx_email_tokens (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
 		purpose TEXT NOT NULL, expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE TABLE IF NOT EXISTS rx_phone_codes (phone TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
+		attempts INTEGER NOT NULL DEFAULT 0)`,
 }
 
-// EnsurePlatformTables adds the rx_ tables to a database created before
-// they existed.
-func EnsurePlatformTables(db *sql.DB) error {
+type execer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
+// upgradePlatformTables creates the rx_ tables and rebuilds an rx_users
+// table from before phone sign-in, keeping its rows. Foreign keys must be
+// off on the connection, or dropping the old table would delete sessions.
+func upgradePlatformTables(db execer) error {
+	var def string
+	err := db.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'rx_users'`).Scan(&def)
+	if err == nil && !strings.Contains(def, "phone TEXT") {
+		for _, stmt := range []string{
+			strings.Replace(usersTable, "IF NOT EXISTS rx_users", "rx_users_new", 1),
+			`INSERT INTO rx_users_new (id, email, name, password_hash, verified_at, created_at)
+				SELECT id, email, name, password_hash, verified_at, created_at FROM rx_users`,
+			`DROP TABLE rx_users`,
+			`ALTER TABLE rx_users_new RENAME TO rx_users`,
+		} {
+			if _, err := db.Exec(stmt); err != nil {
+				return fmt.Errorf("upgrade rx_users: %w", err)
+			}
+		}
+	}
 	for _, stmt := range platformTables {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// EnsurePlatformTables brings the rx_ tables of the database at path up to
+// date, for databases created by an older platform version.
+func EnsurePlatformTables(path string) error {
+	db, err := openAdmin(path) // foreign keys off, as the upgrade needs
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := upgradePlatformTables(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // OpenAdmin opens a database for platform code, without the script

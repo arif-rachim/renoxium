@@ -12,6 +12,7 @@ import (
 type VisitorRow struct {
 	ID        int64
 	Email     string
+	Phone     string
 	Name      string
 	Verified  bool
 	CreatedAt string
@@ -25,9 +26,9 @@ func (p *Platform) Visitors(ctx context.Context, app, search string, page int) (
 	}
 	where, args := "", []any{}
 	if search = strings.TrimSpace(search); search != "" {
-		where = ` WHERE email LIKE ? ESCAPE '\' OR name LIKE ? ESCAPE '\'`
+		where = ` WHERE email LIKE ? ESCAPE '\' OR name LIKE ? ESCAPE '\' OR phone LIKE ? ESCAPE '\'`
 		like := "%" + likeEscape(search) + "%"
-		args = append(args, like, like)
+		args = append(args, like, like, like)
 	}
 	var total int
 	if err := st.admin.QueryRowContext(ctx, "SELECT count(*) FROM rx_users"+where, args...).Scan(&total); err != nil {
@@ -36,7 +37,7 @@ func (p *Platform) Visitors(ctx context.Context, app, search string, page int) (
 	if page < 1 {
 		page = 1
 	}
-	rows, err := st.admin.QueryContext(ctx, "SELECT id, email, name, verified_at, created_at FROM rx_users"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",
+	rows, err := st.admin.QueryContext(ctx, "SELECT id, coalesce(email, ''), coalesce(phone, ''), name, verified_at, created_at FROM rx_users"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",
 		append(args, AdminPageSize, (page-1)*AdminPageSize)...)
 	if err != nil {
 		return nil, 0, err
@@ -46,7 +47,7 @@ func (p *Platform) Visitors(ctx context.Context, app, search string, page int) (
 	for rows.Next() {
 		var v VisitorRow
 		var verified sql.NullString
-		if err := rows.Scan(&v.ID, &v.Email, &v.Name, &verified, &v.CreatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.Email, &v.Phone, &v.Name, &verified, &v.CreatedAt); err != nil {
 			return nil, 0, err
 		}
 		v.Verified = verified.Valid

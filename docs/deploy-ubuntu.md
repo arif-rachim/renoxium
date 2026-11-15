@@ -104,7 +104,36 @@ sudo install -d -m 700 /etc/renoxium && echo 'RESEND_API_KEY=re_your_key' | sudo
 sudo systemctl restart renoxium
 ```
 
-Without a key Renoxium still runs, but it writes emails to its log instead of sending them. To use
+Without a key Renoxium still runs, but it writes emails to its log instead of sending them.
+
+### WhatsApp sign-in codes (optional)
+
+Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.
+In WhatsApp Manager:
+
+1. Create a message template of category **Authentication** with a **Copy code** button, for example named
+   `login_code`, and wait for it to be approved.
+2. Note the **Phone number ID** of the sending number, and create a permanent access token for a system
+   user with the `whatsapp_business_messaging` permission.
+
+Add them to `/etc/renoxium/env` next to the Resend key, then restart:
+
+```bash
+sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
+WHATSAPP_TOKEN=your_access_token
+WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+WHATSAPP_OTP_TEMPLATE=login_code
+ENV
+```
+
+```bash
+sudo systemctl restart renoxium
+```
+
+Optional: `WHATSAPP_TEMPLATE_LANGUAGE` (default `en_US`) and `WHATSAPP_API_VERSION` (default `v23.0`).
+Every code is a paid WhatsApp message; Renoxium allows three codes per number per 15 minutes. Without
+these settings, WhatsApp sign-in is off on live apps; previews always offer it and write the code to the
+app log instead of sending it. To use
 another sender address, add `-email-from "Renoxium <hello@renoxium.com>"` to `ExecStart`.
 
 Check that the server is up. This must print `ok`:
@@ -297,4 +326,6 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | The site returns 404 "not found" | The browser address differs from the host in `-base-url` (for example with or without www) | use the address in `-base-url`, or fix the redirect in Cloudflare |
 | Everyone gets "too many attempts" | `-trusted-ip-header` is missing from the service | `systemctl cat renoxium` |
 | No confirmation or reset email arrives | Missing `RESEND_API_KEY`, or the sender domain is not verified in Resend | `sudo journalctl -u renoxium \| grep -i email` |
+| "Sign in with WhatsApp" is missing on live apps | The three `WHATSAPP_` settings are not all set | `sudo journalctl -u renoxium \| grep -i whatsapp` |
+| WhatsApp codes do not arrive | Template not approved, wrong template name or language, or an expired token | the app log in the admin panel shows Meta's error |
 | Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |

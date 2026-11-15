@@ -17,6 +17,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 // TestRequestInput is a request an agent sends to its own app.
@@ -27,7 +28,7 @@ type TestRequestInput struct {
 	Form   map[string]string `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
 	JSON   any               `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
 	// UserEmail sends the request as a signed-in visitor (preview only).
-	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as this visitor; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup first, or it may come from live data)"`
+	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as the visitor with this email or WhatsApp number; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup or /_rx/auth/phone first, or it may come from live data)"`
 }
 
 // TestResponse is what the app answered, with the log of that request.
@@ -98,8 +99,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 			return TestResponse{}, errors.New("preview has no version yet: call apply_change first")
 		}
 		addr, _ := normalizeEmail(in.UserEmail)
+		phone, _ := whatsapp.Normalize(in.UserEmail)
 		var id int64
-		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ?`, addr).Scan(&id); err != nil {
+		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ? OR phone = ?`, addr, phone).Scan(&id); err != nil {
 			return TestResponse{}, fmt.Errorf("no visitor %q in preview: sign up first with POST /_rx/auth/signup", in.UserEmail)
 		}
 		token := secretToken()

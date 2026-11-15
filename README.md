@@ -20,11 +20,13 @@ Working today:
 - Server scripts in goja, run in a pool of separate worker processes: 2 s time limit, a heap watchdog inside each worker (64 MiB), and the parent kills any worker over 256 MiB resident and starts a new one. At most 2 scripts of one app run at once, so one app cannot occupy every worker. No filesystem, network or timers; a SQLite authorizer allows data statements only.
 - Admin panel on the Renoxium site at `/apps/<app>`, generated from the live schema: tables with row counts, recent errors, a searchable and paginated list per table, and add/edit/delete forms whose inputs follow column types. Owner only; every change is written to the app log.
 - Image uploads through the `upload_file` tool or the admin panel, stored on local disk under the SHA-256 of their content: identical images are stored once, even across apps, and uploading again returns the same URL. Each app serves only the files recorded for it, at `/_rx/files/<hash>.<ext>` with immutable cache headers. Columns of type `image` hold these URLs.
-- Sign-in for an app's own visitors, built in: sign-up, sign-in, sign-out, email confirmation and password reset pages at `/_rx/auth/*` on the app's domain, restylable with `auth_*` templates. Routes marked `"auth": "user"` require a signed-in visitor, and scripts get `req.user`. Accounts live in `rx_` tables in the app database that scripts cannot read or write (enforced by the SQLite authorizer). Live sends emails through Resend; preview writes them, links included, to the app log.
+- Sign-in for an app's own visitors, built in: sign-up, sign-in, sign-out, email confirmation and password reset pages at `/_rx/auth/*` on the app's domain, restylable with `auth_*` templates. Visitors can also sign in with a 6-digit WhatsApp code (WhatsApp Cloud API), which creates the account on first use. Routes marked `"auth": "user"` require a signed-in visitor, and scripts get `req.user`. Accounts live in `rx_` tables in the app database that scripts cannot read or write (enforced by the SQLite authorizer). Live sends emails through Resend; preview writes them, links included, to the app log.
 - Templates with any HTML/CSS/browser JavaScript, auto-escaped data.
 - One log per app: requests, script errors with stack traces, script console output, and browser errors reported by an injected snippet, linked by request ID.
 
-Not built yet (see the plan): a visitor list in the admin panel, staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp, custom domains, quotas.
+- The admin panel lists an app's visitor accounts (email, WhatsApp number, name, confirmed) with search and delete; visitor emails reply to the owner's confirmed address.
+
+Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp order notifications, custom domains, quotas.
 
 ## Run
 

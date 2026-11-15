@@ -56,8 +56,9 @@ func (p *Platform) visitor(st *stage, r *http.Request) *sandbox.Visitor {
 	}
 	var v sandbox.Visitor
 	var verified sql.NullString
-	err = st.admin.QueryRowContext(r.Context(), `SELECT u.id, u.email, u.name, u.verified_at FROM rx_sessions s JOIN rx_users u ON u.id = s.user_id
-		WHERE s.hash = ? AND s.expires_at > ?`, sha(c.Value), time.Now().Unix()).Scan(&v.ID, &v.Email, &v.Name, &verified)
+	err = st.admin.QueryRowContext(r.Context(), `SELECT u.id, coalesce(u.email, ''), coalesce(u.phone, ''), u.name, u.verified_at
+		FROM rx_sessions s JOIN rx_users u ON u.id = s.user_id
+		WHERE s.hash = ? AND s.expires_at > ?`, sha(c.Value), time.Now().Unix()).Scan(&v.ID, &v.Email, &v.Phone, &v.Name, &verified)
 	if err != nil {
 		return nil
 	}
@@ -155,6 +156,10 @@ func (p *Platform) serveAuth(w http.ResponseWriter, r *http.Request, st *stage) 
 			return
 		}
 	}
+	if page == "phone" || strings.HasPrefix(page, "phone/") {
+		p.servePhone(w, r, st, page)
+		return
+	}
 	switch {
 	case page == "signup" && r.Method == http.MethodGet:
 		p.authPage(w, r, st, http.StatusOK, "signup", authData{Next: localPath(r.URL.Query().Get("next"))})
@@ -243,7 +248,7 @@ func (p *Platform) login(w http.ResponseWriter, r *http.Request, st *stage) {
 	}
 	var id int64
 	var hash string
-	err := st.admin.QueryRowContext(r.Context(), `SELECT id, password_hash FROM rx_users WHERE email = ?`, addr).Scan(&id, &hash)
+	err := st.admin.QueryRowContext(r.Context(), `SELECT id, password_hash FROM rx_users WHERE email = ? AND password_hash IS NOT NULL`, addr).Scan(&id, &hash)
 	if err != nil {
 		password.CheckMissing(r.PostFormValue("password"))
 	}
@@ -388,18 +393,20 @@ func (p *Platform) verify(w http.ResponseWriter, r *http.Request, st *stage) {
 
 // authData is what auth pages, and the app's own auth_* templates, receive.
 type authData struct {
-	CSRF, Next, Email, Name, Token, Error, Title, Message, Link string
+	CSRF, Next, Email, Name, Phone, Token, Error, Title, Message, Link string
+	WhatsApp                                                           bool
 }
 
 func (d authData) templateData() map[string]any {
-	return map[string]any{"csrf": d.CSRF, "next": d.Next, "email": d.Email, "name": d.Name, "token": d.Token,
-		"error": d.Error, "title": d.Title, "message": d.Message, "link": d.Link}
+	return map[string]any{"csrf": d.CSRF, "next": d.Next, "email": d.Email, "name": d.Name, "phone": d.Phone, "token": d.Token,
+		"error": d.Error, "title": d.Title, "message": d.Message, "link": d.Link, "whatsapp": d.WhatsApp}
 }
 
 // authPage renders the app's auth_<page> template if it defines one, else
 // the platform's plain page.
 func (p *Platform) authPage(w http.ResponseWriter, r *http.Request, st *stage, status int, page string, d authData) {
 	d.CSRF = p.csrf(w, r)
+	d.WhatsApp = p.whatsappAvailable(st)
 	var buf bytes.Buffer
 	if t := st.tmpl.Lookup("auth_" + page); t != nil {
 		if err := t.Execute(&buf, d.templateData()); err == nil {
@@ -430,7 +437,19 @@ button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:#
 <form method="post" action="/_rx/auth/login"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.email}}">
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<button>Sign in</button></form><p class="muted"><a href="/_rx/auth/forgot">Forgot your password?</a> · <a href="/_rx/auth/signup?next={{.next}}">Create an account</a></p></body></html>{{end}}
+<button>Sign in</button></form><p class="muted"><a href="/_rx/auth/forgot">Forgot your password?</a> · <a href="/_rx/auth/signup?next={{.next}}">Create an account</a></p>
+{{if .whatsapp}}<p><a href="/_rx/auth/phone?next={{.next}}">Sign in with WhatsApp instead</a></p>{{end}}</body></html>{{end}}
+{{define "phone"}}{{template "top" "Sign in with WhatsApp"}}<h1>Sign in with WhatsApp</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
+<p class="muted">We send a 6-digit code to your WhatsApp. No password needed.</p>
+<form method="post" action="/_rx/auth/phone"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}">
+<label for="phone">WhatsApp number</label><input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+971 50 123 4567" required value="{{.phone}}">
+<button>Send code</button></form><p class="muted"><a href="/_rx/auth/login?next={{.next}}">Use email and password</a></p></body></html>{{end}}
+{{define "phone_code"}}{{template "top" "Enter the code"}}<h1>Enter the code</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
+<p class="muted">We sent a code to {{.phone}} on WhatsApp. It works for 10 minutes.</p>
+<form method="post" action="/_rx/auth/phone/verify"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}"><input type="hidden" name="phone" value="{{.phone}}">
+<label for="code">Code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+<label for="name">Your name (first time only)</label><input id="name" name="name" autocomplete="name">
+<button>Sign in</button></form><p class="muted"><a href="/_rx/auth/phone?next={{.next}}">Send a new code</a></p></body></html>{{end}}
 {{define "signup"}}{{template "top" "Create an account"}}<h1>Create an account</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
 <form method="post" action="/_rx/auth/signup"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}">
 <label for="name">Name</label><input id="name" name="name" autocomplete="name" value="{{.name}}">

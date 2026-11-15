@@ -66,13 +66,20 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
   Sign out with <form method="post" action="/_rx/auth/logout"><button>Sign out</button></form> (no token needed),
   or link to /_rx/auth/logout, which asks for confirmation.
 - Mark a route with "auth": "user" so only signed-in visitors reach it; others are redirected to sign in (GET) or get 401 (POST).
-- Scripts get req.user: {id, email, name, verified} or null. Template routes get .user the same way. Use req.user.id as the owner
+- Sign-in with WhatsApp: link to /_rx/auth/phone. The visitor enters a number, gets a 6-digit code on WhatsApp and is signed in;
+  the first time this creates the account (no email, no password). The platform's sign-in page links to it when WhatsApp is
+  set up; if you replace that page with auth_login, add the link yourself when .whatsapp is true.
+  On preview the code is not sent: read it in get_logs. Test with test_request: POST /_rx/auth/phone with form {phone},
+  then POST /_rx/auth/phone/verify with form {phone, code, name}.
+- Scripts get req.user: {id, email, phone, name, verified} or null; email or phone may be "" depending on how the visitor signed up. Template routes get .user the same way. Use req.user.id as the owner
   of the visitor's own rows (e.g. orders.user_id) and always filter by it: WHERE user_id = ?.
 - Visitor accounts live in platform tables that scripts cannot read; the owner sees nothing of passwords.
-- Restyle the pages with templates named auth_login, auth_signup, auth_forgot, auth_reset, auth_logout and auth_message. They receive
-  .csrf, .next, .email, .name, .token, .error, .title, .message and .link. Keep the form fields and actions of the defaults:
+- Restyle the pages with templates named auth_login, auth_signup, auth_forgot, auth_reset, auth_logout, auth_phone, auth_phone_code
+  and auth_message. They receive .csrf, .next, .email, .name, .phone, .token, .error, .title, .message, .link and .whatsapp
+  (true when WhatsApp sign-in is available). Keep the form fields and actions of the defaults:
   login posts email, password, next, csrf to /_rx/auth/login; signup posts name, email, password, next, csrf to /_rx/auth/signup;
-  forgot posts email, csrf to /_rx/auth/forgot; reset posts password, token, csrf to /_rx/auth/reset.
+  forgot posts email, csrf to /_rx/auth/forgot; reset posts password, token, csrf to /_rx/auth/reset;
+  phone posts phone, next, csrf to /_rx/auth/phone; phone_code posts phone, code, name, next, csrf to /_rx/auth/phone/verify.
 - Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
 - Test with test_request: POST /_rx/auth/signup with form {name, email, password}, then send requests with user_email set.
 

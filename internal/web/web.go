@@ -614,10 +614,10 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 
 {{define "admin_visitors"}}{{template "wide" "Visitors"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <div class="bar"><h1 style="margin:0">Visitor accounts <span class="muted">({{.Total}})</span></h1>
-<form method="get"><input name="q" value="{{.Query}}" placeholder="Search email or name" aria-label="Search"><button class="secondary">Search</button></form></div>
+<form method="get"><input name="q" value="{{.Query}}" placeholder="Search email, number or name" aria-label="Search"><button class="secondary">Search</button></form></div>
 <p class="muted">People who created an account on your app. Passwords are never shown to anyone.</p>
-{{if .Visitors}}<div class="scroll"><table><thead><tr><th>#</th><th>Email</th><th>Name</th><th>Confirmed</th><th>Joined</th><th></th></tr></thead><tbody>
-{{range .Visitors}}<tr><td>{{.ID}}</td><td>{{.Email}}</td><td>{{.Name}}</td><td>{{if .Verified}}Yes{{else}}No{{end}}</td><td>{{.CreatedAt}}</td>
+{{if .Visitors}}<div class="scroll"><table><thead><tr><th>#</th><th>Email</th><th>WhatsApp</th><th>Name</th><th>Confirmed</th><th>Joined</th><th></th></tr></thead><tbody>
+{{range .Visitors}}<tr><td>{{.ID}}</td><td>{{.Email}}</td><td>{{.Phone}}</td><td>{{.Name}}</td><td>{{if .Verified}}Yes{{else}}No{{end}}</td><td>{{.CreatedAt}}</td>
 <td><form method="post" action="/apps/{{$.App}}/visitors/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" style="margin:0;padding:4px 10px">Delete</button></form></td></tr>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}

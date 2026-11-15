@@ -41,6 +41,7 @@ type Request struct {
 type Visitor struct {
 	ID       int64  `json:"id"`
 	Email    string `json:"email"`
+	Phone    string `json:"phone"`
 	Name     string `json:"name"`
 	Verified bool   `json:"verified"`
 }
@@ -50,7 +51,7 @@ func (v *Visitor) Map() map[string]any {
 	if v == nil {
 		return nil
 	}
-	return map[string]any{"id": v.ID, "email": v.Email, "name": v.Name, "verified": v.Verified}
+	return map[string]any{"id": v.ID, "email": v.Email, "phone": v.Phone, "name": v.Name, "verified": v.Verified}
 }
 
 // Response is what a script returns. Exactly one of Template, JSON, Text or

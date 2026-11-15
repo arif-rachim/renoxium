@@ -26,6 +26,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 // Stage names.
@@ -47,6 +48,9 @@ type Config struct {
 	Mailer email.Sender
 	// TrustedIPHeader carries the visitor address behind a local tunnel.
 	TrustedIPHeader string
+	// WhatsApp sends sign-in codes from live. Nil turns phone sign-in off
+	// on live; preview always offers it, with codes in the app log.
+	WhatsApp whatsapp.Sender
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
 	OwnerEmail func(ownerID string) (address string, ok bool)
@@ -497,12 +501,11 @@ func (p *Platform) loadStage(app, stageName string) (*stage, error) {
 	if err != nil {
 		return nil, err
 	}
-	admin, err := tenantdb.OpenAdmin(p.dbPath(app, stageName))
-	if err != nil {
+	if err := tenantdb.EnsurePlatformTables(p.dbPath(app, stageName)); err != nil {
 		return nil, err
 	}
-	if err := tenantdb.EnsurePlatformTables(admin); err != nil {
-		admin.Close()
+	admin, err := tenantdb.OpenAdmin(p.dbPath(app, stageName))
+	if err != nil {
 		return nil, err
 	}
 	db, err := tenantdb.Open(p.dbPath(app, stageName))

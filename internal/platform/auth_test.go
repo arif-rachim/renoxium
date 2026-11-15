@@ -280,3 +280,130 @@ func TestPreviewEmailsGoToTheLog(t *testing.T) {
 		t.Fatal("unknown visitor accepted")
 	}
 }
+
+type codeBox struct {
+	mu    sync.Mutex
+	codes map[string]string
+}
+
+func (c *codeBox) SendCode(_ context.Context, phone, code string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.codes[phone] = code
+	return nil
+}
+
+func TestWhatsAppSignIn(t *testing.T) {
+	codes := &codeBox{codes: map[string]string{}}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", WhatsApp: codes}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	p.CreateApp("usr_test", "club")
+	def := membersApp()
+	delete(def.Templates, "auth_login") // use the platform's sign-in page
+	p.ApplyChange(context.Background(), "club", def)
+	p.Publish("club", 0)
+	host := "club.renoxium.test"
+	v := newVisitor(t, p, host)
+
+	if w := v.do("GET", "/_rx/auth/login", nil); !strings.Contains(w.Body.String(), "/_rx/auth/phone") {
+		t.Fatal("sign-in page does not offer WhatsApp")
+	}
+	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"not a number"}}); w.Code != 400 {
+		t.Fatalf("bad number: %d", w.Code)
+	}
+	w := v.submit("/_rx/auth/phone?next=/account", "/_rx/auth/phone", url.Values{"phone": {"050 123 4567"}, "next": {"/account"}})
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "971501234567") {
+		t.Fatalf("send: %d %s", w.Code, w.Body.String())
+	}
+	code := codes.codes["+971501234567"]
+	if len(code) != 6 {
+		t.Fatalf("code = %q", code)
+	}
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+	verify := func(c string) *httptest.ResponseRecorder {
+		return v.submit("/_rx/auth/phone", "/_rx/auth/phone/verify", url.Values{"phone": {"+971501234567"}, "code": {c}, "name": {"Huda"}, "next": {"/account"}})
+	}
+	if w := verify(wrong); w.Code != 401 {
+		t.Fatalf("wrong code: %d", w.Code)
+	}
+	if w := verify(code); w.Code != 303 || w.Header().Get("Location") != "/account" {
+		t.Fatalf("verify: %d %s", w.Code, w.Body.String())
+	}
+	if w := v.do("GET", "/account", nil); !strings.Contains(w.Body.String(), `"phone":"+971501234567"`) || !strings.Contains(w.Body.String(), `"name":"Huda"`) || !strings.Contains(w.Body.String(), `"verified":true`) {
+		t.Fatalf("account: %s", w.Body.String())
+	}
+	// A code works once.
+	if w := verify(code); w.Code != 400 {
+		t.Fatalf("code reused: %d", w.Code)
+	}
+	// Signing in again with the same number reuses the account.
+	v.do("POST", "/_rx/auth/logout", nil)
+	v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971501234567"}})
+	verify(codes.codes["+971501234567"])
+	if w := v.do("GET", "/account", nil); !strings.Contains(w.Body.String(), `"id":1`) {
+		t.Fatalf("second sign-in made a new account: %s", w.Body.String())
+	}
+	list, total, _ := p.Visitors(context.Background(), "club", "", 1)
+	if total != 1 || list[0].Phone != "+971501234567" || list[0].Email != "" {
+		t.Fatalf("visitors: %+v", list)
+	}
+
+	// Five wrong guesses burn the code.
+	v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971509999999"}})
+	good := codes.codes["+971509999999"]
+	bad := "000000"
+	if good == bad {
+		bad = "111111"
+	}
+	for i := 0; i < 5; i++ {
+		v.submit("/_rx/auth/phone", "/_rx/auth/phone/verify", url.Values{"phone": {"+971509999999"}, "code": {bad}})
+	}
+	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone/verify", url.Values{"phone": {"+971509999999"}, "code": {good}}); w.Code != 400 {
+		t.Fatalf("code still worked after 5 wrong guesses: %d", w.Code)
+	}
+
+	// At most three codes per number per 15 minutes (each costs a message).
+	last := 0
+	for i := 0; i < 4; i++ {
+		last = v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971508888888"}}).Code
+	}
+	if last != 429 {
+		t.Fatalf("fourth code: %d", last)
+	}
+}
+
+func TestWhatsAppOffOnLiveWithoutConfig(t *testing.T) {
+	p := newPlatform(t)
+	p.CreateApp("usr_test", "club")
+	p.ApplyChange(context.Background(), "club", membersApp())
+	p.Publish("club", 0)
+	live := newVisitor(t, p, "club.renoxium.test")
+	if w := live.do("GET", "/_rx/auth/phone", nil); w.Code != 404 {
+		t.Fatalf("live without WhatsApp: %d", w.Code)
+	}
+	// Preview always offers it, with the code in the log and no message sent.
+	res, err := p.TestRequest(context.Background(), "club", platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/phone", Form: map[string]string{"phone": "+971501112222"}})
+	if err != nil || res.Status != 200 {
+		t.Fatalf("preview send: %v %+v", err, res)
+	}
+	logs, _ := p.Logs("club", applog.Filter{Source: "whatsapp"})
+	m := regexp.MustCompile(`sign-in code (\d{6}) for \+971501112222`).FindStringSubmatch(logs[0].Message)
+	if m == nil {
+		t.Fatalf("logs: %+v", logs)
+	}
+	res, _ = p.TestRequest(context.Background(), "club", platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/phone/verify",
+		Form: map[string]string{"phone": "+971501112222", "code": m[1], "name": "Tester"}})
+	if res.Status != 303 {
+		t.Fatalf("preview verify: %+v", res)
+	}
+	res, _ = p.TestRequest(context.Background(), "club", platform.TestRequestInput{Path: "/account", UserEmail: "+971501112222"})
+	if res.Status != 200 || !strings.Contains(res.Body, `"name":"Tester"`) {
+		t.Fatalf("as WhatsApp visitor: %+v", res)
+	}
+}
