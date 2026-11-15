@@ -18,11 +18,12 @@
 - What telemetry exists? → One event pipeline feeds three consumers: agent-readable logs, per-tenant usage counters (quotas/billing), and operator health metrics.
 - Can other agents use a built app? → Yes. Every app serves its own MCP endpoint at `<app>.renoxium.app/mcp`, separate from the builder MCP at renoxium.com. Tools are generated from the app's **actions** (named, typed operations with a permission level); the admin panel, HTTP routes and the app MCP all call the same actions, so there is one permission model. v1: owner tools behind OAuth (orders, stock, products) and public read-only tools (search/get products). Buyer agents get a checkout link; they never pay on the buyer's behalf.
 - Custom domains (e.g. `www.tokoku.com` bound to `tokoku.renoxium.app`, Netlify-style)? → Planned right after v1, as a paid feature. v1 must not block it: tenant routing looks the request host up in a domain table (never parses the subdomain), and all generated links, redirects, payment callbacks and the app MCP URL come from one "canonical host" helper. Later design: merchant adds CNAME (`www`) or A record (apex) plus a TXT ownership record; platform verifies, then issues TLS automatically with a pure-Go ACME library (CertMagic), only for domains present in the domain table; the renoxium.app address redirects to the custom domain.
+- Which script engine? → goja (pure Go JavaScript interpreter), behind a `Sandbox` interface, executed in a small pool of separate worker processes with OS memory limits (goja has no hard memory cap). QuickJS-on-wazero is the upgrade path if in-process memory caps or newer JS syntax become necessary.
+- Build constraints → no cgo anywhere: pure-Go SQLite driver (`modernc.org/sqlite`), no `v8go`, no embedded V8/Deno. Keeps builds fast and cross-compilation trivial.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
 ## Assumptions (not asked, simplest option taken — change here if wrong)
-- Script language is JavaScript (LLMs write it best), run by an embedded engine behind a small `Sandbox` interface so the engine can be swapped. Start with goja; move to QuickJS-on-wazero if hard memory caps are needed.
 - Templates are Go `html/template` (auto-escaping) stored per tenant; styling via one bundled CSS file, no client-side framework.
 - Auth, sessions, payments, file upload, email and WhatsApp are platform primitives called from scripts. Agent-written code never handles passwords, card data or raw SQL connections to other tenants.
 - Scripts reach the database only through a host API bound to the current tenant's SQLite file.
@@ -58,7 +59,7 @@
 1. **Repo skeleton + app definition format.** Go module, `cmd/renoxium`, `internal/appdef` with the JSON schema for an app (tables, routes, templates, scripts, jobs) and a validator. Document it in `docs/appdef.md`.
 2. **Tenant store.** `internal/tenantdb`: open/pool SQLite per tenant, WAL, size quota, declarative migrations generated from table definitions (add table/column only; destructive changes require explicit flag).
 3. **Runtime + SSR.** `internal/runtime`: host-based tenant routing, load active app version, render `html/template` with data from declarative queries. Benchmark target: p95 < 20 ms for a catalog page.
-4. **Script sandbox.** `internal/sandbox`: `Sandbox` interface, goja implementation, host API (`db`, `http.respond`, `auth`, `log`), CPU-time and step limits, no filesystem/network. Isolation and runaway-script tests.
+4. **Script sandbox.** `internal/sandbox`: `Sandbox` interface, goja implementation running in worker processes (memory-limited by the OS, restarted on crash), host API (`db`, `http.respond`, `auth`, `log`), CPU-time and step limits, no filesystem/network. Isolation and runaway-script tests.
 5. **Versioning and stages.** Immutable app versions; preview URL per version backed by a snapshot copy of the live database with sandboxed primitives; automatic checks on preview; publish; rollback (schema snapshot + restore).
 6. **MCP server.** `internal/mcp`: OAuth, tools `create_app`, `get_app`, `apply_change`, `preview`, `publish`, `rollback`, `list_templates`, `use_template`, `get_logs`. Tool descriptions teach the agent to ask the user for missing info and to offer templates first.
 6c. **Per-app MCP endpoint.** Add `actions` to the app definition (name, description, input schema, permission: `public`/`customer`/`staff`/`owner`, handler). Serve `/mcp` per app from the same MCP code as the builder server: tool list derived from actions, OAuth for non-public tools, per-app rate limits, calls logged and counted like HTTP requests. Text returned from tenant data (product descriptions, reviews) is marked as untrusted content.
@@ -92,7 +93,6 @@
 - Manual: from ChatGPT, install the MCP server, ask for a store, place a paid test order (gateway sandbox), see it in the admin panel and receive the WhatsApp message.
 
 ## Open questions deferred
-- goja vs QuickJS-on-wazero as the long-term script engine.
 - Midtrans vs Xendit; WhatsApp provider.
 - Hosting provider and backup target.
 - Renoxium's own pricing and free-tier quotas.
