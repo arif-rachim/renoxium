@@ -24,6 +24,8 @@
 - Payments → Stripe. Each merchant connects their own Stripe account (Stripe Connect), checkout happens on Stripe-hosted pages, the platform receives webhooks. Connect also leaves the door open for a per-transaction platform fee later.
 - Already in place (owner confirmed) → domains `renoxium.com` (site, dashboard, builder MCP) and `renoxium.app` (tenant apps), a VPS, a Stripe account, a WhatsApp Business setup, and a registered legal entity.
 - Client-side libraries → none bundled or required. The agent writes its own browser JavaScript. Routes can return a full page, an HTML fragment (a partial template) or JSON. Builder tool guidance tells the agent to render visitor-supplied data through server templates (auto-escaped) or `textContent`, never by building HTML strings in the browser.
+- Build order → a thin slice first (app definition, per-tenant SQLite, SSR runtime, goja sandbox, builder MCP with a few tools) to prove that an agent can build a working catalog and that tenants are isolated, before the rest of the plan.
+- Entry point → the MCP server only, used first by paid ChatGPT users (developer mode) and Claude users, then submitted to the ChatGPT and Claude app directories. No Renoxium-owned chat in v1 (custom MCP in ChatGPT appears limited to paid plans).
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 

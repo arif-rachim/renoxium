@@ -1,0 +1,40 @@
+{
+  "tables": [
+    {"name": "products", "columns": [
+      {"name": "name", "type": "text", "required": true},
+      {"name": "price_aed", "type": "real", "required": true},
+      {"name": "description", "type": "text"}
+    ]},
+    {"name": "orders", "columns": [
+      {"name": "product_id", "type": "integer", "required": true},
+      {"name": "customer_name", "type": "text", "required": true},
+      {"name": "phone", "type": "text", "required": true}
+    ]}
+  ],
+  "seed": {
+    "products": [
+      {"name": "Royal Oud", "price_aed": 250, "description": "Smoky oud, 50 ml"},
+      {"name": "White Musk", "price_aed": 95, "description": "Soft musk, 30 ml"},
+      {"name": "Amber Night", "price_aed": 140, "description": "Warm amber, 50 ml"}
+    ]
+  },
+  "templates": {
+    "layout_top": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Al Noor Perfumes</title><style>body{font-family:system-ui;max-width:640px;margin:0 auto;padding:16px}.p{border:1px solid #ddd;border-radius:8px;padding:12px;margin:8px 0}</style></head><body><h1><a href=\"/\">Al Noor Perfumes</a></h1>",
+    "home": "{{template \"layout_top\"}}{{range .products}}<div class=\"p\"><a href=\"/products/{{.id}}\">{{.name}}</a> — AED {{printf \"%.2f\" .price_aed}}</div>{{end}}<p id=\"count\"></p><script>document.getElementById('count').textContent = document.querySelectorAll('.p').length + ' products';</script></body></html>",
+    "product": "{{template \"layout_top\"}}<h2>{{.product.name}}</h2><p>{{.product.description}}</p><p>AED {{printf \"%.2f\" .product.price_aed}}</p><form method=\"post\" action=\"/orders\"><input type=\"hidden\" name=\"product_id\" value=\"{{.product.id}}\"><input name=\"customer_name\" placeholder=\"Name\" required><input name=\"phone\" placeholder=\"Phone\" required><button>Order</button></form></body></html>",
+    "thanks": "{{template \"layout_top\"}}<p>Thank you {{.name}}, order #{{.id}} received. We will contact you on WhatsApp.</p></body></html>",
+    "not_found": "{{template \"layout_top\"}}<p>Product not found.</p></body></html>"
+  },
+  "scripts": {
+    "home": "function handle(req) {\n  return {template: 'home', data: {products: db.query('SELECT id, name, price_aed FROM products ORDER BY name')}};\n}",
+    "product": "function handle(req) {\n  const rows = db.query('SELECT * FROM products WHERE id = ?', Number(req.params.id));\n  if (rows.length === 0) return {template: 'not_found', status: 404};\n  return {template: 'product', data: {product: rows[0]}};\n}",
+    "order": "function handle(req) {\n  const f = req.form;\n  if (!f.customer_name || !f.phone) return {text: 'name and phone are required', status: 400};\n  const p = db.query('SELECT id FROM products WHERE id = ?', Number(f.product_id));\n  if (p.length === 0) return {text: 'unknown product', status: 400};\n  const r = db.exec('INSERT INTO orders (product_id, customer_name, phone) VALUES (?, ?, ?)', p[0].id, f.customer_name, f.phone);\n  console.log('new order', r.lastInsertId);\n  return {template: 'thanks', data: {id: r.lastInsertId, name: f.customer_name}};\n}",
+    "api_products": "function handle(req) {\n  return {json: db.query('SELECT id, name, price_aed FROM products ORDER BY id')};\n}"
+  },
+  "routes": [
+    {"method": "GET", "path": "/", "script": "home"},
+    {"method": "GET", "path": "/products/:id", "script": "product"},
+    {"method": "POST", "path": "/orders", "script": "order"},
+    {"method": "GET", "path": "/api/products", "script": "api_products"}
+  ]
+}
