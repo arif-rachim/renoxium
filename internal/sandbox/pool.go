@@ -312,10 +312,20 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 
 	// The parent enforces the limits a misbehaving worker cannot be trusted
 	// to enforce on itself: a hard deadline and resident memory.
-	var reason sync.Once
-	var killedFor string
+	var killMu sync.Mutex
+	var killed string
 	killFor := func(why string) {
-		reason.Do(func() { killedFor = why; w.cmd.Process.Kill() })
+		killMu.Lock()
+		defer killMu.Unlock()
+		if killed == "" {
+			killed = why
+			w.cmd.Process.Kill()
+		}
+	}
+	killedFor := func() string {
+		killMu.Lock()
+		defer killMu.Unlock()
+		return killed
 	}
 	deadline := time.AfterFunc(p.cfg.Timeout+time.Second, func() { killFor("time limit exceeded") })
 	defer deadline.Stop()
@@ -338,8 +348,8 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 	}()
 
 	fail := func(err error) (message, error) {
-		if killedFor != "" {
-			return message{}, &ScriptError{Message: "script stopped: " + killedFor}
+		if why := killedFor(); why != "" {
+			return message{}, &ScriptError{Message: "script stopped: " + why}
 		}
 		return message{}, fmt.Errorf("sandbox worker failed: %w", err)
 	}
@@ -381,7 +391,7 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 				host.Log(m.Level, m.Text)
 			}
 		case "done":
-			if killedFor != "" {
+			if killedFor() != "" {
 				return fail(nil)
 			}
 			healthy = true

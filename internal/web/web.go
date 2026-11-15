@@ -69,6 +69,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.mux.Handle("GET /.well-known/oauth-protected-resource", prm)
 	s.mux.Handle("GET /.well-known/oauth-protected-resource/mcp", prm)
 	s.mux.Handle("/mcp", cors(s.mcp.ServeHTTP))
+	s.registerAdmin()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	return s
 }
@@ -142,9 +143,13 @@ func checkCSRF(r *http.Request) bool {
 	return err == nil && len(c.Value) >= 32 && subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("csrf"))) == 1
 }
 
-// safeNext only allows returning to the authorize endpoint on this site.
+// safeNext only allows returning to the authorize endpoint or the admin
+// panel on this site.
 func safeNext(next string) string {
-	if strings.HasPrefix(next, "/oauth/authorize?") {
+	if strings.ContainsAny(next, "\\\r\n") || strings.Contains(next, "//") {
+		return "/"
+	}
+	if strings.HasPrefix(next, "/oauth/authorize?") || strings.HasPrefix(next, "/apps/") {
 		return next
 	}
 	return "/"
@@ -487,18 +492,27 @@ func (l *limiter) allow(key string) bool {
 // --- templates ---
 
 var pages = template.Must(template.New("").Parse(`
-{{define "top"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+{{define "top"}}{{template "head" .}}<main>{{end}}
+{{define "wide"}}{{template "head" .}}<main class="wide">{{end}}
+{{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}} · Renoxium</title><style>
 :root{color-scheme:light dark;--fg:#16181d;--muted:#5d6370;--bg:#fafafa;--card:#fff;--line:#e3e5ea;--accent:#2f5bea}
 @media (prefers-color-scheme:dark){:root{--fg:#eceef2;--muted:#a1a7b3;--bg:#121418;--card:#1b1e24;--line:#2c3039;--accent:#7f9cff}}
 *{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg)}
-main{max-width:440px;margin:48px auto;padding:0 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+main{max-width:440px;margin:48px auto;padding:0 16px}main.wide{max-width:960px;margin-top:24px}
+.crumbs{font-size:14px;margin-bottom:12px}.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}td a{font-weight:600}
+textarea{width:100%;min-height:96px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+textarea.json{font-family:ui-monospace,monospace;font-size:14px}.check{display:flex;gap:8px;align-items:center;margin-top:12px}.check input{width:auto}
+.ok{color:#2e7d32}.field-error{color:#c62828;font-size:14px;margin-top:4px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bar form{display:flex;gap:8px}.bar input{width:220px}.bar button,.bar .button{margin-top:0}.button{display:inline-block;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
+button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pager{display:flex;gap:12px;margin-top:12px;font-size:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
 h1{font-size:22px;margin:0 0 16px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}label{display:block;font-size:14px;margin:12px 0 4px}
 input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
 button.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}.row{display:flex;gap:8px}.error{color:#c62828}
 code{font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all}
-ul{padding-left:20px}a{color:var(--accent)}</style></head><body><main>{{end}}
+ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "bottom"}}</main></body></html>{{end}}
 
 {{define "welcome"}}{{template "top" "Welcome"}}<div class="card"><h1>Renoxium</h1>
@@ -508,7 +522,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body><main>{{end}}
 
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
 <p class="muted">Signed in as {{.User.Email}}</p>
-{{if .Apps}}<ul>{{range .Apps}}<li><a href="{{.LiveURL}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}} · <a href="{{.PreviewURL}}">preview</a></span></li>{{end}}</ul>
+{{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
 {{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
 <p class="muted">Connector address for your agent:</p><p><code>{{.MCP}}</code></p>
 <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Sign out</button></form></div>{{template "bottom"}}{{end}}
@@ -534,6 +548,38 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body><main>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 {{range $k, $v := .Params}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}
 <div class="row"><button name="decision" value="allow">Allow</button><button class="secondary" name="decision" value="deny">Cancel</button></div></form>{{template "bottom"}}{{end}}
+
+{{define "admin_app"}}{{template "wide" .Info.App}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>{{.Info.App}}</h1>
+<p><a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a> <span class="muted">live version {{.Info.LiveVersion}}</span></p>
+<p class="muted">Preview (version {{.Info.PreviewVersion}}): <a href="{{.Info.PreviewURL}}">{{.Info.PreviewURL}}</a></p>
+{{if .Tables}}<h1 style="margin-top:24px">Data</h1><ul>{{range .Tables}}<li><a href="/apps/{{$.Info.App}}/t/{{.Name}}">{{.Label}}</a> <span class="muted">{{.Rows}} rows</span></li>{{end}}</ul>
+{{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app from your agent to manage its data here.{{end}}</p>{{end}}
+{{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
+</div>{{template "bottom"}}{{end}}
+
+{{define "admin_list"}}{{template "wide" .Label}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
+<div class="bar"><h1 style="margin:0">{{.Label}} <span class="muted">({{.Total}})</span></h1>
+<form method="get"><input name="q" value="{{.Query}}" placeholder="Search" aria-label="Search"><button class="secondary">Search</button></form>
+<a class="button" href="/apps/{{.App}}/t/{{.Table}}/new">Add</a></div>
+{{if .Cells}}<div class="scroll"><table><thead><tr>{{range .Columns}}<th>{{.Label}}</th>{{end}}</tr></thead><tbody>
+{{range $i, $row := .Cells}}<tr>{{range $j, $v := $row}}<td>{{if eq $j 0}}<a href="/apps/{{$.App}}/t/{{$.Table}}/{{index $.IDs $i}}">{{$v}}</a>{{else}}{{$v}}{{end}}</td>{{end}}</tr>{{end}}
+</tbody></table></div>
+{{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
+{{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a></p>
+<form class="card" method="post"><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>
+{{if .Saved}}<p class="ok">Saved.</p>{{end}}{{if .HasErrors}}<p class="error">Check the highlighted fields.{{with .Error}} {{.}}{{end}}</p>{{end}}
+{{with .Created}}<p class="muted">Created {{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+{{range .Fields}}{{if eq .Input "checkbox"}}<label class="check"><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
+{{else}}<label for="f-{{.Name}}">{{.Label}}{{if .Required}} *{{end}}</label>
+{{if eq .Input "textarea"}}<textarea id="f-{{.Name}}" name="{{.Name}}"{{if eq .Type "json"}} class="json"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
+{{else}}<input id="f-{{.Name}}" name="{{.Name}}" type="{{.Input}}" value="{{.Value}}"{{if eq .Type "real"}} step="any"{{end}}{{if eq .Type "integer"}} step="1"{{end}}{{if .Required}} required{{end}}>{{end}}{{end}}
+{{with .Error}}<p class="field-error">{{.}}</p>{{end}}{{end}}
+<button>Save</button></form>
+{{if .ID}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
+{{template "bottom"}}{{end}}
 
 {{define "error"}}{{template "top" "Error"}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
 `))
