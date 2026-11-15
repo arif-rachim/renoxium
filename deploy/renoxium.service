@@ -11,7 +11,9 @@ ExecStart=/opt/renoxium/renoxium \
   -data /var/lib/renoxium \
   -base-url https://renoxium.com \
   -apps-domain renoxium.app \
-  -trusted-ip-header CF-Connecting-IP
+  -trusted-ip-header CF-Connecting-IP \
+  -workers 2
+# -workers 2 suits a 1 GB node; use 4 on 2 GB or more.
 Restart=always
 RestartSec=2
 # Hardening: the process can only write its data directory.

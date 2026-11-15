@@ -1,5 +1,8 @@
 # Deploying Renoxium behind Cloudflare Tunnel
 
+A full step-by-step guide in Indonesian for a small Ubuntu VPS, including backups and updates, is in
+[docs/deploy-ubuntu.md](../docs/deploy-ubuntu.md).
+
 Cloudflare terminates HTTPS and forwards requests through `cloudflared` to
 Renoxium on `127.0.0.1:8080`. The VPS needs no open ports and no reverse proxy.
 
