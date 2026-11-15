@@ -61,6 +61,10 @@ func (e *ScriptError) Error() string { return e.Message }
 type Goja struct {
 	// Timeout is the wall-clock limit for one handle call.
 	Timeout time.Duration
+	// Watch, if set, is started for every script run with a function that
+	// stops the script; it returns a function that ends the watch. Workers use
+	// it to stop scripts that use too much memory.
+	Watch func(interrupt func(reason string)) (stop func())
 
 	mu       sync.Mutex
 	programs map[[32]byte]*goja.Program
@@ -99,8 +103,11 @@ func (g *Goja) Check(src string) error {
 		return err
 	}
 	vm := goja.New()
-	stop := time.AfterFunc(g.Timeout, func() { vm.Interrupt("timeout") })
+	stop := time.AfterFunc(g.Timeout, func() { vm.Interrupt("time limit exceeded") })
 	defer stop.Stop()
+	if g.Watch != nil {
+		defer g.Watch(func(reason string) { vm.Interrupt(reason) })()
+	}
 	if _, err := vm.RunProgram(p); err != nil {
 		return &ScriptError{Message: describe(err)}
 	}
@@ -121,8 +128,11 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 
 	vm := goja.New()
 	vm.SetMaxCallStackSize(256)
-	stop := context.AfterFunc(ctx, func() { vm.Interrupt("timeout") })
+	stop := context.AfterFunc(ctx, func() { vm.Interrupt("time limit exceeded") })
 	defer stop()
+	if g.Watch != nil {
+		defer g.Watch(func(reason string) { vm.Interrupt(reason) })()
+	}
 
 	throw := func(err error) { panic(vm.NewGoError(err)) }
 	db := vm.NewObject()
@@ -230,7 +240,7 @@ func describe(err error) string {
 	}
 	var in *goja.InterruptedError
 	if errors.As(err, &in) {
-		return fmt.Sprintf("script stopped: %v (time limit exceeded)", in.Value())
+		return fmt.Sprintf("script stopped: %v", in.Value())
 	}
 	return err.Error()
 }

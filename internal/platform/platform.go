@@ -38,6 +38,9 @@ type Config struct {
 	AppsDomain   string // apps are served on <name>.<AppsDomain>
 	PublicScheme string // "https" in production
 	PublicPort   string // e.g. ":8080" in development, "" in production
+	// ScriptsPerApp caps how many scripts of one app run at the same time,
+	// so one app cannot occupy every script worker. Default 2.
+	ScriptsPerApp int
 }
 
 // Platform is safe for concurrent use.
@@ -53,6 +56,7 @@ type Platform struct {
 	logs   map[string]*applog.Log
 	hosts  sync.Map // host -> hostEntry
 	intake map[string]*window
+	slots  map[string]chan struct{} // per-app script concurrency
 }
 
 type stage struct {
@@ -133,8 +137,11 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	if cfg.ScriptsPerApp <= 0 {
+		cfg.ScriptsPerApp = 2
+	}
 	return &Platform{cfg: cfg, db: db, sb: sb,
-		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}}, nil
+		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}}, nil
 }
 
 // Close releases every open database.

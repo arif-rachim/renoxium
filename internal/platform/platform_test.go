@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
@@ -17,9 +18,19 @@ import (
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 )
 
+func TestMain(m *testing.M) {
+	sandbox.ServeWorkerIfRequested()
+	os.Exit(m.Run())
+}
+
 func newPlatform(t *testing.T) *platform.Platform {
 	t.Helper()
-	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	return newPlatformWith(t, sandbox.NewGoja())
+}
+
+func newPlatformWith(t *testing.T, sb sandbox.Sandbox) *platform.Platform {
+	t.Helper()
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https"}, sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,5 +301,40 @@ func TestUnknownHostIsNotAnApp(t *testing.T) {
 	p := newPlatform(t)
 	if r := do(t, p, "GET", "nobody.renoxium.test", "/", nil); r.status != -1 {
 		t.Fatalf("unknown host served: %d", r.status)
+	}
+}
+
+// With worker processes, a tenant script that eats memory is stopped and
+// other tenants keep working.
+func TestMemoryHungryTenantIsContained(t *testing.T) {
+	pool, err := sandbox.NewPool(sandbox.PoolConfig{Workers: 2, Timeout: 3 * time.Second, HeapLimit: 16 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	p := newPlatformWith(t, pool)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "good-shop")
+	p.CreateApp("usr_test", "greedy-shop")
+	if res, err := p.ApplyChange(ctx, "good-shop", catalog(t)); err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+	p.Publish("good-shop", 0)
+
+	greedy := &appdef.App{
+		Scripts: map[string]string{"eat": "function handle(req) { const a = []; for (let i = 0; ; i++) a.push({i: i, s: 'abcdefghij' + i}); }"},
+		Routes:  []appdef.Route{{Method: "GET", Path: "/", Script: "eat"}},
+	}
+	res, err := p.ApplyChange(ctx, "greedy-shop", greedy)
+	if err != nil || !res.OK || res.Checks[0].Status != 500 || !strings.Contains(res.Checks[0].Error, "memory limit exceeded") {
+		t.Fatalf("%v %+v", err, res)
+	}
+	// The good shop, including script-rendered pages and orders, still works.
+	if r := do(t, p, "GET", "good-shop.renoxium.test", "/", nil); r.status != 200 || !strings.Contains(r.body, "Royal Oud") {
+		t.Fatalf("good shop home: %d", r.status)
+	}
+	order := do(t, p, "POST", "good-shop.renoxium.test", "/orders", url.Values{"product_id": {"1"}, "customer_name": {"Mariam"}, "phone": {"0501112222"}})
+	if order.status != 200 || !strings.Contains(order.body, "order #1") {
+		t.Fatalf("good shop order: %d %s", order.status, order.body)
 	}
 }

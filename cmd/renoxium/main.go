@@ -22,10 +22,14 @@ import (
 )
 
 func main() {
+	// When started as a script worker, this process serves scripts and exits.
+	sandbox.ServeWorkerIfRequested()
+
 	addr := flag.String("addr", ":8080", "listen address")
 	dataDir := flag.String("data", "data", "data directory")
 	baseURL := flag.String("base-url", "", "public origin of the Renoxium site, e.g. https://renoxium.com; defaults to http://localhost<addr port>")
 	appsDomain := flag.String("apps-domain", "localhost", "apps are served on <name>.<apps-domain>; use renoxium.app in production")
+	workers := flag.Int("workers", 4, "number of script worker processes")
 	flag.Parse()
 
 	port := ""
@@ -40,7 +44,13 @@ func main() {
 		cfg.PublicScheme, cfg.PublicPort = "http", port
 	}
 
-	p, err := platform.New(cfg, sandbox.NewGoja())
+	pool, err := sandbox.NewPool(sandbox.PoolConfig{Workers: *workers})
+	if err != nil {
+		slog.Error("start script workers", "err", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	p, err := platform.New(cfg, pool)
 	if err != nil {
 		slog.Error("start platform", "err", err)
 		os.Exit(1)

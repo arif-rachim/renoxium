@@ -121,6 +121,11 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		}
 	}
 
+	release, ok := p.acquireSlot(r.Context(), st.app)
+	if !ok {
+		return failure(http.StatusServiceUnavailable, "too many requests running at once for this app; the request waited 3s and gave up")
+	}
+	defer release()
 	host := &scriptHost{st: st, p: p, rid: rid}
 	resp, err := p.sb.Run(r.Context(), st.def.Scripts[route.Script], req, host)
 	if err != nil {
@@ -250,6 +255,25 @@ func (p *Platform) allowIntake(app string) bool {
 	}
 	w.count++
 	return w.count <= intakePerMinute
+}
+
+// acquireSlot waits up to 3 seconds for one of the app's script slots.
+func (p *Platform) acquireSlot(ctx context.Context, app string) (release func(), ok bool) {
+	p.mu.Lock()
+	slots := p.slots[app]
+	if slots == nil {
+		slots = make(chan struct{}, p.cfg.ScriptsPerApp)
+		p.slots[app] = slots
+	}
+	p.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	select {
+	case slots <- struct{}{}:
+		return func() { <-slots }, true
+	case <-ctx.Done():
+		return nil, false
+	}
 }
 
 func newRequestID() string {
