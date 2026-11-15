@@ -29,6 +29,7 @@ func main() {
 	dataDir := flag.String("data", "data", "data directory")
 	baseURL := flag.String("base-url", "", "public origin of the Renoxium site, e.g. https://renoxium.com; defaults to http://localhost<addr port>")
 	appsDomain := flag.String("apps-domain", "localhost", "apps are served on <name>.<apps-domain>; use renoxium.app in production")
+	trustedIPHeader := flag.String("trusted-ip-header", "", `header with the visitor address set by a local tunnel, e.g. "CF-Connecting-IP"; trusted only on loopback connections`)
 	workers := flag.Int("workers", 4, "number of script worker processes")
 	flag.Parse()
 
@@ -63,6 +64,7 @@ func main() {
 	}
 	defer acc.Close()
 	site := web.New(*baseURL, acc, p)
+	site.TrustedIPHeader = *trustedIPHeader
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !p.ServeApp(w, r) {

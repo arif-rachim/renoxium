@@ -33,7 +33,7 @@ Open `http://localhost:8080` to create an account, then add `http://localhost:80
 MCP client that supports OAuth (ChatGPT and Claude need a public HTTPS address, see below).
 
 Apps are served on `<app>.localhost:8080` and previews on `<app>--preview.localhost:8080`.
-In production run with `-base-url https://renoxium.com -apps-domain renoxium.app` behind a TLS terminator.
+In production Renoxium runs behind Cloudflare Tunnel; see [deploy/README.md](deploy/README.md).
 The connector address for ChatGPT and Claude is then `https://renoxium.com/mcp`.
 
 `examples/catalog.json` is a complete small perfume shop (catalog, product page, order form, JSON API).

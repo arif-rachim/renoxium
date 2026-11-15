@@ -421,3 +421,43 @@ func TestReplayedCodeRevokesTokens(t *testing.T) {
 		t.Fatalf("token from a replayed code still works: %d", r.StatusCode)
 	}
 }
+
+// Behind cloudflared every request comes from loopback. Rate limits must
+// follow the visitor address in the trusted header, or one attacker locks
+// everyone out.
+func TestRateLimitFollowsTunnelHeader(t *testing.T) {
+	dir := t.TempDir()
+	p, _ := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	acc, _ := accounts.Open(filepath.Join(dir, "accounts.db"))
+	defer p.Close()
+	defer acc.Close()
+	site := web.New("https://renoxium.test", acc, p)
+	site.TrustedIPHeader = "CF-Connecting-IP"
+
+	register := func(remote, header string) int {
+		r := httptest.NewRequest("POST", "https://renoxium.test/oauth/register", strings.NewReader(`{"redirect_uris":["https://agent.example/cb"]}`))
+		r.RemoteAddr = remote
+		if header != "" {
+			r.Header.Set("CF-Connecting-IP", header)
+		}
+		w := httptest.NewRecorder()
+		site.ServeHTTP(w, r)
+		return w.Code
+	}
+	for i := 0; i < 10; i++ {
+		register("127.0.0.1:5000", "203.0.113.7")
+	}
+	if code := register("127.0.0.1:5000", "203.0.113.7"); code != 429 {
+		t.Fatalf("attacker not limited: %d", code)
+	}
+	if code := register("127.0.0.1:5000", "198.51.100.9"); code != 201 {
+		t.Fatalf("other visitor blocked by the attacker's limit: %d", code)
+	}
+	// From a non-loopback address the header is ignored.
+	for i := 0; i < 10; i++ {
+		register("192.0.2.1:5000", "10.0.0."+string(rune('0'+i)))
+	}
+	if code := register("192.0.2.1:5000", "10.0.0.99"); code != 429 {
+		t.Fatalf("spoofed header bypassed the limit: %d", code)
+	}
+}

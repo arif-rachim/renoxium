@@ -1,0 +1,13 @@
+# /etc/cloudflared/config.yml
+# Replace TUNNEL_ID with the ID printed by `cloudflared tunnel create renoxium`.
+tunnel: TUNNEL_ID
+credentials-file: /etc/cloudflared/TUNNEL_ID.json
+
+ingress:
+  # The Renoxium site: accounts, dashboard, admin panel, builder MCP endpoint.
+  - hostname: renoxium.com
+    service: http://127.0.0.1:8080
+  # Every app and preview: <app>.renoxium.app and <app>--preview.renoxium.app.
+  - hostname: "*.renoxium.app"
+    service: http://127.0.0.1:8080
+  - service: http_status:404

@@ -1,0 +1,25 @@
+[Unit]
+Description=Renoxium platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=renoxium
+Group=renoxium
+ExecStart=/opt/renoxium/renoxium \
+  -addr 127.0.0.1:8080 \
+  -data /var/lib/renoxium \
+  -base-url https://renoxium.com \
+  -apps-domain renoxium.app \
+  -trusted-ip-header CF-Connecting-IP
+Restart=always
+RestartSec=2
+# Hardening: the process can only write its data directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/renoxium
+
+[Install]
+WantedBy=multi-user.target

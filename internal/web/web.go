@@ -42,6 +42,10 @@ type Site struct {
 	mcp      http.Handler
 	mux      *http.ServeMux
 	limiter  *limiter
+
+	// TrustedIPHeader names the header that carries the visitor's address
+	// when the site runs behind a local tunnel, e.g. "CF-Connecting-IP".
+	TrustedIPHeader string
 }
 
 // New builds the site. base is the public origin of the site.
@@ -155,10 +159,21 @@ func safeNext(next string) string {
 	return "/"
 }
 
-func clientIP(r *http.Request) string {
+// clientIP is the visitor's address. Behind a local tunnel or proxy (such
+// as cloudflared) every connection comes from loopback, so the address is
+// then taken from TrustedIPHeader. The header is ignored on connections from
+// anywhere else, where a visitor could set it to anything.
+func (s *Site) clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if s.TrustedIPHeader != "" {
+		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+			if fwd := strings.TrimSpace(r.Header.Get(s.TrustedIPHeader)); net.ParseIP(fwd) != nil {
+				return fwd
+			}
+		}
 	}
 	return host
 }
@@ -189,7 +204,7 @@ func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
-	if !s.limiter.allow("signup:" + clientIP(r)) {
+	if !s.limiter.allow("signup:" + s.clientIP(r)) {
 		http.Error(w, "too many attempts; try again later", http.StatusTooManyRequests)
 		return
 	}
@@ -212,7 +227,7 @@ func (s *Site) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email, _ := accounts.NormalizeEmail(r.PostFormValue("email"))
-	if !s.limiter.allow("login:"+clientIP(r)) || !s.limiter.allow("login:"+email) {
+	if !s.limiter.allow("login:"+s.clientIP(r)) || !s.limiter.allow("login:"+email) {
 		http.Error(w, "too many attempts; try again in 15 minutes", http.StatusTooManyRequests)
 		return
 	}
@@ -416,7 +431,7 @@ func (s *Site) token(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) register(w http.ResponseWriter, r *http.Request) {
-	if !s.limiter.allow("register:" + clientIP(r)) {
+	if !s.limiter.allow("register:" + s.clientIP(r)) {
 		oauthError(w, http.StatusTooManyRequests, "invalid_client_metadata", "too many registrations")
 		return
 	}
