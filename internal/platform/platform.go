@@ -128,6 +128,11 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 			return nil, err
 		}
 	}
+	// Apps created before accounts existed have no owner and are reachable by nobody.
+	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN owner TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		db.Close()
+		return nil, err
+	}
 	return &Platform{cfg: cfg, db: db, sb: sb,
 		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}}, nil
 }
@@ -165,8 +170,11 @@ func (p *Platform) URL(app, stageName string) string {
 	return p.cfg.PublicScheme + "://" + p.host(app, stageName) + p.cfg.PublicPort
 }
 
-// CreateApp registers a new, empty app and its two hosts.
-func (p *Platform) CreateApp(name string) (AppInfo, error) {
+// CreateApp registers a new, empty app owned by owner, and its two hosts.
+func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
+	if owner == "" {
+		return AppInfo{}, errors.New("an app needs an owner")
+	}
 	if !appNameRE.MatchString(name) || strings.Contains(name, "--") || reserved[name] {
 		return AppInfo{}, fmt.Errorf("app name %q is not allowed: use 3-40 characters, lowercase letters, digits and single hyphens, starting with a letter", name)
 	}
@@ -178,7 +186,7 @@ func (p *Platform) CreateApp(name string) (AppInfo, error) {
 		return AppInfo{}, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO apps (name, created_at) VALUES (?, ?)`, name, now()); err != nil {
+	if _, err := tx.Exec(`INSERT INTO apps (name, created_at, owner) VALUES (?, ?, ?)`, name, now(), owner); err != nil {
 		return AppInfo{}, fmt.Errorf("app name %q is already taken", name)
 	}
 	for _, s := range []string{Live, Preview} {
@@ -190,6 +198,44 @@ func (p *Platform) CreateApp(name string) (AppInfo, error) {
 		return AppInfo{}, err
 	}
 	return p.Info(name)
+}
+
+// CheckOwner returns ErrNotFound unless user owns app, so apps of other
+// users are indistinguishable from apps that do not exist.
+func (p *Platform) CheckOwner(user, app string) error {
+	var owner string
+	err := p.db.QueryRow(`SELECT owner FROM apps WHERE name = ?`, app).Scan(&owner)
+	if err != nil || owner == "" || owner != user {
+		return fmt.Errorf("app %q: %w", app, ErrNotFound)
+	}
+	return nil
+}
+
+// Apps lists the apps owned by user.
+func (p *Platform) Apps(user string) ([]AppInfo, error) {
+	rows, err := p.db.Query(`SELECT name FROM apps WHERE owner = ? AND owner != '' ORDER BY name`, user)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		names = append(names, n)
+	}
+	rows.Close()
+	out := []AppInfo{}
+	for _, n := range names {
+		info, err := p.Info(n)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, info)
+	}
+	return out, nil
 }
 
 // Info returns the current state of an app.

@@ -26,6 +26,7 @@
 - Client-side libraries → none bundled or required. The agent writes its own browser JavaScript. Routes can return a full page, an HTML fragment (a partial template) or JSON. Builder tool guidance tells the agent to render visitor-supplied data through server templates (auto-escaped) or `textContent`, never by building HTML strings in the browser.
 - Build order → a thin slice first (app definition, per-tenant SQLite, SSR runtime, goja sandbox, builder MCP with a few tools) to prove that an agent can build a working catalog and that tenants are isolated, before the rest of the plan.
 - Entry point → the MCP server only, used first by paid ChatGPT users (developer mode) and Claude users, then submitted to the ChatGPT and Claude app directories. No Renoxium-owned chat in v1 (custom MCP in ChatGPT appears limited to paid plans).
+- How do users sign in and how do agents act for them? → Renoxium accounts with email and password (argon2id) on renoxium.com. Agents use OAuth 2.1 against Renoxium itself: metadata discovery (RFC 9728, RFC 8414), dynamic client registration for public clients, PKCE S256 only, consent screen, 1-hour access tokens and rotating 60-day refresh tokens, all stored hashed. Every builder tool checks app ownership and treats other users' apps as not found. No third-party identity provider in v1.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
@@ -98,6 +99,8 @@
 - Manual: from ChatGPT, install the MCP server, ask for a store, place a paid test order (gateway sandbox), see it in the admin panel and receive the WhatsApp message.
 
 ## Open questions deferred
+- Email verification and password reset (need an email provider).
+- Client IP behind a reverse proxy (rate limits use the socket address today; trust X-Forwarded-For only from the proxy).
 - Backup target (object storage) and whether the existing VPS has a fixed IP.
 - Which UAE shipping carriers to integrate first.
 - Renoxium's own pricing and free-tier quotas.

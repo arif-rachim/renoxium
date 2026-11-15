@@ -11,11 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
-	"github.com/arif-rachim/renoxium/internal/mcpserver"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 )
@@ -74,7 +71,7 @@ const (
 func TestPreviewPublishAndOrder(t *testing.T) {
 	p := newPlatform(t)
 	ctx := context.Background()
-	if _, err := p.CreateApp("al-noor"); err != nil {
+	if _, err := p.CreateApp("usr_test", "al-noor"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -147,7 +144,7 @@ func TestPreviewPublishAndOrder(t *testing.T) {
 
 func TestScriptErrorsAndBrowserErrorsReachTheLog(t *testing.T) {
 	p := newPlatform(t)
-	p.CreateApp("broken-shop")
+	p.CreateApp("usr_test", "broken-shop")
 	def := &appdef.App{
 		Templates: map[string]string{"page": "<!doctype html><html><head></head><body>hi</body></html>"},
 		Scripts:   map[string]string{"bad": "function handle(req) {\n  return db.query('SELECT * FROM missing_table');\n}"},
@@ -197,8 +194,8 @@ func TestScriptErrorsAndBrowserErrorsReachTheLog(t *testing.T) {
 func TestTenantsAreIsolated(t *testing.T) {
 	p := newPlatform(t)
 	ctx := context.Background()
-	p.CreateApp("shop-a")
-	p.CreateApp("shop-b")
+	p.CreateApp("usr_test", "shop-a")
+	p.CreateApp("usr_test", "shop-b")
 	if res, _ := p.ApplyChange(ctx, "shop-a", catalog(t)); !res.OK {
 		t.Fatal(res.Problems)
 	}
@@ -255,7 +252,7 @@ func TestTenantsAreIsolated(t *testing.T) {
 func TestRollback(t *testing.T) {
 	p := newPlatform(t)
 	ctx := context.Background()
-	p.CreateApp("rollback-shop")
+	p.CreateApp("usr_test", "rollback-shop")
 	v1 := &appdef.App{Templates: map[string]string{"t": "one"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}}
 	v2 := &appdef.App{Templates: map[string]string{"t": "two"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}}
 	p.ApplyChange(ctx, "rollback-shop", v1)
@@ -275,7 +272,7 @@ func TestRollback(t *testing.T) {
 
 func TestRejectedDefinitionIsExplained(t *testing.T) {
 	p := newPlatform(t)
-	p.CreateApp("typo-shop")
+	p.CreateApp("usr_test", "typo-shop")
 	def := &appdef.App{
 		Scripts: map[string]string{"s": "function handle(req) { return {text: 'x' }"},
 		Routes:  []appdef.Route{{Method: "GET", Path: "/", Script: "s"}},
@@ -293,68 +290,5 @@ func TestUnknownHostIsNotAnApp(t *testing.T) {
 	p := newPlatform(t)
 	if r := do(t, p, "GET", "nobody.renoxium.test", "/", nil); r.status != -1 {
 		t.Fatalf("unknown host served: %d", r.status)
-	}
-}
-
-// An agent builds and publishes the catalog through the builder MCP tools.
-func TestBuildThroughMCP(t *testing.T) {
-	p := newPlatform(t)
-	ctx := context.Background()
-	server := mcpserver.New(p)
-	ct, st := mcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, st, nil); err != nil {
-		t.Fatal(err)
-	}
-	client := mcp.NewClient(&mcp.Implementation{Name: "test-agent", Version: "1"}, nil)
-	session, err := client.Connect(ctx, ct, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer session.Close()
-
-	tools, err := session.ListTools(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	names := []string{}
-	for _, tool := range tools.Tools {
-		names = append(names, tool.Name)
-	}
-	if got := strings.Join(names, ","); got != "apply_change,create_app,get_app,get_logs,publish" {
-		t.Fatalf("tools = %s", got)
-	}
-
-	call := func(name string, args map[string]any) map[string]any {
-		t.Helper()
-		res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if res.IsError {
-			t.Fatalf("%s failed: %v", name, res.Content[0].(*mcp.TextContent).Text)
-		}
-		out, _ := res.StructuredContent.(map[string]any)
-		return out
-	}
-
-	call("create_app", map[string]any{"app": "al-noor"})
-	raw, _ := os.ReadFile("../../examples/catalog.json")
-	var def map[string]any
-	json.Unmarshal(raw, &def)
-	applied := call("apply_change", map[string]any{"app": "al-noor", "definition": def})
-	if applied["ok"] != true || applied["preview_url"] != "https://al-noor--preview.renoxium.test" {
-		t.Fatalf("apply_change = %v", applied)
-	}
-	call("publish", map[string]any{"app": "al-noor"})
-	if r := do(t, p, "GET", liveHost, "/", nil); r.status != 200 || !strings.Contains(r.body, "White Musk") {
-		t.Fatalf("live after MCP publish: %d", r.status)
-	}
-	got := call("get_app", map[string]any{"app": "al-noor"})
-	if got["live_version"] != float64(1) || got["definition"] == nil {
-		t.Fatalf("get_app = %v", got)
-	}
-	logs := call("get_logs", map[string]any{"app": "al-noor", "stage": "live"})
-	if events, _ := logs["events"].([]any); len(events) == 0 {
-		t.Fatalf("get_logs returned no events: %v", logs)
 	}
 }

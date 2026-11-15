@@ -1,70 +1,67 @@
-// Command renoxium runs the platform: app hosts, the builder MCP endpoint and
-// a status page, all from one process.
+// Command renoxium runs the platform from one process: the Renoxium site
+// (accounts, OAuth, builder MCP endpoint) and every app host.
 package main
 
 import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/arif-rachim/renoxium/internal/mcpserver"
+	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
+	"github.com/arif-rachim/renoxium/internal/web"
 )
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	dataDir := flag.String("data", "data", "data directory")
+	baseURL := flag.String("base-url", "", "public origin of the Renoxium site, e.g. https://renoxium.com; defaults to http://localhost<addr port>")
 	appsDomain := flag.String("apps-domain", "localhost", "apps are served on <name>.<apps-domain>; use renoxium.app in production")
-	scheme := flag.String("scheme", "http", "public URL scheme")
-	publicPort := flag.String("public-port", "", `port in public URLs, e.g. ":8080"; defaults to the listen port when apps-domain is localhost`)
 	flag.Parse()
 
-	if *publicPort == "" && *appsDomain == "localhost" {
-		if i := strings.LastIndex(*addr, ":"); i >= 0 {
-			*publicPort = (*addr)[i:]
-		}
+	port := ""
+	if i := strings.LastIndex(*addr, ":"); i >= 0 {
+		port = (*addr)[i:]
 	}
-	token := os.Getenv("RENOXIUM_MCP_TOKEN")
-	if token == "" {
-		slog.Warn("RENOXIUM_MCP_TOKEN is not set: the builder MCP endpoint is open to anyone who can reach it")
+	if *baseURL == "" {
+		*baseURL = "http://localhost" + port
+	}
+	cfg := platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: "https"}
+	if *appsDomain == "localhost" {
+		cfg.PublicScheme, cfg.PublicPort = "http", port
 	}
 
-	p, err := platform.New(platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: *scheme, PublicPort: *publicPort}, sandbox.NewGoja())
+	p, err := platform.New(cfg, sandbox.NewGoja())
 	if err != nil {
-		slog.Error("start", "err", err)
+		slog.Error("start platform", "err", err)
 		os.Exit(1)
 	}
 	defer p.Close()
+	acc, err := accounts.Open(filepath.Join(*dataDir, "accounts.db"))
+	if err != nil {
+		slog.Error("open accounts", "err", err)
+		os.Exit(1)
+	}
+	defer acc.Close()
+	site := web.New(*baseURL, acc, p)
 
-	builder := mcpserver.Handler(mcpserver.New(p), token)
-	mux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if p.ServeApp(w, r) {
-			return
-		}
-		switch r.URL.Path {
-		case "/mcp":
-			builder.ServeHTTP(w, r)
-		case "/healthz":
-			fmt.Fprintln(w, "ok")
-		case "/":
-			fmt.Fprintln(w, "Renoxium is running. Connect your agent to /mcp.")
-		default:
-			http.NotFound(w, r)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !p.ServeApp(w, r) {
+			site.ServeHTTP(w, r)
 		}
 	})
-
-	srv := &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
+	srv := &http.Server{Addr: *addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
 	go func() {
-		slog.Info("listening", "addr", *addr, "apps", "*."+*appsDomain)
+		slog.Info("listening", "addr", *addr, "site", *baseURL, "mcp", *baseURL+"/mcp", "apps", "*."+*appsDomain)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("serve", "err", err)
 			os.Exit(1)

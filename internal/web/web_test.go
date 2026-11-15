@@ -1,0 +1,423 @@
+package web_test
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/platform"
+	"github.com/arif-rachim/renoxium/internal/sandbox"
+	"github.com/arif-rachim/renoxium/internal/web"
+)
+
+const redirectURI = "http://localhost:9999/callback"
+
+type env struct {
+	t      *testing.T
+	server *httptest.Server
+	base   string
+	p      *platform.Platform
+}
+
+func newEnv(t *testing.T) *env {
+	t.Helper()
+	dir := t.TempDir()
+	p, err := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	acc, err := accounts.Open(filepath.Join(dir, "accounts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var site http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !p.ServeApp(w, r) {
+			site.ServeHTTP(w, r)
+		}
+	}))
+	site = web.New(srv.URL, acc, p)
+	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })
+	return &env{t: t, server: srv, base: srv.URL, p: p}
+}
+
+// browser is a cookie-keeping client that does not follow redirects.
+func (e *env) browser() *http.Client {
+	jar, _ := cookiejar.New(nil)
+	return &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+}
+
+func read(t *testing.T, r *http.Response) string {
+	t.Helper()
+	defer r.Body.Close()
+	b, _ := io.ReadAll(r.Body)
+	return string(b)
+}
+
+var csrfRE = regexp.MustCompile(`name="csrf" value="([^"]+)"`)
+
+func (e *env) csrf(c *http.Client, path string) string {
+	e.t.Helper()
+	r, err := c.Get(e.base + path)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	m := csrfRE.FindStringSubmatch(read(e.t, r))
+	if m == nil {
+		e.t.Fatalf("no csrf token on %s", path)
+	}
+	return m[1]
+}
+
+func (e *env) signup(c *http.Client, email string) {
+	e.t.Helper()
+	token := e.csrf(c, "/signup")
+	r, err := c.PostForm(e.base+"/signup", url.Values{"csrf": {token}, "email": {email}, "password": {"correct horse battery"}})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if r.StatusCode != http.StatusSeeOther {
+		e.t.Fatalf("signup: %d %s", r.StatusCode, read(e.t, r))
+	}
+}
+
+func (e *env) registerClient() string {
+	e.t.Helper()
+	r, err := http.Post(e.base+"/oauth/register", "application/json",
+		strings.NewReader(`{"client_name":"Test Agent","redirect_uris":["`+redirectURI+`"],"token_endpoint_auth_method":"none"}`))
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	var out map[string]any
+	json.Unmarshal([]byte(read(e.t, r)), &out)
+	id, _ := out["client_id"].(string)
+	if r.StatusCode != http.StatusCreated || id == "" {
+		e.t.Fatalf("register: %d %v", r.StatusCode, out)
+	}
+	return id
+}
+
+func pkce() (verifier, challenge string) {
+	verifier = "verifier-" + strings.Repeat("x", 50)
+	sum := sha256.Sum256([]byte(verifier))
+	return verifier, base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+func (e *env) authorizeURL(clientID, challenge string) string {
+	return "/oauth/authorize?" + url.Values{
+		"response_type": {"code"}, "client_id": {clientID}, "redirect_uri": {redirectURI}, "state": {"st4te"},
+		"code_challenge": {challenge}, "code_challenge_method": {"S256"}, "scope": {"apps"}, "resource": {e.base + "/mcp"},
+	}.Encode()
+}
+
+// connect runs the whole OAuth flow for a signed-in browser and returns tokens.
+func (e *env) connect(c *http.Client, clientID string) accounts.Tokens {
+	e.t.Helper()
+	code, verifier := e.approve(c, clientID)
+	t, status := e.exchange(clientID, code, verifier)
+	if status != 200 || t.AccessToken == "" || t.RefreshToken == "" {
+		e.t.Fatalf("token: %d", status)
+	}
+	return t
+}
+
+func (e *env) exchange(clientID, code, verifier string) (accounts.Tokens, int) {
+	e.t.Helper()
+	r, _ := http.PostForm(e.base+"/oauth/token", url.Values{"grant_type": {"authorization_code"}, "code": {code},
+		"client_id": {clientID}, "redirect_uri": {redirectURI}, "code_verifier": {verifier}, "resource": {e.base + "/mcp"}})
+	var t accounts.Tokens
+	json.Unmarshal([]byte(read(e.t, r)), &t)
+	return t, r.StatusCode
+}
+
+// approve signs the consent screen and returns the authorization code.
+func (e *env) approve(c *http.Client, clientID string) (code, verifier string) {
+	e.t.Helper()
+	verifier, challenge := pkce()
+	authz := e.authorizeURL(clientID, challenge)
+	r, _ := c.Get(e.base + authz)
+	page := read(e.t, r)
+	if r.StatusCode != 200 || !strings.Contains(page, "Allow Test Agent?") || !strings.Contains(page, "localhost:9999") {
+		e.t.Fatalf("consent page: %d %s", r.StatusCode, page)
+	}
+	form := url.Values{"decision": {"allow"}, "csrf": {csrfRE.FindStringSubmatch(page)[1]}}
+	u, _ := url.Parse(authz)
+	for k, v := range u.Query() {
+		form[k] = v
+	}
+	r, _ = c.PostForm(e.base+"/oauth/authorize", form)
+	loc, _ := url.Parse(r.Header.Get("Location"))
+	code = loc.Query().Get("code")
+	if r.StatusCode != http.StatusFound || !strings.HasPrefix(loc.String(), redirectURI) || code == "" ||
+		loc.Query().Get("state") != "st4te" || loc.Query().Get("iss") != e.base {
+		e.t.Fatalf("approve: %d %s", r.StatusCode, loc)
+	}
+	return code, verifier
+}
+
+type bearer struct{ token string }
+
+func (b bearer) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.Header.Set("Authorization", "Bearer "+b.token)
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+func (e *env) mcpSession(token string) *mcp.ClientSession {
+	e.t.Helper()
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-agent", Version: "1"}, nil)
+	s, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint: e.base + "/mcp", HTTPClient: &http.Client{Transport: bearer{token}}, DisableStandaloneSSE: true}, nil)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	e.t.Cleanup(func() { s.Close() })
+	return s
+}
+
+func call(t *testing.T, s *mcp.ClientSession, name string, args map[string]any) (map[string]any, string) {
+	t.Helper()
+	res, err := s.CallTool(context.Background(), &mcp.CallToolParams{Name: name, Arguments: args})
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	if res.IsError {
+		return nil, res.Content[0].(*mcp.TextContent).Text
+	}
+	out, _ := res.StructuredContent.(map[string]any)
+	return out, ""
+}
+
+func TestMCPRequiresOAuthAndPointsToMetadata(t *testing.T) {
+	e := newEnv(t)
+	r, _ := http.Post(e.base+"/mcp", "application/json", strings.NewReader(`{}`))
+	if r.StatusCode != 401 || !strings.Contains(r.Header.Get("WWW-Authenticate"), e.base+"/.well-known/oauth-protected-resource/mcp") {
+		t.Fatalf("unauthenticated MCP: %d %q", r.StatusCode, r.Header.Get("WWW-Authenticate"))
+	}
+	r, _ = http.Get(e.base + "/.well-known/oauth-protected-resource/mcp")
+	var prm map[string]any
+	json.Unmarshal([]byte(read(t, r)), &prm)
+	if prm["resource"] != e.base+"/mcp" || prm["authorization_servers"].([]any)[0] != e.base {
+		t.Fatalf("resource metadata: %v", prm)
+	}
+	r, _ = http.Get(e.base + "/.well-known/oauth-authorization-server")
+	var as map[string]any
+	json.Unmarshal([]byte(read(t, r)), &as)
+	if as["issuer"] != e.base || as["registration_endpoint"] != e.base+"/oauth/register" || as["code_challenge_methods_supported"].([]any)[0] != "S256" {
+		t.Fatalf("server metadata: %v", as)
+	}
+	req, _ := http.NewRequest("POST", e.base+"/mcp", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer rxa_made_up")
+	r, _ = http.DefaultClient.Do(req)
+	if r.StatusCode != 401 {
+		t.Fatalf("made-up token: %d", r.StatusCode)
+	}
+}
+
+// An agent connects with OAuth, builds the catalog and publishes it, and a
+// second user cannot see or change it.
+func TestAgentBuildsAppForSignedInUser(t *testing.T) {
+	e := newEnv(t)
+	clientID := e.registerClient()
+
+	alice := e.browser()
+	e.signup(alice, "alice@example.com")
+	tokens := e.connect(alice, clientID)
+	s := e.mcpSession(tokens.AccessToken)
+
+	tools, err := s.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, tool := range tools.Tools {
+		names = append(names, tool.Name)
+	}
+	if got := strings.Join(names, ","); got != "apply_change,create_app,get_app,get_logs,list_apps,publish" {
+		t.Fatalf("tools = %s", got)
+	}
+
+	if _, errText := call(t, s, "create_app", map[string]any{"app": "al-noor"}); errText != "" {
+		t.Fatal(errText)
+	}
+	raw, _ := os.ReadFile("../../examples/catalog.json")
+	var def map[string]any
+	json.Unmarshal(raw, &def)
+	applied, errText := call(t, s, "apply_change", map[string]any{"app": "al-noor", "definition": def})
+	if errText != "" || applied["ok"] != true {
+		t.Fatalf("apply_change: %v %s", applied, errText)
+	}
+	if _, errText := call(t, s, "publish", map[string]any{"app": "al-noor"}); errText != "" {
+		t.Fatal(errText)
+	}
+	req := httptest.NewRequest("GET", "http://al-noor.renoxium.test/", nil)
+	w := httptest.NewRecorder()
+	if !e.p.ServeApp(w, req) || w.Code != 200 || !strings.Contains(w.Body.String(), "White Musk") {
+		t.Fatalf("live app: %d", w.Code)
+	}
+	list, _ := call(t, s, "list_apps", map[string]any{})
+	if apps, _ := list["apps"].([]any); len(apps) != 1 {
+		t.Fatalf("list_apps = %v", list)
+	}
+
+	// The dashboard lists the app for its owner.
+	r, _ := alice.Get(e.base + "/")
+	if page := read(t, r); !strings.Contains(page, "al-noor") || !strings.Contains(page, "alice@example.com") {
+		t.Fatalf("dashboard: %s", page)
+	}
+
+	// Bob is a different user: Alice's app looks like it does not exist.
+	bob := e.browser()
+	e.signup(bob, "bob@example.com")
+	bs := e.mcpSession(e.connect(bob, clientID).AccessToken)
+	for _, tool := range []string{"get_app", "apply_change", "publish", "get_logs"} {
+		args := map[string]any{"app": "al-noor"}
+		if tool == "apply_change" {
+			args["definition"] = def
+		}
+		if _, errText := call(t, bs, tool, args); !strings.Contains(errText, "not found") {
+			t.Errorf("bob %s on alice's app: %q", tool, errText)
+		}
+	}
+	if list, _ := call(t, bs, "list_apps", map[string]any{}); len(list["apps"].([]any)) != 0 {
+		t.Fatalf("bob sees apps: %v", list)
+	}
+	if _, errText := call(t, bs, "create_app", map[string]any{"app": "al-noor"}); !strings.Contains(errText, "taken") {
+		t.Fatalf("bob took alice's name: %q", errText)
+	}
+}
+
+func TestRefreshTokenRotates(t *testing.T) {
+	e := newEnv(t)
+	clientID := e.registerClient()
+	c := e.browser()
+	e.signup(c, "carol@example.com")
+	first := e.connect(c, clientID)
+
+	refresh := func(token string) (*http.Response, accounts.Tokens) {
+		r, _ := http.PostForm(e.base+"/oauth/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {token}, "client_id": {clientID}})
+		var t2 accounts.Tokens
+		json.Unmarshal([]byte(read(t, r)), &t2)
+		return r, t2
+	}
+	r, second := refresh(first.RefreshToken)
+	if r.StatusCode != 200 || second.AccessToken == "" || second.RefreshToken == first.RefreshToken {
+		t.Fatalf("refresh: %d", r.StatusCode)
+	}
+	if r, _ := refresh(first.RefreshToken); r.StatusCode != 400 {
+		t.Fatal("old refresh token still works")
+	}
+	if _, errText := call(t, e.mcpSession(second.AccessToken), "list_apps", map[string]any{}); errText != "" {
+		t.Fatal(errText)
+	}
+}
+
+func TestAuthorizeRejectsBadRequests(t *testing.T) {
+	e := newEnv(t)
+	clientID := e.registerClient()
+	c := e.browser()
+	e.signup(c, "dan@example.com")
+	_, challenge := pkce()
+
+	// Unregistered redirect URI: show an error, never redirect.
+	bad := strings.Replace(e.authorizeURL(clientID, challenge), url.QueryEscape(redirectURI), url.QueryEscape("https://evil.example/cb"), 1)
+	r, _ := c.Get(e.base + bad)
+	if r.StatusCode != 400 || r.Header.Get("Location") != "" {
+		t.Fatalf("bad redirect: %d %s", r.StatusCode, r.Header.Get("Location"))
+	}
+	// Missing PKCE: error goes back to the registered redirect URI.
+	noPKCE := strings.Replace(e.authorizeURL(clientID, challenge), "code_challenge_method=S256", "code_challenge_method=plain", 1)
+	r, _ = c.Get(e.base + noPKCE)
+	if loc := r.Header.Get("Location"); !strings.HasPrefix(loc, redirectURI) || !strings.Contains(loc, "error=invalid_request") {
+		t.Fatalf("plain PKCE: %d %s", r.StatusCode, loc)
+	}
+	// A crafted link cannot pre-approve the consent form.
+	r, _ = c.Get(e.base + e.authorizeURL(clientID, challenge) + "&decision=allow&csrf=x")
+	if page := read(t, r); strings.Count(page, `name="decision"`) != 2 || strings.Contains(page, `name="csrf" value="x"`) {
+		t.Fatal("query parameters leaked into hidden form fields")
+	}
+	// Approving without the CSRF token is refused.
+	form := url.Values{"decision": {"allow"}}
+	u, _ := url.Parse(e.authorizeURL(clientID, challenge))
+	for k, v := range u.Query() {
+		form[k] = v
+	}
+	r, _ = c.PostForm(e.base+"/oauth/authorize", form)
+	if r.StatusCode != 403 {
+		t.Fatalf("approve without csrf: %d", r.StatusCode)
+	}
+	// Signed out: authorize sends the user to sign in and back.
+	r, _ = e.browser().Get(e.base + e.authorizeURL(clientID, challenge))
+	if loc := r.Header.Get("Location"); r.StatusCode != 303 || !strings.HasPrefix(loc, "/login?next=%2Foauth%2Fauthorize") {
+		t.Fatalf("signed out: %d %s", r.StatusCode, loc)
+	}
+	// Wrong PKCE verifier.
+	code, _ := e.approve(c, clientID)
+	if _, status := e.exchange(clientID, code, strings.Repeat("y", 60)); status != 400 {
+		t.Fatalf("wrong verifier: %d", status)
+	}
+}
+
+func TestRegisterRejectsUnsafeRedirects(t *testing.T) {
+	e := newEnv(t)
+	for _, uri := range []string{"http://evil.example/cb", "javascript:alert(1)", "https://x.example/cb#frag"} {
+		r, _ := http.Post(e.base+"/oauth/register", "application/json", strings.NewReader(`{"redirect_uris":["`+uri+`"]}`))
+		if r.StatusCode != 400 {
+			t.Errorf("%s registered: %d", uri, r.StatusCode)
+		}
+	}
+}
+
+func TestLoginIsRateLimited(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "erin@example.com")
+	c = e.browser()
+	token := e.csrf(c, "/login")
+	last := 0
+	for i := 0; i < 12; i++ {
+		r, _ := c.PostForm(e.base+"/login", url.Values{"csrf": {token}, "email": {"erin@example.com"}, "password": {"wrong password!"}})
+		last = r.StatusCode
+		read(t, r)
+	}
+	if last != http.StatusTooManyRequests {
+		t.Fatalf("after 12 wrong passwords: %d", last)
+	}
+}
+
+// Redeeming a code twice fails and revokes the tokens the code issued,
+// because a replayed code may have been stolen.
+func TestReplayedCodeRevokesTokens(t *testing.T) {
+	e := newEnv(t)
+	clientID := e.registerClient()
+	c := e.browser()
+	e.signup(c, "fay@example.com")
+	code, verifier := e.approve(c, clientID)
+	tokens, status := e.exchange(clientID, code, verifier)
+	if status != 200 {
+		t.Fatalf("first exchange: %d", status)
+	}
+	if _, status := e.exchange(clientID, code, verifier); status != 400 {
+		t.Fatalf("second exchange: %d", status)
+	}
+	req, _ := http.NewRequest("POST", e.base+"/mcp", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	r, _ := http.DefaultClient.Do(req)
+	if r.StatusCode != 401 {
+		t.Fatalf("token from a replayed code still works: %d", r.StatusCode)
+	}
+}
