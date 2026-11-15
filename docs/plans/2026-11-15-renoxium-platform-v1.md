@@ -16,6 +16,7 @@
 - How does the agent find out what broke? → One unified log per app covering server and browser, readable through the MCP `get_logs` tool (see Approach step 6a).
 - Which environments does an app have? → Two stages, not three: **preview** (draft version, where the agent develops and automatic checks run) and **live**. Preview runs on a snapshot copy of the live database (or template sample data for a new app), and all outside effects are sandboxed: payment gateway in sandbox mode, WhatsApp/email captured to the log instead of sent, jobs not scheduled. Migrations are proven on the copy before they touch live data.
 - What telemetry exists? → One event pipeline feeds three consumers: agent-readable logs, per-tenant usage counters (quotas/billing), and operator health metrics.
+- Can other agents use a built app? → Yes. Every app serves its own MCP endpoint at `<app>.renoxium.app/mcp`, separate from the builder MCP at renoxium.com. Tools are generated from the app's **actions** (named, typed operations with a permission level); the admin panel, HTTP routes and the app MCP all call the same actions, so there is one permission model. v1: owner tools behind OAuth (orders, stock, products) and public read-only tools (search/get products). Buyer agents get a checkout link; they never pay on the buyer's behalf.
 - How wide is v1? → General app builder; the online store is the reference template and the acceptance test for v1. (User's choice. The store defines which primitives get built first; nothing is built that the store does not need.)
 - How does the owner operate the app daily? → Auto-generated web admin panel, plus chat for building/changing, plus outbound WhatsApp notifications.
 
@@ -41,12 +42,14 @@
 - Auto-generated admin panel from the schema.
 - Store reference template (catalog, cart, checkout, orders, stock).
 - Unified per-app logs (server + browser) readable by the agent.
+- Per-app MCP endpoint (owner tools + public read-only catalog tools).
 - Versioning with preview URL and rollback, including schema migrations.
 
 ### Out (later or never)
 - Agents writing or compiling Go.
 - Enterprise features: SSO, audit log, HA/multi-region, compliance.
 - Custom domains, marketplace of third-party templates, Renoxium billing.
+- Buyer agents completing payment inside the chat (agentic checkout protocols); v1 returns a checkout link instead.
 - Two-way WhatsApp, mobile apps, client-side SPA features.
 - A Renoxium-owned chat UI.
 
@@ -57,6 +60,7 @@
 4. **Script sandbox.** `internal/sandbox`: `Sandbox` interface, goja implementation, host API (`db`, `http.respond`, `auth`, `log`), CPU-time and step limits, no filesystem/network. Isolation and runaway-script tests.
 5. **Versioning and stages.** Immutable app versions; preview URL per version backed by a snapshot copy of the live database with sandboxed primitives; automatic checks on preview; publish; rollback (schema snapshot + restore).
 6. **MCP server.** `internal/mcp`: OAuth, tools `create_app`, `get_app`, `apply_change`, `preview`, `publish`, `rollback`, `list_templates`, `use_template`, `get_logs`. Tool descriptions teach the agent to ask the user for missing info and to offer templates first.
+6c. **Per-app MCP endpoint.** Add `actions` to the app definition (name, description, input schema, permission: `public`/`customer`/`staff`/`owner`, handler). Serve `/mcp` per app from the same MCP code as the builder server: tool list derived from actions, OAuth for non-public tools, per-app rate limits, calls logged and counted like HTTP requests. Text returned from tenant data (product descriptions, reviews) is marked as untrusted content.
 6a. **Unified logs.** `internal/applog`: one append-only, size-capped log per app, stored in a separate SQLite file from the app data. Every event carries app version, request ID, source (`server`/`browser`/`job`), level and timestamp.
    - Server events: request (route, status, duration, script CPU ms), script errors with stack and script line, `console.log` from scripts, DB and migration errors, job runs, primitive failures (payment webhook, WhatsApp, email).
    - Browser events: a small platform-injected snippet reports `window.onerror`, unhandled promise rejections, `console.error`, failed fetches/resources and CSP violations to `/_rx/log` via `sendBeacon`, tagged with the request ID of the page render so server and browser events line up.
@@ -75,6 +79,7 @@
 - "General builder" spreads effort thin → the store template is the only acceptance test for v1; a primitive is built only if the store needs it.
 - Browser log intake abused (spam, fake errors, text aimed at steering the agent) → rate limits, grouping, size caps, and logs always presented to the agent as untrusted data.
 - Free tenants host phishing/abuse pages using free-form HTML/JS → report button, basic scanning, app domain on the Public Suffix List, fast takedown.
+- App MCP used to scrape, spam or inject instructions into other agents via product text → rate limits, public tools read-only, no payment or destructive action without a human-confirmed step, tenant text returned as data.
 - Schema change destroys live data → additive migrations by default, snapshot before every publish, destructive changes need an explicit confirmed flag.
 - Dependence on ChatGPT/Claude distribution rules → plain MCP + OAuth, no vendor-specific features; admin panel works without any chat platform.
 - SQLite single-writer limits → accept for v1; one busy tenant only slows itself.
