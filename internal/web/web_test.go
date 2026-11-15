@@ -461,3 +461,28 @@ func TestRateLimitFollowsTunnelHeader(t *testing.T) {
 		t.Fatalf("spoofed header bypassed the limit: %d", code)
 	}
 }
+
+// Hosts other than the site's own, such as an app domain with no app, must
+// not show the site or its sign-in forms.
+func TestSiteAnswersOnlyOnItsOwnHost(t *testing.T) {
+	e := newEnv(t)
+	for _, path := range []string{"/", "/login", "/oauth/authorize", "/.well-known/oauth-authorization-server"} {
+		r := httptest.NewRequest("GET", "http://nobody.renoxium.test"+path, nil)
+		w := httptest.NewRecorder()
+		e.server.Config.Handler.ServeHTTP(w, r)
+		if w.Code != 404 || strings.Contains(w.Body.String(), "Sign in") {
+			t.Errorf("%s on an unknown host: %d", path, w.Code)
+		}
+	}
+	r, _ := http.Get(e.base + "/login")
+	if r.StatusCode != 200 {
+		t.Fatalf("site host: %d", r.StatusCode)
+	}
+	// The local health check works whatever host it is called with.
+	hr := httptest.NewRequest("GET", "http://127.0.0.1:8080/healthz", nil)
+	hw := httptest.NewRecorder()
+	e.server.Config.Handler.ServeHTTP(hw, hr)
+	if hw.Code != 200 {
+		t.Fatalf("healthz on 127.0.0.1: %d", hw.Code)
+	}
+}

@@ -36,6 +36,7 @@ const (
 // Site is the http.Handler for the Renoxium main host.
 type Site struct {
 	base     string // e.g. https://renoxium.com, no trailing slash
+	host     string // host name of base, without port
 	secure   bool
 	accounts *accounts.Store
 	platform *platform.Platform
@@ -51,7 +52,11 @@ type Site struct {
 // New builds the site. base is the public origin of the site.
 func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	base = strings.TrimRight(base, "/")
-	s := &Site{base: base, secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
+	host := strings.TrimPrefix(strings.TrimPrefix(base, "https://"), "http://")
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
 		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute)}
 	s.mcp = mcpserver.Handler(mcpserver.New(p), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
@@ -80,6 +85,16 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 
 func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// The site, with its sign-in forms and session cookies, answers only on
+	// its own host, never on an app domain such as unknown.renoxium.app.
+	host := strings.ToLower(r.Host)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	if host != s.host && r.URL.Path != "/healthz" {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
 	if r.Method == http.MethodOptions {
 		// CORS preflight. Everything reachable cross-origin uses bearer tokens or
 		// no credentials at all, never cookies.

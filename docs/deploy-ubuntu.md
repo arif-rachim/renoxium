@@ -164,6 +164,15 @@ sudo cloudflared service install && sudo systemctl enable --now cloudflared
 In the Cloudflare dashboard, for both zones, open **SSL/TLS → Edge Certificates** and turn on
 **Always Use HTTPS**.
 
+### Serving the site on www
+
+If the site should live on `www.renoxium.com` (for example because a Cloudflare rule redirects
+`renoxium.com` to `www.renoxium.com`), use the www address everywhere: `-base-url https://www.renoxium.com`
+in the service, `hostname: www.renoxium.com` in the tunnel configuration, and
+`cloudflared tunnel route dns renoxium www.renoxium.com`. The site answers only on the host in
+`-base-url`, and the connector address becomes `https://www.renoxium.com/mcp`. In the checks below,
+replace `renoxium.com` with `www.renoxium.com`.
+
 ## 5. Check from outside
 
 From any computer:
@@ -255,5 +264,6 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | A store shows "not published yet" | The app was never published | ask the agent to run `publish` |
 | Sign-in keeps returning to the sign-in form | `-base-url` differs from the address in the browser | it must be exactly `https://renoxium.com` |
 | The agent cannot connect, `/mcp` returns 401 | Normal before sign-in; the problem is in the OAuth steps | open `/.well-known/oauth-authorization-server` and check it uses `https://renoxium.com` |
+| The site returns 404 "not found" | The browser address differs from the host in `-base-url` (for example with or without www) | use the address in `-base-url`, or fix the redirect in Cloudflare |
 | Everyone gets "too many attempts" | `-trusted-ip-header` is missing from the service | `systemctl cat renoxium` |
 | Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |
