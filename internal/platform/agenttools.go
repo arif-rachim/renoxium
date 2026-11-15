@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
@@ -24,6 +26,8 @@ type TestRequestInput struct {
 	Path   string            `json:"path" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud"`
 	Form   map[string]string `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
 	JSON   any               `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
+	// UserEmail sends the request as a signed-in visitor (preview only).
+	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as this visitor; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup first, or it may come from live data)"`
 }
 
 // TestResponse is what the app answered, with the log of that request.
@@ -84,6 +88,40 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	req := httptest.NewRequestWithContext(ctx, method, "http://"+p.host(app, stage)+in.Path, body)
 	if ctype != "" {
 		req.Header.Set("Content-Type", ctype)
+	}
+	if in.UserEmail != "" {
+		if stage != Preview {
+			return TestResponse{}, errors.New("user_email works only on preview")
+		}
+		st, err := p.loadStage(app, Preview)
+		if err != nil || st == nil {
+			return TestResponse{}, errors.New("preview has no version yet: call apply_change first")
+		}
+		addr, _ := normalizeEmail(in.UserEmail)
+		var id int64
+		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ?`, addr).Scan(&id); err != nil {
+			return TestResponse{}, fmt.Errorf("no visitor %q in preview: sign up first with POST /_rx/auth/signup", in.UserEmail)
+		}
+		token := secretToken()
+		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(token), id, time.Now().Add(time.Minute).Unix()); err != nil {
+			return TestResponse{}, err
+		}
+		defer st.admin.Exec(`DELETE FROM rx_sessions WHERE hash = ?`, sha(token))
+		req.AddCookie(&http.Cookie{Name: visitorSessionCookie, Value: token})
+	}
+	// Test requests carry a valid CSRF pair, so platform forms such as
+	// /_rx/auth/signup can be exercised too.
+	if method == http.MethodPost && strings.HasPrefix(in.Path, AuthPrefix) {
+		token := secretToken()
+		req.AddCookie(&http.Cookie{Name: visitorCSRFCookie, Value: token})
+		if len(in.Form) > 0 {
+			form := url.Values{"csrf": {token}}
+			for k, v := range in.Form {
+				form.Set(k, v)
+			}
+			req.Body = io.NopCloser(strings.NewReader(form.Encode()))
+			req.ContentLength = int64(len(form.Encode()))
+		}
 	}
 	w := httptest.NewRecorder()
 	p.ServeApp(w, req)

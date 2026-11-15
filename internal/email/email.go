@@ -12,6 +12,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/mail"
+	"strings"
 	"time"
 )
 
@@ -24,6 +26,9 @@ type Message struct {
 	ReplyTo string
 	// Tag labels the message in Resend, e.g. "password_reset".
 	Tag string
+	// FromName replaces the display name of the configured sender, keeping
+	// its address, e.g. "Al Noor Perfumes".
+	FromName string
 }
 
 // Sender delivers messages.
@@ -41,7 +46,19 @@ type Resend struct {
 
 // Send implements Sender.
 func (r *Resend) Send(ctx context.Context, m Message) error {
-	body := map[string]any{"from": r.From, "to": []string{m.To}, "subject": m.Subject, "text": m.Text}
+	from := r.From
+	if m.FromName != "" {
+		if addr, err := mail.ParseAddress(r.From); err == nil {
+			name := strings.Map(func(c rune) rune {
+				if strings.ContainsRune("<>\"\r\n,;", c) {
+					return -1
+				}
+				return c
+			}, m.FromName)
+			from = (&mail.Address{Name: name, Address: addr.Address}).String()
+		}
+	}
+	body := map[string]any{"from": from, "to": []string{m.To}, "subject": m.Subject, "text": m.Text}
 	if m.HTML != "" {
 		body["html"] = m.HTML
 	}

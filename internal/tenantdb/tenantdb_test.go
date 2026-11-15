@@ -127,3 +127,24 @@ func TestMigrateIsAdditive(t *testing.T) {
 		t.Fatalf("rows = %v", rows)
 	}
 }
+
+func TestScriptsCannotReachPlatformTables(t *testing.T) {
+	db, _ := setup(t)
+	ctx := context.Background()
+	for _, q := range []string{
+		"SELECT * FROM rx_users",
+		"SELECT email FROM RX_USERS",
+		"SELECT p.name FROM products p JOIN rx_sessions s ON 1",
+		"INSERT INTO rx_users (email, password_hash) VALUES ('a', 'b')",
+		"UPDATE rx_users SET password_hash = 'x'",
+		"DELETE FROM rx_sessions",
+		"WITH u AS (SELECT * FROM rx_users) SELECT * FROM u",
+	} {
+		if _, err := db.Query(ctx, q, nil); err == nil {
+			t.Errorf("%q was allowed", q)
+		}
+	}
+	if _, err := db.Query(ctx, "SELECT name FROM products", nil); err != nil {
+		t.Fatal(err)
+	}
+}

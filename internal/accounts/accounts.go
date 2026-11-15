@@ -19,8 +19,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang.org/x/crypto/argon2"
 	_ "modernc.org/sqlite"
+
+	"github.com/arif-rachim/renoxium/internal/password"
 )
 
 const (
@@ -28,7 +29,7 @@ const (
 	CodeTTL         = 10 * time.Minute
 	AccessTokenTTL  = time.Hour
 	RefreshTokenTTL = 60 * 24 * time.Hour
-	MinPassword     = 10
+	MinPassword     = password.MinLength
 	maxRedirectURIs = 10
 )
 
@@ -116,43 +117,6 @@ func hash(secret string) string {
 
 // --- users and passwords ---
 
-const (
-	argonTime    = 2
-	argonMemory  = 19 * 1024 // KiB
-	argonThreads = 1
-	argonKeyLen  = 32
-)
-
-func hashPassword(pw string) string {
-	salt := make([]byte, 16)
-	rand.Read(salt)
-	key := argon2.IDKey([]byte(pw), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
-	return fmt.Sprintf("argon2id$%d$%d$%d$%s$%s", argonTime, argonMemory, argonThreads,
-		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(key))
-}
-
-func checkPassword(encoded, pw string) bool {
-	var t, m uint32
-	var p uint8
-	parts := strings.Split(encoded, "$")
-	if len(parts) != 6 || parts[0] != "argon2id" {
-		return false
-	}
-	if _, err := fmt.Sscanf(parts[1]+" "+parts[2]+" "+parts[3], "%d %d %d", &t, &m, &p); err != nil {
-		return false
-	}
-	salt, err1 := base64.RawStdEncoding.DecodeString(parts[4])
-	want, err2 := base64.RawStdEncoding.DecodeString(parts[5])
-	if err1 != nil || err2 != nil {
-		return false
-	}
-	got := argon2.IDKey([]byte(pw), salt, t, m, p, uint32(len(want)))
-	return subtle.ConstantTimeCompare(got, want) == 1
-}
-
-// dummyHash keeps login timing the same for unknown emails.
-var dummyHash = hashPassword("renoxium-dummy-password")
-
 // NormalizeEmail validates and lower-cases an email address.
 func NormalizeEmail(email string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
@@ -164,17 +128,17 @@ func NormalizeEmail(email string) (string, error) {
 }
 
 // CreateUser registers a new account.
-func (s *Store) CreateUser(email, password string) (User, error) {
+func (s *Store) CreateUser(email, pw string) (User, error) {
 	email, err := NormalizeEmail(email)
 	if err != nil {
 		return User{}, err
 	}
-	if utf8.RuneCountInString(password) < MinPassword || len(password) > 512 {
-		return User{}, fmt.Errorf("the password must be at least %d characters", MinPassword)
+	if err := password.Validate(pw); err != nil {
+		return User{}, err
 	}
 	u := User{ID: randomToken("usr_")[:24], Email: email}
 	_, err = s.db.Exec(`INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`,
-		u.ID, u.Email, hashPassword(password), s.now().UTC().Format(time.RFC3339))
+		u.ID, u.Email, password.Hash(pw), s.now().UTC().Format(time.RFC3339))
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return User{}, ErrEmailTaken
@@ -185,19 +149,19 @@ func (s *Store) CreateUser(email, password string) (User, error) {
 }
 
 // Authenticate checks an email and password.
-func (s *Store) Authenticate(email, password string) (User, error) {
+func (s *Store) Authenticate(email, pw string) (User, error) {
 	email, _ = NormalizeEmail(email)
 	var u User
 	var encoded string
 	err := s.db.QueryRow(`SELECT id, email, password_hash FROM users WHERE email = ?`, email).Scan(&u.ID, &u.Email, &encoded)
 	if errors.Is(err, sql.ErrNoRows) {
-		checkPassword(dummyHash, password)
+		password.CheckMissing(pw)
 		return User{}, ErrBadCredentials
 	}
 	if err != nil {
 		return User{}, err
 	}
-	if !checkPassword(encoded, password) {
+	if !password.Check(encoded, pw) {
 		return User{}, ErrBadCredentials
 	}
 	return u, nil
@@ -310,9 +274,9 @@ func (s *Store) VerifyEmail(token string) (User, error) {
 // ResetPassword sets a new password with a reset token. It signs the user
 // out everywhere: browser sessions and agent tokens are revoked. Receiving the
 // reset email also proves the address, so it is marked verified.
-func (s *Store) ResetPassword(token, password string) (User, error) {
-	if utf8.RuneCountInString(password) < MinPassword || len(password) > 512 {
-		return User{}, fmt.Errorf("the password must be at least %d characters", MinPassword)
+func (s *Store) ResetPassword(token, pw string) (User, error) {
+	if err := password.Validate(pw); err != nil {
+		return User{}, err
 	}
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -330,7 +294,7 @@ func (s *Store) ResetPassword(token, password string) (User, error) {
 	} {
 		args := []any{id}
 		if strings.HasPrefix(stmt, "UPDATE") {
-			args = []any{hashPassword(password), s.now().UTC().Format(time.RFC3339), id}
+			args = []any{password.Hash(pw), s.now().UTC().Format(time.RFC3339), id}
 		}
 		if _, err := tx.Exec(stmt, args...); err != nil {
 			return User{}, err

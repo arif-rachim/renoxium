@@ -33,6 +33,24 @@ type Request struct {
 	// such as several checkboxes with one name.
 	FormAll map[string][]string `json:"form_all"`
 	Body    any                 `json:"body"`
+	// User is the signed-in visitor, or nil.
+	User *Visitor `json:"user,omitempty"`
+}
+
+// Visitor is a signed-in visitor of an app.
+type Visitor struct {
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Verified bool   `json:"verified"`
+}
+
+// Map is the value scripts and templates see.
+func (v *Visitor) Map() map[string]any {
+	if v == nil {
+		return nil
+	}
+	return map[string]any{"id": v.ID, "email": v.Email, "name": v.Name, "verified": v.Verified}
 }
 
 // Response is what a script returns. Exactly one of Template, JSON, Text or
@@ -182,6 +200,7 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 	val, err := handle(goja.Undefined(), vm.ToValue(map[string]any{
 		"method": req.Method, "path": req.Path, "params": strMap(req.Params),
 		"query": strMap(req.Query), "form": strMap(req.Form), "formAll": strSliceMap(req.FormAll), "body": req.Body,
+		"user": req.User.Map(),
 	}))
 	if err != nil {
 		return Response{}, &ScriptError{Message: describe(err)}

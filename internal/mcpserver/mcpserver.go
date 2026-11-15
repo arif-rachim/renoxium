@@ -59,6 +59,23 @@ Exact data types in scripts:
 - Return {template: "name", data: {...}} for HTML (full page or fragment), {json: value}, {text: "..."}, or {redirect: "/path"} (303 after a POST);
   add status to change the HTTP status.
 
+Visitor accounts (sign-in for the app's own users, e.g. customers or members):
+- Built in; do not build your own login or store passwords. The platform serves these pages on the app's domain:
+  /_rx/auth/signup, /_rx/auth/login, /_rx/auth/forgot (password reset by email) and /_rx/auth/logout.
+  Link to them; add ?next=/path to sign-up and sign-in links to return there afterwards.
+  Sign out with <form method="post" action="/_rx/auth/logout"><button>Sign out</button></form> (no token needed),
+  or link to /_rx/auth/logout, which asks for confirmation.
+- Mark a route with "auth": "user" so only signed-in visitors reach it; others are redirected to sign in (GET) or get 401 (POST).
+- Scripts get req.user: {id, email, name, verified} or null. Template routes get .user the same way. Use req.user.id as the owner
+  of the visitor's own rows (e.g. orders.user_id) and always filter by it: WHERE user_id = ?.
+- Visitor accounts live in platform tables that scripts cannot read; the owner sees nothing of passwords.
+- Restyle the pages with templates named auth_login, auth_signup, auth_forgot, auth_reset, auth_logout and auth_message. They receive
+  .csrf, .next, .email, .name, .token, .error, .title, .message and .link. Keep the form fields and actions of the defaults:
+  login posts email, password, next, csrf to /_rx/auth/login; signup posts name, email, password, next, csrf to /_rx/auth/signup;
+  forgot posts email, csrf to /_rx/auth/forgot; reset posts password, token, csrf to /_rx/auth/reset.
+- Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
+- Test with test_request: POST /_rx/auth/signup with form {name, email, password}, then send requests with user_email set.
+
 Images:
 - Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
   Uploading the same image again returns the same url without storing it twice.

@@ -44,6 +44,7 @@ type Route struct {
 	Path     string `json:"path" jsonschema:"URL path; segments starting with ':' are parameters, e.g. /products/:id"`
 	Template string `json:"template,omitempty" jsonschema:"render this template directly (set this or script, not both)"`
 	Script   string `json:"script,omitempty" jsonschema:"run this script (set this or template, not both)"`
+	Auth     string `json:"auth,omitempty" jsonschema:"set to user so only signed-in visitors reach the route; others are sent to the sign-in page"`
 }
 
 var identRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
@@ -136,6 +137,9 @@ func (a *App) Validate() []string {
 			add("%s: path must start with /", where)
 		case strings.HasPrefix(r.Path, "/_rx/") || r.Path == "/mcp":
 			add("%s: paths under /_rx/ and /mcp are reserved for the platform", where)
+		}
+		if r.Auth != "" && r.Auth != "user" {
+			add("%s: auth must be empty or \"user\"", where)
 		}
 		key := r.Method + " " + r.Path
 		if seen[key] {

@@ -12,6 +12,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -45,6 +46,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if r.URL.Path == "/_rx/log" {
 		p.browserLog(w, r, st)
+		return true
+	}
+	if strings.HasPrefix(r.URL.Path, AuthPrefix) {
+		p.serveAuth(w, r, st)
 		return true
 	}
 	rid := newRequestID()
@@ -98,15 +103,22 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 	if route == nil {
 		return result{status: http.StatusNotFound, contentType: "text/plain; charset=utf-8", body: []byte("not found")}
 	}
+	user := p.visitor(st, r)
+	if route.Auth == "user" && user == nil {
+		if r.Method == http.MethodGet {
+			return result{status: http.StatusSeeOther, location: AuthPrefix + "login?next=" + url.QueryEscape(r.URL.RequestURI())}
+		}
+		return result{status: http.StatusUnauthorized, contentType: "text/plain; charset=utf-8", body: []byte("sign in required")}
+	}
 	query := map[string]string{}
 	for k, v := range r.URL.Query() {
 		query[k] = v[0]
 	}
 	if route.Template != "" {
-		return p.render(st, http.StatusOK, route.Template, map[string]any{"params": params, "query": query}, rid)
+		return p.render(st, http.StatusOK, route.Template, map[string]any{"params": params, "query": query, "user": user.Map()}, rid)
 	}
 
-	req := sandbox.Request{Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}, FormAll: map[string][]string{}}
+	req := sandbox.Request{User: user, Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}, FormAll: map[string][]string{}}
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
 		ct, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))

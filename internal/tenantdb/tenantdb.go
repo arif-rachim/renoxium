@@ -51,11 +51,16 @@ func register() {
 	})
 }
 
-// authorize is the policy for script-issued SQL: data access only.
+// authorize is the policy for script-issued SQL: data access only, and
+// never to the platform's own rx_ tables (visitor accounts and sessions).
 func authorize(action sqlite.AuthorizerActionCode, arg1, _, _, _ string) sqlite.AuthorizerReturnCode {
 	switch action {
-	case sqlite.AuthSelect, sqlite.AuthRead, sqlite.AuthInsert, sqlite.AuthUpdate,
-		sqlite.AuthDelete, sqlite.AuthTransaction, sqlite.AuthSavepoint, sqlite.AuthRecursive:
+	case sqlite.AuthRead, sqlite.AuthInsert, sqlite.AuthUpdate, sqlite.AuthDelete:
+		if strings.HasPrefix(strings.ToLower(arg1), "rx_") {
+			return sqlite.AuthorizerDeny
+		}
+		return sqlite.AuthorizerOK
+	case sqlite.AuthSelect, sqlite.AuthTransaction, sqlite.AuthSavepoint, sqlite.AuthRecursive:
 		return sqlite.AuthorizerOK
 	case sqlite.AuthFunction:
 		if strings.EqualFold(arg1, "load_extension") {
@@ -236,6 +241,11 @@ func Migrate(path string, tables []appdef.Table, seed map[string][]map[string]an
 	}
 	defer tx.Rollback()
 
+	for _, stmt := range platformTables {
+		if _, err := tx.Exec(stmt); err != nil {
+			return nil, fmt.Errorf("platform tables: %w", err)
+		}
+	}
 	var applied []string
 	for _, t := range tables {
 		existing, err := columnsOf(tx, t.Name)
@@ -280,6 +290,38 @@ func Migrate(path string, tables []appdef.Table, seed map[string][]map[string]an
 		}
 	}
 	return applied, tx.Commit()
+}
+
+// platformTables hold the app's visitor accounts. Scripts cannot reach them.
+var platformTables = []string{
+	`CREATE TABLE IF NOT EXISTS rx_users (id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL DEFAULT '',
+		password_hash TEXT NOT NULL, verified_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+	`CREATE TABLE IF NOT EXISTS rx_sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
+		expires_at INTEGER NOT NULL)`,
+	`CREATE TABLE IF NOT EXISTS rx_email_tokens (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
+		purpose TEXT NOT NULL, expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0)`,
+}
+
+// EnsurePlatformTables adds the rx_ tables to a database created before
+// they existed.
+func EnsurePlatformTables(db *sql.DB) error {
+	for _, stmt := range platformTables {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// OpenAdmin opens a database for platform code, without the script
+// restrictions. Never hand it to a script.
+func OpenAdmin(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)")
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(2)
+	return db, db.Ping()
 }
 
 func columnsOf(tx *sql.Tx, table string) (map[string]bool, error) {

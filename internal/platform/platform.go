@@ -22,6 +22,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
@@ -42,6 +43,10 @@ type Config struct {
 	// ScriptsPerApp caps how many scripts of one app run at the same time,
 	// so one app cannot occupy every script worker. Default 2.
 	ScriptsPerApp int
+	// Mailer sends visitor emails (confirmation, password reset) from live.
+	Mailer email.Sender
+	// TrustedIPHeader carries the visitor address behind a local tunnel.
+	TrustedIPHeader string
 }
 
 // Platform is safe for concurrent use.
@@ -59,6 +64,7 @@ type Platform struct {
 	hosts  sync.Map // host -> hostEntry
 	intake map[string]*window
 	slots  map[string]chan struct{} // per-app script concurrency
+	limits map[string]*window       // visitor sign-in rate limits
 }
 
 type stage struct {
@@ -68,6 +74,7 @@ type stage struct {
 	def     *appdef.App
 	tmpl    *template.Template
 	db      *tenantdb.DB
+	admin   *sql.DB // platform access to rx_ tables; never given to scripts
 }
 
 type hostEntry struct{ app, stage string }
@@ -151,7 +158,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		cfg.ScriptsPerApp = 2
 	}
 	return &Platform{cfg: cfg, db: db, sb: sb, files: store,
-		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}}, nil
+		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}}, nil
 }
 
 // Close releases every open database.
@@ -160,6 +167,7 @@ func (p *Platform) Close() {
 	defer p.mu.Unlock()
 	for _, st := range p.stages {
 		st.db.Close()
+		st.admin.Close()
 	}
 	for _, l := range p.logs {
 		l.Close()
@@ -486,11 +494,20 @@ func (p *Platform) loadStage(app, stageName string) (*stage, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := tenantdb.Open(p.dbPath(app, stageName))
+	admin, err := tenantdb.OpenAdmin(p.dbPath(app, stageName))
 	if err != nil {
 		return nil, err
 	}
-	st := &stage{app: app, name: stageName, version: version, def: def, tmpl: tmpl, db: db}
+	if err := tenantdb.EnsurePlatformTables(admin); err != nil {
+		admin.Close()
+		return nil, err
+	}
+	db, err := tenantdb.Open(p.dbPath(app, stageName))
+	if err != nil {
+		admin.Close()
+		return nil, err
+	}
+	st := &stage{app: app, name: stageName, version: version, def: def, tmpl: tmpl, db: db, admin: admin}
 	p.stages[key] = st
 	return st, nil
 }
@@ -501,6 +518,7 @@ func (p *Platform) dropStage(app, stageName string) {
 	defer p.mu.Unlock()
 	if st := p.stages[key]; st != nil {
 		st.db.Close()
+		st.admin.Close()
 		delete(p.stages, key)
 	}
 }

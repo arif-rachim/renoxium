@@ -42,7 +42,13 @@ func main() {
 	if *baseURL == "" {
 		*baseURL = "http://localhost" + port
 	}
-	cfg := platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: "https"}
+	var mailer email.Sender = email.Log{}
+	if key := os.Getenv("RESEND_API_KEY"); key != "" {
+		mailer = &email.Resend{Key: key, From: *emailFrom}
+	} else {
+		slog.Warn("RESEND_API_KEY is not set: emails are written to the log instead of being sent")
+	}
+	cfg := platform.Config{DataDir: *dataDir, AppsDomain: *appsDomain, PublicScheme: "https", Mailer: mailer, TrustedIPHeader: *trustedIPHeader}
 	if *appsDomain == "localhost" {
 		cfg.PublicScheme, cfg.PublicPort = "http", port
 	}
@@ -67,11 +73,7 @@ func main() {
 	defer acc.Close()
 	site := web.New(*baseURL, acc, p)
 	site.TrustedIPHeader = *trustedIPHeader
-	if key := os.Getenv("RESEND_API_KEY"); key != "" {
-		site.Mailer = &email.Resend{Key: key, From: *emailFrom}
-	} else {
-		slog.Warn("RESEND_API_KEY is not set: emails are written to the log instead of being sent")
-	}
+	site.Mailer = mailer
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !p.ServeApp(w, r) {

@@ -144,3 +144,20 @@ func TestPoolKillsWorkerOverResidentLimit(t *testing.T) {
 		t.Fatalf("replacement worker: %v", err)
 	}
 }
+
+func TestPoolPassesVisitorAndFormAll(t *testing.T) {
+	p := newPool(t, 1)
+	req := Request{User: &Visitor{ID: 7, Email: "a@b.ae", Name: "Ali", Verified: true}, FormAll: map[string][]string{"size": {"S", "M"}}}
+	r, err := p.Run(context.Background(), `function handle(req) { return {json: {id: req.user.id, email: req.user.email, sizes: req.formAll.size}} }`, req, &fakeHost{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := r.JSON.(map[string]any)
+	if got["id"] != int64(7) || got["email"] != "a@b.ae" || len(got["sizes"].([]any)) != 2 {
+		t.Fatalf("got %v", got)
+	}
+	r, _ = p.Run(context.Background(), `function handle(req) { return {json: req.user === null} }`, Request{}, &fakeHost{})
+	if r.JSON != true {
+		t.Fatalf("signed out user = %v", r.JSON)
+	}
+}
