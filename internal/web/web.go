@@ -77,7 +77,9 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	})
 	s.mux.Handle("GET /.well-known/oauth-protected-resource", prm)
 	s.mux.Handle("GET /.well-known/oauth-protected-resource/mcp", prm)
-	s.mux.Handle("/mcp", cors(s.mcp.ServeHTTP))
+	s.mux.HandleFunc("/mcp", s.mcpEndpoint)
+	s.mux.HandleFunc("GET /connect", s.connectPage)
+	s.mux.HandleFunc("GET /llms.txt", s.llmsTxt)
 	s.registerAdmin()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	return s
@@ -537,7 +539,7 @@ textarea.json{font-family:ui-monospace,monospace;font-size:14px}.check{display:f
 .ok{color:#2e7d32}.field-error{color:#c62828;font-size:14px;margin-top:4px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
 .bar form{display:flex;gap:8px}.bar input{width:220px}.bar button,.bar .button{margin-top:0}.button{display:inline-block;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
 button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pager{display:flex;gap:12px;margin-top:12px;font-size:14px}
-.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+.connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
 h1{font-size:22px;margin:0 0 16px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}label{display:block;font-size:14px;margin:12px 0 4px}
 input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
@@ -549,13 +551,14 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "welcome"}}{{template "top" "Welcome"}}<div class="card"><h1>Renoxium</h1>
 <p>Build and run your online store by chatting with ChatGPT or Claude.</p>
 <p class="muted">Add this connector address to your agent:</p><p><code>{{.MCP}}</code></p>
+<p><a href="/connect">How to connect ChatGPT or Claude</a></p>
 <div class="row"><a href="/signup">Create an account</a> · <a href="/login">Sign in</a></div></div>{{template "bottom"}}{{end}}
 
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
 <p class="muted">Signed in as {{.User.Email}}</p>
 {{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
 {{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
-<p class="muted">Connector address for your agent:</p><p><code>{{.MCP}}</code></p>
+<p class="muted">Connector address for your agent:</p><p><code>{{.MCP}}</code> · <a href="/connect">how to connect</a></p>
 <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Sign out</button></form></div>{{template "bottom"}}{{end}}
 
 {{define "signup"}}{{template "top" "Create account"}}<form class="card" method="post" action="/signup"><h1>Create your account</h1>
@@ -614,6 +617,10 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <button>Save</button></form>
 {{if .ID}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
 {{template "bottom"}}{{end}}
+
+{{define "connect"}}{{template "wide" "Connect"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
+{{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+{{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "error"}}{{template "top" "Error"}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
 `))

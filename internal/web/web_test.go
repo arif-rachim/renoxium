@@ -486,3 +486,27 @@ func TestSiteAnswersOnlyOnItsOwnHost(t *testing.T) {
 		t.Fatalf("healthz on 127.0.0.1: %d", hw.Code)
 	}
 }
+
+// A browser or an assistant's fetch tool opening /mcp gets instructions,
+// while MCP clients still get the bare OAuth challenge.
+func TestMCPEndpointExplainsHowToConnect(t *testing.T) {
+	e := newEnv(t)
+	r, _ := http.Get(e.base + "/mcp")
+	body := read(t, r)
+	if r.StatusCode != 401 || !strings.Contains(r.Header.Get("WWW-Authenticate"), "resource_metadata=") ||
+		!strings.Contains(body, e.base+"/connect") || !strings.Contains(body, "you cannot add this connector yourself") ||
+		!strings.Contains(body, "MCP Server URL: "+e.base+"/mcp") {
+		t.Fatalf("GET /mcp: %d %s", r.StatusCode, body)
+	}
+	// An MCP client posting without a token still gets the SDK's challenge.
+	r, _ = http.Post(e.base+"/mcp", "application/json", strings.NewReader(`{}`))
+	if r.StatusCode != 401 || !strings.Contains(r.Header.Get("WWW-Authenticate"), "resource_metadata=") {
+		t.Fatalf("POST /mcp: %d", r.StatusCode)
+	}
+	for _, path := range []string{"/connect", "/llms.txt"} {
+		r, _ = http.Get(e.base + path)
+		if body := read(t, r); r.StatusCode != 200 || !strings.Contains(body, e.base+"/mcp") || !strings.Contains(body, "Developer mode") {
+			t.Fatalf("%s: %d", path, r.StatusCode)
+		}
+	}
+}

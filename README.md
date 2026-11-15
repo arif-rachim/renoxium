@@ -13,6 +13,7 @@ Working today:
 
 - Accounts on the Renoxium site (email and password, argon2id), a dashboard listing your apps.
 - OAuth 2.1 for agents, as ChatGPT and Claude expect: protected resource and authorization server metadata, dynamic client registration, PKCE (S256 only), consent screen, rotating refresh tokens, revocation on code replay.
+- Connection help at `/connect` and `/llms.txt`, written so an assistant that reads them tells the user how to add the connector. A browser or fetch-tool visit to `/mcp` gets the same help with its 401, while MCP clients still get the plain OAuth challenge.
 - Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app`, `get_app`, `apply_change`, `publish` (also rollback), `upload_file` and `get_logs`. Every tool acts only on apps the signed-in user owns.
 - Preview and live stages per app. Preview runs on a snapshot of live data; publish backs up live data first.
 - Additive schema migrations, seed data.
