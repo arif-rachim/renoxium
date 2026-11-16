@@ -66,6 +66,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.serveAuth(w, r, st)
 		return true
 	}
+	if strings.HasPrefix(r.URL.Path, PayPrefix) {
+		p.servePay(w, r, st)
+		return true
+	}
 	if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)
@@ -185,7 +189,8 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		}
 		return result{status: status, contentType: "application/json", body: body}
 	case resp.Redirect != "":
-		if !strings.HasPrefix(resp.Redirect, "/") || strings.HasPrefix(resp.Redirect, "//") || strings.HasPrefix(resp.Redirect, "/\\") {
+		external := strings.HasPrefix(resp.Redirect, stripeCheckoutPrefix)
+		if !external && (!strings.HasPrefix(resp.Redirect, "/") || strings.HasPrefix(resp.Redirect, "//") || strings.HasPrefix(resp.Redirect, "/\\")) {
 			return failure(http.StatusInternalServerError, "script "+route.Script+": redirect must be a path starting with / on this app")
 		}
 		if resp.Status < 300 || resp.Status > 399 {
@@ -395,4 +400,18 @@ func (h *scriptHost) Log(level, message string) {
 	if n < maxDBCalls*2 {
 		h.p.event(h.st, "server", level, h.rid, "console: "+message)
 	}
+}
+
+// Call implements sandbox.Host: the platform functions scripts may use.
+func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) {
+	if err := h.count(); err != nil {
+		return nil, err
+	}
+	switch fn {
+	case "payments.checkout":
+		return h.p.checkout(ctx, h.st, arg)
+	case "payments.get":
+		return h.p.paymentStatus(ctx, h.st, arg)
+	}
+	return nil, fmt.Errorf("unknown platform function %s", fn)
 }

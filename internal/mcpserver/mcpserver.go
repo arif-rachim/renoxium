@@ -85,6 +85,24 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
 - Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
 - Test with test_request: POST /_rx/auth/signup with form {name, email, password}, then send requests with user_email set.
 
+Payments (card payments through the owner's own Stripe account; Renoxium takes no fee):
+- Never collect card details yourself. In a script, create the order first, then call
+  payments.checkout({items: [{name, price, quantity}], reference, success_path, cancel_path, customer_email})
+  and return {redirect: result.url}. price is in AED with at most 2 decimals (250 or 99.5, not fils); quantity defaults to 1;
+  reference is your own order id, e.g. "order-12"; success_path and cancel_path are paths on the app (default "/").
+  currency defaults to "aed" (also usd, eur, gbp, sar). It returns {url, id, reference, amount, currency}.
+- Set "on_payment": "<script name>" in the app definition. That script runs when a payment is paid, fails or expires, with
+  req.body = {event, status, reference, id, amount, currency, customer_email, customer_name}; event is "paid", "failed" or
+  "expired". Mark the order there (e.g. UPDATE orders SET status = 'paid' WHERE id = ?). It runs once per change.
+- On the success page do not trust the URL: read payments.get(reference), which returns the newest payment for the reference
+  ({status, amount, ...}) or null. Status "pending" can still turn "paid" a few seconds later.
+- Database changes are not undone when a script fails afterwards: if checkout fails, the order you created stays; show an error
+  and let the visitor try again.
+- On preview, checkout is simulated: result.url is /_rx/pay/<id>, a page with "Pay (simulated)", "Simulate a failed payment" and
+  "Cancel". Test with test_request: POST your buy route, then POST result.url with form {decision: "pay"} (or "fail"/"cancel").
+- On live, checkout works once the owner has connected Stripe in the Renoxium admin panel (/apps/<app>/payments); before that
+  payments.checkout throws an error saying so. Cash on delivery needs no platform support: just record the order.
+
 Images:
 - Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
   Uploading the same image again returns the same url without storing it twice.

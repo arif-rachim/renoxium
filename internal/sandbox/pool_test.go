@@ -191,3 +191,19 @@ func TestPoolRefusesOversizedMessages(t *testing.T) {
 		t.Fatalf("after: %v %+v", err, r)
 	}
 }
+
+func TestPlatformCallsReachTheHost(t *testing.T) {
+	src := `function handle(req) { return {json: payments.checkout({items: [{name: "Oud", price: 250, quantity: 1}], reference: "o-1"})} }`
+	for name, sb := range map[string]Sandbox{"in-process": NewGoja(), "worker": newPool(t, 1)} {
+		r, err := sb.Run(context.Background(), src, Request{}, &fakeHost{})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got := r.JSON.(map[string]any)
+		arg := got["arg"].(map[string]any)
+		item := arg["items"].([]any)[0].(map[string]any)
+		if got["fn"] != "payments.checkout" || arg["reference"] != "o-1" || item["name"] != "Oud" {
+			t.Fatalf("%s: %v", name, got)
+		}
+	}
+}

@@ -17,6 +17,9 @@ func (f *fakeHost) Exec(ctx context.Context, sql string, args []any) (int64, int
 	return 1, 7, nil
 }
 func (f *fakeHost) Log(level, message string) { f.logs = append(f.logs, level+": "+message) }
+func (f *fakeHost) Call(ctx context.Context, fn string, arg any) (any, error) {
+	return map[string]any{"fn": fn, "arg": arg}, nil
+}
 
 func run(t *testing.T, src string) (Response, error, *fakeHost) {
 	t.Helper()

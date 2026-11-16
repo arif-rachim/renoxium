@@ -116,7 +116,7 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	}
 	// Test requests carry a valid CSRF pair, so platform forms such as
 	// /_rx/auth/signup can be exercised too.
-	if method == http.MethodPost && strings.HasPrefix(in.Path, AuthPrefix) {
+	if method == http.MethodPost && (strings.HasPrefix(in.Path, AuthPrefix) || strings.HasPrefix(in.Path, PayPrefix)) {
 		token := secretToken()
 		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorCSRFCookie), Value: token})
 		if len(in.Form) > 0 {

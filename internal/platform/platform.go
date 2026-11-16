@@ -26,6 +26,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
+	"github.com/arif-rachim/renoxium/internal/stripe"
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
 	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
@@ -52,6 +53,9 @@ type Config struct {
 	Mailer email.Sender
 	// TrustedIPHeader carries the visitor address behind a local tunnel.
 	TrustedIPHeader string
+	// Stripe takes payments for live apps on their owners' Stripe
+	// accounts. Nil turns live checkout off; previews always simulate it.
+	Stripe *stripe.Client
 	// WhatsApp sends sign-in codes from live. Nil turns phone sign-in off
 	// on live; preview always offers it, with codes in the app log.
 	WhatsApp whatsapp.Sender
@@ -231,8 +235,13 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	if cfg.ScriptsPerOwner <= 0 {
 		cfg.ScriptsPerOwner = cfg.ScriptsPerApp
 	}
-	return &Platform{cfg: cfg, db: db, sb: sb, files: store,
-		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}, nil
+	pl := &Platform{cfg: cfg, db: db, sb: sb, files: store,
+		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}
+	if err := pl.ensurePaymentTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return pl, nil
 }
 
 // Close releases every open database.

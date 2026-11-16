@@ -56,6 +56,9 @@ type Site struct {
 	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
 	AbuseEmail string
 
+	// StripeWebhookSecret verifies events posted to /stripe/webhook.
+	StripeWebhookSecret string
+
 	// Version is the commit the server was built from, served at /version
 	// so a deploy can be checked from outside.
 	Version string
@@ -98,6 +101,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.mux.HandleFunc("GET /llms.txt", s.llmsTxt)
 	s.registerAdmin()
 	s.registerEmailFlows()
+	s.registerPayments()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -683,6 +687,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <p class="muted">Preview (version {{.Info.PreviewVersion}}): <a href="{{.Info.PreviewURL}}">{{.Info.PreviewURL}}</a></p>
 {{if .Tables}}<h1 style="margin-top:24px">Data</h1><ul>{{range .Tables}}<li><a href="/apps/{{$.Info.App}}/t/{{.Name}}">{{.Label}}</a> <span class="muted">{{.Rows}} rows</span></li>{{end}}</ul>
 {{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app from your agent to manage its data here.{{end}}</p>{{end}}
+{{if .Info.LiveVersion}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a></p>{{end}}
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
 {{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
 </div>{{template "bottom"}}{{end}}
@@ -704,6 +709,19 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "admin_payments"}}{{template "wide" "Payments"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
+<h1>Payments</h1>
+{{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
+{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account, and Renoxium takes no fee.</p>
+<form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Connect Stripe</button></form>
+{{else if .Account.ChargesEnabled}}<p class="ok">Stripe is connected and ready to take payments.</p><p class="muted">Account {{.Account.StripeAccount}}. Manage payouts, refunds and disputes in your Stripe Dashboard.</p>
+{{else}}<p>Your Stripe account is connected but not ready to take payments yet{{if .Account.DetailsSubmitted}}: Stripe is reviewing your details{{end}}.</p>
+<form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Continue Stripe setup</button></form>{{end}}
+<h1 style="margin-top:24px">Recent payments</h1>
+{{if .Payments}}<div class="scroll"><table><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th></tr></thead><tbody>
+{{range .Payments}}<tr><td>{{.Reference}}</td><td>{{.Status}}</td><td>{{printf "%.2f" .Amount}} {{.Currency}}</td><td>{{.CustomerEmail}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody></table></div>{{else}}<p class="muted">No payments yet.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_visitors"}}{{template "wide" "Visitors"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <div class="bar"><h1 style="margin:0">Visitor accounts <span class="muted">({{.Total}})</span></h1>

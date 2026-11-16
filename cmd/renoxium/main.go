@@ -21,6 +21,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
+	"github.com/arif-rachim/renoxium/internal/stripe"
 	"github.com/arif-rachim/renoxium/internal/web"
 )
 
@@ -81,6 +82,16 @@ func main() {
 	// accounts' apps always have a worker left.
 	cfg.ScriptsPerOwner = max(1, *workers/2)
 	cfg.ScriptsPerApp = cfg.ScriptsPerOwner
+	if key := os.Getenv("STRIPE_SECRET_KEY"); key != "" {
+		cfg.Stripe = &stripe.Client{Key: key}
+		mode := "live"
+		if strings.HasPrefix(key, "sk_test_") {
+			mode = "test"
+		}
+		slog.Info("Stripe payments on", "mode", mode, "webhook_secret_set", os.Getenv("STRIPE_WEBHOOK_SECRET") != "")
+	} else {
+		slog.Warn("STRIPE_SECRET_KEY is not set: live apps cannot take card payments; previews simulate checkout")
+	}
 	if wa := whatsappFromEnv(); wa != nil {
 		cfg.WhatsApp = wa
 		slog.Info("WhatsApp sign-in codes on", "phone_number_id", wa.PhoneNumberID, "template", wa.Template, "language", wa.Language)
@@ -118,6 +129,7 @@ func main() {
 	site.TrustedIPHeader = *trustedIPHeader
 	site.Mailer = mailer
 	site.Version = buildVersion()
+	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
 	site.AbuseEmail = *abuseEmail
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

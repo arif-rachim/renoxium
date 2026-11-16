@@ -21,6 +21,7 @@ Working today:
 - Admin panel on the Renoxium site at `/apps/<app>`, generated from the live schema: tables with row counts, recent errors, a searchable and paginated list per table, and add/edit/delete forms whose inputs follow column types. Owner only; every change is written to the app log.
 - Image uploads through the `upload_file` tool or the admin panel, stored on local disk under the SHA-256 of their content: identical images are stored once, even across apps, and uploading again returns the same URL. Each app serves only the files recorded for it, at `/_rx/files/<hash>.<ext>` with immutable cache headers. Columns of type `image` hold these URLs.
 - Sign-in for an app's own visitors, built in: sign-up, sign-in, sign-out, email confirmation and password reset pages at `/_rx/auth/*` on the app's domain, restylable with `auth_*` templates. Visitors can also sign in with a 6-digit WhatsApp code (WhatsApp Cloud API), which creates the account on first use. Routes marked `"auth": "user"` require a signed-in visitor, and scripts get `req.user`. Accounts live in `rx_` tables in the app database that scripts cannot read or write (enforced by the SQLite authorizer). Live sends emails through Resend; preview writes them, links included, to the app log.
+- Card payments through Stripe Connect: owners connect their own Stripe account from the admin panel (created with the full Stripe Dashboard, merchant-paid Stripe fees and Stripe-covered losses); scripts call `payments.checkout` for a direct charge on that account and `payments.get` to read status; Stripe webhooks (signature-checked) run the app's `on_payment` script once per status change. Previews simulate checkout, so agents can test the whole flow without money.
 - Templates with any HTML/CSS/browser JavaScript, auto-escaped data.
 - One log per app: requests, script errors with stack traces, script console output, and browser errors reported by an injected snippet, linked by request ID.
 
@@ -34,7 +35,7 @@ Working today:
 - Sign-in limits are per address and per account from that address, with a much higher per-account cap over all addresses, so strangers cannot lock someone out.
 - Browser protections: POSTs from other origins are refused on app hosts and on the site (other apps share the renoxium.app site), cookies use the `__Host-` prefix on HTTPS, and HSTS. `/_rx/log` only accepts reports for pages the app served.
 
-Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp order notifications, custom domains, billing-based quotas.
+Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, the UAE store template, WhatsApp order notifications, custom domains, billing-based quotas.
 
 ## Run
 

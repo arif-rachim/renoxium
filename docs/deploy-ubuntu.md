@@ -107,6 +107,38 @@ sudo systemctl restart renoxium
 Without a key Renoxium still runs, but it writes emails to its log instead of sending them. To use
 another sender address, add `-email-from "Renoxium <hello@renoxium.com>"` to `ExecStart`.
 
+### Card payments with Stripe (optional)
+
+Store owners connect their own Stripe account in the admin panel (Payments). Renoxium creates each
+merchant account with the full Stripe Dashboard, Stripe fees paid by the merchant and Stripe covering
+negative balances, and charges shoppers directly on the merchant's account. Renoxium takes no fee.
+
+1. In the Stripe Dashboard of the Renoxium platform account (start in the sandbox), copy the secret key from
+   Developers, API keys.
+2. In Developers, Webhooks, add an endpoint:
+   - URL: `https://www.renoxium.com/stripe/webhook` (the site address in `-base-url`)
+   - Listen to: **Events on Connected accounts**
+   - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+     `checkout.session.async_payment_failed`, `checkout.session.expired`, `account.updated`
+   Copy its signing secret (`whsec_...`).
+3. Add both to `/etc/renoxium/env` and restart:
+
+```bash
+sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
+STRIPE_SECRET_KEY=sk_test_your_key
+STRIPE_WEBHOOK_SECRET=whsec_your_secret
+ENV
+```
+
+```bash
+sudo systemctl restart renoxium && sudo journalctl -u renoxium -n 20 --no-pager | grep -i stripe
+```
+
+The log line says `Stripe payments on` with `mode=test` or `mode=live` and whether the webhook secret is
+set. Without `STRIPE_SECRET_KEY`, live apps cannot take card payments; previews always simulate checkout.
+Without the webhook secret, payments are taken but orders are not marked paid. Move to live keys only after
+testing a full payment in the sandbox, and create the live webhook the same way.
+
 ### WhatsApp sign-in codes (optional)
 
 Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.
@@ -366,4 +398,5 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | No confirmation or reset email arrives | Missing `RESEND_API_KEY`, or the sender domain is not verified in Resend | `sudo journalctl -u renoxium \| grep -i email` |
 | "Sign in with WhatsApp" is missing on live apps | The three `WHATSAPP_` settings are not all set | `sudo journalctl -u renoxium \| grep -i whatsapp` |
 | WhatsApp codes do not arrive | Template not approved, wrong template name or language, no payment method, or an expired token | run `whatsapp-test` (section WhatsApp); the app log in the admin panel shows Meta's error code and a hint |
+| Payments taken but orders stay "awaiting payment" | Webhook missing, not listening to connected accounts, or a wrong `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard, Webhooks: the endpoint's recent deliveries and their responses |
 | Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |

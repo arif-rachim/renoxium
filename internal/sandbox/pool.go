@@ -184,6 +184,9 @@ type message struct {
 	Args  []any  `json:"args,omitempty"`
 	Level string `json:"level,omitempty"`
 	Text  string `json:"text,omitempty"`
+	// platform function calls (Host.Call) and their results
+	Fn    string `json:"fn,omitempty"`
+	Value any    `json:"value,omitempty"`
 	// host results and final results
 	Rows         []map[string]any `json:"rows,omitempty"`
 	RowsAffected int64            `json:"rows_affected,omitempty"`
@@ -243,6 +246,7 @@ func receive(r *bufio.Reader) (message, error) {
 		return message{}, err
 	}
 	m.Args = normalizeSlice(m.Args)
+	m.Value = normalize(m.Value)
 	for i, row := range m.Rows {
 		m.Rows[i] = normalize(row).(map[string]any)
 	}
@@ -412,6 +416,18 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 		case "log":
 			if host != nil {
 				host.Log(m.Level, m.Text)
+			}
+		case "call":
+			reply := message{Type: "result"}
+			if host == nil {
+				reply.Error = "no platform here"
+			} else if v, err := host.Call(ctx, m.Fn, m.Value); err != nil {
+				reply.Error = err.Error()
+			} else {
+				reply.Value = v
+			}
+			if err := send(w.in, reply); err != nil {
+				return fail(err)
 			}
 		case "done":
 			if killedFor() != "" {

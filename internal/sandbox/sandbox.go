@@ -20,6 +20,14 @@ type Host interface {
 	Query(ctx context.Context, sql string, args []any) ([]map[string]any, error)
 	Exec(ctx context.Context, sql string, args []any) (rowsAffected, lastInsertID int64, err error)
 	Log(level, message string)
+	// Call runs a platform function such as "payments.checkout" with a
+	// JSON-like argument and returns a JSON-like result.
+	Call(ctx context.Context, fn string, arg any) (any, error)
+}
+
+// Functions scripts can call through Host.Call, by JavaScript name.
+var platformFunctions = map[string][]string{
+	"payments": {"checkout", "get"},
 }
 
 // Request is what a script's handle(req) receives.
@@ -173,6 +181,21 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 		return vm.ToValue(map[string]any{"rowsAffected": affected, "lastInsertId": lastID})
 	})
 	vm.Set("db", db)
+
+	for obj, fns := range platformFunctions {
+		o := vm.NewObject()
+		for _, fn := range fns {
+			name := obj + "." + fn
+			o.Set(fn, func(call goja.FunctionCall) goja.Value {
+				out, err := host.Call(ctx, name, call.Argument(0).Export())
+				if err != nil {
+					throw(err)
+				}
+				return vm.ToValue(out)
+			})
+		}
+		vm.Set(obj, o)
+	}
 
 	console := vm.NewObject()
 	for _, level := range []string{"log", "info", "warn", "error"} {

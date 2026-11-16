@@ -55,6 +55,7 @@ func newEnv(t *testing.T) *env {
 	ws := web.New(srv.URL, acc, p)
 	mb := &mailbox{}
 	ws.Mailer = mb
+	ws.StripeWebhookSecret = "whsec_test"
 	ws.AbuseEmail = "abuse@renoxium.test"
 	site = ws
 	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })

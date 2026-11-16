@@ -352,6 +352,11 @@ var platformTables = []string{
 		expires_at INTEGER NOT NULL)`,
 	`CREATE TABLE IF NOT EXISTS rx_email_tokens (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
 		purpose TEXT NOT NULL, expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE TABLE IF NOT EXISTS rx_payments (id TEXT PRIMARY KEY, reference TEXT NOT NULL, status TEXT NOT NULL,
+		amount INTEGER NOT NULL, currency TEXT NOT NULL, items TEXT NOT NULL, success_path TEXT NOT NULL, cancel_path TEXT NOT NULL,
+		customer_email TEXT NOT NULL DEFAULT '', customer_name TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`,
+	`CREATE INDEX IF NOT EXISTS rx_payments_reference ON rx_payments (reference)`,
 	`CREATE TABLE IF NOT EXISTS rx_phone_codes (phone TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
 		attempts INTEGER NOT NULL DEFAULT 0)`,
 }

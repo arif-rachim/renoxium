@@ -20,6 +20,7 @@ type App struct {
 	Templates map[string]string           `json:"templates,omitempty" jsonschema:"named Go html/template sources; may contain any HTML, CSS and browser JavaScript"`
 	Scripts   map[string]string           `json:"scripts,omitempty" jsonschema:"named server-side JavaScript sources, each defining function handle(req)"`
 	Routes    []Route                     `json:"routes" jsonschema:"HTTP routes served by the app"`
+	OnPayment string                      `json:"on_payment,omitempty" jsonschema:"script run when a payment started with payments.checkout is paid, fails or expires; req.body holds the payment"`
 	Seed      map[string][]map[string]any `json:"seed,omitempty" jsonschema:"rows inserted into a table when that table is first created, keyed by table name"`
 }
 
@@ -123,6 +124,11 @@ func (a *App) Validate() []string {
 		add("templates: %v", err)
 	}
 
+	if a.OnPayment != "" {
+		if _, ok := a.Scripts[a.OnPayment]; !ok {
+			add("on_payment: script %q is not defined", a.OnPayment)
+		}
+	}
 	if len(a.Routes) == 0 {
 		add("routes: at least one route is required")
 	}

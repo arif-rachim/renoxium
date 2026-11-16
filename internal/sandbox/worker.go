@@ -158,6 +158,14 @@ func (h *proxyHost) Exec(_ context.Context, sql string, args []any) (int64, int6
 	return r.RowsAffected, r.LastInsertID, err
 }
 
+func (h *proxyHost) Call(_ context.Context, fn string, arg any) (any, error) {
+	r, err := h.call(message{Type: "call", Fn: fn, Value: arg})
+	if err != nil {
+		return nil, err
+	}
+	return r.Value, nil
+}
+
 func (h *proxyHost) Log(level, text string) {
 	send(h.out, message{Type: "log", Level: level, Text: text})
 }
