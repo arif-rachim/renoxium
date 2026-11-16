@@ -104,37 +104,74 @@ sudo install -d -m 700 /etc/renoxium && echo 'RESEND_API_KEY=re_your_key' | sudo
 sudo systemctl restart renoxium
 ```
 
-Without a key Renoxium still runs, but it writes emails to its log instead of sending them.
+Without a key Renoxium still runs, but it writes emails to its log instead of sending them. To use
+another sender address, add `-email-from "Renoxium <hello@renoxium.com>"` to `ExecStart`.
 
 ### WhatsApp sign-in codes (optional)
 
 Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.
-In WhatsApp Manager:
+The setup happens in Meta Business Suite, WhatsApp Manager and developers.facebook.com, in this order:
 
-1. Create a message template of category **Authentication** with a **Copy code** button, for example named
-   `login_code`, and wait for it to be approved.
-2. Note the **Phone number ID** of the sending number, and create a permanent access token for a system
-   user with the `whatsapp_business_messaging` permission.
+1. **Business portfolio and WhatsApp account.** Verify the business, then add the sending number to the
+   WhatsApp Business Account. Its display name must be approved before messages go out.
+2. **Payment method.** Add one in WhatsApp Manager (the "Missing valid payment method" banner must be
+   gone). Without it Meta refuses every template message with error 131042.
+3. **Template.** Create a template of category **Authentication** (one-time passcode) with a **Copy code**
+   button, for example `login_code`, with the security recommendation and a 10-minute expiry (the same as
+   Renoxium's code lifetime). Wait until it is **Approved**. Note its language code exactly as shown:
+   "English" is `en`, "English (US)" is `en_US`. The language Renoxium sends must match, or Meta answers
+   132001.
+4. **App.** Create or open the app at developers.facebook.com/apps. If it says "Account confirmation
+   needed", the app admin must confirm their account there first; tokens cannot be generated until then.
+5. **System user and token.** In Business settings, System users: create a system user (Admin), then
+   assign it to the app (Manage app) **and** to the WhatsApp account (Full control). Only after both
+   assignments does Generate token offer permissions; otherwise it shows "No permissions available".
+   Generate a token with expiration Never and the `whatsapp_business_messaging` and
+   `whatsapp_business_management` permissions. Keep it secret.
+6. **Phone number ID.** Copy it from WhatsApp Manager (Phone numbers) or the app's WhatsApp, API setup page.
 
-Add them to `/etc/renoxium/env` next to the Resend key, then restart:
+Add the settings to `/etc/renoxium/env` next to the Resend key:
 
 ```bash
 sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
 WHATSAPP_TOKEN=your_access_token
 WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 WHATSAPP_OTP_TEMPLATE=login_code
+WHATSAPP_OTP_LANGUAGE=en
 ENV
 ```
+
+`WHATSAPP_OTP_LANGUAGE` defaults to `en`; set it to the template's language code if that is different.
+`WHATSAPP_API_VERSION` (default `v23.0`) is optional.
+
+Before restarting, send one test code to your own WhatsApp from the VPS. This uses the same settings and
+prints Meta's answer, with a hint for the usual setup errors:
+
+```bash
+sudo bash -c 'set -a; . /etc/renoxium/env; /opt/renoxium/renoxium whatsapp-test +971501234567'
+```
+
+When it prints `OK`, restart Renoxium so live apps offer "Sign in with WhatsApp":
 
 ```bash
 sudo systemctl restart renoxium
 ```
 
-Optional: `WHATSAPP_TEMPLATE_LANGUAGE` (default `en_US`) and `WHATSAPP_API_VERSION` (default `v23.0`).
 Every code is a paid WhatsApp message; Renoxium allows three codes per number per 15 minutes. Without
-these settings, WhatsApp sign-in is off on live apps; previews always offer it and write the code to the
-app log instead of sending it. To use
-another sender address, add `-email-from "Renoxium <hello@renoxium.com>"` to `ExecStart`.
+the three required settings, WhatsApp sign-in is off on live apps; previews always offer it and write
+the code to the app log instead of sending it.
+
+Errors you may meet on the first test:
+
+| Meta error | Meaning | Fix |
+| --- | --- | --- |
+| 190 | Token invalid or expired | Generate a new system user token |
+| 10 or 200 | Token has no permission for this number | Assign the system user to the app and the WhatsApp account, then generate the token again |
+| 131042 | Payment problem | Add a valid payment method in WhatsApp Manager |
+| 132001 | Template not found in this language | Template name and `WHATSAPP_OTP_LANGUAGE` must match the approved template exactly |
+| 132000 or 132012 | Template parameters do not match | The template must be Authentication with a Copy code button |
+| 131030 | Recipient not in the allowed list | The app is limited to test recipients: add your number as a recipient, or finish the setup so the number can message anyone |
+| 133010 | Sending number not registered with the Cloud API | Register the number (with its two-step PIN) in WhatsApp Manager |
 
 Check that the server is up. This must print `ok`:
 
@@ -310,6 +347,7 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | Follow the Renoxium log | `sudo journalctl -u renoxium -f` |
 | Follow the tunnel log | `sudo journalctl -u cloudflared -f` |
 | Status | `systemctl status renoxium cloudflared` |
+| Running version | `curl -s https://www.renoxium.com/version` (the commit the server was built from) |
 | Memory use | `ps -o rss,args -u renoxium` (RSS in KB) |
 | Data size | `sudo du -sh /var/lib/renoxium` |
 | Image storage size | `sudo du -sh /var/lib/renoxium/files` |
@@ -327,5 +365,5 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | Everyone gets "too many attempts" | `-trusted-ip-header` is missing from the service | `systemctl cat renoxium` |
 | No confirmation or reset email arrives | Missing `RESEND_API_KEY`, or the sender domain is not verified in Resend | `sudo journalctl -u renoxium \| grep -i email` |
 | "Sign in with WhatsApp" is missing on live apps | The three `WHATSAPP_` settings are not all set | `sudo journalctl -u renoxium \| grep -i whatsapp` |
-| WhatsApp codes do not arrive | Template not approved, wrong template name or language, or an expired token | the app log in the admin panel shows Meta's error |
+| WhatsApp codes do not arrive | Template not approved, wrong template name or language, no payment method, or an expired token | run `whatsapp-test` (section WhatsApp); the app log in the admin panel shows Meta's error code and a hint |
 | Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |

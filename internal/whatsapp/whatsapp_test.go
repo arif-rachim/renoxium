@@ -32,15 +32,45 @@ func TestCloudAPIRequest(t *testing.T) {
 	}
 }
 
-func TestCloudAPIError(t *testing.T) {
+func TestCloudAPIErrors(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want []string
+	}{
+		{`{"error":{"message":"(#132001) Template name does not exist in the translation","type":"OAuthException","code":132001,
+			"error_data":{"messaging_product":"whatsapp","details":"template name (login_code) does not exist in en_US"},"fbtrace_id":"Abc123"}}`,
+			[]string{"whatsapp error 132001", "does not exist in en_US", "WHATSAPP_OTP_LANGUAGE", `language "en"`, "fbtrace_id Abc123"}},
+		{`{"error":{"message":"(#131042) Business eligibility payment issue","code":131042,"error_data":{"details":"Message failed to send because there were one or more errors related to your payment method."}}}`,
+			[]string{"whatsapp error 131042", "payment method in WhatsApp Manager"}},
+		{`{"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030}}`,
+			[]string{"131030", "allowed list", "added as recipients"}},
+		{`{"error":{"message":"Error validating access token","code":190,"error_subcode":463}}`,
+			[]string{"190", "token is invalid or expired"}},
+		{`<html>bad gateway</html>`, []string{"HTTP 400", "bad gateway"}},
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(400)
+			w.Write([]byte(tc.body))
+		}))
+		err := (&CloudAPI{Token: "t", PhoneNumberID: "1", Template: "login_code", BaseURL: srv.URL}).SendCode(context.Background(), "+971501234567", "1")
+		srv.Close()
+		for _, w := range tc.want {
+			if err == nil || !strings.Contains(err.Error(), w) {
+				t.Errorf("%s: missing %q in %v", tc.body[:30], w, err)
+			}
+		}
+	}
+}
+
+func TestDefaultLanguageIsEn(t *testing.T) {
+	var got map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(400)
-		w.Write([]byte(`{"error":{"message":"Template name does not exist"}}`))
+		json.NewDecoder(r.Body).Decode(&got)
 	}))
 	defer srv.Close()
-	err := (&CloudAPI{Token: "t", PhoneNumberID: "1", Template: "x", BaseURL: srv.URL}).SendCode(context.Background(), "+971501234567", "1")
-	if err == nil || !strings.Contains(err.Error(), "does not exist") {
-		t.Fatalf("err = %v", err)
+	(&CloudAPI{Token: "t", PhoneNumberID: "1", Template: "login_code", BaseURL: srv.URL}).SendCode(context.Background(), "+971501234567", "123456")
+	if lang := got["template"].(map[string]any)["language"].(map[string]any)["code"]; lang != "en" {
+		t.Fatalf("language = %v", lang)
 	}
 }
 

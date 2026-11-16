@@ -56,6 +56,10 @@ type Site struct {
 	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
 	AbuseEmail string
 
+	// Version is the commit the server was built from, served at /version
+	// so a deploy can be checked from outside.
+	Version string
+
 	// TrustedIPHeader names the header that carries the visitor's address
 	// when the site runs behind a local tunnel, e.g. "CF-Connecting-IP".
 	TrustedIPHeader string
@@ -96,6 +100,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerEmailFlows()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
+	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
 	return s
 }
 

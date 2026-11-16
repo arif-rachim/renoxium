@@ -26,7 +26,7 @@ type CloudAPI struct {
 	Token         string // system user access token
 	PhoneNumberID string // the sending number's ID in WhatsApp Manager
 	Template      string // name of the approved authentication template
-	Language      string // template language code, default en_US
+	Language      string // template language code exactly as created in WhatsApp Manager, default "en"
 	Version       string // Graph API version, default v23.0
 	BaseURL       string // default https://graph.facebook.com
 	Client        *http.Client
@@ -36,7 +36,7 @@ type CloudAPI struct {
 func (c *CloudAPI) SendCode(ctx context.Context, phone, code string) error {
 	lang, version, base := c.Language, c.Version, c.BaseURL
 	if lang == "" {
-		lang = "en_US"
+		lang = "en"
 	}
 	if version == "" {
 		version = "v23.0"
@@ -79,10 +79,83 @@ func (c *CloudAPI) SendCode(ctx context.Context, phone, code string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
-		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return fmt.Errorf("send whatsapp code: whatsapp answered %d: %s", resp.StatusCode, detail)
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
+		return parseError(resp.StatusCode, raw, c.Template, lang)
 	}
 	return nil
+}
+
+// Error is an error answer from the WhatsApp Cloud API.
+type Error struct {
+	Status  int    // HTTP status
+	Code    int    // Meta error code, e.g. 132001
+	Subcode int    // error_subcode, when Meta sends one
+	Message string // Meta's message
+	Details string // error_data.details
+	TraceID string // fbtrace_id, for Meta support
+	Hint    string // what to check, for known codes
+}
+
+func (e *Error) Error() string {
+	s := fmt.Sprintf("whatsapp error %d (HTTP %d): %s", e.Code, e.Status, e.Message)
+	if e.Details != "" && e.Details != e.Message {
+		s += ": " + e.Details
+	}
+	if e.Hint != "" {
+		s += ". Check: " + e.Hint
+	}
+	if e.TraceID != "" {
+		s += " (fbtrace_id " + e.TraceID + ")"
+	}
+	return s
+}
+
+// hints explain the errors a first setup usually meets.
+var hints = map[int]string{
+	190:    "the access token is invalid or expired; create a new system user token with whatsapp_business_messaging",
+	10:     "the token lacks permission; assign the system user to the app and the WhatsApp account, then generate the token again",
+	200:    "the token lacks permission; assign the system user to the app and the WhatsApp account, then generate the token again",
+	100:    "a field is wrong; check WHATSAPP_PHONE_NUMBER_ID",
+	131042: "payment problem; add a valid payment method in WhatsApp Manager",
+	132000: "the template expects a different number of parameters; it must be an Authentication template with a Copy code button",
+	132001: "the template does not exist in this language; WHATSAPP_OTP_TEMPLATE and WHATSAPP_OTP_LANGUAGE must match the approved template exactly (English is \"en\", English (US) is \"en_US\")",
+	132005: "the code is longer than the template allows",
+	132007: "the template content breaks a WhatsApp policy",
+	132012: "parameter format does not match the template",
+	132015: "the template is paused because of low quality",
+	132016: "the template is disabled",
+	131030: "the recipient is not in the allowed list; a test number or an app in development mode can only message numbers added as recipients",
+	133010: "the sending number is not registered with the Cloud API; register it (with its two-step PIN) in WhatsApp Manager",
+	133000: "the sending number's registration did not finish; register it again",
+	131026: "the message could not be delivered; the recipient may not use WhatsApp or may have an old app version",
+	131031: "the WhatsApp account is restricted or disabled; check Account quality in WhatsApp Manager",
+	131056: "too many messages to the same number in a short time",
+	80007:  "rate limit of the WhatsApp account reached; wait and try again",
+	130429: "throughput limit reached; wait and try again",
+	368:    "the account is temporarily blocked for policy violations",
+}
+
+func parseError(status int, raw []byte, template, lang string) error {
+	var body struct {
+		Error struct {
+			Message   string `json:"message"`
+			Code      int    `json:"code"`
+			Subcode   int    `json:"error_subcode"`
+			TraceID   string `json:"fbtrace_id"`
+			ErrorData struct {
+				Details string `json:"details"`
+			} `json:"error_data"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(raw, &body) != nil || body.Error.Code == 0 && body.Error.Message == "" {
+		return fmt.Errorf("whatsapp answered HTTP %d: %s", status, strings.TrimSpace(string(raw)))
+	}
+	e := &Error{Status: status, Code: body.Error.Code, Subcode: body.Error.Subcode, Message: body.Error.Message,
+		Details: body.Error.ErrorData.Details, TraceID: body.Error.TraceID, Hint: hints[body.Error.Code]}
+	if e.Code == 132001 {
+		e.Hint += fmt.Sprintf(" (sent template %q, language %q)", template, lang)
+	}
+	return e
 }
 
 // Log writes codes to the log instead of sending them (local development).

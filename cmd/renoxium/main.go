@@ -22,7 +22,6 @@ import (
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/web"
-	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 func main() {
@@ -41,11 +40,20 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "usage: renoxium [flags]                    serve\n"+
 			"       renoxium [flags] suspend APP REASON  take an app offline (a running server notices within 30s)\n"+
-			"       renoxium [flags] unsuspend APP       bring it back\n\nflags:\n")
+			"       renoxium [flags] unsuspend APP       bring it back\n"+
+			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
+			"       renoxium version                     print the commit this binary was built from\n\nflags:\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 	if args := flag.Args(); len(args) > 0 {
+		switch args[0] {
+		case "whatsapp-test":
+			os.Exit(whatsappTest(args[1:]))
+		case "version":
+			fmt.Println(buildVersion())
+			os.Exit(0)
+		}
 		os.Exit(adminCommand(*dataDir, args))
 	}
 
@@ -73,9 +81,9 @@ func main() {
 	// accounts' apps always have a worker left.
 	cfg.ScriptsPerOwner = max(1, *workers/2)
 	cfg.ScriptsPerApp = cfg.ScriptsPerOwner
-	if token, number, tmpl := os.Getenv("WHATSAPP_TOKEN"), os.Getenv("WHATSAPP_PHONE_NUMBER_ID"), os.Getenv("WHATSAPP_OTP_TEMPLATE"); token != "" && number != "" && tmpl != "" {
-		cfg.WhatsApp = &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl,
-			Language: os.Getenv("WHATSAPP_TEMPLATE_LANGUAGE"), Version: os.Getenv("WHATSAPP_API_VERSION")}
+	if wa := whatsappFromEnv(); wa != nil {
+		cfg.WhatsApp = wa
+		slog.Info("WhatsApp sign-in codes on", "phone_number_id", wa.PhoneNumberID, "template", wa.Template, "language", wa.Language)
 	} else {
 		slog.Warn("WhatsApp is not configured: sign-in with WhatsApp works on previews only (codes in the app log)")
 	}
@@ -109,6 +117,7 @@ func main() {
 	site := web.New(*baseURL, acc, p)
 	site.TrustedIPHeader = *trustedIPHeader
 	site.Mailer = mailer
+	site.Version = buildVersion()
 	site.AbuseEmail = *abuseEmail
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
