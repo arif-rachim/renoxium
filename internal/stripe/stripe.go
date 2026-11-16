@@ -174,6 +174,9 @@ type CheckoutParams struct {
 	CustomerEmail string
 	Reference     string            // client_reference_id
 	Metadata      map[string]string // copied to the session and its payment
+	// ApplicationFee is the platform's cut in the smallest unit, taken by
+	// Stripe from this direct charge into the platform account. 0 = none.
+	ApplicationFee int64
 }
 
 // Session is the part of a Checkout Session Renoxium needs.
@@ -215,8 +218,96 @@ func (c *Client) CreateCheckout(ctx context.Context, account string, p CheckoutP
 		form.Set("metadata["+k+"]", v)
 		form.Set("payment_intent_data[metadata]["+k+"]", v)
 	}
+	if p.ApplicationFee > 0 {
+		form.Set("payment_intent_data[application_fee_amount]", strconv.FormatInt(p.ApplicationFee, 10))
+	}
 	var s Session
 	return s, c.do(ctx, http.MethodPost, "/v1/checkout/sessions", account, form, &s)
+}
+
+// --- Billing: the platform's own subscriptions (no Stripe-Account header) ---
+
+// CreateCustomer creates a customer on the platform account.
+func (c *Client) CreateCustomer(ctx context.Context, email string, metadata map[string]string) (string, error) {
+	form := url.Values{"email": {email}}
+	for k, v := range metadata {
+		form.Set("metadata["+k+"]", v)
+	}
+	var out struct {
+		ID string `json:"id"`
+	}
+	err := c.do(ctx, http.MethodPost, "/v1/customers", "", form, &out)
+	return out.ID, err
+}
+
+// SubscriptionCheckout returns a Checkout URL that subscribes a customer
+// to one recurring price.
+func (c *Client) SubscriptionCheckout(ctx context.Context, customer, price, successURL, cancelURL string, metadata map[string]string) (string, error) {
+	form := url.Values{
+		"mode": {"subscription"}, "customer": {customer}, "success_url": {successURL}, "cancel_url": {cancelURL},
+		"line_items[0][price]": {price}, "line_items[0][quantity]": {"1"},
+	}
+	for k, v := range metadata {
+		form.Set("metadata["+k+"]", v)
+		form.Set("subscription_data[metadata]["+k+"]", v)
+	}
+	var out struct {
+		URL string `json:"url"`
+	}
+	err := c.do(ctx, http.MethodPost, "/v1/checkout/sessions", "", form, &out)
+	return out.URL, err
+}
+
+// Subscription is the part of a subscription Renoxium needs.
+type Subscription struct {
+	ID                string            `json:"id"`
+	Customer          string            `json:"customer"`
+	Status            string            `json:"status"`
+	CancelAtPeriodEnd bool              `json:"cancel_at_period_end"`
+	Metadata          map[string]string `json:"metadata"`
+	Items             struct {
+		Data []struct {
+			Price struct {
+				ID string `json:"id"`
+			} `json:"price"`
+			CurrentPeriodEnd int64 `json:"current_period_end"`
+		} `json:"data"`
+	} `json:"items"`
+}
+
+// PriceID is the price of the subscription's first item.
+func (s Subscription) PriceID() string {
+	if len(s.Items.Data) == 0 {
+		return ""
+	}
+	return s.Items.Data[0].Price.ID
+}
+
+// PeriodEnd is when the current paid period ends, or zero.
+func (s Subscription) PeriodEnd() time.Time {
+	if len(s.Items.Data) == 0 || s.Items.Data[0].CurrentPeriodEnd == 0 {
+		return time.Time{}
+	}
+	return time.Unix(s.Items.Data[0].CurrentPeriodEnd, 0)
+}
+
+// Subscriptions lists a customer's subscriptions in every status.
+func (c *Client) Subscriptions(ctx context.Context, customer string) ([]Subscription, error) {
+	var out struct {
+		Data []Subscription `json:"data"`
+	}
+	err := c.do(ctx, http.MethodGet, "/v1/subscriptions", "", url.Values{"customer": {customer}, "status": {"all"}, "limit": {"20"}}, &out)
+	return out.Data, err
+}
+
+// BillingPortal returns a Customer Portal URL where the customer manages
+// payment methods, invoices and cancellation.
+func (c *Client) BillingPortal(ctx context.Context, customer, returnURL string) (string, error) {
+	var out struct {
+		URL string `json:"url"`
+	}
+	err := c.do(ctx, http.MethodPost, "/v1/billing_portal/sessions", "", url.Values{"customer": {customer}, "return_url": {returnURL}}, &out)
+	return out.URL, err
 }
 
 // Event is a webhook event. Account is set for events from connected

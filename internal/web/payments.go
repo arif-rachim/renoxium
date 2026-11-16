@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -8,6 +9,18 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/stripe"
 )
+
+// readLimited reads a request body of at most max bytes, answering 413 when
+// it is larger.
+func readLimited(w http.ResponseWriter, r *http.Request, max int64) ([]byte, error) {
+	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, max))
+	if err != nil {
+		http.Error(w, "too large", http.StatusRequestEntityTooLarge)
+	}
+	return payload, err
+}
+
+func decodeJSON(raw []byte, out any) error { return json.Unmarshal(raw, out) }
 
 func (s *Site) registerPayments() {
 	s.mux.HandleFunc("GET /apps/{app}/payments", s.adminPayments)
@@ -69,9 +82,8 @@ func (s *Site) stripeWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "webhooks are not configured", http.StatusServiceUnavailable)
 		return
 	}
-	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	payload, err := readLimited(w, r, 1<<20)
 	if err != nil {
-		http.Error(w, "too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 	e, err := stripe.VerifyWebhook(payload, r.Header.Get("Stripe-Signature"), s.StripeWebhookSecret, time.Now())

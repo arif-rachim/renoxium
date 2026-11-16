@@ -139,6 +139,51 @@ set. Without `STRIPE_SECRET_KEY`, live apps cannot take card payments; previews 
 Without the webhook secret, payments are taken but orders are not marked paid. Move to live keys only after
 testing a full payment in the sandbox, and create the live webhook the same way.
 
+### Renoxium plans: Free, Pro and Business (optional)
+
+Accounts pay Renoxium through subscriptions on the Renoxium platform's own Stripe account. Free accounts
+pay a 2% Renoxium fee on their shops' card payments (taken by Stripe as an application fee), show a small
+"Made with Renoxium" badge on live pages and may create 1 app; Pro (AED 99 a month, 3 apps) and Business
+(AED 299 a month, 10 apps) pay no fee and show no badge. Owners manage their plan at `/billing`.
+
+In the Stripe Dashboard of the platform account (start in the sandbox):
+
+1. **Product catalog:** create the products "Renoxium Pro" and "Renoxium Business", each with a recurring
+   monthly price in AED (99 and 299). Copy both price IDs (`price_...`).
+2. **Settings, Billing, Customer portal:** activate it. Allow updating payment methods, viewing invoices,
+   cancelling, and switching between the two prices.
+3. **Developers, Webhooks:** add a second endpoint, separate from the payments one:
+   - URL: `https://www.renoxium.com/stripe/billing-webhook`
+   - Listen to: **Events on your account**
+   - Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
+     `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`
+   Copy its signing secret.
+
+Add them to `/etc/renoxium/env` and restart:
+
+```bash
+sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
+STRIPE_PRICE_PRO=price_your_pro_price
+STRIPE_PRICE_BUSINESS=price_your_business_price
+STRIPE_BILLING_WEBHOOK_SECRET=whsec_your_billing_secret
+ENV
+```
+
+```bash
+sudo systemctl restart renoxium && sudo journalctl -u renoxium -n 30 --no-pager | grep -i plans
+```
+
+The log line `Renoxium plans` must show all three as set. Subscription revenue appears in Stripe under
+Billing, Subscriptions; the 2% fees under Connect, Collected fees.
+
+To give an account a plan without payment (your own account, partners, trials):
+
+```bash
+sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com business
+```
+
+`plan EMAIL free` removes such a grant.
+
 ### WhatsApp sign-in codes (optional)
 
 Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.
@@ -399,4 +444,5 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | "Sign in with WhatsApp" is missing on live apps | The three `WHATSAPP_` settings are not all set | `sudo journalctl -u renoxium \| grep -i whatsapp` |
 | WhatsApp codes do not arrive | Template not approved, wrong template name or language, no payment method, or an expired token | run `whatsapp-test` (section WhatsApp); the app log in the admin panel shows Meta's error code and a hint |
 | Payments taken but orders stay "awaiting payment" | Webhook missing, not listening to connected accounts, or a wrong `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard, Webhooks: the endpoint's recent deliveries and their responses |
+| An owner paid but still shows Free | Billing webhook missing, scoped to connected accounts, or a wrong `STRIPE_BILLING_WEBHOOK_SECRET` | Stripe, Webhooks: the billing endpoint's deliveries; opening `/billing` after paying also re-reads the plan |
 | Out of memory | Too many workers for the VPS size | lower `-workers`, check swap is on with `free -h` |

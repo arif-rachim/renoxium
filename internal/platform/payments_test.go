@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -99,9 +100,13 @@ func (f *fakeStripe) server(t *testing.T) *httptest.Server {
 		switch {
 		case r.Method == "POST" && r.URL.Path == "/v1/accounts":
 			f.accounts = append(f.accounts, form)
-			w.Write([]byte(`{"id":"acct_merchant","charges_enabled":false}`))
-		case r.Method == "GET" && r.URL.Path == "/v1/accounts/acct_merchant":
-			json.NewEncoder(w).Encode(map[string]any{"id": "acct_merchant", "charges_enabled": f.charges, "details_submitted": f.charges})
+			id := "acct_merchant"
+			if n := len(f.accounts); n > 1 {
+				id += strconv.Itoa(n)
+			}
+			json.NewEncoder(w).Encode(map[string]any{"id": id, "charges_enabled": false})
+		case r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/v1/accounts/acct_merchant"):
+			json.NewEncoder(w).Encode(map[string]any{"id": strings.TrimPrefix(r.URL.Path, "/v1/accounts/"), "charges_enabled": f.charges, "details_submitted": f.charges})
 		case r.URL.Path == "/v1/account_links":
 			w.Write([]byte(`{"url":"https://connect.stripe.com/setup/s/xyz"}`))
 		case r.URL.Path == "/v1/checkout/sessions":

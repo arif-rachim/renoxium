@@ -59,6 +59,10 @@ type Config struct {
 	// WhatsApp sends sign-in codes from live. Nil turns phone sign-in off
 	// on live; preview always offers it, with codes in the app log.
 	WhatsApp whatsapp.Sender
+	// OwnerPlan returns an account's plan: "free", "pro" or "business".
+	// Free-plan apps pay a cut of card payments, show a small badge and
+	// are limited in number. Nil means no plans: nothing is limited.
+	OwnerPlan func(ownerID string) string
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
 	OwnerEmail func(ownerID string) (address string, ok bool)
@@ -304,6 +308,13 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	}
 	if count >= MaxAppsPerOwner {
 		return AppInfo{}, fmt.Errorf("an account can have at most %d apps", MaxAppsPerOwner)
+	}
+	if p.cfg.OwnerPlan != nil {
+		plan := p.planOf(owner)
+		if limit := AppsPerPlan[plan]; count >= limit {
+			return AppInfo{}, fmt.Errorf("the %s plan allows %d app(s) and this account has %d; upgrade the plan at %s/billing to create more",
+				plan, limit, count, p.cfg.SiteURL)
+		}
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {
 		return AppInfo{}, err

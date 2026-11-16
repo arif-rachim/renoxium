@@ -28,6 +28,8 @@ import (
 const redirectURI = "http://localhost:9999/callback"
 
 type env struct {
+	acc    *accounts.Store
+	site   *web.Site
 	mail   *mailbox
 	t      *testing.T
 	server *httptest.Server
@@ -59,7 +61,7 @@ func newEnv(t *testing.T) *env {
 	ws.AbuseEmail = "abuse@renoxium.test"
 	site = ws
 	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })
-	return &env{t: t, server: srv, base: srv.URL, p: p, mail: mb}
+	return &env{t: t, server: srv, base: srv.URL, p: p, mail: mb, site: ws, acc: acc}
 }
 
 // browser is a cookie-keeping client that does not follow redirects.
@@ -691,3 +693,5 @@ func TestAbuseReportsReachTheOperator(t *testing.T) {
 		t.Fatalf("empty report: %d", r.StatusCode)
 	}
 }
+
+func (e *env) accounts() *accounts.Store { return e.acc }

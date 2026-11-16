@@ -101,6 +101,10 @@ func Open(path string) (*Store, error) {
 	}
 	s := &Store{db: db, now: time.Now}
 	s.Cleanup()
+	if err := s.ensureBilling(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return s, nil
 }
 

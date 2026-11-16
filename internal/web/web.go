@@ -56,6 +56,9 @@ type Site struct {
 	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
 	AbuseEmail string
 
+	// Billing charges accounts for Renoxium plans.
+	Billing Billing
+
 	// StripeWebhookSecret verifies events posted to /stripe/webhook.
 	StripeWebhookSecret string
 
@@ -102,6 +105,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerAdmin()
 	s.registerEmailFlows()
 	s.registerPayments()
+	s.registerBilling()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -250,7 +254,11 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not load your apps", http.StatusInternalServerError)
 		return
 	}
-	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": apps, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r)})
+	plan := map[string]string{accounts.PlanPro: "Pro", accounts.PlanBusiness: "Business"}[s.accounts.Plan(u.ID)]
+	if plan == "" {
+		plan = "Free"
+	}
+	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": apps, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r), "Plan": plan})
 }
 
 func (s *Site) signupForm(w http.ResponseWriter, r *http.Request) {
@@ -627,7 +635,8 @@ textarea.json{font-family:ui-monospace,monospace;font-size:14px}.check{display:f
 .ok{color:#2e7d32}.field-error{color:#c62828;font-size:14px;margin-top:4px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
 .bar form{display:flex;gap:8px}.bar input{width:220px}.bar button,.bar .button{margin-top:0}.button{display:inline-block;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
 button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pager{display:flex;gap:12px;margin-top:12px;font-size:14px}
-.connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+.connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}.plan{border:1px solid var(--line);border-radius:12px;padding:16px}
+.plan h2{margin:0 0 4px;font-size:18px}.plan .price{font-size:20px;font-weight:700;margin:0}.plan ul{padding-inline-start:18px;font-size:14px}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
 h1{font-size:22px;margin:0 0 16px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}label{display:block;font-size:14px;margin:12px 0 4px}
 input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
@@ -652,7 +661,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <button>Send report</button></form>{{template "bottom"}}{{end}}
 
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
-<p class="muted">Signed in as {{.User.Email}}</p>
+<p class="muted">Signed in as {{.User.Email}} · Plan: <a href="/billing">{{.Plan}}</a></p>
 {{if not .User.Verified}}<form method="post" action="/verify/resend"><p class="muted">Confirm your email so you can reset your password if you forget it. <input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin-top:4px">Send the link again</button></p></form>{{end}}
 {{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
 {{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
@@ -711,6 +720,21 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "billing"}}{{template "top" "Plan and billing"}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>Plan and billing</h1>
+<p>Current plan: <strong>{{if eq .Billing.Plan "pro"}}Pro{{else if eq .Billing.Plan "business"}}Business{{else}}Free{{end}}</strong>
+{{if .Paying}}<span class="muted">· {{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span>{{end}}</p>
+<p class="muted">Apps: {{.Apps}} of {{.Limit}}</p>
+{{if not .Ready}}<p>Paid plans are not available yet.</p>
+{{else if .Paying}}<p>No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
+<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form>
+<p class="muted">Change plan, update your card, download invoices or cancel.</p>
+{{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>
+<div class="plans"><form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="pro">
+<h2>Pro</h2><p class="price">AED 99 <span class="muted">/ month</span></p><ul><li>3 apps</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
+<form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
+<h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
+<p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_payments"}}{{template "wide" "Payments"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <h1>Payments</h1>

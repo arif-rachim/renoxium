@@ -42,6 +42,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "usage: renoxium [flags]                    serve\n"+
 			"       renoxium [flags] suspend APP REASON  take an app offline (a running server notices within 30s)\n"+
 			"       renoxium [flags] unsuspend APP       bring it back\n"+
+			"       renoxium [flags] plan EMAIL PLAN     give an account the free, pro or business plan without payment\n"+
 			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
 			"       renoxium version                     print the commit this binary was built from\n\nflags:\n")
 		flag.PrintDefaults()
@@ -115,6 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer acc.Close()
+	cfg.OwnerPlan = acc.Plan
 	cfg.OwnerEmail = func(id string) (string, bool) {
 		u, err := acc.User(id)
 		return u.Email, err == nil && u.Verified
@@ -130,6 +132,12 @@ func main() {
 	site.Mailer = mailer
 	site.Version = buildVersion()
 	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	site.Billing = web.Billing{Stripe: cfg.Stripe, PricePro: os.Getenv("STRIPE_PRICE_PRO"), PriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
+		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET")}
+	if cfg.Stripe != nil {
+		slog.Info("Renoxium plans", "pro_price_set", site.Billing.PricePro != "", "business_price_set", site.Billing.PriceBusiness != "",
+			"billing_webhook_secret_set", site.Billing.WebhookSecret != "")
+	}
 	site.AbuseEmail = *abuseEmail
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -177,6 +185,9 @@ func loadKey(path string) ([]byte, error) {
 
 // adminCommand runs an operator command against the data directory.
 func adminCommand(dataDir string, args []string) int {
+	if args[0] == "plan" {
+		return planCommand(dataDir, args[1:])
+	}
 	if len(args) < 2 || (args[0] != "suspend" && args[0] != "unsuspend") {
 		flag.Usage()
 		return 2

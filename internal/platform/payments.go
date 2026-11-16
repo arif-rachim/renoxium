@@ -238,7 +238,8 @@ func (p *Platform) checkout(ctx context.Context, st *stage, arg any) (any, error
 		s, err := p.cfg.Stripe.CreateCheckout(ctx, pa.StripeAccount, stripe.CheckoutParams{
 			Currency: in.Currency, Items: items, SuccessURL: base + in.SuccessPath, CancelURL: base + in.CancelPath,
 			CustomerEmail: in.CustomerEmail, Reference: in.Reference,
-			Metadata: map[string]string{"rx_app": st.app, "rx_reference": in.Reference},
+			Metadata:       map[string]string{"rx_app": st.app, "rx_reference": in.Reference},
+			ApplicationFee: p.applicationFee(st.app, total),
 		})
 		if err != nil {
 			p.event(st, "payment", "error", "", "checkout not created: "+err.Error())

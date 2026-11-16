@@ -102,3 +102,31 @@ func TestVerifyWebhook(t *testing.T) {
 		t.Fatal("missing header accepted")
 	}
 }
+
+func TestApplicationFeeOnlyWhenSet(t *testing.T) {
+	var got captured
+	c := fake(t, 200, `{"id":"cs_1","url":"u"}`, &got)
+	c.CreateCheckout(context.Background(), "acct_m", CheckoutParams{Currency: "aed", Items: []LineItem{{Name: "x", Amount: 100000, Quantity: 1}}, ApplicationFee: 2000})
+	if got.form.Get("payment_intent_data[application_fee_amount]") != "2000" {
+		t.Fatalf("%v", got.form)
+	}
+}
+
+func TestSubscriptionCheckout(t *testing.T) {
+	var got captured
+	c := fake(t, 200, `{"id":"cs_2","url":"https://checkout.stripe.com/c/pay/cs_2"}`, &got)
+	u, err := c.SubscriptionCheckout(context.Background(), "cus_1", "price_pro", "https://s/ok", "https://s/no", map[string]string{"rx_user": "usr_1"})
+	if err != nil || u == "" || got.account != "" || got.form.Get("mode") != "subscription" || got.form.Get("customer") != "cus_1" ||
+		got.form.Get("line_items[0][price]") != "price_pro" || got.form.Get("subscription_data[metadata][rx_user]") != "usr_1" {
+		t.Fatalf("%v %v", got, err)
+	}
+}
+
+func TestSubscriptionHelpers(t *testing.T) {
+	var got captured
+	c := fake(t, 200, `{"data":[{"id":"sub_1","customer":"cus_1","status":"active","items":{"data":[{"price":{"id":"price_pro"},"current_period_end":1900000000}]}}]}`, &got)
+	subs, err := c.Subscriptions(context.Background(), "cus_1")
+	if err != nil || len(subs) != 1 || subs[0].PriceID() != "price_pro" || subs[0].PeriodEnd().Unix() != 1900000000 || got.form.Get("status") != "all" {
+		t.Fatalf("%+v %v %v", subs, err, got.form)
+	}
+}
