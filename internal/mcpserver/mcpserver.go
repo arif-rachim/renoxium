@@ -27,6 +27,10 @@ const instructions = `Renoxium builds and hosts web apps for small businesses fr
 How to work:
 1. Ask the user only for what you need (business name, what they sell, a few products, preferred language). Do not ask technical questions.
 2. Read get_example first: it returns complete, working app definitions to copy from.
+   For an online store, offer the "store-uae" example: a finished shop (catalog, cart, card payment and cash on delivery,
+   AED with VAT, orders, English and Arabic). Ask only for the shop's name, WhatsApp number, delivery fee and products,
+   then change the seed rows of its store, products and texts tables (and the styling if the user wants) and keep the scripts.
+   Product photos: upload_file, then put the url in the products.image seed. Owners can edit everything later in the admin panel.
 3. list_apps to find the user's existing apps. create_app once for a new app, then apply_change with the complete definition.
    For later changes use patch_app (change one template, script, route list or table) instead of resending everything.
 4. apply_change and patch_app only update the preview, and render every GET route without parameters.

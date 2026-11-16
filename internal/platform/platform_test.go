@@ -426,7 +426,7 @@ func TestExamplesApply(t *testing.T) {
 			t.Fatalf("%s: %v %+v", ex.Name, err, res)
 		}
 		for _, c := range res.Checks {
-			if c.Status != 200 {
+			if c.Status >= 400 { // 303 is a route that asks visitors to sign in
 				t.Errorf("%s %s: %d %s", ex.Name, c.Route, c.Status, c.Error)
 			}
 		}
