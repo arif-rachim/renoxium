@@ -36,6 +36,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, "this form must be sent from the app's own pages", http.StatusForbidden)
 		return true
 	}
+	if p.isSuspended(app) {
+		p.suspendedPage(w)
+		return true
+	}
 	if stageName == Preview && !p.guardPreview(w, r, app) {
 		return true
 	}
@@ -297,23 +301,50 @@ func (p *Platform) allowIntake(app string) bool {
 	return w.count <= intakePerMinute
 }
 
-// acquireSlot waits up to 3 seconds for one of the app's script slots.
+// acquireSlot waits up to 3 seconds for a script slot of the app's owner
+// and one of the app itself. The owner cap stops one account from filling
+// every worker by spreading slow scripts over many apps.
 func (p *Platform) acquireSlot(ctx context.Context, app string) (release func(), ok bool) {
-	p.mu.Lock()
-	slots := p.slots[app]
-	if slots == nil {
-		slots = make(chan struct{}, p.cfg.ScriptsPerApp)
-		p.slots[app] = slots
-	}
-	p.mu.Unlock()
+	ownerSlots := p.slotsFor("owner:"+p.ownerOf(app), p.cfg.ScriptsPerOwner)
+	appSlots := p.slotsFor("app:"+app, p.cfg.ScriptsPerApp)
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	select {
-	case slots <- struct{}{}:
-		return func() { <-slots }, true
+	case ownerSlots <- struct{}{}:
 	case <-ctx.Done():
 		return nil, false
 	}
+	select {
+	case appSlots <- struct{}{}:
+		return func() { <-appSlots; <-ownerSlots }, true
+	case <-ctx.Done():
+		<-ownerSlots
+		return nil, false
+	}
+}
+
+func (p *Platform) slotsFor(key string, n int) chan struct{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	slots := p.slots[key]
+	if slots == nil {
+		slots = make(chan struct{}, n)
+		p.slots[key] = slots
+	}
+	return slots
+}
+
+// ownerOf returns an app's owner. Owners never change, so it is cached.
+func (p *Platform) ownerOf(app string) string {
+	if o, ok := p.owners.Load(app); ok {
+		return o.(string)
+	}
+	var owner string
+	if p.db.QueryRow(`SELECT owner FROM apps WHERE name = ?`, app).Scan(&owner) != nil {
+		return ""
+	}
+	p.owners.Store(app, owner)
+	return owner
 }
 
 func newRequestID() string {

@@ -26,15 +26,6 @@ import (
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 )
 
-// Daily caps on messages that cost money or sender reputation. Each send
-// is also limited per visitor address and per recipient.
-const (
-	emailsPerAppPerDay   = 300
-	emailsPerDay         = 3000
-	whatsappPerAppPerDay = 100
-	whatsappPerDay       = 1000
-)
-
 // AuthPrefix is where every app serves its visitor sign-in pages.
 const AuthPrefix = "/_rx/auth/"
 
@@ -259,7 +250,11 @@ func (p *Platform) login(w http.ResponseWriter, r *http.Request, st *stage) {
 	next := localPath(r.PostFormValue("next"))
 	addr, _ := normalizeEmail(r.PostFormValue("email"))
 	data := authData{Next: next, Email: r.PostFormValue("email")}
-	if !p.allow("login:"+st.app+":"+p.clientIP(r), 10, 15*time.Minute) || !p.allow("login:"+st.app+":"+addr, 10, 15*time.Minute) {
+	// See web.Site.login: per address, per account from that address, and a
+	// much higher per-account cap, so strangers cannot lock a visitor out.
+	ip := p.clientIP(r)
+	if !p.allow("login:"+st.app+":"+ip, 10, 15*time.Minute) || !p.allow("login:"+st.app+":"+addr+":"+ip, 10, 15*time.Minute) ||
+		!p.allow("login-account:"+st.app+":"+addr, 100, time.Hour) {
 		data.Error = "Too many attempts. Try again in 15 minutes."
 		p.authPage(w, r, st, http.StatusTooManyRequests, "login", data)
 		return
@@ -338,7 +333,7 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
 		p.event(st, "email", "warn", "", "email not sent: no mail service configured: "+m.Subject)
 		return
 	}
-	if !p.allow("mail-day:"+st.app, emailsPerAppPerDay, 24*time.Hour) || !p.allow("mail-day", emailsPerDay, 24*time.Hour) {
+	if !p.allow("mail-day:"+st.app, p.cfg.Daily.EmailsPerApp, 24*time.Hour) || !p.allow("mail-day", p.cfg.Daily.Emails, 24*time.Hour) {
 		p.event(st, "email", "error", "", "email not sent: the daily email limit was reached: "+m.Subject)
 		return
 	}

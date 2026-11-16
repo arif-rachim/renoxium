@@ -51,8 +51,12 @@ func (e *env) publishDef(c *http.Client, app string, def *appdef.App) {
 		{"apply_change", map[string]any{"app": app, "definition": defMap}},
 		{"publish", map[string]any{"app": app}},
 	} {
-		if _, errText := call(e.t, sess, step.tool, step.args); errText != "" {
+		out, errText := call(e.t, sess, step.tool, step.args)
+		if errText != "" {
 			e.t.Fatalf("%s: %s", step.tool, errText)
+		}
+		if step.tool == "publish" {
+			e.confirmPublish(c, out)
 		}
 	}
 }

@@ -27,6 +27,13 @@ func ServeWorkerIfRequested() {
 	if timeoutMS <= 0 {
 		timeoutMS = 2000
 	}
+	if err := restrictWorker(); err != nil {
+		if os.Getenv("RENOXIUM_SANDBOX_REQUIRE") == "1" {
+			fmt.Fprintln(os.Stderr, "renoxium worker:", err)
+			os.Exit(1)
+		}
+		warnOnce(err)
+	}
 	os.Exit(serveWorker(os.Stdin, os.Stdout, heapLimit, time.Duration(timeoutMS)*time.Millisecond))
 }
 
@@ -153,4 +160,11 @@ func (h *proxyHost) Exec(_ context.Context, sql string, args []any) (int64, int6
 
 func (h *proxyHost) Log(level, text string) {
 	send(h.out, message{Type: "log", Level: level, Text: text})
+}
+
+// warnOnce reports a missing kernel sandbox, from the first worker only.
+func warnOnce(err error) {
+	if os.Getenv("RENOXIUM_SANDBOX_WORKER_INDEX") == "0" {
+		fmt.Fprintln(os.Stderr, "renoxium worker: running without the kernel sandbox:", err)
+	}
 }

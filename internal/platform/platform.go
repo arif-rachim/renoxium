@@ -45,6 +45,9 @@ type Config struct {
 	// ScriptsPerApp caps how many scripts of one app run at the same time,
 	// so one app cannot occupy every script worker. Default 2.
 	ScriptsPerApp int
+	// ScriptsPerOwner caps the scripts of all apps of one account. Default
+	// ScriptsPerApp. Keep it below the number of script workers.
+	ScriptsPerOwner int
 	// Mailer sends visitor emails (confirmation, password reset) from live.
 	Mailer email.Sender
 	// TrustedIPHeader carries the visitor address behind a local tunnel.
@@ -55,6 +58,10 @@ type Config struct {
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
 	OwnerEmail func(ownerID string) (address string, ok bool)
+	// Daily caps messages that cost money or sender reputation. Each send
+	// is also limited per visitor address and per recipient. Zero fields
+	// take the defaults in DefaultDaily.
+	Daily DailyLimits
 	// SiteURL is the public origin of the Renoxium site, e.g.
 	// https://renoxium.com, where owners open their private previews.
 	SiteURL string
@@ -63,6 +70,14 @@ type Config struct {
 	// them. Empty leaves previews open (development and tests).
 	PreviewKey []byte
 }
+
+// DailyLimits caps messages sent per day, per app and over all apps.
+type DailyLimits struct {
+	EmailsPerApp, Emails, WhatsAppPerApp, WhatsApp int
+}
+
+// DefaultDaily are the limits used for zero fields of Config.Daily.
+var DefaultDaily = DailyLimits{EmailsPerApp: 300, Emails: 3000, WhatsAppPerApp: 100, WhatsApp: 1000}
 
 // Platform is safe for concurrent use.
 type Platform struct {
@@ -77,10 +92,14 @@ type Platform struct {
 	stages map[string]*stage
 	logs   map[string]*applog.Log
 	hosts  sync.Map // host -> hostEntry
+	owners sync.Map // app -> owner
 	intake map[string]*window
 	slots  map[string]chan struct{} // per-app script concurrency
 	limits map[string]*window       // visitor sign-in rate limits
 	rids   map[string]*ridEntry     // request IDs of served pages
+
+	suspendedAt time.Time       // when suspended was last read
+	suspended   map[string]bool // apps taken offline
 }
 
 type stage struct {
@@ -187,6 +206,11 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	// A non-empty reason takes the app offline (see Suspend).
+	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN suspended TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		db.Close()
+		return nil, err
+	}
 	store, err := files.Open(filepath.Join(cfg.DataDir, "files"))
 	if err != nil {
 		db.Close()
@@ -194,6 +218,18 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	}
 	if cfg.ScriptsPerApp <= 0 {
 		cfg.ScriptsPerApp = 2
+	}
+	for _, f := range []struct {
+		v *int
+		d int
+	}{{&cfg.Daily.EmailsPerApp, DefaultDaily.EmailsPerApp}, {&cfg.Daily.Emails, DefaultDaily.Emails},
+		{&cfg.Daily.WhatsAppPerApp, DefaultDaily.WhatsAppPerApp}, {&cfg.Daily.WhatsApp, DefaultDaily.WhatsApp}} {
+		if *f.v <= 0 {
+			*f.v = f.d
+		}
+	}
+	if cfg.ScriptsPerOwner <= 0 {
+		cfg.ScriptsPerOwner = cfg.ScriptsPerApp
 	}
 	return &Platform{cfg: cfg, db: db, sb: sb, files: store,
 		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}, nil
@@ -452,6 +488,9 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 	if err := p.ownerVerified(name); err != nil {
 		return PublishResult{}, err
 	}
+	if p.isSuspended(name) {
+		return PublishResult{}, errors.New("this app is suspended")
+	}
 
 	p.change.Lock()
 	defer p.change.Unlock()
@@ -600,5 +639,12 @@ func (p *Platform) pruneBackups(app string) {
 	sort.Slice(list, func(i, j int) bool { return list[i].mod.After(list[j].mod) })
 	for i := keepBackups; i < len(list); i++ {
 		os.Remove(list[i].path)
+	}
+}
+
+// Note writes an informational line to an app's live log.
+func (p *Platform) Note(app, msg string) {
+	if l, err := p.log(app); err == nil {
+		l.Add(applog.Event{Stage: Live, Source: "admin", Level: "info", Message: msg})
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -54,6 +55,7 @@ func newEnv(t *testing.T) *env {
 	ws := web.New(srv.URL, acc, p)
 	mb := &mailbox{}
 	ws.Mailer = mb
+	ws.AbuseEmail = "abuse@renoxium.test"
 	site = ws
 	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })
 	return &env{t: t, server: srv, base: srv.URL, p: p, mail: mb}
@@ -206,6 +208,24 @@ func call(t *testing.T, s *mcp.ClientSession, name string, args map[string]any) 
 	return out, ""
 }
 
+// confirmPublish opens a publish tool's confirm_url as the owner and confirms.
+func (e *env) confirmPublish(c *http.Client, pub map[string]any) {
+	e.t.Helper()
+	link, _ := pub["confirm_url"].(string)
+	if !strings.HasPrefix(link, e.base+"/apps/") {
+		e.t.Fatalf("confirm_url: %v", pub)
+	}
+	path := strings.TrimPrefix(link, e.base)
+	token := e.csrf(c, path)
+	r, err := c.PostForm(e.base+strings.Split(path, "?")[0], url.Values{"csrf": {token}, "version": {fmt.Sprint(pub["version"])}})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if body := read(e.t, r); r.StatusCode != 200 || !strings.Contains(body, "is live") {
+		e.t.Fatalf("confirm publish: %d %s", r.StatusCode, body)
+	}
+}
+
 func TestMCPRequiresOAuthAndPointsToMetadata(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Post(e.base+"/mcp", "application/json", strings.NewReader(`{}`))
@@ -265,11 +285,25 @@ func TestAgentBuildsAppForSignedInUser(t *testing.T) {
 	if errText != "" || applied["ok"] != true {
 		t.Fatalf("apply_change: %v %s", applied, errText)
 	}
-	if _, errText := call(t, s, "publish", map[string]any{"app": "al-noor"}); errText != "" {
-		t.Fatal(errText)
+	pub, errText := call(t, s, "publish", map[string]any{"app": "al-noor"})
+	if errText != "" || pub["needs_confirmation"] != true {
+		t.Fatalf("publish: %v %s", pub, errText)
 	}
+	// Nothing is live until the owner confirms in the browser.
 	req := httptest.NewRequest("GET", "http://al-noor.renoxium.test/", nil)
 	w := httptest.NewRecorder()
+	if e.p.ServeApp(w, req); w.Code != 404 {
+		t.Fatalf("live before confirmation: %d", w.Code)
+	}
+	// Another signed-in user cannot confirm it.
+	mallory := e.browser()
+	e.signup(mallory, "mallory@example.com")
+	if r, _ := mallory.Get(pub["confirm_url"].(string)); r.StatusCode != 404 {
+		t.Fatalf("someone else's confirm link: %d", r.StatusCode)
+	}
+	e.confirmPublish(alice, pub)
+	req = httptest.NewRequest("GET", "http://al-noor.renoxium.test/", nil)
+	w = httptest.NewRecorder()
 	if !e.p.ServeApp(w, req) || w.Code != 200 || !strings.Contains(w.Body.String(), "White Musk") {
 		t.Fatalf("live app: %d", w.Code)
 	}
@@ -636,5 +670,23 @@ func TestSiteRefusesCrossSiteForms(t *testing.T) {
 	req.Header.Set("Origin", "https://claude.ai")
 	if r, err := http.DefaultClient.Do(req); err != nil || r.StatusCode != 400 {
 		t.Fatalf("cross-origin token request: %v %v", err, r)
+	}
+}
+
+func TestAbuseReportsReachTheOperator(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	token := e.csrf(c, "/abuse")
+	r, _ := c.PostForm(e.base+"/abuse", url.Values{"csrf": {token}, "address": {"https://fake-bank.renoxium.app"},
+		"details": {"asks for card numbers"}, "contact": {"reporter@example.com"}})
+	if body := read(t, r); r.StatusCode != 200 || !strings.Contains(body, "received your report") {
+		t.Fatalf("report: %d %s", r.StatusCode, body)
+	}
+	m := e.mail.last(t, "abuse@renoxium.test", "abuse_report")
+	if !strings.Contains(m.Text, "asks for card numbers") || m.ReplyTo != "reporter@example.com" {
+		t.Fatalf("report email: %+v", m)
+	}
+	if r, _ := c.PostForm(e.base+"/abuse", url.Values{"csrf": {token}, "address": {""}, "details": {""}}); r.StatusCode != 400 {
+		t.Fatalf("empty report: %d", r.StatusCode)
 	}
 }

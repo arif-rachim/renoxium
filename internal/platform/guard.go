@@ -205,3 +205,66 @@ func (p *Platform) ownerVerified(app string) error {
 	}
 	return nil
 }
+
+// Suspend takes an app offline on every host, for example after an abuse
+// report. Its data is kept. Running servers notice within suspendedTTL, so
+// it also works from a separate process such as "renoxium suspend".
+func (p *Platform) Suspend(app, reason string) error {
+	if strings.TrimSpace(reason) == "" {
+		reason = "suspended"
+	}
+	res, err := p.db.Exec(`UPDATE apps SET suspended = ? WHERE name = ?`, reason, app)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("app %q: %w", app, ErrNotFound)
+	}
+	p.mu.Lock()
+	p.suspendedAt = time.Time{}
+	p.mu.Unlock()
+	return nil
+}
+
+// Unsuspend brings a suspended app back.
+func (p *Platform) Unsuspend(app string) error {
+	if _, err := p.db.Exec(`UPDATE apps SET suspended = '' WHERE name = ?`, app); err != nil {
+		return err
+	}
+	p.mu.Lock()
+	p.suspendedAt = time.Time{}
+	p.mu.Unlock()
+	return nil
+}
+
+const suspendedTTL = 30 * time.Second
+
+func (p *Platform) isSuspended(app string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if time.Since(p.suspendedAt) > suspendedTTL {
+		set := map[string]bool{}
+		if rows, err := p.db.Query(`SELECT name FROM apps WHERE suspended != ''`); err == nil {
+			for rows.Next() {
+				var n string
+				if rows.Scan(&n) == nil {
+					set[n] = true
+				}
+			}
+			rows.Close()
+			p.suspended, p.suspendedAt = set, time.Now()
+		}
+	}
+	return p.suspended[app]
+}
+
+func (p *Platform) suspendedPage(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusUnavailableForLegalReasons)
+	fmt.Fprint(w, `<!doctype html><title>App suspended</title><meta name="viewport" content="width=device-width, initial-scale=1">`+
+		`<p>This app has been suspended by Renoxium.</p>`)
+}
+
+// AbuseLink is where anyone can report an app.
+func (p *Platform) AbuseLink() string { return p.cfg.SiteURL + "/abuse" }

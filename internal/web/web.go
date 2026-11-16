@@ -44,12 +44,17 @@ type Site struct {
 	mcp      http.Handler
 	mux      *http.ServeMux
 	limiter  *limiter
+	// accountLimiter caps sign-in attempts for one account from everywhere.
+	accountLimiter *limiter
 
 	// Mailer sends account emails. New sets it to email.Log; set a real
 	// sender before serving.
 	Mailer email.Sender
 	// mailLimiter caps emails per address or user.
 	mailLimiter *limiter
+
+	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
+	AbuseEmail string
 
 	// TrustedIPHeader names the header that carries the visitor's address
 	// when the site runs behind a local tunnel, e.g. "CF-Connecting-IP".
@@ -64,8 +69,8 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 		host = h
 	}
 	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
-		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
-	s.mcp = mcpserver.Handler(mcpserver.New(p), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
+		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
+	s.mcp = mcpserver.Handler(mcpserver.New(p, mcpserver.Options{ConfirmPublish: s.publishLink}), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
 	s.mux.HandleFunc("GET /{$}", s.home)
 	s.mux.HandleFunc("GET /signup", s.signupForm)
@@ -89,6 +94,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.mux.HandleFunc("GET /llms.txt", s.llmsTxt)
 	s.registerAdmin()
 	s.registerEmailFlows()
+	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	return s
 }
@@ -272,7 +278,11 @@ func (s *Site) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email, _ := accounts.NormalizeEmail(r.PostFormValue("email"))
-	if !s.limiter.allow("login:"+s.clientIP(r)) || !s.limiter.allow("login:"+email) {
+	// Per address, and per account from that address. The per-account limit
+	// over all addresses is much higher, so a stranger guessing someone's
+	// password cannot lock them out, but a wide guessing attack still stops.
+	ip := s.clientIP(r)
+	if !s.limiter.allow("login:"+ip) || !s.limiter.allow("login:"+email+":"+ip) || !s.accountLimiter.allow("login:"+email) {
 		http.Error(w, "too many attempts; try again in 15 minutes", http.StatusTooManyRequests)
 		return
 	}
@@ -621,7 +631,16 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <p>Build and run your online store by chatting with ChatGPT or Claude.</p>
 <p class="muted">Add this connector address to your agent:</p><p><code>{{.MCP}}</code></p>
 <p><a href="/connect">How to connect ChatGPT or Claude</a></p>
-<div class="row"><a href="/signup">Create an account</a> · <a href="/login">Sign in</a></div></div>{{template "bottom"}}{{end}}
+<div class="row"><a href="/signup">Create an account</a> · <a href="/login">Sign in</a></div>
+<p class="muted" style="margin-top:16px"><a href="/abuse">Report an app</a></p></div>{{template "bottom"}}{{end}}
+
+{{define "abuse"}}{{template "top" "Report an app"}}<form class="card" method="post" action="/abuse"><h1>Report an app</h1>
+<p class="muted">Tell us about an app on Renoxium that is used for phishing, scams, malware or anything illegal.</p>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="address">App address</label><input id="address" name="address" required placeholder="https://name.renoxium.app" value="{{.Address}}">
+<label for="details">What is wrong?</label><textarea id="details" name="details" required>{{.Details}}</textarea>
+<label for="contact">Your email (optional, if you want an answer)</label><input id="contact" name="contact" type="email" value="{{.Contact}}">
+<button>Send report</button></form>{{template "bottom"}}{{end}}
 
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
 <p class="muted">Signed in as {{.User.Email}}</p>
@@ -662,6 +681,14 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
 {{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
 </div>{{template "bottom"}}{{end}}
+
+{{define "publish"}}{{template "top" "Publish"}}<p class="crumbs"><a href="/apps/{{.Info.App}}">{{.Info.App}}</a></p>
+<form class="card" method="post" action="/apps/{{.Info.App}}/publish"><h1>{{if .Rollback}}Roll back{{else}}Publish{{end}} version {{.Version}}?</h1>
+<p>Your agent asked to make version {{.Version}} of <strong>{{.Info.App}}</strong> live at <a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a>.</p>
+<p class="muted">Live now: {{if .Info.LiveVersion}}version {{.Info.LiveVersion}}{{else}}nothing yet{{end}}. <a href="/apps/{{.Info.App}}/preview">Check the preview</a> first if you have not.</p>
+<p class="muted">Live data is backed up before the change.</p>
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
+<button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "bottom"}}{{end}}
 
 {{define "admin_list"}}{{template "wide" .Label}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <div class="bar"><h1 style="margin:0">{{.Label}} <span class="muted">({{.Total}})</span></h1>

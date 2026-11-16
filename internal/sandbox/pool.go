@@ -27,6 +27,9 @@ type PoolConfig struct {
 	// parent kills the worker outright (default 256 MiB). Both are per worker.
 	HeapLimit int64
 	RSSLimit  int64
+	// RequireSandbox makes a worker exit instead of running scripts when
+	// the kernel sandbox (Landlock) cannot be applied.
+	RequireSandbox bool
 	// Command is the worker executable; default os.Executable(). The binary
 	// must call ServeWorkerIfRequested at the start of main.
 	Command string
@@ -35,11 +38,12 @@ type PoolConfig struct {
 // Pool is a Sandbox that runs scripts in separate worker processes, so a
 // script that exhausts memory or crashes takes down only its worker.
 type Pool struct {
-	cfg  PoolConfig
-	idle chan *worker
-	mu   sync.Mutex
-	all  map[*worker]bool
-	done bool
+	cfg     PoolConfig
+	idle    chan *worker
+	mu      sync.Mutex
+	all     map[*worker]bool
+	done    bool
+	spawned int
 }
 
 // NewPool starts the worker processes.
@@ -98,6 +102,10 @@ func (w *worker) kill() {
 }
 
 func (p *Pool) spawn() (*worker, error) {
+	p.mu.Lock()
+	index := p.spawned
+	p.spawned++
+	p.mu.Unlock()
 	cmd := exec.Command(p.cfg.Command)
 	cmd.Env = []string{
 		workerEnv + "=1",
@@ -105,6 +113,10 @@ func (p *Pool) spawn() (*worker, error) {
 		"RENOXIUM_SANDBOX_TIMEOUT_MS=" + strconv.FormatInt(p.cfg.Timeout.Milliseconds(), 10),
 		"GOMEMLIMIT=" + strconv.FormatInt(p.cfg.HeapLimit*2, 10),
 		"GOMAXPROCS=1",
+		"RENOXIUM_SANDBOX_WORKER_INDEX=" + strconv.Itoa(index),
+	}
+	if p.cfg.RequireSandbox {
+		cmd.Env = append(cmd.Env, "RENOXIUM_SANDBOX_REQUIRE=1")
 	}
 	cmd.Dir = os.TempDir()
 	cmd.Stderr = os.Stderr

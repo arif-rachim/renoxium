@@ -12,6 +12,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if os.Getenv("RX_RESTRICT_PROBE") == "1" {
+		restrictProbe()
+	}
 	ServeWorkerIfRequested()
 	os.Exit(m.Run())
 }
@@ -159,5 +162,32 @@ func TestPoolPassesVisitorAndFormAll(t *testing.T) {
 	r, _ = p.Run(context.Background(), `function handle(req) { return {json: req.user === null} }`, Request{}, &fakeHost{})
 	if r.JSON != true {
 		t.Fatalf("signed out user = %v", r.JSON)
+	}
+}
+
+// bigHost answers every query with about 10 MB of rows.
+type bigHost struct{ fakeHost }
+
+func (bigHost) Query(ctx context.Context, sql string, args []any) ([]map[string]any, error) {
+	row := map[string]any{"v": strings.Repeat("x", 10<<20)}
+	return []map[string]any{row}, nil
+}
+
+func TestPoolRefusesOversizedMessages(t *testing.T) {
+	p := newPool(t, 1)
+	// A response over the limit fails the script, not the worker.
+	_, err := p.Run(context.Background(), `function handle(req) { return {text: "x".repeat(9 * 1024 * 1024)} }`, Request{}, &fakeHost{})
+	var se *ScriptError
+	if !errors.As(err, &se) || !strings.Contains(se.Message, "larger than") {
+		t.Fatalf("big response: %v", err)
+	}
+	// A query result over the limit reaches the script as an error.
+	r, err := p.Run(context.Background(), `function handle(req) { try { db.query("SELECT 1"); return {text: "got it"} } catch (e) { return {text: String(e)} } }`, Request{}, &bigHost{})
+	if err != nil || !strings.Contains(r.Text, "larger than") {
+		t.Fatalf("big query result: %v %q", err, r.Text)
+	}
+	// The same single worker still serves.
+	if r, err := p.Run(context.Background(), `function handle(req) { return {text: "ok"} }`, Request{}, &fakeHost{}); err != nil || r.Text != "ok" {
+		t.Fatalf("after: %v %+v", err, r)
 	}
 }

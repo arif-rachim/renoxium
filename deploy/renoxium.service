@@ -12,7 +12,10 @@ ExecStart=/opt/renoxium/renoxium \
   -base-url https://renoxium.com \
   -apps-domain renoxium.app \
   -trusted-ip-header CF-Connecting-IP \
-  -workers 2
+  -workers 2 \
+  -abuse-email abuse@renoxium.com
+# Once the journal shows no "running without the kernel sandbox" warning,
+# add -require-sandbox above so scripts never run without it.
 # -workers 2 suits a 1 GB node; use 4 on 2 GB or more.
 # Secrets such as RESEND_API_KEY=... live in this file (mode 600), not here.
 EnvironmentFile=-/etc/renoxium/env
@@ -38,8 +41,12 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 SystemCallArchitectures=native
-SystemCallFilter=@system-service
+# @sandbox allows Landlock, which script workers use to lock themselves
+# down. A refused system call fails with EPERM instead of killing the
+# process, so a missing entry here degrades instead of taking scripts down.
+SystemCallFilter=@system-service @sandbox
 SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
 CapabilityBoundingSet=
 UMask=0077
 # Leave room for the OS and cloudflared: past this the kernel kills the

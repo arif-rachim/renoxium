@@ -79,6 +79,14 @@ sudo cloudflared service install
 - Add `renoxium.app` to the [Public Suffix List](https://github.com/publicsuffix/list) (private section) once the
   domain is live, so browsers treat every app as its own site. Until then the platform refuses cross-origin POSTs itself.
 - In Cloudflare, add a rate limiting rule for `*.renoxium.app` and `renoxium.com/login` as an outer layer.
+- Script workers lock themselves down with Landlock (no files, no network). This needs a binary built with
+  `CGO_ENABLED=0` (as above) and Linux 5.13 or newer with Landlock enabled. After starting, check
+  `journalctl -u renoxium | grep "kernel sandbox"`: no output means it works; then add `-require-sandbox` to the
+  service so scripts never run without it.
+- Abuse reports from `https://renoxium.com/abuse` go to `-abuse-email` (and the journal). Take an app offline with
+  `sudo -u renoxium /opt/renoxium/renoxium -data /var/lib/renoxium suspend APP "reason"`; running servers notice
+  within 30 seconds. `unsuspend APP` brings it back.
+- Agents cannot publish on their own: `publish` returns a link the owner opens on the Renoxium site to confirm.
 - `preview.key` in the data directory signs preview links. It is created on first start; keep it with the backups.
 - Data lives in `/var/lib/renoxium`: `platform.db`, `accounts.db` and one folder per app. Back up that
   directory; backups are not automated yet.

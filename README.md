@@ -28,6 +28,10 @@ Working today:
 
 - Abuse limits: 10 apps per account, 300 files or 300 MB per app, the newest 50 versions per app; 300 requests per minute per visitor address (IPv6 grouped per /64); daily caps on visitor emails (300 per app, 3000 in all) and WhatsApp codes (100 per app, 1000 in all); at most 10 code guesses per number per hour.
 - Platform-side limits on tenant code: pages at most 4 MB, script statements at most 2 s with SQLite length and depth limits, script messages at most 8 MB, at most 4 password hashes at once.
+- Publishing from an agent needs the owner's confirmation: `publish` returns a link to `/apps/<app>/publish`, where the owner (signed in) chooses Publish. Text an agent reads in logs or pages cannot publish by itself.
+- One account runs at most half of the script workers at once, across all its apps. Script workers lock themselves down with Landlock: no files and no TCP, even if the interpreter had a bug.
+- Anyone can report an app at `/abuse`; the operator takes it offline with `renoxium suspend APP "reason"`.
+- Sign-in limits are per address and per account from that address, with a much higher per-account cap over all addresses, so strangers cannot lock someone out.
 - Browser protections: POSTs from other origins are refused on app hosts and on the site (other apps share the renoxium.app site), cookies use the `__Host-` prefix on HTTPS, and HSTS. `/_rx/log` only accepts reports for pages the app served.
 
 Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, Stripe, WhatsApp order notifications, custom domains, billing-based quotas.

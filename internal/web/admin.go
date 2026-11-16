@@ -27,6 +27,58 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}/visitors", s.adminVisitors)
 	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
 	s.mux.HandleFunc("GET /apps/{app}/preview", s.adminPreview)
+	s.mux.HandleFunc("GET /apps/{app}/publish", s.publishForm)
+	s.mux.HandleFunc("POST /apps/{app}/publish", s.publishConfirm)
+}
+
+func (s *Site) publishLink(app string, version int) string {
+	return fmt.Sprintf("%s/apps/%s/publish?version=%d", s.base, app, version)
+}
+
+// publishForm asks the owner to confirm a publish their agent asked for.
+func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
+	_, app, ok := s.owner(w, r)
+	if !ok {
+		return
+	}
+	version, err := strconv.Atoi(r.URL.Query().Get("version"))
+	if err != nil || version < 1 {
+		notFound(w, err)
+		return
+	}
+	if _, _, err := s.platform.Definition(app, version); err != nil {
+		notFound(w, err)
+		return
+	}
+	info, err := s.platform.Info(app)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	render(w, http.StatusOK, "publish", map[string]any{"Info": info, "Version": version, "CSRF": s.csrfToken(w, r), "Rollback": version < info.LiveVersion})
+}
+
+func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
+	u, app, ok := s.owner(w, r)
+	if !ok {
+		return
+	}
+	if !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	version, err := strconv.Atoi(r.PostFormValue("version"))
+	if err != nil || version < 1 {
+		notFound(w, err)
+		return
+	}
+	res, err := s.platform.Publish(app, version)
+	if err != nil {
+		render(w, http.StatusConflict, "error", map[string]any{"Message": "Could not publish: " + err.Error()})
+		return
+	}
+	s.platform.Note(app, fmt.Sprintf("%s published version %d", u.Email, version))
+	render(w, http.StatusOK, "notice", map[string]any{"Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL), "Link": res.LiveURL})
 }
 
 // adminPreview sends the owner to their app's private preview with a

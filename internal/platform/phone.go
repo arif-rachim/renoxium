@@ -99,7 +99,7 @@ func (p *Platform) sendCode(ctx context.Context, st *stage, phone, code string) 
 		p.event(st, "whatsapp", "info", "", fmt.Sprintf("not sent from preview: sign-in code %s for %s", code, phone))
 		return nil
 	}
-	if !p.allow("wa-day:"+st.app, whatsappPerAppPerDay, 24*time.Hour) || !p.allow("wa-day", whatsappPerDay, 24*time.Hour) {
+	if !p.allow("wa-day:"+st.app, p.cfg.Daily.WhatsAppPerApp, 24*time.Hour) || !p.allow("wa-day", p.cfg.Daily.WhatsApp, 24*time.Hour) {
 		p.event(st, "whatsapp", "error", "", "sign-in code not sent: the daily WhatsApp limit was reached")
 		return errors.New("daily WhatsApp limit reached")
 	}
