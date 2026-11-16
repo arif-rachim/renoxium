@@ -685,9 +685,11 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "admin_app"}}{{template "wide" .Info.App}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>{{.Info.App}}</h1>
 <p><a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a> <span class="muted">live version {{.Info.LiveVersion}}</span></p>
 <p class="muted">Preview (version {{.Info.PreviewVersion}}): <a href="{{.Info.PreviewURL}}">{{.Info.PreviewURL}}</a></p>
+{{if gt .Info.PreviewVersion .Info.LiveVersion}}<p><a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>
+<span class="muted">Check the preview first; you confirm on the next page.</span></p>{{end}}
 {{if .Tables}}<h1 style="margin-top:24px">Data</h1><ul>{{range .Tables}}<li><a href="/apps/{{$.Info.App}}/t/{{.Name}}">{{.Label}}</a> <span class="muted">{{.Rows}} rows</span></li>{{end}}</ul>
-{{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app from your agent to manage its data here.{{end}}</p>{{end}}
-{{if .Info.LiveVersion}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a></p>{{end}}
+{{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app to manage its data here.{{end}}</p>{{end}}
+<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
 {{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
 </div>{{template "bottom"}}{{end}}

@@ -198,3 +198,29 @@ func TestAdminPanel(t *testing.T) {
 		t.Fatalf("open redirect: %s", loc)
 	}
 }
+
+// The overview offers to publish a preview that is newer than live.
+func TestOverviewOffersPublish(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "uma@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "uma-shop"})
+	call(t, s, "apply_change", map[string]any{"app": "uma-shop", "definition": map[string]any{
+		"templates": map[string]any{"t": "x"}, "routes": []any{map[string]any{"method": "GET", "path": "/", "template": "t"}}}})
+	r, _ := c.Get(e.base + "/apps/uma-shop")
+	page := read(t, r)
+	if !strings.Contains(page, `href="/apps/uma-shop/publish?version=1"`) || !strings.Contains(page, "Publish version 1") {
+		t.Fatalf("no publish button: %s", page)
+	}
+	if !strings.Contains(page, `href="/apps/uma-shop/payments"`) {
+		t.Fatal("payments must be reachable before the first publish")
+	}
+	if r, _ := c.Get(e.base + "/apps/uma-shop/payments"); r.StatusCode != 200 {
+		t.Fatalf("payments page before publish: %d", r.StatusCode)
+	}
+	r, _ = c.Get(e.base + "/apps/uma-shop/publish?version=1")
+	if page := read(t, r); r.StatusCode != 200 || !strings.Contains(page, "Publish version 1?") {
+		t.Fatalf("confirm page: %d", r.StatusCode)
+	}
+}
