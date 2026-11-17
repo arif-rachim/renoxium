@@ -107,6 +107,13 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
 - On live, checkout works once the owner has connected Stripe in the Renoxium admin panel (/apps/<app>/payments); before that
   payments.checkout throws an error saying so. Cash on delivery needs no platform support: just record the order.
 
+Emails (plain text; live sends them, preview writes them with their links to get_logs):
+- email.send({to, subject, text}) emails one address from the app, e.g. an order confirmation to req.user.email.
+  At most 10 emails per address per day, within the app's daily email limit. Replies go to the owner.
+- notify.owner({subject, text}) emails the app owner, e.g. "New order #12". Card payments already email the owner
+  "Payment received" automatically, so use it for other events such as cash-on-delivery orders.
+- req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
+
 Images:
 - Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
   Uploading the same image again returns the same url without storing it twice.

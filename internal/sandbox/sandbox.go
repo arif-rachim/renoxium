@@ -28,6 +28,8 @@ type Host interface {
 // Functions scripts can call through Host.Call, by JavaScript name.
 var platformFunctions = map[string][]string{
 	"payments": {"checkout", "get"},
+	"email":    {"send"},
+	"notify":   {"owner"},
 }
 
 // Request is what a script's handle(req) receives.
@@ -43,6 +45,9 @@ type Request struct {
 	Body    any                 `json:"body"`
 	// User is the signed-in visitor, or nil.
 	User *Visitor `json:"user,omitempty"`
+	// Origin is the app's own address, e.g. https://shop.renoxium.app, for
+	// links in emails.
+	Origin string `json:"origin,omitempty"`
 }
 
 // Visitor is a signed-in visitor of an app.
@@ -224,7 +229,7 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 	val, err := handle(goja.Undefined(), vm.ToValue(map[string]any{
 		"method": req.Method, "path": req.Path, "params": strMap(req.Params),
 		"query": strMap(req.Query), "form": strMap(req.Form), "formAll": strSliceMap(req.FormAll), "body": req.Body,
-		"user": req.User.Map(),
+		"user": req.User.Map(), "origin": req.Origin,
 	}))
 	if err != nil {
 		return Response{}, &ScriptError{Message: describe(err)}

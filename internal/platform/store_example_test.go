@@ -110,6 +110,15 @@ func TestStoreUAEExample(t *testing.T) {
 		t.Fatalf("cod order: %s", o.Body)
 	}
 
+	// Preview never sends email: confirmations and the owner notice are in the log.
+	logs, _ := p.Logs("noor", logFilterAll())
+	for _, want := range []string{"not sent from preview: to fatima@mail.ae, \"Your order #1 at Al Noor Perfumes\"",
+		"https://noor--preview.renoxium.test/orders/2", "to the owner, \"New order #2 (cash on delivery): AED 110.00\""} {
+		if countMessages(logs, want) == 0 {
+			t.Errorf("missing email in log: %s", want)
+		}
+	}
+
 	// A failed card payment gives the stock back.
 	r = as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: form("card", `[{"id":3,"qty":5}]`)})
 	if stock(3) != 25 {

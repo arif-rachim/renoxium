@@ -287,6 +287,11 @@ func (p *Platform) settle(ctx context.Context, st *stage, id, status, email, nam
 	}
 	pm := list[0]
 	p.event(st, "payment", "info", "", fmt.Sprintf("payment %s for %s is %s", id, pm.Reference, status))
+	if status == "paid" {
+		p.mailOwner(ctx, st, fmt.Sprintf("Payment received: %s %.2f for %s", strings.ToUpper(pm.Currency), pm.Amount, pm.Reference),
+			fmt.Sprintf("A card payment was completed.\n\nReference: %s\nAmount: %s %.2f\nCustomer: %s %s\n\nThe money is in your Stripe account.",
+				pm.Reference, strings.ToUpper(pm.Currency), pm.Amount, pm.CustomerName, pm.CustomerEmail))
+	}
 	if st.def.OnPayment == "" {
 		return nil
 	}
@@ -299,7 +304,7 @@ func (p *Platform) settle(ctx context.Context, st *stage, id, status, email, nam
 	}
 	defer release()
 	rid := newRequestID()
-	_, err = p.sb.Run(ctx, st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body,
+	_, err = p.sb.Run(ctx, st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}}, &scriptHost{st: st, p: p, rid: rid})
 	if err != nil {
 		p.event(st, "payment", "error", rid, "on_payment script "+st.def.OnPayment+": "+err.Error())

@@ -141,7 +141,7 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		return p.render(st, http.StatusOK, route.Template, map[string]any{"params": params, "query": query, "user": user.Map()}, rid)
 	}
 
-	req := sandbox.Request{User: user, Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}, FormAll: map[string][]string{}}
+	req := sandbox.Request{User: user, Origin: p.URL(st.app, st.name), Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}, FormAll: map[string][]string{}}
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
 		ct, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -427,6 +427,10 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.checkout(ctx, h.st, arg)
 	case "payments.get":
 		return h.p.paymentStatus(ctx, h.st, arg)
+	case "email.send":
+		return h.p.emailSend(ctx, h.st, arg)
+	case "notify.owner":
+		return h.p.notifyOwner(ctx, h.st, arg)
 	}
 	return nil, fmt.Errorf("unknown platform function %s", fn)
 }
