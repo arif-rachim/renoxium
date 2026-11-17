@@ -145,10 +145,40 @@ func TestStoreUAEExample(t *testing.T) {
 		t.Fatal("cart error message")
 	}
 
+	// Invoice for the paid order: 2 x 250 incl. VAT = 2 x 238.10 + VAT, totals 476.19 + 23.81.
+	inv := as(platform.TestRequestInput{Path: "/orders/1/invoice"})
+	for _, want := range []string{"<h1>Invoice</h1>", "Al Noor Perfumes Trading LLC", ">238.10<", ">23.81<", "AED 476.19", "AED 500.00", "Fatima"} {
+		if !strings.Contains(inv.Body, want) {
+			t.Errorf("invoice lacks %q", want)
+		}
+	}
+	// A discount code: WELCOME10 takes 10% off products over AED 100.
+	f = form("card", cart)
+	f["coupon"] = "welcome10"
+	r = as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: f})
+	if !strings.Contains(req(platform.TestRequestInput{Path: r.Location}).Body, "450.00 AED") {
+		t.Fatal("discount not charged")
+	}
+	paidAgain := req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "pay"}})
+	id := strings.TrimSuffix(strings.TrimPrefix(paidAgain.Location, "/orders/"), "?placed=1")
+	if o := as(platform.TestRequestInput{Path: "/orders/" + id}); !strings.Contains(o.Body, "Discount (WELCOME10)") || !strings.Contains(o.Body, "AED 450.00") {
+		t.Fatalf("discounted order: %s", o.Body)
+	}
+	if inv := as(platform.TestRequestInput{Path: "/orders/" + id + "/invoice"}); !strings.Contains(inv.Body, "Discount (WELCOME10)") || !strings.Contains(inv.Body, "AED 428.57") {
+		t.Fatalf("discounted invoice: %s", inv.Body)
+	}
+	f["coupon"] = "NOPE"
+	if r := as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: f}); r.Location != "/cart?error=error_coupon" {
+		t.Fatalf("bad coupon: %+v", r)
+	}
+
 	// Orders are private: another shopper sees neither the list entry nor the page.
 	req(platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"email": "other@mail.ae", "password": "other password"}})
 	other := func(path string) platform.TestResponse {
 		return req(platform.TestRequestInput{Path: path, UserEmail: "other@mail.ae"})
+	}
+	if r := other("/orders/1/invoice"); r.Status != 404 {
+		t.Fatalf("someone else's invoice: %d", r.Status)
 	}
 	if r := other("/orders/1"); r.Status != 404 {
 		t.Fatalf("someone else's order: %d", r.Status)
