@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/arif-rachim/renoxium/internal/password"
 )
 
 // Plans. An account without a paying subscription is on PlanFree.
@@ -102,4 +104,56 @@ func (s *Store) SetSubscription(userID string, b Billing) error {
 	_, err := s.db.Exec(`UPDATE billing SET plan = ?, status = ?, subscription = ?, period_end = ?, cancel_at_period_end = ?, updated_at = ?
 		WHERE user_id = ?`, b.Plan, b.Status, b.Subscription, end, b.CancelAtPeriodEnd, s.now().UTC().Format(time.RFC3339), userID)
 	return err
+}
+
+// ChangePassword sets a new password after checking the current one. It
+// signs out every other session and revokes agent tokens; the caller starts
+// a fresh session for the browser in use.
+func (s *Store) ChangePassword(userID, current, next string) error {
+	var encoded string
+	if err := s.db.QueryRow(`SELECT password_hash FROM users WHERE id = ?`, userID).Scan(&encoded); err != nil {
+		return ErrNotFound
+	}
+	if !password.Check(encoded, current) {
+		return ErrBadCredentials
+	}
+	if err := password.Validate(next); err != nil {
+		return err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`UPDATE users SET password_hash = ? WHERE id = ?`, []any{password.Hash(next), userID}},
+		{`DELETE FROM sessions WHERE user_id = ?`, []any{userID}},
+		{`DELETE FROM tokens WHERE user_id = ?`, []any{userID}},
+	} {
+		if _, err := tx.Exec(q.sql, q.args...); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// DeleteUser removes an account and everything stored for it here.
+func (s *Store) DeleteUser(userID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, q := range []string{
+		`DELETE FROM sessions WHERE user_id = ?`, `DELETE FROM tokens WHERE user_id = ?`, `DELETE FROM codes WHERE user_id = ?`,
+		`DELETE FROM email_tokens WHERE user_id = ?`, `DELETE FROM billing WHERE user_id = ?`, `DELETE FROM users WHERE id = ?`,
+	} {
+		if _, err := tx.Exec(q, userID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

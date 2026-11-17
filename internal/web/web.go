@@ -106,6 +106,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerEmailFlows()
 	s.registerPayments()
 	s.registerBilling()
+	s.registerAccount()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -662,7 +663,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <button>Send report</button></form>{{template "bottom"}}{{end}}
 
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
-<p class="muted">Signed in as {{.User.Email}} · Plan: <a href="/billing">{{.Plan}}</a></p>
+<p class="muted">Signed in as {{.User.Email}} · Plan: <a href="/billing">{{.Plan}}</a> · <a href="/account">Account</a></p>
 {{if not .User.Verified}}<form method="post" action="/verify/resend"><p class="muted">Confirm your email so you can reset your password if you forget it. <input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin-top:4px">Send the link again</button></p></form>{{end}}
 {{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
 {{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
@@ -724,6 +725,22 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "account"}}{{template "top" "Account"}}<p class="crumbs"><a href="/">Your apps</a></p>
+<div class="card"><h1>Account</h1><p>{{.User.Email}} {{if .User.Verified}}<span class="ok">confirmed</span>{{else}}<span class="muted">not confirmed</span>{{end}}</p>
+<p class="muted"><a href="/billing">Plan and billing</a></p></div>
+<form class="card" method="post" action="/account/password" style="margin-top:16px"><h1>Change password</h1>
+{{if .Changed}}<p class="ok">Password changed. Other devices and connected agents were signed out.</p>{{end}}{{with .PasswordError}}<p class="error">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="current">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required>
+<label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
+<button>Change password</button><p class="muted" style="margin-top:12px">Connected agents (ChatGPT, Claude) will need to connect again.</p></form>
+<div class="card" style="margin-top:16px"><h1>Export your data</h1><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
+<a class="button" href="/account/export">Download export</a></div>
+<form class="card" method="post" action="/account/delete" style="margin-top:16px"><h1>Delete account</h1>
+<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.</p>{{with .DeleteError}}<p class="error">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
+<label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
+<button class="danger">Delete my account</button></form>{{template "bottom"}}{{end}}
 
 {{define "billing"}}{{template "top" "Plan and billing"}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>Plan and billing</h1>
 <p>Current plan: <strong>{{if eq .Billing.Plan "pro"}}Pro{{else if eq .Billing.Plan "business"}}Business{{else}}Free{{end}}</strong>
