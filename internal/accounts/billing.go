@@ -3,6 +3,7 @@ package accounts
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/password"
@@ -156,4 +157,70 @@ func (s *Store) DeleteUser(userID string) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// UserRow is one account as the Renoxium operator sees it.
+type UserRow struct {
+	ID, Email, CreatedAt, Plan, Status string
+	Verified                           bool
+}
+
+// Users lists accounts for the operator, newest first, optionally filtered
+// by email.
+func (s *Store) Users(search string, limit int) ([]UserRow, error) {
+	q := `SELECT u.id, u.email, u.created_at, u.verified_at IS NOT NULL, coalesce(b.plan, 'free'), coalesce(b.status, '')
+		FROM users u LEFT JOIN billing b ON b.user_id = u.id`
+	var args []any
+	if search != "" {
+		q += ` WHERE u.email LIKE ? ESCAPE '\'`
+		args = append(args, "%"+strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(search))+"%")
+	}
+	q += ` ORDER BY u.created_at DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []UserRow{}
+	for rows.Next() {
+		var u UserRow
+		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.Verified, &u.Plan, &u.Status); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// PlanCounts counts accounts per plan, and how many of the paid ones pay
+// through Stripe (not granted).
+func (s *Store) PlanCounts() (total int, perPlan map[string]int, paying map[string]int, err error) {
+	perPlan, paying = map[string]int{}, map[string]int{}
+	if err = s.db.QueryRow(`SELECT count(*) FROM users`).Scan(&total); err != nil {
+		return
+	}
+	rows, err := s.db.Query(`SELECT plan, status, count(*) FROM billing GROUP BY plan, status`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	paid := 0
+	for rows.Next() {
+		var plan, status string
+		var n int
+		if err = rows.Scan(&plan, &status, &n); err != nil {
+			return
+		}
+		if plan == PlanFree {
+			continue
+		}
+		perPlan[plan] += n
+		paid += n
+		if status != StatusGranted {
+			paying[plan] += n
+		}
+	}
+	perPlan[PlanFree] = total - paid
+	return total, perPlan, paying, rows.Err()
 }

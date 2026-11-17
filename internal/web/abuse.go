@@ -44,6 +44,9 @@ func (s *Site) abuseReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Warn("abuse report", "address", address, "contact", contact, "details", details)
+	if err := s.platform.RecordAbuseReport(address, contact, details); err != nil {
+		slog.Error("store abuse report", "err", err)
+	}
 	if s.AbuseEmail != "" {
 		m := email.Message{To: s.AbuseEmail, Tag: "abuse_report", Subject: "Abuse report: " + clip(address, 80),
 			Text: "App: " + address + "\nReporter: " + contact + "\n\n" + details +

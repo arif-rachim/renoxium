@@ -1,0 +1,153 @@
+package web
+
+import (
+	"log/slog"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/platform"
+)
+
+// Monthly plan prices in AED, for the revenue estimate on the operator page.
+var planPrices = map[string]int{accounts.PlanPro: 99, accounts.PlanBusiness: 299}
+
+func (s *Site) registerOperator() {
+	s.mux.HandleFunc("GET /operator", s.operatorPage)
+	s.mux.HandleFunc("POST /operator/plan", s.operatorPlan)
+	s.mux.HandleFunc("POST /operator/suspend", s.operatorSuspend)
+	s.mux.HandleFunc("POST /operator/abuse/{id}/resolve", s.operatorResolve)
+}
+
+// operator returns the signed-in operator. Anyone else gets 404, so the page
+// does not reveal that it exists.
+func (s *Site) operator(w http.ResponseWriter, r *http.Request) (accounts.User, bool) {
+	u, ok := s.currentUser(r)
+	if !ok || !u.Verified || !s.isOperator(u.Email) {
+		http.NotFound(w, r)
+		return u, false
+	}
+	return u, true
+}
+
+func (s *Site) isOperator(email string) bool {
+	for _, o := range s.Operators {
+		if strings.EqualFold(strings.TrimSpace(o), email) {
+			return true
+		}
+	}
+	return false
+}
+
+type operatorApp struct {
+	platform.AppRow
+	OwnerEmail string
+	LiveURL    string
+}
+
+func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.operator(w, r); !ok {
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	total, perPlan, paying, err := s.accounts.PlanCounts()
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	stats, _ := s.platform.Stats()
+	mrr := 0
+	for plan, n := range paying {
+		mrr += planPrices[plan] * n
+	}
+	users, _ := s.accounts.Users(q, 100)
+	appSearch := q
+	if u, err := s.accounts.UserByEmail(q); err == nil {
+		appSearch = u.ID // searching an owner's email lists their apps
+	}
+	rows, _ := s.platform.AllApps(appSearch, 100)
+	emails := map[string]string{}
+	apps := make([]operatorApp, 0, len(rows))
+	for _, a := range rows {
+		if _, seen := emails[a.Owner]; !seen {
+			if u, err := s.accounts.User(a.Owner); err == nil {
+				emails[a.Owner] = u.Email
+			}
+		}
+		info, _ := s.platform.Info(a.Name)
+		apps = append(apps, operatorApp{AppRow: a, OwnerEmail: emails[a.Owner], LiveURL: info.LiveURL})
+	}
+	reports, _ := s.platform.AbuseReports(50)
+	open := 0
+	for _, rep := range reports {
+		if !rep.Resolved {
+			open++
+		}
+	}
+	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "CSRF": s.csrfToken(w, r), "Accounts": total, "PerPlan": perPlan,
+		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open})
+}
+
+func (s *Site) operatorPlan(w http.ResponseWriter, r *http.Request) {
+	op, ok := s.operator(w, r)
+	if !ok {
+		return
+	}
+	if !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	user, plan := r.PostFormValue("user"), r.PostFormValue("plan")
+	if err := s.accounts.GrantPlan(user, plan); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	platform.ForgetPlan(user)
+	slog.Info("operator granted plan", "operator", op.Email, "user", user, "plan", plan)
+	http.Redirect(w, r, "/operator?q="+r.PostFormValue("q"), http.StatusSeeOther)
+}
+
+func (s *Site) operatorSuspend(w http.ResponseWriter, r *http.Request) {
+	op, ok := s.operator(w, r)
+	if !ok {
+		return
+	}
+	if !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	app := r.PostFormValue("app")
+	var err error
+	if r.PostFormValue("action") == "unsuspend" {
+		err = s.platform.Unsuspend(app)
+	} else {
+		reason := strings.TrimSpace(r.PostFormValue("reason"))
+		if reason == "" {
+			reason = "suspended by Renoxium"
+		}
+		err = s.platform.Suspend(app, reason)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	slog.Warn("operator changed app", "operator", op.Email, "app", app, "action", r.PostFormValue("action"))
+	http.Redirect(w, r, "/operator?q="+r.PostFormValue("q"), http.StatusSeeOther)
+}
+
+func (s *Site) operatorResolve(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.operator(w, r); !ok {
+		return
+	}
+	if !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err := s.platform.ResolveAbuseReport(id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	http.Redirect(w, r, "/operator", http.StatusSeeOther)
+}

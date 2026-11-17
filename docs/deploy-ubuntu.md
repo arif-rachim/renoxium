@@ -184,6 +184,16 @@ sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com busin
 
 `plan EMAIL free` removes such a grant.
 
+### Operator panel
+
+`https://www.renoxium.com/operator` shows totals (accounts per plan, monthly subscription revenue, apps,
+WhatsApp codes), lists accounts with a plan grant, apps with suspend and bring back, and abuse reports.
+Only confirmed accounts whose email is listed in `RENOXIUM_OPERATORS` can open it; everyone else gets 404.
+
+```bash
+echo 'RENOXIUM_OPERATORS=you@renoxium.com' | sudo tee -a /etc/renoxium/env >/dev/null && sudo systemctl restart renoxium
+```
+
 ### WhatsApp sign-in codes (optional)
 
 Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.

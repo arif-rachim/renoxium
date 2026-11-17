@@ -56,6 +56,9 @@ type Site struct {
 	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
 	AbuseEmail string
 
+	// Operators are the emails allowed into /operator (confirmed accounts only).
+	Operators []string
+
 	// Billing charges accounts for Renoxium plans.
 	Billing Billing
 
@@ -107,6 +110,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerPayments()
 	s.registerBilling()
 	s.registerAccount()
+	s.registerOperator()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -638,7 +642,8 @@ textarea.json{font-family:ui-monospace,monospace;font-size:14px}.check{display:f
 button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pager{display:flex;gap:12px;margin-top:12px;font-size:14px}
 .connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}.plan{border:1px solid var(--line);border-radius:12px;padding:16px}
 .plan h2{margin:0 0 4px;font-size:18px}.plan .price{font-size:20px;font-weight:700;margin:0}.plan ul{padding-inline-start:18px;font-size:14px}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0}.tile{border:1px solid var(--line);border-radius:12px;padding:12px}
-.tile .big{font-size:20px;font-weight:700;margin:2px 0}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+.tile .big{font-size:20px;font-weight:700;margin:2px 0}form.inline{display:flex;gap:6px;align-items:center}form.inline button{margin:0;padding:6px 10px}form.inline select,form.inline input{width:auto;padding:6px 8px}
+.report{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.report.done{opacity:.6}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
 h1{font-size:22px;margin:0 0 16px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}label{display:block;font-size:14px;margin:12px 0 4px}
 input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
@@ -725,6 +730,32 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "operator"}}{{template "wide" "Operator"}}<p class="crumbs"><a href="/">Your apps</a></p>
+<div class="card"><h1>Renoxium operator</h1><div class="tiles">
+<div class="tile"><div class="muted">Accounts</div><div class="big">{{.Accounts}}</div><div class="muted">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
+<div class="tile"><div class="muted">Subscription revenue</div><div class="big">AED {{.MRR}}</div><div class="muted">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
+<div class="tile"><div class="muted">Apps</div><div class="big">{{.Stats.Apps}}</div><div class="muted">{{.Stats.LiveApps}} live · {{.Stats.SuspendedApps}} suspended · {{.Stats.StripeReady}} take cards</div></div>
+<div class="tile"><div class="muted">WhatsApp codes</div><div class="big">{{.Stats.WhatsAppCodes}}</div><div class="muted">this month, all accounts</div></div>
+</div><p class="muted">Card fees collected and subscription payments are in the Stripe Dashboard (Connect, Collected fees; Billing, Subscriptions).</p>
+<form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button></form></div>
+
+{{if .Reports}}<div class="card" style="margin-top:16px"><h1>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h1>
+{{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>
+{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Mark handled</button></form>{{end}}</div>{{end}}</div>{{end}}
+
+<div class="card" style="margin-top:16px"><h1>Accounts</h1><div class="scroll"><table><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
+{{range .Users}}<tr><td><a href="/operator?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td>{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</td><td>{{.CreatedAt}}</td>
+<td><form method="post" action="/operator/plan" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">
+<select name="plan" aria-label="Plan"><option value="free">free</option><option value="pro">pro</option><option value="business">business</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
+</tbody></table></div><p class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</p></div>
+
+<div class="card" style="margin-top:16px"><h1>Apps</h1><div class="scroll"><table><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
+{{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td>{{.OwnerEmail}}</td>
+<td>{{if .LiveVersion}}v{{.LiveVersion}}{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}ready{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
+<td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
+{{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason" style="width:140px"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}
+</tbody></table></div></div>{{template "bottom"}}{{end}}
 
 {{define "account"}}{{template "top" "Account"}}<p class="crumbs"><a href="/">Your apps</a></p>
 <div class="card"><h1>Account</h1><p>{{.User.Email}} {{if .User.Verified}}<span class="ok">confirmed</span>{{else}}<span class="muted">not confirmed</span>{{end}}</p>

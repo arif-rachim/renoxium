@@ -132,6 +132,9 @@ func main() {
 	site.Mailer = mailer
 	site.Version = buildVersion()
 	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	if ops := strings.TrimSpace(os.Getenv("RENOXIUM_OPERATORS")); ops != "" {
+		site.Operators = strings.Split(ops, ",")
+	}
 	site.Billing = web.Billing{Stripe: cfg.Stripe, PricePro: os.Getenv("STRIPE_PRICE_PRO"), PriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
 		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET")}
 	if cfg.Stripe != nil {

@@ -241,6 +241,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	}
 	pl := &Platform{cfg: cfg, db: db, sb: sb, files: store,
 		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}
+	if err := pl.ensureAbuseTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := pl.ensureUsageTable(); err != nil {
 		db.Close()
 		return nil, err
