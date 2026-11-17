@@ -6,4 +6,4 @@ import (
 )
 
 func newRecorder() *httptest.ResponseRecorder { return httptest.NewRecorder() }
-func newRequest(url string) *http.Request    { return httptest.NewRequest("GET", url, nil) }
+func newRequest(url string) *http.Request     { return httptest.NewRequest("GET", url, nil) }

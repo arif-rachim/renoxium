@@ -24,8 +24,8 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/email"
-	"github.com/arif-rachim/renoxium/internal/monitor"
 	"github.com/arif-rachim/renoxium/internal/mcpserver"
+	"github.com/arif-rachim/renoxium/internal/monitor"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
