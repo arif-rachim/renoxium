@@ -46,7 +46,7 @@ func (p *Platform) DeleteApp(app string) error {
 	defer tx.Rollback()
 	for _, stmt := range []string{
 		`DELETE FROM versions WHERE app = ?`, `DELETE FROM domains WHERE app = ?`, `DELETE FROM payment_accounts WHERE app = ?`,
-		`DELETE FROM app_files WHERE app = ?`, `DELETE FROM apps WHERE name = ?`,
+		`DELETE FROM app_files WHERE app = ?`, `DELETE FROM app_staff WHERE app = ?`, `DELETE FROM apps WHERE name = ?`,
 	} {
 		if _, err := tx.Exec(stmt, app); err != nil {
 			return err

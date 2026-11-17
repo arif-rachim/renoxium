@@ -84,7 +84,7 @@ func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
 // adminPreview sends the owner to their app's private preview with a
 // short-lived link that unlocks it in this browser.
 func (s *Site) adminPreview(w http.ResponseWriter, r *http.Request) {
-	if _, app, ok := s.owner(w, r); ok {
+	if _, app, ok := s.member(w, r); ok {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		http.Redirect(w, r, s.platform.PreviewLink(app), http.StatusSeeOther)
 	}
@@ -106,8 +106,30 @@ func (s *Site) owner(w http.ResponseWriter, r *http.Request) (u accounts.User, a
 	return u, app, true
 }
 
+// member returns the signed-in user if they own the app in the path or are
+// on its staff with a confirmed email (staff are matched by email, so an
+// unconfirmed address must not get access). It has already answered the
+// request when ok is false.
+func (s *Site) member(w http.ResponseWriter, r *http.Request) (u accounts.User, app string, ok bool) {
+	app = r.PathValue("app")
+	u, signedIn := s.currentUser(r)
+	if !signedIn {
+		http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
+		return u, app, false
+	}
+	if s.platform.CheckOwner(u.ID, app) == nil || (u.Verified && s.platform.IsStaff(app, u.Email)) {
+		return u, app, true
+	}
+	render(w, http.StatusNotFound, "error", map[string]any{"Message": "There is no app called " + app + " in your account."})
+	return u, app, false
+}
+
+func (s *Site) isOwnerOf(u accounts.User, app string) bool {
+	return s.platform.CheckOwner(u.ID, app) == nil
+}
+
 func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	u, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}
@@ -138,7 +160,8 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
 	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
 	currency, sales, _ := s.platform.Sales(r.Context(), app)
-	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors, "Sales": sales, "Currency": currency})
+	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors, "Sales": sales, "Currency": currency,
+		"IsOwner": s.isOwnerOf(u, app)})
 }
 
 type column struct {
@@ -146,7 +169,7 @@ type column struct {
 }
 
 func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	_, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}
@@ -201,7 +224,7 @@ type field struct {
 }
 
 func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	_, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}
@@ -278,7 +301,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 }
 
 func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
-	u, app, ok := s.owner(w, r)
+	u, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}
@@ -356,7 +379,7 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
-	u, app, ok := s.owner(w, r)
+	u, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}
@@ -382,7 +405,7 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) adminVisitors(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	_, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}

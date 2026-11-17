@@ -115,6 +115,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerAccount()
 	s.registerOperator()
 	s.registerLanding()
+	s.registerStaff()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -267,7 +268,11 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 	if plan == "" {
 		plan = "Free"
 	}
-	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": apps, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r), "Plan": plan})
+	var shared []platform.AppInfo
+	if u.Verified {
+		shared, _ = s.platform.StaffApps(u.Email)
+	}
+	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": apps, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r), "Plan": plan, "Shared": shared})
 }
 
 func (s *Site) signupForm(w http.ResponseWriter, r *http.Request) {
@@ -647,7 +652,7 @@ button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pag
 .connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}.plan{border:1px solid var(--line);border-radius:12px;padding:16px}
 .plan h2{margin:0 0 4px;font-size:18px}.plan .price{font-size:20px;font-weight:700;margin:0}.plan ul{padding-inline-start:18px;font-size:14px}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0}.tile{border:1px solid var(--line);border-radius:12px;padding:12px}
 .tile .big{font-size:20px;font-weight:700;margin:2px 0}form.inline{display:flex;gap:6px;align-items:center}form.inline button{margin:0;padding:6px 10px}form.inline select,form.inline input{width:auto;padding:6px 8px}
-.report{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.report.done{opacity:.6}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+.report{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.report.done{opacity:.6}ul.plain{list-style:none;padding:0}ul.plain li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
 h1{font-size:22px;margin:0 0 16px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}label{display:block;font-size:14px;margin:12px 0 4px}
 input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
@@ -674,6 +679,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
 <p class="muted">Signed in as {{.User.Email}} · Plan: <a href="/billing">{{.Plan}}</a> · <a href="/account">Account</a></p>
 {{if not .User.Verified}}<form method="post" action="/verify/resend"><p class="muted">Confirm your email so you can reset your password if you forget it. <input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin-top:4px">Send the link again</button></p></form>{{end}}
+{{if .Shared}}<p class="muted">Shared with you: {{range $i, $a := .Shared}}{{if $i}}, {{end}}<a href="/apps/{{$a.App}}">{{$a.App}}</a>{{end}}</p>{{end}}
 {{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
 {{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
 <p class="muted">Connector address for your agent:</p><p><code>{{.MCP}}</code> · <a href="/connect">how to connect</a></p>
@@ -705,14 +711,15 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "admin_app"}}{{template "wide" .Info.App}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>{{.Info.App}}</h1>
 <p><a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a> <span class="muted">live version {{.Info.LiveVersion}}</span></p>
 <p class="muted">Preview (version {{.Info.PreviewVersion}}): <a href="{{.Info.PreviewURL}}">{{.Info.PreviewURL}}</a></p>
-{{if gt .Info.PreviewVersion .Info.LiveVersion}}<p><a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>
+{{if and .IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<p><a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>
 <span class="muted">Check the preview first; you confirm on the next page.</span></p>{{end}}
 {{if .Tables}}<h1 style="margin-top:24px">Data</h1><ul>{{range .Tables}}<li><a href="/apps/{{$.Info.App}}/t/{{.Name}}">{{.Label}}</a> <span class="muted">{{.Rows}} rows</span></li>{{end}}</ul>
 {{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app to manage its data here.{{end}}</p>{{end}}
 {{if .Sales}}<h1 style="margin-top:24px">Card sales</h1><div class="tiles">{{range .Sales}}<div class="tile"><div class="muted">{{.Label}}</div>
 <div class="big">{{$.Currency}} {{printf "%.2f" .Amount}}</div><div class="muted">{{.Count}} payment{{if ne .Count 1}}s{{end}}</div></div>{{end}}</div>
 <p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p>{{end}}
-<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
+{{if .IsOwner}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
+<h1 style="margin-top:24px">Staff</h1><p><a href="/apps/{{.Info.App}}/staff">People who help you run this app</a></p>{{else}}<p class="muted" style="margin-top:24px">You have staff access to this app.</p>{{end}}
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
 {{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
 </div>{{template "bottom"}}{{end}}
@@ -791,6 +798,16 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
 <h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
 <p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "admin_staff"}}{{template "top" "Staff"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+<div class="card"><h1>Staff</h1><p class="muted">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+{{if .Staff}}<ul class="plain">{{range .Staff}}<li><span>{{.}}</span><form method="post" action="/apps/{{$.App}}/staff/remove" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.}}"><button class="secondary">Remove</button></form></li>{{end}}</ul>
+{{else}}<p>No staff yet.</p>{{end}}
+<p class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff need the <a href="/billing">Pro or Business plan</a>{{end}}.</p>
+{{if lt (len .Staff) .Limit}}<form method="post" action="/apps/{{.App}}/staff"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email address</label>
+<input id="email" name="email" type="email" required><button>Add staff member</button></form>
+<p class="muted">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_payments"}}{{template "wide" "Payments"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <h1>Payments</h1>

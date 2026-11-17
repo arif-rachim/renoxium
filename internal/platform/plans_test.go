@@ -129,3 +129,32 @@ func TestWhatsAppQuotaPerPlan(t *testing.T) {
 		t.Fatalf("preview: %d", res.Status)
 	}
 }
+
+func TestStaffLimitPerPlan(t *testing.T) {
+	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://www.renoxium.test",
+		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	p.CreateApp("usr_free", "free-shop")
+	p.CreateApp("usr_pro", "pro-shop")
+	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "Pro or Business") {
+		t.Fatalf("free staff: %v", err)
+	}
+	for _, e := range []string{"a@x.ae", "b@x.ae"} {
+		if err := p.AddStaff("pro-shop", e, "usr_pro"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := p.AddStaff("pro-shop", "c@x.ae", "usr_pro"); err == nil || !strings.Contains(err.Error(), "allows 2") {
+		t.Fatalf("third pro staff: %v", err)
+	}
+	if err := p.AddStaff("pro-shop", "A@X.ae", "usr_pro"); err != nil || !p.IsStaff("pro-shop", "a@x.ae") {
+		t.Fatalf("existing staff again: %v", err)
+	}
+	if err := p.AddStaff("pro-shop", "not an email", "usr_pro"); err == nil {
+		t.Fatal("bad email accepted")
+	}
+}
