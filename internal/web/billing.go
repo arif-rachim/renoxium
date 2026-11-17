@@ -68,9 +68,11 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apps, _ := s.platform.Apps(u.ID)
+	waUsed, waQuota := s.platform.WhatsAppUsage(u.ID)
 	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": s.csrfToken(w, r),
 		"Apps": len(apps), "Limit": platform.AppsPerPlan[b.Plan], "Fee": platform.FreePlanFeePercent,
-		"Paying": b.Plan != accounts.PlanFree, "PeriodEnd": formatDate(b.PeriodEnd)})
+		"Paying": b.Plan != accounts.PlanFree, "PeriodEnd": formatDate(b.PeriodEnd),
+		"WAUsed": waUsed, "WAQuota": waQuota})
 }
 
 func formatDate(t time.Time) string {

@@ -48,6 +48,7 @@ type visitorBrowser struct {
 	p       *platform.Platform
 	host    string
 	cookies map[string]*http.Cookie
+	ip      string // client address; empty uses httptest's default
 }
 
 func newVisitor(t *testing.T, p *platform.Platform, host string) *visitorBrowser {
@@ -68,6 +69,9 @@ func (b *visitorBrowser) do(method, path string, form url.Values) *httptest.Resp
 	}
 	for _, c := range b.cookies {
 		r.AddCookie(c)
+	}
+	if b.ip != "" {
+		r.RemoteAddr = b.ip + ":1234"
 	}
 	w := httptest.NewRecorder()
 	if !b.p.ServeApp(w, r) {

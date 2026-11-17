@@ -234,7 +234,7 @@ When it prints `OK`, restart Renoxium so live apps offer "Sign in with WhatsApp"
 sudo systemctl restart renoxium
 ```
 
-Every code is a paid WhatsApp message; Renoxium allows three codes per number per 15 minutes. Without
+Every code is a paid WhatsApp message. Renoxium allows three codes per number per 15 minutes, and each account's live apps may send 50 (Free), 500 (Pro) or 2,000 (Business) codes per calendar month; past that, sign-in pages offer email only and the owner gets one email. Without
 the three required settings, WhatsApp sign-in is off on live apps; previews always offer it and write
 the code to the app log instead of sending it.
 

@@ -38,7 +38,7 @@ func sixDigits() string {
 // whatsappAvailable reports whether phone sign-in can deliver codes on this
 // stage. Preview always can: codes go to the app log.
 func (p *Platform) whatsappAvailable(st *stage) bool {
-	return st.name == Preview || p.cfg.WhatsApp != nil
+	return st.name == Preview || (p.cfg.WhatsApp != nil && p.whatsappQuotaLeft(st))
 }
 
 // servePhone handles /_rx/auth/phone (ask for a number, send a code) and
@@ -46,7 +46,8 @@ func (p *Platform) whatsappAvailable(st *stage) bool {
 // first use).
 func (p *Platform) servePhone(w http.ResponseWriter, r *http.Request, st *stage, page string) {
 	if !p.whatsappAvailable(st) {
-		p.authPage(w, r, st, http.StatusNotFound, "message", authData{Title: "Not available", Message: "Sign-in with WhatsApp is not available here."})
+		p.authPage(w, r, st, http.StatusNotFound, "message", authData{Title: "Not available",
+			Message: "Sign-in with WhatsApp is not available right now. Please sign in with your email instead.", Link: "/_rx/auth/login"})
 		return
 	}
 	switch {
@@ -84,7 +85,9 @@ func (p *Platform) sendPhoneCode(w http.ResponseWriter, r *http.Request, st *sta
 		http.Error(w, "could not create a code", http.StatusInternalServerError)
 		return
 	}
-	if err := p.sendCode(r.Context(), st, phone, code); err != nil {
+	if err := p.sendCode(r.Context(), st, phone, code); err == nil {
+		p.countWhatsApp(st)
+	} else {
 		data.Error = "We could not send a WhatsApp message to this number. Check it and try again."
 		p.authPage(w, r, st, http.StatusBadGateway, "phone", data)
 		return

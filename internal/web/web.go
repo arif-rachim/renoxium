@@ -724,16 +724,16 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "billing"}}{{template "top" "Plan and billing"}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>Plan and billing</h1>
 <p>Current plan: <strong>{{if eq .Billing.Plan "pro"}}Pro{{else if eq .Billing.Plan "business"}}Business{{else}}Free{{end}}</strong>
 {{if .Paying}}<span class="muted">· {{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span>{{end}}</p>
-<p class="muted">Apps: {{.Apps}} of {{.Limit}}</p>
+<p class="muted">Apps: {{.Apps}} of {{.Limit}} · WhatsApp sign-in codes this month: {{.WAUsed}} of {{.WAQuota}}</p>
 {{if not .Ready}}<p>Paid plans are not available yet.</p>
 {{else if .Paying}}<p>No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
 <form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form>
 <p class="muted">Change plan, update your card, download invoices or cancel.</p>
 {{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>
 <div class="plans"><form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="pro">
-<h2>Pro</h2><p class="price">AED 99 <span class="muted">/ month</span></p><ul><li>3 apps</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
+<h2>Pro</h2><p class="price">AED 99 <span class="muted">/ month</span></p><ul><li>3 apps</li><li>500 WhatsApp sign-in codes a month</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
 <form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
-<h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
+<h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
 <p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_payments"}}{{template "wide" "Payments"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">

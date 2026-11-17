@@ -3,6 +3,7 @@ package platform_test
 import (
 	"context"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -83,5 +84,48 @@ func TestFreePlanBadgeOnLivePagesOnly(t *testing.T) {
 		if strings.Contains(res.Body, "Made with Renoxium") {
 			t.Errorf("%s preview shows the badge", owner)
 		}
+	}
+}
+
+func TestWhatsAppQuotaPerPlan(t *testing.T) {
+	codes := &codeBox{codes: map[string]string{}}
+	box := &outbox{}
+	plans := map[string]string{"usr_free": "free"}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", WhatsApp: codes, Mailer: box,
+		OwnerPlan: func(id string) string { return plans[id] }, OwnerEmail: func(string) (string, bool) { return "owner@club.ae", true }}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	def := membersApp()
+	delete(def.Templates, "auth_login")
+	p.CreateApp("usr_free", "club")
+	p.ApplyChange(context.Background(), "club", def)
+	p.Publish("club", 0)
+	quota := platform.WhatsAppCodesPerPlan["free"]
+	for i := 0; i < quota; i++ {
+		v := newVisitor(t, p, "club.renoxium.test")
+		v.ip = "198.51.100." + strconv.Itoa(i+1)
+		phone := "+97150" + strings.Repeat("0", 6-len(strconv.Itoa(i))) + strconv.Itoa(i) + "1"
+		if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {phone}}); w.Code != 200 {
+			t.Fatalf("code %d: %d %s", i, w.Code, w.Body.String())
+		}
+	}
+	if used, q := p.WhatsAppUsage("usr_free"); used != quota || q != quota {
+		t.Fatalf("usage %d of %d", used, q)
+	}
+	v := newVisitor(t, p, "club.renoxium.test")
+	if w := v.do("GET", "/_rx/auth/phone", nil); w.Code != 404 || !strings.Contains(w.Body.String(), "sign in with your email") {
+		t.Fatalf("past the quota: %d", w.Code)
+	}
+	if w := v.do("GET", "/_rx/auth/login", nil); strings.Contains(w.Body.String(), "/_rx/auth/phone") {
+		t.Fatal("sign-in page still offers WhatsApp")
+	}
+	if box.last(t, "owner_notice").Subject != "[club] WhatsApp sign-in paused until next month" {
+		t.Fatal("owner not told")
+	}
+	// Preview is never limited: its codes go to the log, not to WhatsApp.
+	if res, _ := p.TestRequest(context.Background(), "club", platform.TestRequestInput{Path: "/_rx/auth/phone"}); res.Status != 200 {
+		t.Fatalf("preview: %d", res.Status)
 	}
 }
