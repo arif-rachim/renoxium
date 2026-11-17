@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -213,6 +214,9 @@ func convert(t appdef.Table, values map[string]string) ([]string, []any, FieldEr
 				continue
 			}
 			v = raw
+		case len(c.Options) > 0 && !slices.Contains(c.Options, raw):
+			ferr[c.Name] = "choose one of: " + strings.Join(c.Options, ", ")
+			continue
 		default:
 			v = raw
 		}

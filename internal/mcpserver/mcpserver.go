@@ -45,6 +45,8 @@ How to work:
 App definition:
 - tables: every table gets id (integer primary key) and created_at (text, UTC "YYYY-MM-DD HH:MM:SS") automatically.
   Column types: text, integer, real, boolean, datetime, json, image. Schema changes are additive: add tables and columns, never rename or drop.
+  For the owner's admin panel, give tables and columns a "label" (e.g. "Customer name"), add "help" where a field needs explaining,
+  and give text columns with fixed values "options" (e.g. order status) so the owner picks from a drop-down. These never change the database.
 - templates: Go html/template sources. Any HTML, CSS and browser JavaScript is allowed. Include templates in each other with {{template "name" .}}.
   Full pages must contain <head>. Compare numbers with eq, e.g. {{if eq .done 1}}.
 - scripts: server JavaScript defining function handle(req).

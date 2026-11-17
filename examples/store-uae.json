@@ -1,733 +1,799 @@
 {
- "tables": [
-  {
-   "name": "store",
-   "columns": [
+  "tables": [
     {
-     "name": "name",
-     "type": "text",
-     "required": true
+      "name": "store",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "label": "Shop name"
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Shop name (Arabic)"
+        },
+        {
+          "name": "tagline",
+          "type": "text"
+        },
+        {
+          "name": "tagline_ar",
+          "type": "text"
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "label": "WhatsApp number",
+          "help": "International format, e.g. +971501234567."
+        },
+        {
+          "name": "delivery_fee",
+          "type": "real",
+          "required": true,
+          "label": "Delivery fee (AED)"
+        },
+        {
+          "name": "free_delivery_over",
+          "type": "real",
+          "required": true,
+          "label": "Free delivery over (AED)",
+          "help": "Leave empty for no free delivery."
+        },
+        {
+          "name": "cod_enabled",
+          "type": "boolean",
+          "label": "Cash on delivery"
+        },
+        {
+          "name": "card_enabled",
+          "type": "boolean",
+          "label": "Card payments"
+        },
+        {
+          "name": "legal_name",
+          "type": "text",
+          "label": "Legal name (on invoices)"
+        },
+        {
+          "name": "address",
+          "type": "text"
+        },
+        {
+          "name": "trn",
+          "type": "text",
+          "label": "VAT TRN",
+          "help": "Your 15-digit Tax Registration Number, shown on tax invoices."
+        }
+      ],
+      "label": "Shop settings"
     },
     {
-     "name": "name_ar",
-     "type": "text"
+      "name": "products",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Name (Arabic)"
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "description_ar",
+          "type": "text",
+          "label": "Description (Arabic)"
+        },
+        {
+          "name": "category",
+          "type": "text"
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "required": true,
+          "label": "Price (AED, incl. VAT)"
+        },
+        {
+          "name": "image",
+          "type": "image"
+        },
+        {
+          "name": "stock",
+          "type": "integer",
+          "required": true,
+          "label": "Stock",
+          "help": "Leave empty if you do not track stock."
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "label": "Show in the shop"
+        }
+      ],
+      "label": "Products"
     },
     {
-     "name": "tagline",
-     "type": "text"
+      "name": "orders",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "integer",
+          "required": true,
+          "label": "Customer account"
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "label": "Customer name"
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "address",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "emirate",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "payment_method",
+          "type": "text",
+          "required": true,
+          "label": "Payment",
+          "options": [
+            "cod",
+            "card"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "label": "Status",
+          "options": [
+            "pending",
+            "cod",
+            "paid",
+            "shipped",
+            "delivered",
+            "canceled",
+            "failed",
+            "expired",
+            "refunded",
+            "partially_refunded"
+          ]
+        },
+        {
+          "name": "items",
+          "type": "json",
+          "required": true
+        },
+        {
+          "name": "subtotal",
+          "type": "real",
+          "required": true,
+          "label": "Subtotal (AED)"
+        },
+        {
+          "name": "delivery",
+          "type": "real",
+          "required": true,
+          "label": "Delivery (AED)"
+        },
+        {
+          "name": "vat",
+          "type": "real",
+          "required": true,
+          "label": "VAT (AED)"
+        },
+        {
+          "name": "total",
+          "type": "real",
+          "required": true,
+          "label": "Total (AED)"
+        },
+        {
+          "name": "lang",
+          "type": "text",
+          "label": "Language",
+          "options": [
+            "en",
+            "ar"
+          ]
+        },
+        {
+          "name": "discount",
+          "type": "real",
+          "label": "Discount (AED)"
+        },
+        {
+          "name": "coupon",
+          "type": "text"
+        }
+      ],
+      "label": "Orders"
     },
     {
-     "name": "tagline_ar",
-     "type": "text"
+      "name": "coupons",
+      "columns": [
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "required": true,
+          "label": "Type",
+          "help": "percent: value 10 means 10% off. amount: value 10 means AED 10 off.",
+          "options": [
+            "percent",
+            "amount"
+          ]
+        },
+        {
+          "name": "value",
+          "type": "real",
+          "required": true
+        },
+        {
+          "name": "min_total",
+          "type": "real",
+          "label": "Minimum order (AED)"
+        },
+        {
+          "name": "expires",
+          "type": "datetime",
+          "label": "Expires"
+        },
+        {
+          "name": "max_uses",
+          "type": "integer",
+          "label": "Maximum uses",
+          "help": "Leave empty for unlimited."
+        },
+        {
+          "name": "uses",
+          "type": "integer",
+          "label": "Times used"
+        },
+        {
+          "name": "active",
+          "type": "boolean"
+        }
+      ],
+      "label": "Discount codes"
     },
     {
-     "name": "whatsapp",
-     "type": "text"
-    },
-    {
-     "name": "delivery_fee",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "free_delivery_over",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "cod_enabled",
-     "type": "boolean"
-    },
-    {
-     "name": "card_enabled",
-     "type": "boolean"
-    },
-    {
-     "name": "legal_name",
-     "type": "text"
-    },
-    {
-     "name": "address",
-     "type": "text"
-    },
-    {
-     "name": "trn",
-     "type": "text"
+      "name": "texts",
+      "columns": [
+        {
+          "name": "key",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "en",
+          "type": "text",
+          "label": "English"
+        },
+        {
+          "name": "ar",
+          "type": "text",
+          "label": "Arabic"
+        }
+      ],
+      "label": "Shop texts"
     }
-   ]
-  },
-  {
-   "name": "products",
-   "columns": [
-    {
-     "name": "name",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "name_ar",
-     "type": "text"
-    },
-    {
-     "name": "description",
-     "type": "text"
-    },
-    {
-     "name": "description_ar",
-     "type": "text"
-    },
-    {
-     "name": "category",
-     "type": "text"
-    },
-    {
-     "name": "price",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "image",
-     "type": "image"
-    },
-    {
-     "name": "stock",
-     "type": "integer",
-     "required": true
-    },
-    {
-     "name": "active",
-     "type": "boolean"
-    }
-   ]
-  },
-  {
-   "name": "orders",
-   "columns": [
-    {
-     "name": "user_id",
-     "type": "integer",
-     "required": true
-    },
-    {
-     "name": "customer_name",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "phone",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "email",
-     "type": "text"
-    },
-    {
-     "name": "address",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "emirate",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "payment_method",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "status",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "items",
-     "type": "json",
-     "required": true
-    },
-    {
-     "name": "subtotal",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "delivery",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "vat",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "total",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "lang",
-     "type": "text"
-    },
-    {
-     "name": "discount",
-     "type": "real"
-    },
-    {
-     "name": "coupon",
-     "type": "text"
-    }
-   ]
-  },
-  {
-   "name": "coupons",
-   "columns": [
-    {
-     "name": "code",
-     "type": "text",
-     "required": true,
-     "unique": true
-    },
-    {
-     "name": "kind",
-     "type": "text",
-     "required": true
-    },
-    {
-     "name": "value",
-     "type": "real",
-     "required": true
-    },
-    {
-     "name": "min_total",
-     "type": "real"
-    },
-    {
-     "name": "expires",
-     "type": "datetime"
-    },
-    {
-     "name": "max_uses",
-     "type": "integer"
-    },
-    {
-     "name": "uses",
-     "type": "integer"
-    },
-    {
-     "name": "active",
-     "type": "boolean"
-    }
-   ]
-  },
-  {
-   "name": "texts",
-   "columns": [
-    {
-     "name": "key",
-     "type": "text",
-     "required": true,
-     "unique": true
-    },
-    {
-     "name": "en",
-     "type": "text"
-    },
-    {
-     "name": "ar",
-     "type": "text"
-    }
-   ]
-  }
- ],
- "seed": {
-  "store": [
-   {
-    "name": "Al Noor Perfumes",
-    "name_ar": "عطور النور",
-    "tagline": "Oud, musk and amber from the UAE",
-    "tagline_ar": "عود ومسك وعنبر من الإمارات",
-    "whatsapp": "+971500000000",
-    "delivery_fee": 15,
-    "free_delivery_over": 200,
-    "cod_enabled": 1,
-    "card_enabled": 1,
-    "legal_name": "Al Noor Perfumes Trading LLC",
-    "address": "Shop 12, Gold Souk, Deira, Dubai",
-    "trn": ""
-   }
   ],
-  "products": [
-   {
-    "name": "Royal Oud",
-    "name_ar": "العود الملكي",
-    "description": "Smoky, rich oud. 50 ml eau de parfum.",
-    "description_ar": "عود غني بلمسة دخانية. 50 مل.",
-    "category": "Oud",
-    "price": 250,
-    "stock": 20,
-    "active": 1
-   },
-   {
-    "name": "White Musk",
-    "name_ar": "المسك الأبيض",
-    "description": "Soft, clean musk. 30 ml.",
-    "description_ar": "مسك ناعم ونظيف. 30 مل.",
-    "category": "Musk",
-    "price": 95,
-    "stock": 50,
-    "active": 1
-   },
-   {
-    "name": "Amber Night",
-    "name_ar": "ليلة العنبر",
-    "description": "Warm amber with vanilla. 50 ml.",
-    "description_ar": "عنبر دافئ مع الفانيليا. 50 مل.",
-    "category": "Amber",
-    "price": 140,
-    "stock": 30,
-    "active": 1
-   },
-   {
-    "name": "Oud Gift Set",
-    "name_ar": "طقم هدايا العود",
-    "description": "Three 10 ml oud oils in a gift box.",
-    "description_ar": "ثلاثة زيوت عود 10 مل في علبة هدية.",
-    "category": "Gifts",
-    "price": 320,
-    "stock": 10,
-    "active": 1
-   }
-  ],
-  "coupons": [
-   {
-    "code": "WELCOME10",
-    "kind": "percent",
-    "value": 10,
-    "min_total": 100,
-    "max_uses": 100,
-    "uses": 0,
-    "active": 1
-   }
-  ],
-  "texts": [
-   {
-    "key": "shop",
-    "en": "Shop",
-    "ar": "المتجر"
-   },
-   {
-    "key": "all",
-    "en": "All",
-    "ar": "الكل"
-   },
-   {
-    "key": "add_to_cart",
-    "en": "Add to cart",
-    "ar": "أضف إلى السلة"
-   },
-   {
-    "key": "added",
-    "en": "Added to cart",
-    "ar": "أضيف إلى السلة"
-   },
-   {
-    "key": "out_of_stock",
-    "en": "Out of stock",
-    "ar": "غير متوفر"
-   },
-   {
-    "key": "cart",
-    "en": "Cart",
-    "ar": "السلة"
-   },
-   {
-    "key": "empty_cart",
-    "en": "Your cart is empty.",
-    "ar": "سلتك فارغة."
-   },
-   {
-    "key": "continue_shopping",
-    "en": "Continue shopping",
-    "ar": "متابعة التسوق"
-   },
-   {
-    "key": "remove",
-    "en": "Remove",
-    "ar": "إزالة"
-   },
-   {
-    "key": "quantity",
-    "en": "Quantity",
-    "ar": "الكمية"
-   },
-   {
-    "key": "subtotal",
-    "en": "Subtotal",
-    "ar": "المجموع الفرعي"
-   },
-   {
-    "key": "delivery",
-    "en": "Delivery",
-    "ar": "التوصيل"
-   },
-   {
-    "key": "free",
-    "en": "Free",
-    "ar": "مجاني"
-   },
-   {
-    "key": "total",
-    "en": "Total",
-    "ar": "الإجمالي"
-   },
-   {
-    "key": "vat_included",
-    "en": "Includes VAT (5%)",
-    "ar": "يشمل ضريبة القيمة المضافة (5%)"
-   },
-   {
-    "key": "free_delivery_over",
-    "en": "Free delivery on orders over",
-    "ar": "توصيل مجاني للطلبات فوق"
-   },
-   {
-    "key": "checkout",
-    "en": "Checkout",
-    "ar": "إتمام الطلب"
-   },
-   {
-    "key": "sign_in_to_checkout",
-    "en": "Sign in to check out",
-    "ar": "سجّل الدخول لإتمام الطلب"
-   },
-   {
-    "key": "name",
-    "en": "Full name",
-    "ar": "الاسم الكامل"
-   },
-   {
-    "key": "phone",
-    "en": "Mobile number",
-    "ar": "رقم الجوال"
-   },
-   {
-    "key": "address",
-    "en": "Delivery address",
-    "ar": "عنوان التوصيل"
-   },
-   {
-    "key": "emirate",
-    "en": "Emirate",
-    "ar": "الإمارة"
-   },
-   {
-    "key": "payment",
-    "en": "Payment",
-    "ar": "الدفع"
-   },
-   {
-    "key": "pay_card",
-    "en": "Card (online)",
-    "ar": "بطاقة (عبر الإنترنت)"
-   },
-   {
-    "key": "pay_cod",
-    "en": "Cash on delivery",
-    "ar": "الدفع عند الاستلام"
-   },
-   {
-    "key": "place_order",
-    "en": "Place order",
-    "ar": "تأكيد الطلب"
-   },
-   {
-    "key": "my_orders",
-    "en": "My orders",
-    "ar": "طلباتي"
-   },
-   {
-    "key": "order",
-    "en": "Order",
-    "ar": "طلب"
-   },
-   {
-    "key": "status",
-    "en": "Status",
-    "ar": "الحالة"
-   },
-   {
-    "key": "no_orders",
-    "en": "You have no orders yet.",
-    "ar": "لا توجد طلبات بعد."
-   },
-   {
-    "key": "thank_you",
-    "en": "Thank you for your order!",
-    "ar": "شكراً لطلبك!"
-   },
-   {
-    "key": "sign_in",
-    "en": "Sign in",
-    "ar": "تسجيل الدخول"
-   },
-   {
-    "key": "sign_out",
-    "en": "Sign out",
-    "ar": "تسجيل الخروج"
-   },
-   {
-    "key": "language",
-    "en": "العربية",
-    "ar": "English"
-   },
-   {
-    "key": "contact_whatsapp",
-    "en": "Chat on WhatsApp",
-    "ar": "تواصل عبر واتساب"
-   },
-   {
-    "key": "not_found",
-    "en": "Not found.",
-    "ar": "غير موجود."
-   },
-   {
-    "key": "status_pending",
-    "en": "Waiting for payment",
-    "ar": "بانتظار الدفع"
-   },
-   {
-    "key": "status_paid",
-    "en": "Paid",
-    "ar": "مدفوع"
-   },
-   {
-    "key": "status_cod",
-    "en": "Confirmed, pay on delivery",
-    "ar": "مؤكد، الدفع عند الاستلام"
-   },
-   {
-    "key": "status_failed",
-    "en": "Payment failed",
-    "ar": "فشل الدفع"
-   },
-   {
-    "key": "status_expired",
-    "en": "Payment not completed",
-    "ar": "لم يكتمل الدفع"
-   },
-   {
-    "key": "status_shipped",
-    "en": "Shipped",
-    "ar": "تم الشحن"
-   },
-   {
-    "key": "status_delivered",
-    "en": "Delivered",
-    "ar": "تم التوصيل"
-   },
-   {
-    "key": "status_refunded",
-    "en": "Refunded",
-    "ar": "تم الاسترداد"
-   },
-   {
-    "key": "status_partially_refunded",
-    "en": "Partly refunded",
-    "ar": "تم استرداد جزء من المبلغ"
-   },
-   {
-    "key": "status_canceled",
-    "en": "Canceled",
-    "ar": "ملغي"
-   },
-   {
-    "key": "error_cart",
-    "en": "Some items are no longer available. Please check your cart.",
-    "ar": "بعض المنتجات لم تعد متوفرة. يرجى مراجعة سلتك."
-   },
-   {
-    "key": "error_fields",
-    "en": "Please fill in your name, mobile number, address and emirate.",
-    "ar": "يرجى إدخال الاسم ورقم الجوال والعنوان والإمارة."
-   },
-   {
-    "key": "error_payment",
-    "en": "Card payment is not available right now. Please choose cash on delivery or try later.",
-    "ar": "الدفع بالبطاقة غير متاح حالياً. يرجى اختيار الدفع عند الاستلام أو المحاولة لاحقاً."
-   },
-   {
-    "key": "pay_now",
-    "en": "Pay now",
-    "ar": "ادفع الآن"
-   },
-   {
-    "key": "coupon",
-    "en": "Discount code",
-    "ar": "رمز الخصم"
-   },
-   {
-    "key": "discount",
-    "en": "Discount",
-    "ar": "الخصم"
-   },
-   {
-    "key": "error_coupon",
-    "en": "This discount code is not valid.",
-    "ar": "رمز الخصم غير صالح."
-   },
-   {
-    "key": "invoice",
-    "en": "Invoice",
-    "ar": "فاتورة"
-   },
-   {
-    "key": "tax_invoice",
-    "en": "Tax invoice",
-    "ar": "فاتورة ضريبية"
-   },
-   {
-    "key": "trn",
-    "en": "TRN",
-    "ar": "الرقم الضريبي"
-   },
-   {
-    "key": "invoice_no",
-    "en": "Invoice number",
-    "ar": "رقم الفاتورة"
-   },
-   {
-    "key": "date",
-    "en": "Date",
-    "ar": "التاريخ"
-   },
-   {
-    "key": "bill_to",
-    "en": "Bill to",
-    "ar": "فاتورة إلى"
-   },
-   {
-    "key": "item",
-    "en": "Item",
-    "ar": "البند"
-   },
-   {
-    "key": "unit_excl",
-    "en": "Unit price excl. VAT",
-    "ar": "سعر الوحدة بدون الضريبة"
-   },
-   {
-    "key": "vat",
-    "en": "VAT 5%",
-    "ar": "ضريبة 5%"
-   },
-   {
-    "key": "line_total",
-    "en": "Total incl. VAT",
-    "ar": "الإجمالي شامل الضريبة"
-   },
-   {
-    "key": "total_excl",
-    "en": "Total excl. VAT",
-    "ar": "الإجمالي بدون الضريبة"
-   },
-   {
-    "key": "view_invoice",
-    "en": "View invoice",
-    "ar": "عرض الفاتورة"
-   },
-   {
-    "key": "print",
-    "en": "Print",
-    "ar": "طباعة"
-   },
-   {
-    "key": "email_subject",
-    "en": "Your order #{id} at {store}",
-    "ar": "طلبك رقم {id} من {store}"
-   },
-   {
-    "key": "email_body",
-    "en": "Thank you for your order #{id}.\n\nTotal: AED {total} ({payment})\nDelivery to: {address}, {emirate}\n\nSee your order: {link}",
-    "ar": "شكراً لطلبك رقم {id}.\n\nالإجمالي: {total} درهم ({payment})\nالتوصيل إلى: {address}، {emirate}\n\nتفاصيل الطلب: {link}"
-   }
+  "seed": {
+    "store": [
+      {
+        "name": "Al Noor Perfumes",
+        "name_ar": "عطور النور",
+        "tagline": "Oud, musk and amber from the UAE",
+        "tagline_ar": "عود ومسك وعنبر من الإمارات",
+        "whatsapp": "+971500000000",
+        "delivery_fee": 15,
+        "free_delivery_over": 200,
+        "cod_enabled": 1,
+        "card_enabled": 1,
+        "legal_name": "Al Noor Perfumes Trading LLC",
+        "address": "Shop 12, Gold Souk, Deira, Dubai",
+        "trn": ""
+      }
+    ],
+    "products": [
+      {
+        "name": "Royal Oud",
+        "name_ar": "العود الملكي",
+        "description": "Smoky, rich oud. 50 ml eau de parfum.",
+        "description_ar": "عود غني بلمسة دخانية. 50 مل.",
+        "category": "Oud",
+        "price": 250,
+        "stock": 20,
+        "active": 1
+      },
+      {
+        "name": "White Musk",
+        "name_ar": "المسك الأبيض",
+        "description": "Soft, clean musk. 30 ml.",
+        "description_ar": "مسك ناعم ونظيف. 30 مل.",
+        "category": "Musk",
+        "price": 95,
+        "stock": 50,
+        "active": 1
+      },
+      {
+        "name": "Amber Night",
+        "name_ar": "ليلة العنبر",
+        "description": "Warm amber with vanilla. 50 ml.",
+        "description_ar": "عنبر دافئ مع الفانيليا. 50 مل.",
+        "category": "Amber",
+        "price": 140,
+        "stock": 30,
+        "active": 1
+      },
+      {
+        "name": "Oud Gift Set",
+        "name_ar": "طقم هدايا العود",
+        "description": "Three 10 ml oud oils in a gift box.",
+        "description_ar": "ثلاثة زيوت عود 10 مل في علبة هدية.",
+        "category": "Gifts",
+        "price": 320,
+        "stock": 10,
+        "active": 1
+      }
+    ],
+    "coupons": [
+      {
+        "code": "WELCOME10",
+        "kind": "percent",
+        "value": 10,
+        "min_total": 100,
+        "max_uses": 100,
+        "uses": 0,
+        "active": 1
+      }
+    ],
+    "texts": [
+      {
+        "key": "shop",
+        "en": "Shop",
+        "ar": "المتجر"
+      },
+      {
+        "key": "all",
+        "en": "All",
+        "ar": "الكل"
+      },
+      {
+        "key": "add_to_cart",
+        "en": "Add to cart",
+        "ar": "أضف إلى السلة"
+      },
+      {
+        "key": "added",
+        "en": "Added to cart",
+        "ar": "أضيف إلى السلة"
+      },
+      {
+        "key": "out_of_stock",
+        "en": "Out of stock",
+        "ar": "غير متوفر"
+      },
+      {
+        "key": "cart",
+        "en": "Cart",
+        "ar": "السلة"
+      },
+      {
+        "key": "empty_cart",
+        "en": "Your cart is empty.",
+        "ar": "سلتك فارغة."
+      },
+      {
+        "key": "continue_shopping",
+        "en": "Continue shopping",
+        "ar": "متابعة التسوق"
+      },
+      {
+        "key": "remove",
+        "en": "Remove",
+        "ar": "إزالة"
+      },
+      {
+        "key": "quantity",
+        "en": "Quantity",
+        "ar": "الكمية"
+      },
+      {
+        "key": "subtotal",
+        "en": "Subtotal",
+        "ar": "المجموع الفرعي"
+      },
+      {
+        "key": "delivery",
+        "en": "Delivery",
+        "ar": "التوصيل"
+      },
+      {
+        "key": "free",
+        "en": "Free",
+        "ar": "مجاني"
+      },
+      {
+        "key": "total",
+        "en": "Total",
+        "ar": "الإجمالي"
+      },
+      {
+        "key": "vat_included",
+        "en": "Includes VAT (5%)",
+        "ar": "يشمل ضريبة القيمة المضافة (5%)"
+      },
+      {
+        "key": "free_delivery_over",
+        "en": "Free delivery on orders over",
+        "ar": "توصيل مجاني للطلبات فوق"
+      },
+      {
+        "key": "checkout",
+        "en": "Checkout",
+        "ar": "إتمام الطلب"
+      },
+      {
+        "key": "sign_in_to_checkout",
+        "en": "Sign in to check out",
+        "ar": "سجّل الدخول لإتمام الطلب"
+      },
+      {
+        "key": "name",
+        "en": "Full name",
+        "ar": "الاسم الكامل"
+      },
+      {
+        "key": "phone",
+        "en": "Mobile number",
+        "ar": "رقم الجوال"
+      },
+      {
+        "key": "address",
+        "en": "Delivery address",
+        "ar": "عنوان التوصيل"
+      },
+      {
+        "key": "emirate",
+        "en": "Emirate",
+        "ar": "الإمارة"
+      },
+      {
+        "key": "payment",
+        "en": "Payment",
+        "ar": "الدفع"
+      },
+      {
+        "key": "pay_card",
+        "en": "Card (online)",
+        "ar": "بطاقة (عبر الإنترنت)"
+      },
+      {
+        "key": "pay_cod",
+        "en": "Cash on delivery",
+        "ar": "الدفع عند الاستلام"
+      },
+      {
+        "key": "place_order",
+        "en": "Place order",
+        "ar": "تأكيد الطلب"
+      },
+      {
+        "key": "my_orders",
+        "en": "My orders",
+        "ar": "طلباتي"
+      },
+      {
+        "key": "order",
+        "en": "Order",
+        "ar": "طلب"
+      },
+      {
+        "key": "status",
+        "en": "Status",
+        "ar": "الحالة"
+      },
+      {
+        "key": "no_orders",
+        "en": "You have no orders yet.",
+        "ar": "لا توجد طلبات بعد."
+      },
+      {
+        "key": "thank_you",
+        "en": "Thank you for your order!",
+        "ar": "شكراً لطلبك!"
+      },
+      {
+        "key": "sign_in",
+        "en": "Sign in",
+        "ar": "تسجيل الدخول"
+      },
+      {
+        "key": "sign_out",
+        "en": "Sign out",
+        "ar": "تسجيل الخروج"
+      },
+      {
+        "key": "language",
+        "en": "العربية",
+        "ar": "English"
+      },
+      {
+        "key": "contact_whatsapp",
+        "en": "Chat on WhatsApp",
+        "ar": "تواصل عبر واتساب"
+      },
+      {
+        "key": "not_found",
+        "en": "Not found.",
+        "ar": "غير موجود."
+      },
+      {
+        "key": "status_pending",
+        "en": "Waiting for payment",
+        "ar": "بانتظار الدفع"
+      },
+      {
+        "key": "status_paid",
+        "en": "Paid",
+        "ar": "مدفوع"
+      },
+      {
+        "key": "status_cod",
+        "en": "Confirmed, pay on delivery",
+        "ar": "مؤكد، الدفع عند الاستلام"
+      },
+      {
+        "key": "status_failed",
+        "en": "Payment failed",
+        "ar": "فشل الدفع"
+      },
+      {
+        "key": "status_expired",
+        "en": "Payment not completed",
+        "ar": "لم يكتمل الدفع"
+      },
+      {
+        "key": "status_shipped",
+        "en": "Shipped",
+        "ar": "تم الشحن"
+      },
+      {
+        "key": "status_delivered",
+        "en": "Delivered",
+        "ar": "تم التوصيل"
+      },
+      {
+        "key": "status_refunded",
+        "en": "Refunded",
+        "ar": "تم الاسترداد"
+      },
+      {
+        "key": "status_partially_refunded",
+        "en": "Partly refunded",
+        "ar": "تم استرداد جزء من المبلغ"
+      },
+      {
+        "key": "status_canceled",
+        "en": "Canceled",
+        "ar": "ملغي"
+      },
+      {
+        "key": "error_cart",
+        "en": "Some items are no longer available. Please check your cart.",
+        "ar": "بعض المنتجات لم تعد متوفرة. يرجى مراجعة سلتك."
+      },
+      {
+        "key": "error_fields",
+        "en": "Please fill in your name, mobile number, address and emirate.",
+        "ar": "يرجى إدخال الاسم ورقم الجوال والعنوان والإمارة."
+      },
+      {
+        "key": "error_payment",
+        "en": "Card payment is not available right now. Please choose cash on delivery or try later.",
+        "ar": "الدفع بالبطاقة غير متاح حالياً. يرجى اختيار الدفع عند الاستلام أو المحاولة لاحقاً."
+      },
+      {
+        "key": "pay_now",
+        "en": "Pay now",
+        "ar": "ادفع الآن"
+      },
+      {
+        "key": "coupon",
+        "en": "Discount code",
+        "ar": "رمز الخصم"
+      },
+      {
+        "key": "discount",
+        "en": "Discount",
+        "ar": "الخصم"
+      },
+      {
+        "key": "error_coupon",
+        "en": "This discount code is not valid.",
+        "ar": "رمز الخصم غير صالح."
+      },
+      {
+        "key": "invoice",
+        "en": "Invoice",
+        "ar": "فاتورة"
+      },
+      {
+        "key": "tax_invoice",
+        "en": "Tax invoice",
+        "ar": "فاتورة ضريبية"
+      },
+      {
+        "key": "trn",
+        "en": "TRN",
+        "ar": "الرقم الضريبي"
+      },
+      {
+        "key": "invoice_no",
+        "en": "Invoice number",
+        "ar": "رقم الفاتورة"
+      },
+      {
+        "key": "date",
+        "en": "Date",
+        "ar": "التاريخ"
+      },
+      {
+        "key": "bill_to",
+        "en": "Bill to",
+        "ar": "فاتورة إلى"
+      },
+      {
+        "key": "item",
+        "en": "Item",
+        "ar": "البند"
+      },
+      {
+        "key": "unit_excl",
+        "en": "Unit price excl. VAT",
+        "ar": "سعر الوحدة بدون الضريبة"
+      },
+      {
+        "key": "vat",
+        "en": "VAT 5%",
+        "ar": "ضريبة 5%"
+      },
+      {
+        "key": "line_total",
+        "en": "Total incl. VAT",
+        "ar": "الإجمالي شامل الضريبة"
+      },
+      {
+        "key": "total_excl",
+        "en": "Total excl. VAT",
+        "ar": "الإجمالي بدون الضريبة"
+      },
+      {
+        "key": "view_invoice",
+        "en": "View invoice",
+        "ar": "عرض الفاتورة"
+      },
+      {
+        "key": "print",
+        "en": "Print",
+        "ar": "طباعة"
+      },
+      {
+        "key": "email_subject",
+        "en": "Your order #{id} at {store}",
+        "ar": "طلبك رقم {id} من {store}"
+      },
+      {
+        "key": "email_body",
+        "en": "Thank you for your order #{id}.\n\nTotal: AED {total} ({payment})\nDelivery to: {address}, {emirate}\n\nSee your order: {link}",
+        "ar": "شكراً لطلبك رقم {id}.\n\nالإجمالي: {total} درهم ({payment})\nالتوصيل إلى: {address}، {emirate}\n\nتفاصيل الطلب: {link}"
+      }
+    ]
+  },
+  "templates": {
+    "top": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.storeName}}</title><style>\n:root{--bg:#fbfaf8;--fg:#1d1b18;--muted:#6b665e;--card:#fff;--line:#e8e4dc;--accent:#8a5a14;--accent-fg:#fff}\n@media (prefers-color-scheme:dark){:root{--bg:#151412;--fg:#f2efe9;--muted:#a59f95;--card:#1f1d1a;--line:#34302a;--accent:#d9a44e;--accent-fg:#1d1b18}}\n*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,\"Segoe UI\",Tahoma,sans-serif;background:var(--bg);color:var(--fg)}\na{color:inherit}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1}\n.brand{font-weight:700;font-size:18px;text-decoration:none}nav{display:flex;gap:14px;align-items:center;font-size:14px;flex-wrap:wrap}\nmain{max-width:1000px;margin:0 auto;padding:16px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}\n.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;display:block}\n.card .img{aspect-ratio:1/1;background:var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}\n.card img,.photo img{width:100%;height:100%;object-fit:cover;display:block}.card .body{padding:10px}.price{font-weight:700}\n.muted{color:var(--muted);font-size:14px}.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}.chip{padding:4px 12px;border:1px solid var(--line);border-radius:99px;text-decoration:none;font-size:14px}\n.chip.on{background:var(--fg);color:var(--bg)}button,.btn{display:inline-block;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}\nbutton.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}\nlabel{display:block;margin:12px 0 4px;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0}.total{font-weight:700;border-top:1px solid var(--line);padding-top:10px}\n.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}.error{color:#c62828}.ok{color:#2e7d32}\n.photo{aspect-ratio:1/1;background:var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}\n.product{display:grid;grid-template-columns:1fr;gap:16px}@media(min-width:720px){.product{grid-template-columns:1fr 1fr}}\n.qty{display:flex;gap:8px;align-items:center}.qty input{width:70px}.wa{position:fixed;bottom:16px;inset-inline-end:16px;background:#25d366;color:#fff;border-radius:99px;padding:10px 16px;text-decoration:none;font-weight:600}\n</style></head><body>\n<header><a class=\"brand\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.storeName}}</a>\n<nav><a href=\"/cart{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.cart}} (<span id=\"cart-count\">0</span>)</a>\n{{if .user}}<a href=\"/orders{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.my_orders}}</a><form method=\"post\" action=\"/_rx/auth/logout\" style=\"display:inline\"><button class=\"secondary\" style=\"padding:4px 10px\">{{.t.sign_out}}</button></form>\n{{else}}<a href=\"/_rx/auth/login?next={{.path}}\">{{.t.sign_in}}</a>{{end}}\n<a href=\"{{.path}}?lang={{.other}}\">{{.t.language}}</a></nav></header>\n<script>\nfunction rxCart(){try{return JSON.parse(localStorage.getItem('cart')||'[]')}catch(e){return []}}\nfunction rxSave(c){try{localStorage.setItem('cart',JSON.stringify(c))}catch(e){}rxCount()}\nfunction rxCount(){var n=0;rxCart().forEach(function(i){n+=i.qty});var el=document.getElementById('cart-count');if(el)el.textContent=n}\ndocument.addEventListener('DOMContentLoaded',rxCount);\n</script><main>",
+    "bottom": "</main>{{if .wa}}<a class=\"wa\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}</body></html>",
+    "home": "{{template \"top\" .}}<h1 style=\"margin:8px 0 0\">{{.storeName}}</h1>{{with .tagline}}<p class=\"muted\">{{.}}</p>{{end}}\n<div class=\"chips\"><a class=\"chip{{if not .category}} on{{end}}\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.all}}</a>{{range .categories}}<a class=\"chip{{if eq . $.category}} on{{end}}\" href=\"/?c={{.}}{{if eq $.lang \"ar\"}}&lang=ar{{end}}\">{{.}}</a>{{end}}</div>\n<div class=\"grid\">{{range .products}}<a class=\"card\" href=\"/p/{{.id}}{{if eq $.lang \"ar\"}}?lang=ar{{end}}\"><div class=\"img\">{{if .image}}<img src=\"{{.image}}?w=480\" alt=\"{{.name}}\" loading=\"lazy\">{{else}}{{.name}}{{end}}</div>\n<div class=\"body\"><div>{{.name}}</div><div class=\"price\">AED {{.price}}</div>{{if le .stock 0}}<div class=\"muted\">{{$.t.out_of_stock}}</div>{{end}}</div></a>{{end}}</div>\n{{template \"bottom\" .}}",
+    "product": "{{template \"top\" .}}{{with .product}}<div class=\"product\"><div class=\"photo\">{{if .image}}<img src=\"{{.image}}?w=960\" alt=\"{{.name}}\">{{else}}{{.name}}{{end}}</div>\n<div><h1 style=\"margin-top:0\">{{.name}}</h1><p class=\"price\" style=\"font-size:22px\">AED {{.price}}</p><p class=\"muted\">{{$.t.vat_included}}</p><p>{{.description}}</p>\n{{if gt .stock 0}}<div class=\"qty\"><label for=\"qty\" style=\"margin:0\">{{$.t.quantity}}</label><input id=\"qty\" type=\"number\" min=\"1\" max=\"{{.stock}}\" value=\"1\"></div>\n<p><button id=\"add\" data-id=\"{{.id}}\" data-max=\"{{.stock}}\">{{$.t.add_to_cart}}</button> <span id=\"added\" class=\"ok\" hidden>{{$.t.added}}</span></p>\n{{else}}<p class=\"error\">{{$.t.out_of_stock}}</p>{{end}}</div></div>{{end}}\n<script>\nvar b=document.getElementById('add');if(b){b.addEventListener('click',function(){var id=Number(b.dataset.id),max=Number(b.dataset.max);\nvar q=Math.max(1,Math.min(max,Math.floor(Number(document.getElementById('qty').value)||1)));var c=rxCart(),f=null;\nc.forEach(function(i){if(i.id===id)f=i});if(f){f.qty=Math.min(max,f.qty+q)}else{c.push({id:id,qty:q})}rxSave(c);document.getElementById('added').hidden=false})}\n</script>{{template \"bottom\" .}}",
+    "cart": "{{template \"top\" .}}<h1>{{.t.cart}}</h1>{{with .error}}<p class=\"error\">{{.}}</p>{{end}}\n<div id=\"empty\" class=\"panel\" hidden><p>{{.t.empty_cart}}</p><a class=\"btn\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.continue_shopping}}</a></div>\n<div id=\"full\" hidden><div class=\"panel\" id=\"lines\"></div>\n<div class=\"panel\"><div class=\"row\"><span>{{.t.subtotal}}</span><span>AED <span id=\"subtotal\"></span></span></div>\n<div class=\"row\"><span>{{.t.delivery}}</span><span id=\"delivery\"></span></div><div class=\"row total\"><span>{{.t.total}}</span><span>AED <span id=\"total\"></span></span></div>\n<p class=\"muted\">{{.t.vat_included}} · {{.t.free_delivery_over}} AED {{.store.free_delivery_over}}</p></div>\n<form class=\"panel\" method=\"post\" action=\"/checkout\"><h2 style=\"margin-top:0\">{{.t.checkout}}</h2>\n<input type=\"hidden\" name=\"cart\" id=\"cart-field\"><input type=\"hidden\" name=\"lang\" value=\"{{.lang}}\">\n{{if not .user}}<p><a class=\"btn\" href=\"/_rx/auth/login?next=/cart{{if eq .lang \"ar\"}}%3Flang%3Dar{{end}}\">{{.t.sign_in_to_checkout}}</a></p>{{else}}\n<label for=\"name\">{{.t.name}}</label><input id=\"name\" name=\"name\" autocomplete=\"name\" required value=\"{{.user.name}}\">\n<label for=\"phone\">{{.t.phone}}</label><input id=\"phone\" name=\"phone\" type=\"tel\" autocomplete=\"tel\" required value=\"{{.user.phone}}\">\n<label for=\"address\">{{.t.address}}</label><textarea id=\"address\" name=\"address\" rows=\"2\" autocomplete=\"street-address\" required></textarea>\n<label for=\"emirate\">{{.t.emirate}}</label><select id=\"emirate\" name=\"emirate\" required><option>Dubai</option><option>Abu Dhabi</option><option>Sharjah</option><option>Ajman</option><option>Umm Al Quwain</option><option>Ras Al Khaimah</option><option>Fujairah</option></select>\n<label for=\"coupon\">{{.t.coupon}}</label><input id=\"coupon\" name=\"coupon\" autocomplete=\"off\" style=\"text-transform:uppercase\">\n<label>{{.t.payment}}</label>{{if .store.card_enabled}}<label style=\"display:flex;gap:8px;margin:6px 0\"><input type=\"radio\" name=\"payment\" value=\"card\" checked style=\"width:auto\"> {{.t.pay_card}}</label>{{end}}\n{{if .store.cod_enabled}}<label style=\"display:flex;gap:8px;margin:6px 0\"><input type=\"radio\" name=\"payment\" value=\"cod\"{{if not .store.card_enabled}} checked{{end}} style=\"width:auto\"> {{.t.pay_cod}}</label>{{end}}\n<p><button>{{.t.place_order}}</button></p>{{end}}</form></div>\n<script>\n(function(){var c=rxCart();if(!c.length){document.getElementById('empty').hidden=false;return}\nfetch('/api/products?ids='+c.map(function(i){return i.id}).join(',')+'&lang={{.lang}}').then(function(r){return r.json()}).then(function(d){\nvar by={};d.products.forEach(function(p){by[p.id]=p});c=c.filter(function(i){return by[i.id]&&by[i.id].stock>0});\nc.forEach(function(i){i.qty=Math.min(i.qty,by[i.id].stock)});rxSave(c);if(!c.length){document.getElementById('empty').hidden=false;return}\nvar box=document.getElementById('lines');box.textContent='';var sub=0;\nc.forEach(function(i){var p=by[i.id];sub+=p.priceNum*i.qty;var row=document.createElement('div');row.className='row';\nvar left=document.createElement('span');left.textContent=p.name+' × '+i.qty;var right=document.createElement('span');right.textContent='AED '+(p.priceNum*i.qty).toFixed(2)+' ';\nvar rm=document.createElement('button');rm.className='secondary';rm.style.padding='2px 8px';rm.textContent='{{.t.remove}}';\nrm.onclick=function(){rxSave(rxCart().filter(function(x){return x.id!==i.id}));location.reload()};right.appendChild(rm);row.appendChild(left);row.appendChild(right);box.appendChild(row)});\nvar del=sub>=d.free_delivery_over?0:d.delivery_fee;document.getElementById('subtotal').textContent=sub.toFixed(2);\ndocument.getElementById('delivery').textContent=del?'AED '+del.toFixed(2):'{{.t.free}}';document.getElementById('total').textContent=(sub+del).toFixed(2);\ndocument.getElementById('cart-field').value=JSON.stringify(c);document.getElementById('full').hidden=false})})();\n</script>{{template \"bottom\" .}}",
+    "orders": "{{template \"top\" .}}<h1>{{.t.my_orders}}</h1>{{if .orders}}<div class=\"panel\">{{range .orders}}<div class=\"row\"><a href=\"/orders/{{.id}}{{if eq $.lang \"ar\"}}?lang=ar{{end}}\">{{$.t.order}} #{{.id}}</a><span class=\"muted\">{{.date}}</span><span>{{.status}}</span><span>AED {{.total}}</span></div>{{end}}</div>\n{{else}}<p>{{.t.no_orders}}</p>{{end}}{{template \"bottom\" .}}",
+    "order": "{{template \"top\" .}}{{with .order}}{{if $.placed}}<p class=\"ok\" style=\"font-size:18px\">{{$.t.thank_you}}</p><script>try{localStorage.removeItem('cart')}catch(e){}</script>{{end}}\n<h1>{{$.t.order}} #{{.id}}</h1><p>{{$.t.status}}: <strong>{{.statusText}}</strong></p>\n{{if eq .status \"pending\"}}<form method=\"post\" action=\"/orders/{{.id}}/pay\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\"><button>{{$.t.pay_now}}</button></form>{{end}}\n<div class=\"panel\">{{range .lines}}<div class=\"row\"><span>{{.name}} × {{.qty}}</span><span>AED {{.line}}</span></div>{{end}}\n{{if .discount}}<div class=\"row\"><span>{{$.t.discount}} ({{.coupon}})</span><span>− AED {{.discount}}</span></div>{{end}}\n<div class=\"row\"><span>{{$.t.delivery}}</span><span>{{if .delivery}}AED {{.delivery}}{{else}}{{$.t.free}}{{end}}</span></div>\n<div class=\"row total\"><span>{{$.t.total}}</span><span>AED {{.total}}</span></div><p class=\"muted\">{{$.t.vat_included}}: AED {{.vat}}</p>{{if ne .status \"pending\"}}<p><a href=\"/orders/{{.id}}/invoice{{if eq $.lang \"ar\"}}?lang=ar{{end}}\">{{$.t.view_invoice}}</a></p>{{end}}</div>\n<div class=\"panel\"><p>{{.name}} · {{.phone}}</p><p class=\"muted\">{{.address}}, {{.emirate}}</p><p class=\"muted\">{{if eq .method \"cod\"}}{{$.t.pay_cod}}{{else}}{{$.t.pay_card}}{{end}}</p></div>{{end}}\n{{template \"bottom\" .}}",
+    "invoice": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.inv.title}} #{{.inv.id}}</title><style>body{font:14px/1.5 system-ui,Tahoma,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#111;background:#fff}\nh1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{padding:8px 6px;border-bottom:1px solid #ddd;text-align:start}td.n,th.n{text-align:end}\n.head{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}.muted{color:#555}.tot td{font-weight:700}@media print{.noprint{display:none}}</style></head><body>\n<div class=\"head\"><div><h1>{{.inv.title}}</h1><div>{{.t.invoice_no}}: {{.inv.id}}</div><div>{{.t.date}}: {{.inv.date}}</div></div>\n<div><strong>{{.inv.seller}}</strong><div class=\"muted\">{{.inv.sellerAddress}}</div>{{if .inv.trn}}<div>{{.t.trn}}: {{.inv.trn}}</div>{{end}}</div></div>\n<p><strong>{{.t.bill_to}}:</strong> {{.inv.buyer}}, {{.inv.buyerAddress}} · {{.inv.phone}}</p>\n<table><thead><tr><th>{{.t.item}}</th><th class=\"n\">{{.t.quantity}}</th><th class=\"n\">{{.t.unit_excl}}</th><th class=\"n\">{{.t.vat}}</th><th class=\"n\">{{.t.line_total}}</th></tr></thead><tbody>\n{{range .inv.rows}}<tr><td>{{.name}}</td><td class=\"n\">{{.qty}}</td><td class=\"n\">{{.unit}}</td><td class=\"n\">{{.vat}}</td><td class=\"n\">{{.total}}</td></tr>{{end}}\n<tr><td colspan=\"4\">{{.t.total_excl}}</td><td class=\"n\">AED {{.inv.net}}</td></tr><tr><td colspan=\"4\">{{.t.vat}}</td><td class=\"n\">AED {{.inv.vat}}</td></tr>\n<tr class=\"tot\"><td colspan=\"4\">{{.t.total}}</td><td class=\"n\">AED {{.inv.total}}</td></tr></tbody></table>\n<p class=\"noprint\"><button onclick=\"window.print()\">{{.t.print}}</button></p></body></html>",
+    "not_found": "{{template \"top\" .}}<p>{{.t.not_found}}</p>{{template \"bottom\" .}}"
+  },
+  "scripts": {
+    "home": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /?c=Category&lang=ar\nfunction handle(req) {\n  const lang = langOf(req);\n  const c = req.query.c || '';\n  const rows = c ? db.query('SELECT * FROM products WHERE active = 1 AND category = ? ORDER BY id', c)\n                 : db.query('SELECT * FROM products WHERE active = 1 ORDER BY id');\n  const cats = db.query('SELECT DISTINCT category FROM products WHERE active = 1 AND category IS NOT NULL AND category != \\'\\' ORDER BY category');\n  return {template: 'home', data: page(req, {products: rows.map(p => localize(p, lang)), categories: cats.map(r => r.category), category: c})};\n}",
+    "product": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /p/:id\nfunction handle(req) {\n  const lang = langOf(req);\n  const rows = db.query('SELECT * FROM products WHERE id = ? AND active = 1', Number(req.params.id));\n  if (rows.length === 0) return {template: 'not_found', data: page(req, {}), status: 404};\n  return {template: 'product', data: page(req, {product: localize(rows[0], lang)})};\n}",
+    "cart": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /cart: the cart lives in the browser; this page shows it and the checkout form.\nfunction handle(req) {\n  return {template: 'cart', data: page(req, {error: req.query.error ? texts(langOf(req))[req.query.error] : ''})};\n}",
+    "api_products": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /api/products?ids=1,2,3 -> current names and prices for the cart page.\nfunction handle(req) {\n  const lang = langOf(req);\n  const ids = (req.query.ids || '').split(',').map(Number).filter(n => n > 0).slice(0, 50);\n  const out = [];\n  for (const id of ids) {\n    const r = db.query('SELECT * FROM products WHERE id = ? AND active = 1', id);\n    if (r.length) out.push(localize(r[0], lang));\n  }\n  const s = store();\n  return {json: {products: out, delivery_fee: s.delivery_fee, free_delivery_over: s.free_delivery_over}};\n}",
+    "checkout": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// POST /checkout  form: cart (JSON [{id, qty}]), name, phone, address, emirate, payment (card|cod), lang\n// Prices always come from the database, never from the browser.\nfunction handle(req) {\n  const lang = req.form.lang === 'ar' ? 'ar' : 'en';\n  const q = lang === 'ar' ? '&lang=ar' : '';\n  if (!req.user) return {redirect: '/_rx/auth/login?next=' + encodeURIComponent('/cart' + (lang === 'ar' ? '?lang=ar' : ''))};\n  const f = req.form;\n  const name = (f.name || '').trim(), phone = (f.phone || '').trim(), address = (f.address || '').trim(), emirate = (f.emirate || '').trim();\n  if (!name || !phone || !address || !emirate) return {redirect: '/cart?error=error_fields' + q};\n  let cart = [];\n  try { cart = JSON.parse(f.cart || '[]'); } catch (e) { cart = []; }\n  if (!Array.isArray(cart) || cart.length === 0 || cart.length > 50) return {redirect: '/cart?error=error_cart' + q};\n  const s = store();\n  const lines = [];\n  let subtotal = 0;\n  for (const c of cart) {\n    const qty = Math.floor(Number(c.qty));\n    const p = db.query('SELECT * FROM products WHERE id = ? AND active = 1', Number(c.id))[0];\n    if (!p || !(qty >= 1 && qty <= 99) || p.stock < qty) return {redirect: '/cart?error=error_cart' + q};\n    lines.push({id: p.id, name: p.name, price: p.price, qty: qty});\n    subtotal += p.price * qty;\n  }\n  // Discount code: kind 'percent' (value 10 = 10%) or 'amount' (AED off the products).\n  let discount = 0, coupon = '';\n  const code = (f.coupon || '').trim().toUpperCase();\n  if (code) {\n    const c = db.query(\"SELECT * FROM coupons WHERE upper(code) = ? AND active = 1\", code)[0];\n    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);\n    if (!c || (c.expires && c.expires < now) || (c.max_uses && c.uses >= c.max_uses) || (c.min_total && subtotal < c.min_total)) {\n      return {redirect: '/cart?error=error_coupon' + q};\n    }\n    discount = c.kind === 'percent' ? subtotal * c.value / 100 : c.value;\n    discount = Math.min(subtotal, Math.round(discount * 100) / 100);\n    coupon = c.code;\n  }\n  const delivery = subtotal >= s.free_delivery_over ? 0 : s.delivery_fee;\n  const total = Math.round((subtotal - discount + delivery) * 100) / 100;\n  const vat = Math.round(total * 5 / 105 * 100) / 100; // prices include 5% VAT\n  const method = f.payment === 'card' && s.card_enabled ? 'card' : 'cod';\n  if (method === 'cod' && !s.cod_enabled) return {redirect: '/cart?error=error_payment' + q};\n  const o = db.exec(`INSERT INTO orders (user_id, customer_name, phone, email, address, emirate, payment_method, status, items, subtotal, delivery, vat, total, lang, discount, coupon)\n    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,\n    req.user.id, name, phone, req.user.email || '', address, emirate, method, method === 'cod' ? 'cod' : 'pending', JSON.stringify(lines),\n    subtotal, delivery, vat, total, lang, discount, coupon);\n  const id = o.lastInsertId;\n  if (coupon) db.exec('UPDATE coupons SET uses = coalesce(uses, 0) + 1 WHERE code = ?', coupon);\n  for (const l of lines) db.exec('UPDATE products SET stock = stock - ? WHERE id = ?', l.qty, l.id);\n  if (method === 'cod') {\n    const o = db.query('SELECT * FROM orders WHERE id = ?', id)[0];\n    confirmOrder(o, req.origin + '/orders/' + id);\n    try {\n      notify.owner({subject: 'New order #' + id + ' (cash on delivery): AED ' + money(total),\n        text: lines.map(l => l.qty + ' x ' + l.name).join('\\n') + '\\n\\nCustomer: ' + name + ', ' + phone + '\\nAddress: ' + address + ', ' + emirate});\n    } catch (e) { console.warn('owner not notified: ' + e); }\n    return {redirect: '/orders/' + id + '?placed=1' + q};\n  }\n  let items = lines.map(l => ({name: l.name, price: l.price, quantity: l.qty}));\n  if (delivery > 0) items.push({name: 'Delivery', price: delivery, quantity: 1});\n  if (discount > 0) items = [{name: 'Order #' + id + ' (' + coupon + ' applied)', price: total, quantity: 1}];\n  try {\n    const pay = payments.checkout({items: items, reference: 'order-' + id, customer_email: req.user.email || '',\n      success_path: '/orders/' + id + '?placed=1' + q, cancel_path: '/orders/' + id + (lang === 'ar' ? '?lang=ar' : '')});\n    return {redirect: pay.url};\n  } catch (e) {\n    console.error('checkout failed for order ' + id + ': ' + e);\n    db.exec(\"UPDATE orders SET status = 'failed' WHERE id = ?\", id);\n    for (const l of lines) db.exec('UPDATE products SET stock = stock + ? WHERE id = ?', l.qty, l.id);\n    return {redirect: '/cart?error=error_payment' + q};\n  }\n}",
+    "pay_again": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// POST /orders/:id/pay: retry a card payment that was not completed.\nfunction handle(req) {\n  const lang = req.form.lang === 'ar' ? 'ar' : 'en';\n  const o = db.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!o || o.status !== 'pending') return {redirect: '/orders/' + req.params.id + (lang === 'ar' ? '?lang=ar' : '')};\n  let items = JSON.parse(o.items).map(l => ({name: l.name, price: l.price, quantity: l.qty}));\n  if (o.delivery > 0) items.push({name: 'Delivery', price: o.delivery, quantity: 1});\n  if (o.discount > 0) items = [{name: 'Order #' + o.id + ' (' + o.coupon + ' applied)', price: o.total, quantity: 1}];\n  const q = lang === 'ar' ? '&lang=ar' : '';\n  const pay = payments.checkout({items: items, reference: 'order-' + o.id, customer_email: o.email,\n    success_path: '/orders/' + o.id + '?placed=1' + q, cancel_path: '/orders/' + o.id + (lang === 'ar' ? '?lang=ar' : '')});\n  return {redirect: pay.url};\n}",
+    "orders": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /orders (signed in)\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang);\n  const rows = db.query('SELECT id, status, total, created_at FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT 100', req.user.id);\n  return {template: 'orders', data: page(req, {orders: rows.map(o => ({id: o.id, total: money(o.total), date: o.created_at.slice(0, 10), status: t['status_' + o.status] || o.status}))})};\n}",
+    "order": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /orders/:id (signed in; only the visitor's own orders)\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang);\n  const o = db.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!o) return {template: 'not_found', data: page(req, {}), status: 404};\n  const lines = JSON.parse(o.items).map(l => ({name: l.name, qty: l.qty, price: money(l.price), line: money(l.price * l.qty)}));\n  return {template: 'order', data: page(req, {order: {id: o.id, status: o.status, statusText: t['status_' + o.status] || o.status, method: o.payment_method,\n    subtotal: money(o.subtotal), delivery: o.delivery > 0 ? money(o.delivery) : '', vat: money(o.vat), total: money(o.total),\n    discount: o.discount > 0 ? money(o.discount) : '', coupon: o.coupon,\n    name: o.customer_name, phone: o.phone, address: o.address, emirate: o.emirate, lines: lines}, placed: req.query.placed === '1'})};\n}",
+    "invoice": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /orders/:id/invoice (signed in; own orders). Prices include 5% VAT, so each line is split into its parts.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), s = store();\n  const o = db.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!o || o.status === 'pending') return {template: 'not_found', data: page(req, {}), status: 404};\n  const split = (gross) => { const net = Math.round(gross / 1.05 * 100) / 100; return {net: net, vat: Math.round((gross - net) * 100) / 100}; };\n  const rows = JSON.parse(o.items).map(l => {\n    const unit = split(l.price), line = split(l.price * l.qty);\n    return {name: l.name, qty: l.qty, unit: money(unit.net), vat: money(line.vat), total: money(l.price * l.qty)};\n  });\n  if (o.discount > 0) { const d = split(o.discount); rows.push({name: t.discount + ' (' + o.coupon + ')', qty: 1, unit: '-' + money(d.net), vat: '-' + money(d.vat), total: '-' + money(o.discount)}); }\n  if (o.delivery > 0) { const d = split(o.delivery); rows.push({name: t.delivery, qty: 1, unit: money(d.net), vat: money(d.vat), total: money(o.delivery)}); }\n  const totals = split(o.total);\n  return {template: 'invoice', data: page(req, {inv: {id: o.id, date: o.created_at.slice(0, 10), title: s.trn ? t.tax_invoice : t.invoice,\n    seller: s.legal_name || s.name, sellerAddress: s.address || '', trn: s.trn || '', buyer: o.customer_name, buyerAddress: o.address + ', ' + o.emirate,\n    phone: o.phone, rows: rows, net: money(totals.net), vat: money(totals.vat), total: money(o.total)}})};\n}",
+    "on_payment": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// Runs when a card payment is paid, fails or expires. req.body: {event, reference, amount, ...}\nfunction handle(req) {\n  const id = Number(String(req.body.reference).replace('order-', ''));\n  const o = db.query('SELECT * FROM orders WHERE id = ?', id)[0];\n  if (!o) return {text: 'ignored'};\n  if (req.body.event === 'refunded' || req.body.event === 'partially_refunded') {\n    // A refund made in Stripe: record it on the order; stock is the owner's call.\n    db.exec('UPDATE orders SET status = ? WHERE id = ?', req.body.event, id);\n    console.log('order ' + id + ' ' + req.body.event + ' ' + req.body.refunded_amount);\n    return {text: 'ok'};\n  }\n  if (o.status !== 'pending') return {text: 'ignored'};\n  if (req.body.event === 'paid') {\n    db.exec(\"UPDATE orders SET status = 'paid' WHERE id = ?\", id);\n    confirmOrder(db.query('SELECT * FROM orders WHERE id = ?', id)[0], req.origin + '/orders/' + id);\n  } else {\n    // Failed or expired: give the stock back. The visitor can still pay again from the order page while it is pending.\n    db.exec('UPDATE orders SET status = ? WHERE id = ?', req.body.event, id);\n    for (const l of JSON.parse(o.items)) db.exec('UPDATE products SET stock = stock + ? WHERE id = ?', l.qty, l.id);\n  }\n  console.log('order ' + id + ' payment ' + req.body.event);\n  return {text: 'ok'};\n}"
+  },
+  "on_payment": "on_payment",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "script": "home"
+    },
+    {
+      "method": "GET",
+      "path": "/p/:id",
+      "script": "product"
+    },
+    {
+      "method": "GET",
+      "path": "/cart",
+      "script": "cart"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products",
+      "script": "api_products"
+    },
+    {
+      "method": "POST",
+      "path": "/checkout",
+      "script": "checkout"
+    },
+    {
+      "method": "GET",
+      "path": "/orders",
+      "script": "orders",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/:id",
+      "script": "order",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/:id/pay",
+      "script": "pay_again",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/:id/invoice",
+      "script": "invoice",
+      "auth": "user"
+    }
   ]
- },
- "templates": {
-  "top": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.storeName}}</title><style>\n:root{--bg:#fbfaf8;--fg:#1d1b18;--muted:#6b665e;--card:#fff;--line:#e8e4dc;--accent:#8a5a14;--accent-fg:#fff}\n@media (prefers-color-scheme:dark){:root{--bg:#151412;--fg:#f2efe9;--muted:#a59f95;--card:#1f1d1a;--line:#34302a;--accent:#d9a44e;--accent-fg:#1d1b18}}\n*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,\"Segoe UI\",Tahoma,sans-serif;background:var(--bg);color:var(--fg)}\na{color:inherit}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1}\n.brand{font-weight:700;font-size:18px;text-decoration:none}nav{display:flex;gap:14px;align-items:center;font-size:14px;flex-wrap:wrap}\nmain{max-width:1000px;margin:0 auto;padding:16px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}\n.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;display:block}\n.card .img{aspect-ratio:1/1;background:var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}\n.card img,.photo img{width:100%;height:100%;object-fit:cover;display:block}.card .body{padding:10px}.price{font-weight:700}\n.muted{color:var(--muted);font-size:14px}.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}.chip{padding:4px 12px;border:1px solid var(--line);border-radius:99px;text-decoration:none;font-size:14px}\n.chip.on{background:var(--fg);color:var(--bg)}button,.btn{display:inline-block;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}\nbutton.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}\nlabel{display:block;margin:12px 0 4px;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0}.total{font-weight:700;border-top:1px solid var(--line);padding-top:10px}\n.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}.error{color:#c62828}.ok{color:#2e7d32}\n.photo{aspect-ratio:1/1;background:var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}\n.product{display:grid;grid-template-columns:1fr;gap:16px}@media(min-width:720px){.product{grid-template-columns:1fr 1fr}}\n.qty{display:flex;gap:8px;align-items:center}.qty input{width:70px}.wa{position:fixed;bottom:16px;inset-inline-end:16px;background:#25d366;color:#fff;border-radius:99px;padding:10px 16px;text-decoration:none;font-weight:600}\n</style></head><body>\n<header><a class=\"brand\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.storeName}}</a>\n<nav><a href=\"/cart{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.cart}} (<span id=\"cart-count\">0</span>)</a>\n{{if .user}}<a href=\"/orders{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.my_orders}}</a><form method=\"post\" action=\"/_rx/auth/logout\" style=\"display:inline\"><button class=\"secondary\" style=\"padding:4px 10px\">{{.t.sign_out}}</button></form>\n{{else}}<a href=\"/_rx/auth/login?next={{.path}}\">{{.t.sign_in}}</a>{{end}}\n<a href=\"{{.path}}?lang={{.other}}\">{{.t.language}}</a></nav></header>\n<script>\nfunction rxCart(){try{return JSON.parse(localStorage.getItem('cart')||'[]')}catch(e){return []}}\nfunction rxSave(c){try{localStorage.setItem('cart',JSON.stringify(c))}catch(e){}rxCount()}\nfunction rxCount(){var n=0;rxCart().forEach(function(i){n+=i.qty});var el=document.getElementById('cart-count');if(el)el.textContent=n}\ndocument.addEventListener('DOMContentLoaded',rxCount);\n</script><main>",
-  "bottom": "</main>{{if .wa}}<a class=\"wa\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}</body></html>",
-  "home": "{{template \"top\" .}}<h1 style=\"margin:8px 0 0\">{{.storeName}}</h1>{{with .tagline}}<p class=\"muted\">{{.}}</p>{{end}}\n<div class=\"chips\"><a class=\"chip{{if not .category}} on{{end}}\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.all}}</a>{{range .categories}}<a class=\"chip{{if eq . $.category}} on{{end}}\" href=\"/?c={{.}}{{if eq $.lang \"ar\"}}&lang=ar{{end}}\">{{.}}</a>{{end}}</div>\n<div class=\"grid\">{{range .products}}<a class=\"card\" href=\"/p/{{.id}}{{if eq $.lang \"ar\"}}?lang=ar{{end}}\"><div class=\"img\">{{if .image}}<img src=\"{{.image}}?w=480\" alt=\"{{.name}}\" loading=\"lazy\">{{else}}{{.name}}{{end}}</div>\n<div class=\"body\"><div>{{.name}}</div><div class=\"price\">AED {{.price}}</div>{{if le .stock 0}}<div class=\"muted\">{{$.t.out_of_stock}}</div>{{end}}</div></a>{{end}}</div>\n{{template \"bottom\" .}}",
-  "product": "{{template \"top\" .}}{{with .product}}<div class=\"product\"><div class=\"photo\">{{if .image}}<img src=\"{{.image}}?w=960\" alt=\"{{.name}}\">{{else}}{{.name}}{{end}}</div>\n<div><h1 style=\"margin-top:0\">{{.name}}</h1><p class=\"price\" style=\"font-size:22px\">AED {{.price}}</p><p class=\"muted\">{{$.t.vat_included}}</p><p>{{.description}}</p>\n{{if gt .stock 0}}<div class=\"qty\"><label for=\"qty\" style=\"margin:0\">{{$.t.quantity}}</label><input id=\"qty\" type=\"number\" min=\"1\" max=\"{{.stock}}\" value=\"1\"></div>\n<p><button id=\"add\" data-id=\"{{.id}}\" data-max=\"{{.stock}}\">{{$.t.add_to_cart}}</button> <span id=\"added\" class=\"ok\" hidden>{{$.t.added}}</span></p>\n{{else}}<p class=\"error\">{{$.t.out_of_stock}}</p>{{end}}</div></div>{{end}}\n<script>\nvar b=document.getElementById('add');if(b){b.addEventListener('click',function(){var id=Number(b.dataset.id),max=Number(b.dataset.max);\nvar q=Math.max(1,Math.min(max,Math.floor(Number(document.getElementById('qty').value)||1)));var c=rxCart(),f=null;\nc.forEach(function(i){if(i.id===id)f=i});if(f){f.qty=Math.min(max,f.qty+q)}else{c.push({id:id,qty:q})}rxSave(c);document.getElementById('added').hidden=false})}\n</script>{{template \"bottom\" .}}",
-  "cart": "{{template \"top\" .}}<h1>{{.t.cart}}</h1>{{with .error}}<p class=\"error\">{{.}}</p>{{end}}\n<div id=\"empty\" class=\"panel\" hidden><p>{{.t.empty_cart}}</p><a class=\"btn\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.continue_shopping}}</a></div>\n<div id=\"full\" hidden><div class=\"panel\" id=\"lines\"></div>\n<div class=\"panel\"><div class=\"row\"><span>{{.t.subtotal}}</span><span>AED <span id=\"subtotal\"></span></span></div>\n<div class=\"row\"><span>{{.t.delivery}}</span><span id=\"delivery\"></span></div><div class=\"row total\"><span>{{.t.total}}</span><span>AED <span id=\"total\"></span></span></div>\n<p class=\"muted\">{{.t.vat_included}} · {{.t.free_delivery_over}} AED {{.store.free_delivery_over}}</p></div>\n<form class=\"panel\" method=\"post\" action=\"/checkout\"><h2 style=\"margin-top:0\">{{.t.checkout}}</h2>\n<input type=\"hidden\" name=\"cart\" id=\"cart-field\"><input type=\"hidden\" name=\"lang\" value=\"{{.lang}}\">\n{{if not .user}}<p><a class=\"btn\" href=\"/_rx/auth/login?next=/cart{{if eq .lang \"ar\"}}%3Flang%3Dar{{end}}\">{{.t.sign_in_to_checkout}}</a></p>{{else}}\n<label for=\"name\">{{.t.name}}</label><input id=\"name\" name=\"name\" autocomplete=\"name\" required value=\"{{.user.name}}\">\n<label for=\"phone\">{{.t.phone}}</label><input id=\"phone\" name=\"phone\" type=\"tel\" autocomplete=\"tel\" required value=\"{{.user.phone}}\">\n<label for=\"address\">{{.t.address}}</label><textarea id=\"address\" name=\"address\" rows=\"2\" autocomplete=\"street-address\" required></textarea>\n<label for=\"emirate\">{{.t.emirate}}</label><select id=\"emirate\" name=\"emirate\" required><option>Dubai</option><option>Abu Dhabi</option><option>Sharjah</option><option>Ajman</option><option>Umm Al Quwain</option><option>Ras Al Khaimah</option><option>Fujairah</option></select>\n<label for=\"coupon\">{{.t.coupon}}</label><input id=\"coupon\" name=\"coupon\" autocomplete=\"off\" style=\"text-transform:uppercase\">\n<label>{{.t.payment}}</label>{{if .store.card_enabled}}<label style=\"display:flex;gap:8px;margin:6px 0\"><input type=\"radio\" name=\"payment\" value=\"card\" checked style=\"width:auto\"> {{.t.pay_card}}</label>{{end}}\n{{if .store.cod_enabled}}<label style=\"display:flex;gap:8px;margin:6px 0\"><input type=\"radio\" name=\"payment\" value=\"cod\"{{if not .store.card_enabled}} checked{{end}} style=\"width:auto\"> {{.t.pay_cod}}</label>{{end}}\n<p><button>{{.t.place_order}}</button></p>{{end}}</form></div>\n<script>\n(function(){var c=rxCart();if(!c.length){document.getElementById('empty').hidden=false;return}\nfetch('/api/products?ids='+c.map(function(i){return i.id}).join(',')+'&lang={{.lang}}').then(function(r){return r.json()}).then(function(d){\nvar by={};d.products.forEach(function(p){by[p.id]=p});c=c.filter(function(i){return by[i.id]&&by[i.id].stock>0});\nc.forEach(function(i){i.qty=Math.min(i.qty,by[i.id].stock)});rxSave(c);if(!c.length){document.getElementById('empty').hidden=false;return}\nvar box=document.getElementById('lines');box.textContent='';var sub=0;\nc.forEach(function(i){var p=by[i.id];sub+=p.priceNum*i.qty;var row=document.createElement('div');row.className='row';\nvar left=document.createElement('span');left.textContent=p.name+' × '+i.qty;var right=document.createElement('span');right.textContent='AED '+(p.priceNum*i.qty).toFixed(2)+' ';\nvar rm=document.createElement('button');rm.className='secondary';rm.style.padding='2px 8px';rm.textContent='{{.t.remove}}';\nrm.onclick=function(){rxSave(rxCart().filter(function(x){return x.id!==i.id}));location.reload()};right.appendChild(rm);row.appendChild(left);row.appendChild(right);box.appendChild(row)});\nvar del=sub>=d.free_delivery_over?0:d.delivery_fee;document.getElementById('subtotal').textContent=sub.toFixed(2);\ndocument.getElementById('delivery').textContent=del?'AED '+del.toFixed(2):'{{.t.free}}';document.getElementById('total').textContent=(sub+del).toFixed(2);\ndocument.getElementById('cart-field').value=JSON.stringify(c);document.getElementById('full').hidden=false})})();\n</script>{{template \"bottom\" .}}",
-  "orders": "{{template \"top\" .}}<h1>{{.t.my_orders}}</h1>{{if .orders}}<div class=\"panel\">{{range .orders}}<div class=\"row\"><a href=\"/orders/{{.id}}{{if eq $.lang \"ar\"}}?lang=ar{{end}}\">{{$.t.order}} #{{.id}}</a><span class=\"muted\">{{.date}}</span><span>{{.status}}</span><span>AED {{.total}}</span></div>{{end}}</div>\n{{else}}<p>{{.t.no_orders}}</p>{{end}}{{template \"bottom\" .}}",
-  "order": "{{template \"top\" .}}{{with .order}}{{if $.placed}}<p class=\"ok\" style=\"font-size:18px\">{{$.t.thank_you}}</p><script>try{localStorage.removeItem('cart')}catch(e){}</script>{{end}}\n<h1>{{$.t.order}} #{{.id}}</h1><p>{{$.t.status}}: <strong>{{.statusText}}</strong></p>\n{{if eq .status \"pending\"}}<form method=\"post\" action=\"/orders/{{.id}}/pay\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\"><button>{{$.t.pay_now}}</button></form>{{end}}\n<div class=\"panel\">{{range .lines}}<div class=\"row\"><span>{{.name}} × {{.qty}}</span><span>AED {{.line}}</span></div>{{end}}\n{{if .discount}}<div class=\"row\"><span>{{$.t.discount}} ({{.coupon}})</span><span>− AED {{.discount}}</span></div>{{end}}\n<div class=\"row\"><span>{{$.t.delivery}}</span><span>{{if .delivery}}AED {{.delivery}}{{else}}{{$.t.free}}{{end}}</span></div>\n<div class=\"row total\"><span>{{$.t.total}}</span><span>AED {{.total}}</span></div><p class=\"muted\">{{$.t.vat_included}}: AED {{.vat}}</p>{{if ne .status \"pending\"}}<p><a href=\"/orders/{{.id}}/invoice{{if eq $.lang \"ar\"}}?lang=ar{{end}}\">{{$.t.view_invoice}}</a></p>{{end}}</div>\n<div class=\"panel\"><p>{{.name}} · {{.phone}}</p><p class=\"muted\">{{.address}}, {{.emirate}}</p><p class=\"muted\">{{if eq .method \"cod\"}}{{$.t.pay_cod}}{{else}}{{$.t.pay_card}}{{end}}</p></div>{{end}}\n{{template \"bottom\" .}}",
-  "invoice": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.inv.title}} #{{.inv.id}}</title><style>body{font:14px/1.5 system-ui,Tahoma,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#111;background:#fff}\nh1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{padding:8px 6px;border-bottom:1px solid #ddd;text-align:start}td.n,th.n{text-align:end}\n.head{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}.muted{color:#555}.tot td{font-weight:700}@media print{.noprint{display:none}}</style></head><body>\n<div class=\"head\"><div><h1>{{.inv.title}}</h1><div>{{.t.invoice_no}}: {{.inv.id}}</div><div>{{.t.date}}: {{.inv.date}}</div></div>\n<div><strong>{{.inv.seller}}</strong><div class=\"muted\">{{.inv.sellerAddress}}</div>{{if .inv.trn}}<div>{{.t.trn}}: {{.inv.trn}}</div>{{end}}</div></div>\n<p><strong>{{.t.bill_to}}:</strong> {{.inv.buyer}}, {{.inv.buyerAddress}} · {{.inv.phone}}</p>\n<table><thead><tr><th>{{.t.item}}</th><th class=\"n\">{{.t.quantity}}</th><th class=\"n\">{{.t.unit_excl}}</th><th class=\"n\">{{.t.vat}}</th><th class=\"n\">{{.t.line_total}}</th></tr></thead><tbody>\n{{range .inv.rows}}<tr><td>{{.name}}</td><td class=\"n\">{{.qty}}</td><td class=\"n\">{{.unit}}</td><td class=\"n\">{{.vat}}</td><td class=\"n\">{{.total}}</td></tr>{{end}}\n<tr><td colspan=\"4\">{{.t.total_excl}}</td><td class=\"n\">AED {{.inv.net}}</td></tr><tr><td colspan=\"4\">{{.t.vat}}</td><td class=\"n\">AED {{.inv.vat}}</td></tr>\n<tr class=\"tot\"><td colspan=\"4\">{{.t.total}}</td><td class=\"n\">AED {{.inv.total}}</td></tr></tbody></table>\n<p class=\"noprint\"><button onclick=\"window.print()\">{{.t.print}}</button></p></body></html>",
-  "not_found": "{{template \"top\" .}}<p>{{.t.not_found}}</p>{{template \"bottom\" .}}"
- },
- "scripts": {
-  "home": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /?c=Category&lang=ar\nfunction handle(req) {\n  const lang = langOf(req);\n  const c = req.query.c || '';\n  const rows = c ? db.query('SELECT * FROM products WHERE active = 1 AND category = ? ORDER BY id', c)\n                 : db.query('SELECT * FROM products WHERE active = 1 ORDER BY id');\n  const cats = db.query('SELECT DISTINCT category FROM products WHERE active = 1 AND category IS NOT NULL AND category != \\'\\' ORDER BY category');\n  return {template: 'home', data: page(req, {products: rows.map(p => localize(p, lang)), categories: cats.map(r => r.category), category: c})};\n}",
-  "product": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /p/:id\nfunction handle(req) {\n  const lang = langOf(req);\n  const rows = db.query('SELECT * FROM products WHERE id = ? AND active = 1', Number(req.params.id));\n  if (rows.length === 0) return {template: 'not_found', data: page(req, {}), status: 404};\n  return {template: 'product', data: page(req, {product: localize(rows[0], lang)})};\n}",
-  "cart": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /cart: the cart lives in the browser; this page shows it and the checkout form.\nfunction handle(req) {\n  return {template: 'cart', data: page(req, {error: req.query.error ? texts(langOf(req))[req.query.error] : ''})};\n}",
-  "api_products": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /api/products?ids=1,2,3 -> current names and prices for the cart page.\nfunction handle(req) {\n  const lang = langOf(req);\n  const ids = (req.query.ids || '').split(',').map(Number).filter(n => n > 0).slice(0, 50);\n  const out = [];\n  for (const id of ids) {\n    const r = db.query('SELECT * FROM products WHERE id = ? AND active = 1', id);\n    if (r.length) out.push(localize(r[0], lang));\n  }\n  const s = store();\n  return {json: {products: out, delivery_fee: s.delivery_fee, free_delivery_over: s.free_delivery_over}};\n}",
-  "checkout": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// POST /checkout  form: cart (JSON [{id, qty}]), name, phone, address, emirate, payment (card|cod), lang\n// Prices always come from the database, never from the browser.\nfunction handle(req) {\n  const lang = req.form.lang === 'ar' ? 'ar' : 'en';\n  const q = lang === 'ar' ? '&lang=ar' : '';\n  if (!req.user) return {redirect: '/_rx/auth/login?next=' + encodeURIComponent('/cart' + (lang === 'ar' ? '?lang=ar' : ''))};\n  const f = req.form;\n  const name = (f.name || '').trim(), phone = (f.phone || '').trim(), address = (f.address || '').trim(), emirate = (f.emirate || '').trim();\n  if (!name || !phone || !address || !emirate) return {redirect: '/cart?error=error_fields' + q};\n  let cart = [];\n  try { cart = JSON.parse(f.cart || '[]'); } catch (e) { cart = []; }\n  if (!Array.isArray(cart) || cart.length === 0 || cart.length > 50) return {redirect: '/cart?error=error_cart' + q};\n  const s = store();\n  const lines = [];\n  let subtotal = 0;\n  for (const c of cart) {\n    const qty = Math.floor(Number(c.qty));\n    const p = db.query('SELECT * FROM products WHERE id = ? AND active = 1', Number(c.id))[0];\n    if (!p || !(qty >= 1 && qty <= 99) || p.stock < qty) return {redirect: '/cart?error=error_cart' + q};\n    lines.push({id: p.id, name: p.name, price: p.price, qty: qty});\n    subtotal += p.price * qty;\n  }\n  // Discount code: kind 'percent' (value 10 = 10%) or 'amount' (AED off the products).\n  let discount = 0, coupon = '';\n  const code = (f.coupon || '').trim().toUpperCase();\n  if (code) {\n    const c = db.query(\"SELECT * FROM coupons WHERE upper(code) = ? AND active = 1\", code)[0];\n    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);\n    if (!c || (c.expires && c.expires < now) || (c.max_uses && c.uses >= c.max_uses) || (c.min_total && subtotal < c.min_total)) {\n      return {redirect: '/cart?error=error_coupon' + q};\n    }\n    discount = c.kind === 'percent' ? subtotal * c.value / 100 : c.value;\n    discount = Math.min(subtotal, Math.round(discount * 100) / 100);\n    coupon = c.code;\n  }\n  const delivery = subtotal >= s.free_delivery_over ? 0 : s.delivery_fee;\n  const total = Math.round((subtotal - discount + delivery) * 100) / 100;\n  const vat = Math.round(total * 5 / 105 * 100) / 100; // prices include 5% VAT\n  const method = f.payment === 'card' && s.card_enabled ? 'card' : 'cod';\n  if (method === 'cod' && !s.cod_enabled) return {redirect: '/cart?error=error_payment' + q};\n  const o = db.exec(`INSERT INTO orders (user_id, customer_name, phone, email, address, emirate, payment_method, status, items, subtotal, delivery, vat, total, lang, discount, coupon)\n    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,\n    req.user.id, name, phone, req.user.email || '', address, emirate, method, method === 'cod' ? 'cod' : 'pending', JSON.stringify(lines),\n    subtotal, delivery, vat, total, lang, discount, coupon);\n  const id = o.lastInsertId;\n  if (coupon) db.exec('UPDATE coupons SET uses = coalesce(uses, 0) + 1 WHERE code = ?', coupon);\n  for (const l of lines) db.exec('UPDATE products SET stock = stock - ? WHERE id = ?', l.qty, l.id);\n  if (method === 'cod') {\n    const o = db.query('SELECT * FROM orders WHERE id = ?', id)[0];\n    confirmOrder(o, req.origin + '/orders/' + id);\n    try {\n      notify.owner({subject: 'New order #' + id + ' (cash on delivery): AED ' + money(total),\n        text: lines.map(l => l.qty + ' x ' + l.name).join('\\n') + '\\n\\nCustomer: ' + name + ', ' + phone + '\\nAddress: ' + address + ', ' + emirate});\n    } catch (e) { console.warn('owner not notified: ' + e); }\n    return {redirect: '/orders/' + id + '?placed=1' + q};\n  }\n  let items = lines.map(l => ({name: l.name, price: l.price, quantity: l.qty}));\n  if (delivery > 0) items.push({name: 'Delivery', price: delivery, quantity: 1});\n  if (discount > 0) items = [{name: 'Order #' + id + ' (' + coupon + ' applied)', price: total, quantity: 1}];\n  try {\n    const pay = payments.checkout({items: items, reference: 'order-' + id, customer_email: req.user.email || '',\n      success_path: '/orders/' + id + '?placed=1' + q, cancel_path: '/orders/' + id + (lang === 'ar' ? '?lang=ar' : '')});\n    return {redirect: pay.url};\n  } catch (e) {\n    console.error('checkout failed for order ' + id + ': ' + e);\n    db.exec(\"UPDATE orders SET status = 'failed' WHERE id = ?\", id);\n    for (const l of lines) db.exec('UPDATE products SET stock = stock + ? WHERE id = ?', l.qty, l.id);\n    return {redirect: '/cart?error=error_payment' + q};\n  }\n}",
-  "pay_again": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// POST /orders/:id/pay: retry a card payment that was not completed.\nfunction handle(req) {\n  const lang = req.form.lang === 'ar' ? 'ar' : 'en';\n  const o = db.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!o || o.status !== 'pending') return {redirect: '/orders/' + req.params.id + (lang === 'ar' ? '?lang=ar' : '')};\n  let items = JSON.parse(o.items).map(l => ({name: l.name, price: l.price, quantity: l.qty}));\n  if (o.delivery > 0) items.push({name: 'Delivery', price: o.delivery, quantity: 1});\n  if (o.discount > 0) items = [{name: 'Order #' + o.id + ' (' + o.coupon + ' applied)', price: o.total, quantity: 1}];\n  const q = lang === 'ar' ? '&lang=ar' : '';\n  const pay = payments.checkout({items: items, reference: 'order-' + o.id, customer_email: o.email,\n    success_path: '/orders/' + o.id + '?placed=1' + q, cancel_path: '/orders/' + o.id + (lang === 'ar' ? '?lang=ar' : '')});\n  return {redirect: pay.url};\n}",
-  "orders": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /orders (signed in)\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang);\n  const rows = db.query('SELECT id, status, total, created_at FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT 100', req.user.id);\n  return {template: 'orders', data: page(req, {orders: rows.map(o => ({id: o.id, total: money(o.total), date: o.created_at.slice(0, 10), status: t['status_' + o.status] || o.status}))})};\n}",
-  "order": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /orders/:id (signed in; only the visitor's own orders)\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang);\n  const o = db.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!o) return {template: 'not_found', data: page(req, {}), status: 404};\n  const lines = JSON.parse(o.items).map(l => ({name: l.name, qty: l.qty, price: money(l.price), line: money(l.price * l.qty)}));\n  return {template: 'order', data: page(req, {order: {id: o.id, status: o.status, statusText: t['status_' + o.status] || o.status, method: o.payment_method,\n    subtotal: money(o.subtotal), delivery: o.delivery > 0 ? money(o.delivery) : '', vat: money(o.vat), total: money(o.total),\n    discount: o.discount > 0 ? money(o.discount) : '', coupon: o.coupon,\n    name: o.customer_name, phone: o.phone, address: o.address, emirate: o.emirate, lines: lines}, placed: req.query.placed === '1'})};\n}",
-  "invoice": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// GET /orders/:id/invoice (signed in; own orders). Prices include 5% VAT, so each line is split into its parts.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), s = store();\n  const o = db.query('SELECT * FROM orders WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!o || o.status === 'pending') return {template: 'not_found', data: page(req, {}), status: 404};\n  const split = (gross) => { const net = Math.round(gross / 1.05 * 100) / 100; return {net: net, vat: Math.round((gross - net) * 100) / 100}; };\n  const rows = JSON.parse(o.items).map(l => {\n    const unit = split(l.price), line = split(l.price * l.qty);\n    return {name: l.name, qty: l.qty, unit: money(unit.net), vat: money(line.vat), total: money(l.price * l.qty)};\n  });\n  if (o.discount > 0) { const d = split(o.discount); rows.push({name: t.discount + ' (' + o.coupon + ')', qty: 1, unit: '-' + money(d.net), vat: '-' + money(d.vat), total: '-' + money(o.discount)}); }\n  if (o.delivery > 0) { const d = split(o.delivery); rows.push({name: t.delivery, qty: 1, unit: money(d.net), vat: money(d.vat), total: money(o.delivery)}); }\n  const totals = split(o.total);\n  return {template: 'invoice', data: page(req, {inv: {id: o.id, date: o.created_at.slice(0, 10), title: s.trn ? t.tax_invoice : t.invoice,\n    seller: s.legal_name || s.name, sellerAddress: s.address || '', trn: s.trn || '', buyer: o.customer_name, buyerAddress: o.address + ', ' + o.emirate,\n    phone: o.phone, rows: rows, net: money(totals.net), vat: money(totals.vat), total: money(o.total)}})};\n}",
-  "on_payment": "\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction store() { return db.query('SELECT * FROM store ORDER BY id LIMIT 1')[0]; }\nfunction money(n) { return (Math.round(n * 100) / 100).toFixed(2); }\nfunction page(req, extra) {\n  const lang = langOf(req);\n  const s = store();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user,\n    store: s, storeName: lang === 'ar' && s.name_ar ? s.name_ar : s.name, tagline: lang === 'ar' && s.tagline_ar ? s.tagline_ar : s.tagline,\n    path: req.path, wa: (s.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// Emails the buyer a confirmation in the order's language, and is quiet on failure.\nfunction confirmOrder(o, link) {\n  if (!o.email) return;\n  const lang = o.lang === 'ar' ? 'ar' : 'en', t = texts(lang);\n  const fill = (s) => s.replace(/\\{id\\}/g, o.id).replace(/\\{store\\}/g, lang === 'ar' && store().name_ar ? store().name_ar : store().name)\n    .replace(/\\{total\\}/g, money(o.total)).replace(/\\{payment\\}/g, o.payment_method === 'cod' ? t.pay_cod : t.pay_card)\n    .replace(/\\{address\\}/g, o.address).replace(/\\{emirate\\}/g, o.emirate).replace(/\\{link\\}/g, link);\n  try { email.send({to: o.email, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n}\nfunction localize(p, lang) {\n  return {id: p.id, name: lang === 'ar' && p.name_ar ? p.name_ar : p.name, description: lang === 'ar' && p.description_ar ? p.description_ar : p.description,\n    category: p.category, price: money(p.price), priceNum: p.price, image: p.image, stock: p.stock};\n}\n\n// Runs when a card payment is paid, fails or expires. req.body: {event, reference, amount, ...}\nfunction handle(req) {\n  const id = Number(String(req.body.reference).replace('order-', ''));\n  const o = db.query('SELECT * FROM orders WHERE id = ?', id)[0];\n  if (!o) return {text: 'ignored'};\n  if (req.body.event === 'refunded' || req.body.event === 'partially_refunded') {\n    // A refund made in Stripe: record it on the order; stock is the owner's call.\n    db.exec('UPDATE orders SET status = ? WHERE id = ?', req.body.event, id);\n    console.log('order ' + id + ' ' + req.body.event + ' ' + req.body.refunded_amount);\n    return {text: 'ok'};\n  }\n  if (o.status !== 'pending') return {text: 'ignored'};\n  if (req.body.event === 'paid') {\n    db.exec(\"UPDATE orders SET status = 'paid' WHERE id = ?\", id);\n    confirmOrder(db.query('SELECT * FROM orders WHERE id = ?', id)[0], req.origin + '/orders/' + id);\n  } else {\n    // Failed or expired: give the stock back. The visitor can still pay again from the order page while it is pending.\n    db.exec('UPDATE orders SET status = ? WHERE id = ?', req.body.event, id);\n    for (const l of JSON.parse(o.items)) db.exec('UPDATE products SET stock = stock + ? WHERE id = ?', l.qty, l.id);\n  }\n  console.log('order ' + id + ' payment ' + req.body.event);\n  return {text: 'ok'};\n}"
- },
- "on_payment": "on_payment",
- "routes": [
-  {
-   "method": "GET",
-   "path": "/",
-   "script": "home"
-  },
-  {
-   "method": "GET",
-   "path": "/p/:id",
-   "script": "product"
-  },
-  {
-   "method": "GET",
-   "path": "/cart",
-   "script": "cart"
-  },
-  {
-   "method": "GET",
-   "path": "/api/products",
-   "script": "api_products"
-  },
-  {
-   "method": "POST",
-   "path": "/checkout",
-   "script": "checkout"
-  },
-  {
-   "method": "GET",
-   "path": "/orders",
-   "script": "orders",
-   "auth": "user"
-  },
-  {
-   "method": "GET",
-   "path": "/orders/:id",
-   "script": "order",
-   "auth": "user"
-  },
-  {
-   "method": "POST",
-   "path": "/orders/:id/pay",
-   "script": "pay_again",
-   "auth": "user"
-  },
-  {
-   "method": "GET",
-   "path": "/orders/:id/invoice",
-   "script": "invoice",
-   "auth": "user"
-  }
- ]
 }

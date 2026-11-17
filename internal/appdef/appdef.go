@@ -27,6 +27,7 @@ type App struct {
 // Table is a tenant database table.
 type Table struct {
 	Name    string   `json:"name"`
+	Label   string   `json:"label,omitempty" jsonschema:"name shown to the owner in the admin panel, e.g. Orders; defaults to the table name"`
 	Columns []Column `json:"columns"`
 }
 
@@ -37,6 +38,10 @@ type Column struct {
 	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file)"`
 	Required bool   `json:"required,omitempty"`
 	Unique   bool   `json:"unique,omitempty"`
+	// Admin panel only; they do not change the database.
+	Label   string   `json:"label,omitempty" jsonschema:"name shown to the owner in the admin panel, e.g. Customer name; defaults to the column name"`
+	Help    string   `json:"help,omitempty" jsonschema:"one short sentence shown under the field in the admin panel"`
+	Options []string `json:"options,omitempty" jsonschema:"text columns only: the allowed values, shown as a drop-down in the admin panel, e.g. [\"pending\",\"paid\",\"shipped\"]"`
 }
 
 // Route maps a method and path to a template or a script.
@@ -104,6 +109,12 @@ func (a *App) Validate() []string {
 			cols[c.Name] = true
 			if _, ok := ColumnTypes[c.Type]; !ok {
 				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime, json or image)", t.Name, c.Name, c.Type)
+			}
+			if len(c.Options) > 0 && c.Type != "text" {
+				add("table %q: column %q: options are only for text columns", t.Name, c.Name)
+			}
+			if len(c.Options) > 100 || len(c.Label) > 80 || len(c.Help) > 300 {
+				add("table %q: column %q: keep label under 80 characters, help under 300 and at most 100 options", t.Name, c.Name)
 			}
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -155,7 +156,7 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
-		rows = append(rows, tableRow{Name: t.Name, Label: label(t.Name), Rows: total})
+		rows = append(rows, tableRow{Name: t.Name, Label: tableLabel(t), Rows: total})
 	}
 	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
 	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
@@ -194,7 +195,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		if i == 5 {
 			break
 		}
-		cols = append(cols, column{Name: c.Name, Label: label(c.Name)})
+		cols = append(cols, column{Name: c.Name, Label: columnLabel(c)})
 	}
 	cols = append(cols, column{Name: "created_at", Label: "Created"})
 	types := map[string]string{}
@@ -213,14 +214,15 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	pages := int(math.Ceil(float64(total) / platform.AdminPageSize))
 	render(w, http.StatusOK, "admin_list", map[string]any{
-		"App": app, "Table": table, "Label": label(table), "Columns": cols, "Cells": cells, "IDs": ids,
+		"App": app, "Table": table, "Label": tableLabel(t), "Columns": cols, "Cells": cells, "IDs": ids,
 		"Total": total, "Query": q, "Page": page, "Pages": pages, "Prev": page - 1, "Next": page + 1,
 	})
 }
 
 type field struct {
-	Name, Label, Type, Input, Value, Error string
-	Required, Checked                      bool
+	Name, Label, Help, Type, Input, Value, Error string
+	Options                                      []string
+	Required, Checked                            bool
 }
 
 func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
@@ -258,7 +260,14 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 	var fields []field
 	hasImage := false
 	for _, c := range t.Columns {
-		f := field{Name: c.Name, Label: label(c.Name), Type: c.Type, Value: values[c.Name], Required: c.Required, Error: errs[c.Name]}
+		f := field{Name: c.Name, Label: columnLabel(c), Help: c.Help, Type: c.Type, Value: values[c.Name], Required: c.Required, Error: errs[c.Name]}
+		switch {
+		case len(c.Options) > 0:
+			f.Input, f.Options = "select", c.Options
+			if f.Value != "" && !slices.Contains(c.Options, f.Value) {
+				f.Options = append([]string{f.Value}, c.Options...)
+			}
+		}
 		switch c.Type {
 		case "boolean":
 			f.Input, f.Checked = "checkbox", f.Value == "1"
@@ -272,6 +281,9 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 			f.Input = "image"
 			hasImage = true
 		default:
+			if f.Input == "select" {
+				break
+			}
 			f.Input = "text"
 			if len(f.Value) > 80 || strings.ContainsAny(f.Value, "\n") || longText(c.Name) {
 				f.Input = "textarea"
@@ -294,7 +306,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		created = display(row["created_at"], "datetime")
 	}
 	render(w, status, "admin_form", map[string]any{
-		"App": app, "Table": t.Name, "Label": label(t.Name), "ID": id, "Fields": fields, "Created": created,
+		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
 		"HasImage": hasImage, "LiveURL": liveURL,
 	})
@@ -477,6 +489,20 @@ func serverError(w http.ResponseWriter, err error) {
 }
 
 // label turns price_aed into "Price aed".
+func tableLabel(t appdef.Table) string {
+	if t.Label != "" {
+		return t.Label
+	}
+	return label(t.Name)
+}
+
+func columnLabel(c appdef.Column) string {
+	if c.Label != "" {
+		return c.Label
+	}
+	return label(c.Name)
+}
+
 func label(name string) string {
 	s := strings.ReplaceAll(name, "_", " ")
 	if s == "" {

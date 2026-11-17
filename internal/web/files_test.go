@@ -107,7 +107,7 @@ func TestAdminImageUpload(t *testing.T) {
 	}
 	// The edit form shows the image from the live app.
 	resp, _ := c.Get(e.base + "/apps/hana-shop/t/products/1")
-	if page := read(t, resp); !strings.Contains(page, `src="https://hana-shop.renoxium.test`+url+`"`) || !strings.Contains(page, `enctype="multipart/form-data"`) {
+	if page := read(t, resp); !strings.Contains(page, `src="https://hana-shop.renoxium.test`+url+`?w=320"`) || !strings.Contains(page, `enctype="multipart/form-data"`) {
 		t.Fatalf("form: %s", page)
 	}
 	// Saving without a new file keeps the image.
