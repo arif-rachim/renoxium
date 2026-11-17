@@ -64,6 +64,9 @@ type Config struct {
 	// WhatsApp sends sign-in codes from live. Nil turns phone sign-in off
 	// on live; preview always offers it, with codes in the app log.
 	WhatsApp whatsapp.Sender
+	// WhatsAppNotices sends notify.owner notices to owners who confirmed a
+	// number. Nil turns that off.
+	WhatsAppNotices whatsapp.Notifier
 	// OwnerPlan returns an account's plan: "free", "pro" or "business".
 	// Free-plan apps pay a cut of card payments, show a small badge and
 	// are limited in number. Nil means no plans: nothing is limited.
@@ -260,6 +263,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	if err := pl.ensureUsageTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := pl.ensureAlertTable(); err != nil {
 		db.Close()
 		return nil, err
 	}

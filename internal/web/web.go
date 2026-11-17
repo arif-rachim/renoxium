@@ -117,6 +117,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerLanding()
 	s.registerStaff()
 	s.registerDomain()
+	s.registerAlerts()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -722,6 +723,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p>{{end}}
 {{if .IsOwner}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
 <h1 style="margin-top:24px">Staff</h1><p><a href="/apps/{{.Info.App}}/staff">People who help you run this app</a></p>
+<h1 style="margin-top:24px">Notifications</h1><p><a href="/apps/{{.Info.App}}/notifications">Get new orders on WhatsApp</a> <span class="muted">as well as by email</span></p>
 <h1 style="margin-top:24px">Domain</h1><p><a href="/apps/{{.Info.App}}/domain">Use your own domain</a> <span class="muted">such as www.yourshop.com</span></p>{{else}}<p class="muted" style="margin-top:24px">You have staff access to this app.</p>{{end}}
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
 {{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
@@ -801,6 +803,22 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
 <h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
 <p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "admin_alerts"}}{{template "top" "Notifications"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+<div class="card"><h1>Notifications</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<p>Notices from your app, such as new orders, are emailed to <strong>{{.Email}}</strong>.</p>
+{{if not .Available}}<p class="muted">WhatsApp notices are not available on this Renoxium server yet.</p>
+{{else if not .Phone}}<p>Get them on WhatsApp too. We send a code to confirm the number.</p>
+<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="send">
+<label for="phone">WhatsApp number</label><input id="phone" name="phone" type="tel" placeholder="+971 50 123 4567" required autocomplete="tel"><button>Send code</button></form>
+{{else if not .Phone.Confirmed}}<p>We sent a code to <strong>{{.Phone.Phone}}</strong> on WhatsApp.</p>
+<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="confirm">
+<label for="code">Code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required><button>Confirm</button></form>
+<form method="post" style="margin-top:12px"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="remove"><button>Use another number</button></form>
+{{else}}<p>WhatsApp notices go to <strong>{{.Phone.Phone}}</strong> <span class="ok">on</span></p>
+<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Turn off WhatsApp notices</button></form>{{end}}
+{{if .Available}}<p class="muted">Each WhatsApp notice counts as one of your plan's WhatsApp messages: {{.Used}} of {{.Quota}} used this month.</p>{{end}}
+</div>{{template "bottom"}}{{end}}
 
 {{define "admin_domain"}}{{template "top" "Domain"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
 <div class="card"><h1>Your own domain</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}

@@ -26,3 +26,14 @@ func TestDomainPage(t *testing.T) {
 		t.Fatalf("stranger: %d", r.StatusCode)
 	}
 }
+
+func TestNotificationsPage(t *testing.T) {
+	e := newEnv(t)
+	owner := e.browser()
+	e.signup(owner, "noor@shop.ae")
+	e.publishDef(owner, "noor-shop", &appdef.App{Templates: map[string]string{"t": "shop"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}})
+	r, _ := owner.Get(e.base + "/apps/noor-shop/notifications")
+	if page := read(t, r); r.StatusCode != 200 || !strings.Contains(page, "noor@shop.ae") || !strings.Contains(page, "not available on this Renoxium server") {
+		t.Fatalf("notifications page: %d %s", r.StatusCode, page)
+	}
+}

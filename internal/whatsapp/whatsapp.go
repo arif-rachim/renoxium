@@ -19,6 +19,13 @@ type Sender interface {
 	SendCode(ctx context.Context, phone, code string) error
 }
 
+// Notifier delivers a short notice, such as "New order #12", to a phone
+// number in E.164 form. The texts fill the notice template's body
+// parameters in order.
+type Notifier interface {
+	SendNotice(ctx context.Context, phone string, texts ...string) error
+}
+
 // CloudAPI sends an approved authentication template ("copy code" button)
 // through Meta's WhatsApp Cloud API. The template must take the code as its
 // only body parameter, as Meta's authentication templates do.
@@ -27,36 +34,74 @@ type CloudAPI struct {
 	PhoneNumberID string // the sending number's ID in WhatsApp Manager
 	Template      string // name of the approved authentication template
 	Language      string // template language code exactly as created in WhatsApp Manager, default "en"
-	Version       string // Graph API version, default v23.0
-	BaseURL       string // default https://graph.facebook.com
-	Client        *http.Client
+	// NoticeTemplate is an approved Utility template for owner notices,
+	// whose body takes two parameters: the app name and the notice.
+	NoticeTemplate string
+	NoticeLanguage string // default Language
+	Version        string // Graph API version, default v23.0
+	BaseURL        string // default https://graph.facebook.com
+	Client         *http.Client
 }
 
 // SendCode implements Sender.
 func (c *CloudAPI) SendCode(ctx context.Context, phone, code string) error {
-	lang, version, base := c.Language, c.Version, c.BaseURL
+	lang := c.Language
 	if lang == "" {
 		lang = "en"
 	}
+	// The code appears twice: in the body and in the copy-code button.
+	return c.send(ctx, phone, c.Template, lang, []any{
+		map[string]any{"type": "body", "parameters": []any{map[string]string{"type": "text", "text": code}}},
+		map[string]any{"type": "button", "sub_type": "url", "index": "0", "parameters": []any{map[string]string{"type": "text", "text": code}}},
+	})
+}
+
+// SendNotice implements Notifier with NoticeTemplate.
+func (c *CloudAPI) SendNotice(ctx context.Context, phone string, texts ...string) error {
+	lang := c.NoticeLanguage
+	if lang == "" {
+		lang = c.Language
+	}
+	if lang == "" {
+		lang = "en"
+	}
+	params := []any{}
+	for _, t := range texts {
+		params = append(params, map[string]string{"type": "text", "text": NoticeText(t)})
+	}
+	return c.send(ctx, phone, c.NoticeTemplate, lang, []any{map[string]any{"type": "body", "parameters": params}})
+}
+
+// NoticeText makes text fit a template parameter: WhatsApp refuses new
+// lines, tabs and more than four spaces in a row, and long parameters.
+func NoticeText(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > 200 {
+		s = string(r[:199]) + "…"
+	}
+	if s == "" {
+		s = "-"
+	}
+	return s
+}
+
+func (c *CloudAPI) send(ctx context.Context, phone, template, lang string, components []any) error {
+	version, base := c.Version, c.BaseURL
 	if version == "" {
 		version = "v23.0"
 	}
 	if base == "" {
 		base = "https://graph.facebook.com"
 	}
-	// The code appears twice: in the body and in the copy-code button.
 	body := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
 		"to":                strings.TrimPrefix(phone, "+"),
 		"type":              "template",
 		"template": map[string]any{
-			"name":     c.Template,
-			"language": map[string]string{"code": lang},
-			"components": []any{
-				map[string]any{"type": "body", "parameters": []any{map[string]string{"type": "text", "text": code}}},
-				map[string]any{"type": "button", "sub_type": "url", "index": "0", "parameters": []any{map[string]string{"type": "text", "text": code}}},
-			},
+			"name":       template,
+			"language":   map[string]string{"code": lang},
+			"components": components,
 		},
 	}
 	raw, err := json.Marshal(body)
@@ -75,12 +120,12 @@ func (c *CloudAPI) SendCode(ctx context.Context, phone, code string) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("send whatsapp code: %w", err)
+		return fmt.Errorf("send whatsapp message: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
-		return parseError(resp.StatusCode, raw, c.Template, lang)
+		return parseError(resp.StatusCode, raw, template, lang)
 	}
 	return nil
 }
@@ -193,4 +238,10 @@ func Normalize(raw string) (string, bool) {
 	}
 	digits := len(n) - 1
 	return n, digits >= 8 && digits <= 15 && n[1] != '0'
+}
+
+// SendNotice implements Notifier.
+func (Log) SendNotice(_ context.Context, phone string, texts ...string) error {
+	slog.Info("whatsapp notice not sent (WhatsApp is not configured)", "to", phone, "texts", texts)
+	return nil
 }

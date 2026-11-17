@@ -64,6 +64,7 @@ func (p *Platform) notifyOwner(ctx context.Context, st *stage, arg any) (any, er
 		return nil, err
 	}
 	p.mailOwner(ctx, st, in.Subject, in.Text)
+	p.whatsappOwner(st, in.Subject)
 	return map[string]any{"sent": st.name == Live}, nil
 }
 

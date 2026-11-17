@@ -276,6 +276,37 @@ Errors you may meet on the first test:
 | 131030 | Recipient not in the allowed list | The app is limited to test recipients: add your number as a recipient, or finish the setup so the number can message anyone |
 | 133010 | Sending number not registered with the Cloud API | Register the number (with its two-step PIN) in WhatsApp Manager |
 
+#### Order notices to owners on WhatsApp (optional)
+
+Owners can get `notify.owner` notices (new cash-on-delivery orders, card payments received) on WhatsApp
+as well as by email, from **Notifications** on the app's page, after confirming their number with a code.
+This needs a second template, because a business-initiated message that is not a code must use an
+approved **Utility** template:
+
+1. In WhatsApp Manager, create a template of category **Utility**, for example `owner_notice`, language
+   English (`en`), with this body and no buttons:
+
+   ```
+   Renoxium: your app {{1}} has a new notice: {{2}}. The details are in your email and in your Renoxium admin panel.
+   ```
+
+   Sample values: `oud-al-noor` and `New order #12 (cash on delivery): AED 240.00`. Wait until it is Approved.
+2. Add to `/etc/renoxium/env`:
+
+   ```
+   WHATSAPP_NOTICE_TEMPLATE=owner_notice
+   WHATSAPP_NOTICE_LANGUAGE=en
+   ```
+
+3. Test it, then restart Renoxium:
+
+   ```bash
+   sudo bash -c 'set -a; . /etc/renoxium/env; /opt/renoxium/renoxium whatsapp-test +971501234567 notice'
+   ```
+
+Each notice, and each confirmation code, counts towards the account's monthly WhatsApp messages
+(the same quota as sign-in codes), with at most 100 notices per app per day.
+
 Check that the server is up. This must print `ok`:
 
 ```bash

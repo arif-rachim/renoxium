@@ -102,6 +102,10 @@ func main() {
 	if wa := whatsappFromEnv(); wa != nil {
 		cfg.WhatsApp = wa
 		slog.Info("WhatsApp sign-in codes on", "phone_number_id", wa.PhoneNumberID, "template", wa.Template, "language", wa.Language)
+		if wa.NoticeTemplate != "" {
+			cfg.WhatsAppNotices = wa
+			slog.Info("WhatsApp owner notices on", "template", wa.NoticeTemplate)
+		}
 	} else {
 		slog.Warn("WhatsApp is not configured: sign-in with WhatsApp works on previews only (codes in the app log)")
 	}

@@ -115,6 +115,8 @@ Emails (plain text; live sends them, preview writes them with their links to get
   At most 10 emails per address per day, within the app's daily email limit. Replies go to the owner.
 - notify.owner({subject, text}) emails the app owner, e.g. "New order #12". Card payments already email the owner
   "Payment received" automatically, so use it for other events such as cash-on-delivery orders.
+  If the owner turned on WhatsApp notices, the subject is also sent to their WhatsApp, so put the essentials in the subject
+  (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
 Images:

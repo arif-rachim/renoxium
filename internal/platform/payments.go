@@ -292,7 +292,9 @@ func (p *Platform) settle(ctx context.Context, st *stage, id, status, email, nam
 	pm := list[0]
 	p.event(st, "payment", "info", "", fmt.Sprintf("payment %s for %s is %s", id, pm.Reference, status))
 	if status == "paid" {
-		p.mailOwner(ctx, st, fmt.Sprintf("Payment received: %s %.2f for %s", strings.ToUpper(pm.Currency), pm.Amount, pm.Reference),
+		subject := fmt.Sprintf("Payment received: %s %.2f for %s", strings.ToUpper(pm.Currency), pm.Amount, pm.Reference)
+		p.whatsappOwner(st, subject)
+		p.mailOwner(ctx, st, subject,
 			fmt.Sprintf("A card payment was completed.\n\nReference: %s\nAmount: %s %.2f\nCustomer: %s %s\n\nThe money is in your Stripe account.",
 				pm.Reference, strings.ToUpper(pm.Currency), pm.Amount, pm.CustomerName, pm.CustomerEmail))
 	}

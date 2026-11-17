@@ -24,14 +24,15 @@ func whatsappFromEnv() *whatsapp.CloudAPI {
 	if lang == "" {
 		lang = "en"
 	}
-	return &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl, Language: lang, Version: os.Getenv("WHATSAPP_API_VERSION")}
+	return &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl, Language: lang, Version: os.Getenv("WHATSAPP_API_VERSION"),
+		NoticeTemplate: os.Getenv("WHATSAPP_NOTICE_TEMPLATE"), NoticeLanguage: os.Getenv("WHATSAPP_NOTICE_LANGUAGE")}
 }
 
 // whatsappTest sends one code to a number, to check the Meta setup without
 // a live app.
 func whatsappTest(args []string) int {
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: renoxium whatsapp-test +971501234567")
+	if len(args) != 1 && (len(args) != 2 || args[1] != "notice") {
+		fmt.Fprintln(os.Stderr, "usage: renoxium whatsapp-test +971501234567 [notice]")
 		return 2
 	}
 	phone, ok := whatsapp.Normalize(args[0])
@@ -48,9 +49,22 @@ func whatsappTest(args []string) int {
 	if version == "" {
 		version = "v23.0 (default)"
 	}
-	fmt.Printf("sending template %q, language %q, from phone number ID %s, API %s, to %s\n", wa.Template, wa.Language, wa.PhoneNumberID, version, phone)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	if len(args) == 2 {
+		if wa.NoticeTemplate == "" {
+			fmt.Fprintln(os.Stderr, "WHATSAPP_NOTICE_TEMPLATE is not set")
+			return 2
+		}
+		fmt.Printf("sending notice template %q from phone number ID %s, API %s, to %s\n", wa.NoticeTemplate, wa.PhoneNumberID, version, phone)
+		if err := wa.SendNotice(ctx, phone, "test-shop", "New order #1: AED 100.00"); err != nil {
+			fmt.Fprintln(os.Stderr, "FAILED:", err)
+			return 1
+		}
+		fmt.Println("OK: Meta accepted the notice.")
+		return 0
+	}
+	fmt.Printf("sending template %q, language %q, from phone number ID %s, API %s, to %s\n", wa.Template, wa.Language, wa.PhoneNumberID, version, phone)
 	if err := wa.SendCode(ctx, phone, "123456"); err != nil {
 		fmt.Fprintln(os.Stderr, "FAILED:", err)
 		return 1

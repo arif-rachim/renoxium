@@ -38,7 +38,10 @@ Working today:
 
 - Store owners on Pro and Business can add their own domain (Cloudflare for SaaS custom hostnames); once active it becomes the app's live address.
 
-Not built yet (see the plan): column labels in the admin panel, per-app MCP, WhatsApp order notifications, product variants, image resizing, storage quotas per plan, monitoring and alerts.
+- Owners can get `notify.owner` notices and card payments on WhatsApp (a Utility template), after confirming their number with a code; notices count towards the monthly WhatsApp messages.
+- Images resize on request (`?w=480`), and the admin panel shows table and column labels, help text and drop-down options from the app definition.
+
+Not built yet (see the plan): per-app MCP, product variants, monitoring and alerts.
 
 ## Run
 
