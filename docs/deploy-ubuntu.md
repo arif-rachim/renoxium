@@ -400,6 +400,27 @@ echo '17 3 * * * root /opt/renoxium/backup.sh >/dev/null' | sudo tee /etc/cron.d
 A backup on the same VPS does not help if the VPS is lost. Copy the archives somewhere else regularly,
 for example to another server or object storage with `rsync` or `rclone`.
 
+### Off-site copies (recommended)
+
+`backup.sh` can also copy every archive and all uploaded images to another place with rclone, for
+example a Cloudflare R2 bucket, any S3 storage or another server over SFTP. Install rclone and configure a
+remote as root (the setup asks for the provider and its keys):
+
+```bash
+sudo apt-get install -y rclone && sudo rclone config
+```
+
+Then name the remote and path in `/etc/renoxium/env`, for example a remote called `r2` and a bucket
+`renoxium-backups`:
+
+```bash
+echo 'RENOXIUM_BACKUP_REMOTE=r2:renoxium-backups' | sudo tee -a /etc/renoxium/env >/dev/null
+```
+
+From the next run, archives go to `<remote>/db` (kept 30 days there) and images to `<remote>/files`; images
+never change, so only new ones are sent. Run `sudo /opt/renoxium/backup.sh` once to check: it ends with
+`copied to r2:renoxium-backups`.
+
 ### Uploaded images
 
 Images live in `/var/lib/renoxium/files`, one file per distinct content, and are not part of the daily

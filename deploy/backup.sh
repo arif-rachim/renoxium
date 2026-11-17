@@ -22,4 +22,28 @@ done
 tar -C "$ROOT" -czf "$ROOT/renoxium-$STAMP.tar.gz" "$STAMP"
 rm -rf "$DEST"
 find "$ROOT" -name 'renoxium-*.tar.gz' -mtime +"$KEEP_DAYS" -delete
-echo "$ROOT/renoxium-$STAMP.tar.gz"
+ARCHIVE="$ROOT/renoxium-$STAMP.tar.gz"
+echo "$ARCHIVE"
+
+# Off-site copy: set RENOXIUM_BACKUP_REMOTE (an rclone remote and path, e.g.
+# "r2:renoxium-backups") in /etc/renoxium/env and configure that remote with
+# `sudo rclone config`. Database archives go to <remote>/db and are kept 30
+# days there; uploaded images go to <remote>/files. Images never change, so
+# only new ones are sent.
+ENV_FILE="${RENOXIUM_ENV_FILE:-/etc/renoxium/env}"
+if [ -z "${RENOXIUM_BACKUP_REMOTE:-}" ] && [ -r "$ENV_FILE" ]; then
+  RENOXIUM_BACKUP_REMOTE="$(sed -n 's/^RENOXIUM_BACKUP_REMOTE=//p' "$ENV_FILE" | tail -n1)"
+fi
+if [ -n "${RENOXIUM_BACKUP_REMOTE:-}" ]; then
+  REMOTE="${RENOXIUM_BACKUP_REMOTE%/}"
+  if ! command -v rclone >/dev/null; then
+    echo "RENOXIUM_BACKUP_REMOTE is set but rclone is not installed: sudo apt-get install -y rclone" >&2
+    exit 1
+  fi
+  rclone copy --no-traverse "$ARCHIVE" "$REMOTE/db/"
+  rclone delete --min-age 30d "$REMOTE/db/" || true
+  if [ -d "$DATA/files" ]; then
+    rclone copy --ignore-existing --exclude 'tmp/**' "$DATA/files" "$REMOTE/files"
+  fi
+  echo "copied to $REMOTE"
+fi
