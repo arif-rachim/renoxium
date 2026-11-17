@@ -174,13 +174,15 @@ var (
 )
 
 // Names nobody may use for an app: platform words, and words that make a
-// phishing page on <name>.renoxium.app look official.
+// phishing page on <name>.renoxium.app look official. "customers" is the
+// Cloudflare for SaaS fallback origin (customers.renoxium.app) that every
+// custom domain's CNAME points to: an app with that name would receive them.
 func init() {
 	for _, n := range strings.Fields(`www api mcp admin app apps preview renoxium mail email smtp imap pop ftp ns ns1 ns2 dns cdn static assets
 		files status help support docs blog billing pay payment payments invoice account accounts login signin signup auth oauth sso
 		secure security verify verification password reset update wallet bank banking dashboard console root system official
 		google gmail apple icloud microsoft outlook office paypal stripe facebook meta instagram whatsapp telegram amazon netflix
-		chatgpt openai claude anthropic cloudflare github`) {
+		chatgpt openai claude anthropic cloudflare github customers`) {
 		reserved[n] = true
 	}
 }

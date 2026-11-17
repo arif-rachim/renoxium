@@ -204,7 +204,7 @@ func TestPublishNeedsAConfirmedOwner(t *testing.T) {
 
 func TestQuotas(t *testing.T) {
 	p := newPlatform(t)
-	for _, name := range []string{"paypal", "login", "support"} {
+	for _, name := range []string{"paypal", "login", "support", "customers"} {
 		if _, err := p.CreateApp("usr_test", name); err == nil || !strings.Contains(err.Error(), "reserved") {
 			t.Fatalf("reserved name %q: %v", name, err)
 		}
