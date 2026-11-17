@@ -119,6 +119,16 @@ Emails (plain text; live sends them, preview writes them with their links to get
   (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
+Tools for shoppers' AI assistants (MCP):
+- "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
+  about products. Anyone can call them without signing in (req.user is null), so return only public information, mark read-only
+  tools "read_only": true, and link to the app's pages for ordering and paying (req.origin + path).
+- Each tool: {name, description, script, params: [{name, type: string|number|integer|boolean, description, required}], read_only}.
+  The script gets req.method "TOOL" and the arguments in req.body, and returns {json: value} or {text: "..."}; a status of 400 or more
+  becomes an error the assistant sees. The store-uae example has search_products, get_product and store_info.
+- Test a tool on preview with test_request: POST /mcp with json {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": {"name": "search_products", "arguments": {"query": "oud"}}}.
+
 Images:
 - Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
   Uploading the same image again returns the same url without storing it twice.

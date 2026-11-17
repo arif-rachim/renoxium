@@ -22,7 +22,33 @@ type App struct {
 	Routes    []Route                     `json:"routes" jsonschema:"HTTP routes served by the app"`
 	OnPayment string                      `json:"on_payment,omitempty" jsonschema:"script run when a payment started with payments.checkout is paid, fails or expires; req.body holds the payment"`
 	Seed      map[string][]map[string]any `json:"seed,omitempty" jsonschema:"rows inserted into a table when that table is first created, keyed by table name"`
+	Tools     []Tool                      `json:"tools,omitempty" jsonschema:"public MCP tools served at /mcp on the app's address, so shoppers' AI assistants (ChatGPT, Claude) can use the app; anyone can call them, without signing in"`
 }
+
+// Tool is a public MCP tool backed by a script. The script gets req.method
+// "TOOL", req.path "/mcp/<name>" and the arguments in req.body, with no
+// signed-in visitor; it returns {json: value} or {text: "..."}.
+type Tool struct {
+	Name        string      `json:"name" jsonschema:"lowercase name, e.g. search_products"`
+	Description string      `json:"description" jsonschema:"what the tool does and when to use it, for the AI assistant that calls it"`
+	Script      string      `json:"script" jsonschema:"script that handles the call"`
+	Params      []ToolParam `json:"params,omitempty"`
+	ReadOnly    bool        `json:"read_only,omitempty" jsonschema:"true when the tool only reads data (search, details); assistants then call it without asking the user first"`
+}
+
+// ToolParam is one argument of a Tool.
+type ToolParam struct {
+	Name        string `json:"name"`
+	Type        string `json:"type" jsonschema:"string, number, integer or boolean"`
+	Description string `json:"description,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+}
+
+// ToolParamTypes are the accepted ToolParam types.
+var ToolParamTypes = map[string]bool{"string": true, "number": true, "integer": true, "boolean": true}
+
+// MaxTools is how many tools an app may have.
+const MaxTools = 20
 
 // Table is a tenant database table.
 type Table struct {
@@ -54,6 +80,8 @@ type Route struct {
 }
 
 var identRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
+
+var toolNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 // ColumnTypes maps definition types to SQLite column types.
 var ColumnTypes = map[string]string{
@@ -133,6 +161,39 @@ func (a *App) Validate() []string {
 
 	if _, err := a.ParseTemplates(); err != nil {
 		add("templates: %v", err)
+	}
+
+	toolNames := map[string]bool{}
+	if len(a.Tools) > MaxTools {
+		add("tools: at most %d tools", MaxTools)
+	}
+	for _, t := range a.Tools {
+		switch {
+		case !toolNameRE.MatchString(t.Name):
+			add("tool %q: name must match [a-z][a-z0-9_]{0,63}", t.Name)
+		case toolNames[t.Name]:
+			add("tool %q is defined twice", t.Name)
+		}
+		toolNames[t.Name] = true
+		if strings.TrimSpace(t.Description) == "" || len(t.Description) > 2000 {
+			add("tool %q: description is required (at most 2000 characters)", t.Name)
+		}
+		if _, ok := a.Scripts[t.Script]; !ok {
+			add("tool %q: script %q is not defined", t.Name, t.Script)
+		}
+		if len(t.Params) > 20 {
+			add("tool %q: at most 20 params", t.Name)
+		}
+		params := map[string]bool{}
+		for _, prm := range t.Params {
+			if !ValidIdent(prm.Name) || params[prm.Name] {
+				add("tool %q: param %q: name must match [a-z][a-z0-9_]* and be unique", t.Name, prm.Name)
+			}
+			params[prm.Name] = true
+			if !ToolParamTypes[prm.Type] {
+				add("tool %q: param %q: type must be string, number, integer or boolean", t.Name, prm.Name)
+			}
+		}
 	}
 
 	if a.OnPayment != "" {

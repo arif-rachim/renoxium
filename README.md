@@ -44,7 +44,7 @@ Working today:
 - Monitoring: every 5 minutes the server checks disk space, backup age (stamps written by `backup.sh`) and error spikes, emails the operators, and shows the state on `/operator`; owners get an email on their live app's first error, then at most daily. `/healthz` answers 503 when the disk is almost full.
 - The store template has product options (sizes, colours) with their own price and stock.
 
-Not built yet (see the plan): per-app MCP.
+- Apps can define public MCP tools (`tools` in the definition, backed by scripts) served at `<app>/mcp`, so shoppers can add a shop to ChatGPT or Claude and ask about its products. The store template has search_products, get_product and store_info.
 
 ## Run
 

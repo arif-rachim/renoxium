@@ -32,7 +32,9 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	if p.cfg.PublicScheme == "https" {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead && CrossSite(r) {
+	// /mcp is an API for AI assistants: it never acts as a signed-in visitor,
+	// so requests from other sites are harmless there.
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && r.URL.Path != MCPPath && CrossSite(r) {
 		http.Error(w, "this form must be sent from the app's own pages", http.StatusForbidden)
 		return true
 	}
@@ -68,6 +70,15 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if strings.HasPrefix(r.URL.Path, PayPrefix) {
 		p.servePay(w, r, st)
+		return true
+	}
+	if servesMCP(st.def, r.URL.Path) {
+		if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)
+			return true
+		}
+		p.serveMCP(w, r, st)
 		return true
 	}
 	if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {

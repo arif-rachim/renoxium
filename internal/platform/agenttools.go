@@ -90,6 +90,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	if ctype != "" {
 		req.Header.Set("Content-Type", ctype)
 	}
+	if strings.SplitN(in.Path, "?", 2)[0] == MCPPath {
+		req.Header.Set("Accept", "application/json, text/event-stream")
+	}
 	if stage == Preview && len(p.cfg.PreviewKey) > 0 {
 		req.AddCookie(p.previewCookie(app))
 	}
@@ -167,6 +170,7 @@ type Patch struct {
 	DeleteTemplates []string                    `json:"delete_templates,omitempty"`
 	DeleteScripts   []string                    `json:"delete_scripts,omitempty"`
 	Routes          []appdef.Route              `json:"routes,omitempty" jsonschema:"if set, replaces the whole route list"`
+	Tools           []appdef.Tool               `json:"tools,omitempty" jsonschema:"if set, replaces the whole MCP tool list"`
 	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
 }
@@ -216,6 +220,9 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	}
 	if patch.Routes != nil {
 		def.Routes = patch.Routes
+	}
+	if patch.Tools != nil {
+		def.Tools = patch.Tools
 	}
 	for _, t := range patch.Tables {
 		merged := false

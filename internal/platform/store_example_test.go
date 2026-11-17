@@ -214,3 +214,46 @@ func TestStoreUAEExample(t *testing.T) {
 		t.Fatal("own orders list")
 	}
 }
+
+func TestStoreUAETools(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	ex, _ := examples.Get("store-uae")
+	def, problems := appdef.Parse(ex.JSON)
+	if len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	p.CreateApp("usr_test", "noor")
+	if res, err := p.ApplyChange(ctx, "noor", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	call := func(name string, args map[string]any) string {
+		t.Helper()
+		r, err := p.TestRequest(ctx, "noor", platform.TestRequestInput{Method: "POST", Path: "/mcp",
+			JSON: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": map[string]any{"name": name, "arguments": args}}})
+		if err != nil || r.Status != 200 {
+			t.Fatalf("%s: %v %+v", name, err, r)
+		}
+		var rpc struct {
+			Result struct {
+				IsError bool `json:"isError"`
+				Content []struct{ Text string }
+			}
+		}
+		json.Unmarshal([]byte(r.Body), &rpc)
+		if rpc.Result.IsError || len(rpc.Result.Content) == 0 {
+			t.Fatalf("%s failed: %s", name, r.Body)
+		}
+		return rpc.Result.Content[0].Text
+	}
+	if out := call("search_products", map[string]any{"query": "oud"}); !strings.Contains(out, `"name":"Royal Oud"`) || !strings.Contains(out, `"price_is_from":true`) ||
+		!strings.Contains(out, `"url":"https://noor--preview.renoxium.test/p/1"`) {
+		t.Errorf("search: %s", out)
+	}
+	if out := call("get_product", map[string]any{"id": 1, "lang": "ar"}); !strings.Contains(out, `"name":"100 مل","price":420`) {
+		t.Errorf("product: %s", out)
+	}
+	if out := call("store_info", nil); !strings.Contains(out, `"payment_methods":["card","cash on delivery"]`) {
+		t.Errorf("store info: %s", out)
+	}
+}

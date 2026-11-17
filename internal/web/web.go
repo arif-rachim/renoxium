@@ -737,6 +737,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p>{{end}}
 {{if .IsOwner}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
 <h1 style="margin-top:24px">Staff</h1><p><a href="/apps/{{.Info.App}}/staff">People who help you run this app</a></p>
+{{with .MCPURL}}<h1 style="margin-top:24px">AI assistants</h1><p>Shoppers can add your shop to ChatGPT or Claude as a connector with this address, then ask about your products: <code>{{.}}</code></p>{{end}}
 <h1 style="margin-top:24px">Notifications</h1><p><a href="/apps/{{.Info.App}}/notifications">Get new orders on WhatsApp</a> <span class="muted">as well as by email</span></p>
 <h1 style="margin-top:24px">Domain</h1><p><a href="/apps/{{.Info.App}}/domain">Use your own domain</a> <span class="muted">such as www.yourshop.com</span></p>{{else}}<p class="muted" style="margin-top:24px">You have staff access to this app.</p>{{end}}
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
