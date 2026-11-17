@@ -19,6 +19,9 @@ func (p *Platform) DeleteApp(app string) error {
 	if _, err := p.Info(app); err != nil {
 		return err
 	}
+	if err := p.RemoveCustomDomain(context.Background(), app); err != nil {
+		return err
+	}
 	p.change.Lock()
 	defer p.change.Unlock()
 	p.dropStage(app, Live)

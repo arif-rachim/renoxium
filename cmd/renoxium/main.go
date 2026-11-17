@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/cloudflare"
 	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
@@ -92,6 +93,11 @@ func main() {
 		slog.Info("Stripe payments on", "mode", mode, "webhook_secret_set", os.Getenv("STRIPE_WEBHOOK_SECRET") != "")
 	} else {
 		slog.Warn("STRIPE_SECRET_KEY is not set: live apps cannot take card payments; previews simulate checkout")
+	}
+	if token, zone := os.Getenv("CLOUDFLARE_API_TOKEN"), os.Getenv("CLOUDFLARE_ZONE_ID"); token != "" && zone != "" {
+		cfg.Cloudflare = &cloudflare.Client{Token: token, ZoneID: zone}
+		cfg.CustomDomainTarget = os.Getenv("CUSTOM_DOMAIN_TARGET")
+		slog.Info("custom domains on", "target", cfg.CustomDomainTarget)
 	}
 	if wa := whatsappFromEnv(); wa != nil {
 		cfg.WhatsApp = wa

@@ -359,6 +359,40 @@ in the service, `hostname: www.renoxium.com` in the tunnel configuration, and
 `-base-url`, and the connector address becomes `https://www.renoxium.com/mcp`. In the checks below,
 replace `renoxium.com` with `www.renoxium.com`.
 
+### Store owners' own domains (optional)
+
+Owners on Pro and Business can serve their app on a domain they own, such as `www.oudshop.ae`, from
+**Domain** on the app's page. Renoxium registers the domain as a Cloudflare for SaaS custom hostname
+on the `renoxium.app` zone; Cloudflare issues the certificate, and the request reaches this server
+through the tunnel. The tunnel configuration above ends with a catch-all to Renoxium for this reason.
+
+1. In the Cloudflare dashboard for `renoxium.app`, add the fallback origin's DNS record:
+
+   ```bash
+   cloudflared tunnel route dns renoxium customers.renoxium.app
+   ```
+
+2. Open **SSL/TLS → Custom Hostnames**, enable Cloudflare for SaaS if asked (the first 100 hostnames
+   are free), and set the **fallback origin** to `customers.renoxium.app`. Wait until it shows Active.
+3. Create an API token at **My Profile → API Tokens → Create Token → Custom token** with the permission
+   **Zone → SSL and Certificates → Edit**, limited to the `renoxium.app` zone. Copy the zone ID from the
+   zone's **Overview** page.
+4. Add to `/etc/renoxium/env` and restart Renoxium:
+
+   ```
+   CLOUDFLARE_API_TOKEN=...
+   CLOUDFLARE_ZONE_ID=...
+   CUSTOM_DOMAIN_TARGET=customers.renoxium.app
+   ```
+
+   The log shows `custom domains on target=customers.renoxium.app`.
+
+The owner then adds a `CNAME` from their domain to `customers.renoxium.app` at their domain provider
+(the page lists any extra TXT records Cloudflare asks for). The page checks again on every visit; once
+the domain is active, the app's live address, payment return links and emails use it. Subdomains such
+as `www` work with every provider; a bare domain (`oudshop.ae`) needs a provider that allows CNAME
+flattening or ALIAS records.
+
 ## 5. Check from outside
 
 From any computer:

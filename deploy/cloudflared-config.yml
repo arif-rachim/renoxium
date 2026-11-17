@@ -10,4 +10,6 @@ ingress:
   # Every app and preview: <app>.renoxium.app and <app>--preview.renoxium.app.
   - hostname: "*.renoxium.app"
     service: http://127.0.0.1:8080
-  - service: http_status:404
+  # Store owners' own domains (Cloudflare for SaaS custom hostnames) arrive
+  # with their own host name; Renoxium answers only hosts it knows.
+  - service: http://127.0.0.1:8080

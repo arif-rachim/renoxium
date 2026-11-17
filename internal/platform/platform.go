@@ -23,6 +23,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/cloudflare"
 	"github.com/arif-rachim/renoxium/internal/email"
 	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
@@ -53,6 +54,10 @@ type Config struct {
 	Mailer email.Sender
 	// TrustedIPHeader carries the visitor address behind a local tunnel.
 	TrustedIPHeader string
+	// Cloudflare sets up custom domains (Cloudflare for SaaS) on the apps
+	// zone; CustomDomainTarget is the fallback origin owners point a CNAME at.
+	Cloudflare         *cloudflare.Client
+	CustomDomainTarget string
 	// Stripe takes payments for live apps on their owners' Stripe
 	// accounts. Nil turns live checkout off; previews always simulate it.
 	Stripe *stripe.Client
@@ -101,10 +106,12 @@ type Platform struct {
 	logs   map[string]*applog.Log
 	hosts  sync.Map // host -> hostEntry
 	owners sync.Map // app -> owner
-	intake map[string]*window
-	slots  map[string]chan struct{} // per-app script concurrency
-	limits map[string]*window       // visitor sign-in rate limits
-	rids   map[string]*ridEntry     // request IDs of served pages
+	// liveHosts maps an app to its active custom domain.
+	liveHosts sync.Map
+	intake    map[string]*window
+	slots     map[string]chan struct{} // per-app script concurrency
+	limits    map[string]*window       // visitor sign-in rate limits
+	rids      map[string]*ridEntry     // request IDs of served pages
 
 	suspendedAt time.Time       // when suspended was last read
 	suspended   map[string]bool // apps taken offline
@@ -241,6 +248,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	}
 	pl := &Platform{cfg: cfg, db: db, sb: sb, files: store,
 		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}
+	if err := pl.ensureDomainTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := pl.ensureStaffTable(); err != nil {
 		db.Close()
 		return nil, err
@@ -300,6 +311,11 @@ func (p *Platform) previewURL(app string) string {
 
 // URL is the public address of an app stage.
 func (p *Platform) URL(app, stageName string) string {
+	if stageName == Live {
+		if h, ok := p.liveHosts.Load(app); ok {
+			return "https://" + h.(string) // an active custom domain is the main address
+		}
+	}
 	return p.cfg.PublicScheme + "://" + p.host(app, stageName) + p.cfg.PublicPort
 }
 

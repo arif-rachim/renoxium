@@ -36,7 +36,9 @@ Working today:
 - Sign-in limits are per address and per account from that address, with a much higher per-account cap over all addresses, so strangers cannot lock someone out.
 - Browser protections: POSTs from other origins are refused on app hosts and on the site (other apps share the renoxium.app site), cookies use the `__Host-` prefix on HTTPS, and HSTS. `/_rx/log` only accepts reports for pages the app served.
 
-Not built yet (see the plan): staff accounts and column labels in the admin panel, per-app MCP, WhatsApp order notifications, custom domains, billing-based quotas.
+- Store owners on Pro and Business can add their own domain (Cloudflare for SaaS custom hostnames); once active it becomes the app's live address.
+
+Not built yet (see the plan): column labels in the admin panel, per-app MCP, WhatsApp order notifications, product variants, image resizing, storage quotas per plan, monitoring and alerts.
 
 ## Run
 
