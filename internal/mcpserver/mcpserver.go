@@ -119,6 +119,8 @@ Images:
 - Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
   Uploading the same image again returns the same url without storing it twice.
 - Store that url in a column of type image and render it with <img src="{{.image}}" alt="...">. The url works on live, preview and custom domains.
+- Add ?w=WIDTH to an uploaded JPEG, PNG or WebP url for a smaller copy, e.g. <img src="{{.image}}?w=480"> in product lists and ?w=960 on a product page.
+  Widths round up to 160, 320, 480, 640, 960, 1280 or 1920 and are never larger than the original.
 - The owner can also upload images in the admin panel at the Renoxium site, /apps/<app>.
 
 Security rules for what you write:

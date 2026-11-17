@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,7 +91,15 @@ func (p *Platform) serveFile(w http.ResponseWriter, r *http.Request, app string)
 		http.NotFound(w, r)
 		return
 	}
-	f, err := p.files.Open(hash)
+	ctype, etag := b.ContentType, b.Hash
+	var f *os.File
+	if w, werr := strconv.Atoi(r.URL.Query().Get("w")); werr == nil && w > 0 && files.Resizable(b.ContentType) {
+		width := files.SnapWidth(w)
+		f, ctype, err = p.files.Variant(b, width)
+		etag = fmt.Sprintf("%s-%d", b.Hash, width)
+	} else {
+		f, err = p.files.Open(hash)
+	}
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.NotFound(w, r)
@@ -101,9 +110,9 @@ func (p *Platform) serveFile(w http.ResponseWriter, r *http.Request, app string)
 	}
 	defer f.Close()
 	h := w.Header()
-	h.Set("Content-Type", b.ContentType)
+	h.Set("Content-Type", ctype)
 	h.Set("Cache-Control", "public, max-age=31536000, immutable")
-	h.Set("ETag", fmt.Sprintf("%q", b.Hash))
+	h.Set("ETag", fmt.Sprintf("%q", etag))
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	http.ServeContent(w, r, "", time.Time{}, f)
