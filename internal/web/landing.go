@@ -136,9 +136,9 @@ footer .links{display:flex;gap:18px;flex-wrap:wrap}
 </div></section>
 
 <section id="pricing"><h2>Pricing</h2><div class="prices">
-<div class="plan"><h3>Free</h3><p class="amount">AED 0</p><ul><li>1 store</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>Small "Made with Renoxium" badge</li></ul><a class="btn quiet" href="/signup">Start free</a></div>
-<div class="plan pick"><h3>Pro</h3><p class="amount">AED 99 <span>/ month</span></p><ul><li>3 stores</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan"><h3>Business</h3><p class="amount">AED 299 <span>/ month</span></p><ul><li>10 stores</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>No badge</li></ul><a class="btn quiet" href="/signup">Choose Business</a></div>
+<div class="plan"><h3>Free</h3><p class="amount">AED 0</p><ul><li>1 store</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge</li></ul><a class="btn quiet" href="/signup">Start free</a></div>
+<div class="plan pick"><h3>Pro</h3><p class="amount">AED 99 <span>/ month</span></p><ul><li>3 stores</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per store</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
+<div class="plan"><h3>Business</h3><p class="amount">AED 299 <span>/ month</span></p><ul><li>10 stores</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per store</li><li>No badge</li></ul><a class="btn quiet" href="/signup">Choose Business</a></div>
 </div><p class="note">Stripe charges its own card processing fees to your Stripe account on every plan. Building and changing your store through your AI assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></section>
 
 <footer><span>© {{.Legal.Company}}</span><div class="links"><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a store</a><a href="/login">Sign in</a></div></footer>

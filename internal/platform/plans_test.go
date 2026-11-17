@@ -1,6 +1,7 @@
 package platform_test
 
 import (
+	"bytes"
 	"context"
 	"net/url"
 	"strconv"
@@ -156,5 +157,30 @@ func TestStaffLimitPerPlan(t *testing.T) {
 	}
 	if err := p.AddStaff("pro-shop", "not an email", "usr_pro"); err == nil {
 		t.Fatal("bad email accepted")
+	}
+}
+
+func TestStorageQuotaPerAccount(t *testing.T) {
+	plans := map[string]string{"usr_free": "free"}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
+		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	old := platform.StorageMBPerPlan["free"]
+	platform.StorageMBPerPlan["free"] = 0 // every new byte is over quota
+	defer func() { platform.StorageMBPerPlan["free"] = old }()
+	p.CreateApp("usr_free", "shop-a")
+	if _, err := p.AddFile("shop-a", bytes.NewReader(pngFile(t, 1))); err == nil || !strings.Contains(err.Error(), "storage is full") {
+		t.Fatalf("over quota: %v", err)
+	}
+	platform.StorageMBPerPlan["free"] = 1
+	if _, err := p.AddFile("shop-a", bytes.NewReader(pngFile(t, 1))); err != nil {
+		t.Fatal(err)
+	}
+	used, quota := p.StorageUsage("usr_free")
+	if used == 0 || quota != 1<<20 {
+		t.Errorf("usage = %d of %d", used, quota)
 	}
 }

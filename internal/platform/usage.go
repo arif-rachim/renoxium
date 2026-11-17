@@ -11,6 +11,17 @@ import (
 // message; past the quota visitors sign in with email instead.
 var WhatsAppCodesPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
 
+// StorageMBPerPlan is how much file storage all apps of one account may use.
+// A file used by several of the account's apps counts once.
+var StorageMBPerPlan = map[string]int64{planFree: 200, planPro: 2048, planBusiness: 10240}
+
+// StorageUsage is the bytes of files an account's apps use, and its quota.
+func (p *Platform) StorageUsage(owner string) (used, quota int64) {
+	p.db.QueryRow(`SELECT coalesce(sum(size), 0) FROM blobs WHERE hash IN
+		(SELECT f.hash FROM app_files f JOIN apps a ON a.name = f.app WHERE a.owner = ?)`, owner).Scan(&used)
+	return used, StorageMBPerPlan[p.planOf(owner)] << 20
+}
+
 func month(t time.Time) string { return t.UTC().Format("2006-01") }
 
 func (p *Platform) ensureUsageTable() error {

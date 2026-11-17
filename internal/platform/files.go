@@ -31,17 +31,23 @@ func (p *Platform) AddFile(app string, r io.Reader) (FileInfo, error) {
 	if _, err := p.Info(app); err != nil {
 		return FileInfo{}, err
 	}
-	var count, size int64
-	if err := p.db.QueryRow(`SELECT count(*), coalesce(sum(b.size), 0) FROM app_files f JOIN blobs b ON b.hash = f.hash WHERE f.app = ?`, app).
-		Scan(&count, &size); err != nil {
+	var count int64
+	if err := p.db.QueryRow(`SELECT count(*) FROM app_files WHERE app = ?`, app).Scan(&count); err != nil {
 		return FileInfo{}, err
 	}
-	if count >= MaxFilesPerApp || size >= MaxBytesPerApp {
-		return FileInfo{}, fmt.Errorf("this app already has %d files (%d MB); the limit is %d files or %d MB", count, size>>20, MaxFilesPerApp, MaxBytesPerApp>>20)
+	if count >= MaxFilesPerApp {
+		return FileInfo{}, fmt.Errorf("this app already has %d files; the limit is %d", count, MaxFilesPerApp)
 	}
 	b, existed, err := p.files.Put(r)
 	if err != nil {
 		return FileInfo{}, err
+	}
+	owner := p.ownerOf(app)
+	var mine int
+	p.db.QueryRow(`SELECT count(*) FROM app_files f JOIN apps a ON a.name = f.app WHERE a.owner = ? AND f.hash = ?`, owner, b.Hash).Scan(&mine)
+	if used, quota := p.StorageUsage(owner); mine == 0 && used+b.Size > quota {
+		return FileInfo{}, fmt.Errorf("storage is full: %d MB of %d MB used, and this file is %.1f MB; delete unused images or upgrade at %s/billing",
+			used>>20, quota>>20, float64(b.Size)/(1<<20), p.cfg.SiteURL)
 	}
 	if _, err := p.db.Exec(`INSERT OR IGNORE INTO blobs (hash, size, content_type, created_at) VALUES (?, ?, ?, ?)`,
 		b.Hash, b.Size, b.ContentType, now()); err != nil {

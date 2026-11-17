@@ -187,8 +187,7 @@ const (
 	MaxAppsPerOwner = 10
 	keepVersions    = 50 // older versions are deleted, except the live one
 	keepBackups     = 3  // publish backups kept per app
-	MaxFilesPerApp  = 300
-	MaxBytesPerApp  = 300 << 20
+	MaxFilesPerApp  = 2000
 )
 
 // New opens (or creates) the platform under cfg.DataDir.
