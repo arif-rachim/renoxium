@@ -87,7 +87,7 @@ type fakeStripe struct {
 	mu       sync.Mutex
 	charges  bool
 	sessions []url.Values
-	accounts []url.Values
+	accounts []map[string]any
 	headers  []string
 }
 
@@ -98,8 +98,10 @@ func (f *fakeStripe) server(t *testing.T) *httptest.Server {
 		raw, _ := io.ReadAll(r.Body)
 		form, _ := url.ParseQuery(string(raw))
 		switch {
-		case r.Method == "POST" && r.URL.Path == "/v1/accounts":
-			f.accounts = append(f.accounts, form)
+		case r.Method == "POST" && r.URL.Path == "/v2/core/accounts":
+			var acct map[string]any
+			json.Unmarshal(raw, &acct)
+			f.accounts = append(f.accounts, acct)
 			id := "acct_merchant"
 			if n := len(f.accounts); n > 1 {
 				id += strconv.Itoa(n)
@@ -150,10 +152,11 @@ func TestLiveCheckoutThroughStripe(t *testing.T) {
 	if err != nil || link != "https://connect.stripe.com/setup/s/xyz" {
 		t.Fatal(link, err)
 	}
-	acct := fs.accounts[0]
-	if acct.Get("controller[stripe_dashboard][type]") != "full" || acct.Get("controller[fees][payer]") != "account" ||
-		acct.Get("controller[losses][payments]") != "stripe" || acct.Get("country") != "AE" {
-		t.Fatalf("account created with %v", acct)
+	acct, _ := json.Marshal(fs.accounts[0])
+	for _, want := range []string{`"dashboard":"full"`, `"fees_collector":"stripe"`, `"losses_collector":"stripe"`, `"identity":{"country":"AE"}`} {
+		if !strings.Contains(string(acct), want) {
+			t.Fatalf("account created with %s", acct)
+		}
 	}
 	// A second visit reuses the account.
 	p.StripeOnboardingURL(ctx, "oud", "owner@oud.ae", "https://site/return", "https://site/refresh")

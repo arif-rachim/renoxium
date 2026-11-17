@@ -2,6 +2,7 @@ package stripe
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -33,24 +34,41 @@ func fake(t *testing.T, status int, answer string, got *captured) *Client {
 }
 
 func TestCreateAccountIsStandardEquivalent(t *testing.T) {
-	var got captured
-	c := fake(t, 200, `{"id":"acct_1","charges_enabled":false}`, &got)
+	var path, auth, version string
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path, auth, version = r.URL.Path, r.Header.Get("Authorization"), r.Header.Get("Stripe-Version")
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Write([]byte(`{"id":"acct_1","contact_email":"owner@shop.ae"}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := &Client{Key: "sk_test_x", BaseURL: srv.URL}
 	a, err := c.CreateAccount(context.Background(), "owner@shop.ae", "AE")
 	if err != nil || a.ID != "acct_1" {
 		t.Fatal(a, err)
 	}
-	want := map[string]string{
-		"controller[stripe_dashboard][type]": "full", "controller[fees][payer]": "account",
-		"controller[losses][payments]": "stripe", "controller[requirement_collection]": "stripe",
-		"email": "owner@shop.ae", "country": "AE",
+	// Accounts v2: Stripe refuses POST /v1/accounts for new Connect integrations.
+	if path != "/v2/core/accounts" || auth != "Bearer sk_test_x" || version != APIVersionV2 {
+		t.Fatalf("%s %s %s", path, auth, version)
 	}
-	for k, v := range want {
-		if got.form.Get(k) != v {
-			t.Errorf("%s = %q, want %q", k, got.form.Get(k), v)
+	raw, _ := json.Marshal(body)
+	for _, want := range []string{`"dashboard":"full"`, `"fees_collector":"stripe"`, `"losses_collector":"stripe"`, `"contact_email":"owner@shop.ae"`,
+		`"identity":{"country":"AE"}`, `"merchant":{"capabilities":{"card_payments":{"requested":true}}}`} {
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("body %s lacks %s", raw, want)
 		}
 	}
-	if got.user != "sk_test_x" || got.path != "/v1/accounts" || got.account != "" {
-		t.Fatalf("%+v", got)
+}
+
+func TestCreateAccountError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		w.Write([]byte(`{"error":{"type":"invalid_request_error","code":"parameter_invalid","message":"bad country"}}`))
+	}))
+	t.Cleanup(srv.Close)
+	_, err := (&Client{Key: "k", BaseURL: srv.URL}).CreateAccount(context.Background(), "", "XX")
+	if err == nil || !strings.Contains(err.Error(), "bad country") {
+		t.Fatal(err)
 	}
 }
 

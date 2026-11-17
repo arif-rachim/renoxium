@@ -118,25 +118,87 @@ type Account struct {
 	DefaultCurrency  string `json:"default_currency"`
 }
 
+// APIVersionV2 is the Stripe-Version sent with Accounts v2 calls.
+const APIVersionV2 = "2026-10-28.endive"
+
 // CreateAccount creates a merchant account that behaves like a Standard
-// account: the merchant gets the full Stripe Dashboard, pays Stripe's fees,
-// Stripe covers negative balances and collects requirements. These four
-// values are always sent, so the platform's Dashboard defaults never apply.
+// account, through Accounts v2 (Stripe refuses POST /v1/accounts for new
+// Connect integrations): the merchant gets the full Stripe Dashboard, pays
+// Stripe's fees, Stripe covers negative balances and collects requirements.
+// The account works with the v1 calls used afterwards (account links,
+// GET /v1/accounts/{id}, Checkout with Stripe-Account).
 func (c *Client) CreateAccount(ctx context.Context, email, country string) (Account, error) {
-	form := url.Values{
-		"controller[stripe_dashboard][type]": {"full"},
-		"controller[fees][payer]":            {"account"},
-		"controller[losses][payments]":       {"stripe"},
-		"controller[requirement_collection]": {"stripe"},
+	body := map[string]any{
+		"dashboard": "full",
+		"configuration": map[string]any{
+			"merchant": map[string]any{"capabilities": map[string]any{"card_payments": map[string]any{"requested": true}}},
+		},
+		"defaults": map[string]any{
+			"currency":         "aed",
+			"responsibilities": map[string]any{"fees_collector": "stripe", "losses_collector": "stripe"},
+		},
 	}
 	if email != "" {
-		form.Set("email", email)
+		body["contact_email"] = email
 	}
 	if country != "" {
-		form.Set("country", country)
+		body["identity"] = map[string]any{"country": country}
 	}
-	var a Account
-	return a, c.do(ctx, http.MethodPost, "/v1/accounts", "", form, &a)
+	var out struct {
+		ID           string `json:"id"`
+		ContactEmail string `json:"contact_email"`
+	}
+	if err := c.doJSON(ctx, http.MethodPost, "/v2/core/accounts", body, &out); err != nil {
+		return Account{}, err
+	}
+	return Account{ID: out.ID, Email: out.ContactEmail, Country: country}, nil
+}
+
+// doJSON sends a JSON request to a v2 endpoint (Bearer key, Stripe-Version).
+func (c *Client) doJSON(ctx context.Context, method, path string, in, out any) error {
+	base := c.BaseURL
+	if base == "" {
+		base = "https://api.stripe.com"
+	}
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, method, base+path, strings.NewReader(string(raw)))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Key)
+	req.Header.Set("Stripe-Version", APIVersionV2)
+	req.Header.Set("Content-Type", "application/json")
+	var key [16]byte
+	rand.Read(key[:])
+	req.Header.Set("Idempotency-Key", hex.EncodeToString(key[:]))
+	client := c.HTTP
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("stripe: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return fmt.Errorf("stripe: %w", err)
+	}
+	if resp.StatusCode/100 != 2 {
+		var e struct {
+			Error struct {
+				Type, Code, Message, Param string
+			} `json:"error"`
+		}
+		if json.Unmarshal(body, &e) != nil || e.Error.Message == "" {
+			return &Error{Status: resp.StatusCode, Message: strings.TrimSpace(string(body))}
+		}
+		return &Error{Status: resp.StatusCode, Type: e.Error.Type, Code: e.Error.Code, Message: e.Error.Message, Param: e.Error.Param}
+	}
+	return json.Unmarshal(body, out)
 }
 
 // GetAccount reads a connected account.
