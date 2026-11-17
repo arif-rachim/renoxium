@@ -38,8 +38,8 @@ func TestStoreUAEExample(t *testing.T) {
 		}
 		return r
 	}
-	stock := func(id int) float64 {
-		r := req(platform.TestRequestInput{Path: "/api/products?ids=" + string(rune('0'+id))})
+	stock := func(key string) float64 {
+		r := req(platform.TestRequestInput{Path: "/api/products?ids=" + key})
 		var out struct{ Products []map[string]any }
 		json.Unmarshal([]byte(r.Body), &out)
 		return out.Products[0]["stock"].(float64)
@@ -56,14 +56,22 @@ func TestStoreUAEExample(t *testing.T) {
 	if r := req(platform.TestRequestInput{Path: "/?c=Musk"}); strings.Contains(r.Body, "Royal Oud") || !strings.Contains(r.Body, "White Musk") {
 		t.Fatal("category filter")
 	}
-	if r := req(platform.TestRequestInput{Path: "/p/1"}); r.Status != 200 || !strings.Contains(r.Body, "Includes VAT") {
-		t.Fatalf("product: %d", r.Status)
+	if r := req(platform.TestRequestInput{Path: "/p/1"}); r.Status != 200 || !strings.Contains(r.Body, "Includes VAT") ||
+		!strings.Contains(r.Body, `<select id="variant">`) || !strings.Contains(r.Body, "100 ml") {
+		t.Fatalf("product with options: %d", r.Status)
+	}
+	if !strings.Contains(home.Body, "From AED 250.00") {
+		t.Fatal("home does not show the lowest option price")
+	}
+	if r := req(platform.TestRequestInput{Path: "/api/products?ids=1,1.2"}); !strings.Contains(r.Body, `"key":"1.2"`) || strings.Contains(r.Body, `"key":"1"`) ||
+		!strings.Contains(r.Body, `"priceNum":420`) {
+		t.Fatalf("api with options: %s", r.Body)
 	}
 	if r := req(platform.TestRequestInput{Path: "/p/999"}); r.Status != 404 {
 		t.Fatalf("missing product: %d", r.Status)
 	}
 
-	cart := `[{"id":1,"qty":2,"price":1}]` // a price from the browser must be ignored
+	cart := `[{"id":1,"v":1,"qty":2,"price":1}]` // a price from the browser must be ignored
 	form := func(payment, c string) map[string]string {
 		return map[string]string{"cart": c, "name": "Fatima", "phone": "+971501234567", "address": "Villa 3, Al Barsha", "emirate": "Dubai", "payment": payment}
 	}
@@ -88,8 +96,8 @@ func TestStoreUAEExample(t *testing.T) {
 	if !strings.Contains(req(platform.TestRequestInput{Path: r.Location}).Body, "500.00 AED") {
 		t.Fatal("charged amount")
 	}
-	if stock(1) != 18 {
-		t.Fatalf("stock after order = %v", stock(1))
+	if stock("1.1") != 10 {
+		t.Fatalf("option stock after order = %v", stock("1.1"))
 	}
 	paid := req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "pay"}})
 	if paid.Location != "/orders/1?placed=1" {
@@ -121,15 +129,31 @@ func TestStoreUAEExample(t *testing.T) {
 
 	// A failed card payment gives the stock back.
 	r = as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: form("card", `[{"id":3,"qty":5}]`)})
-	if stock(3) != 25 {
-		t.Fatalf("stock before failure = %v", stock(3))
+	if stock("3") != 25 {
+		t.Fatalf("stock before failure = %v", stock("3"))
 	}
 	req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "fail"}})
-	if stock(3) != 30 {
-		t.Fatalf("stock after failure = %v", stock(3))
+	if stock("3") != 30 {
+		t.Fatalf("stock after failure = %v", stock("3"))
 	}
 	if o := as(platform.TestRequestInput{Path: "/orders/3"}); !strings.Contains(o.Body, "Payment failed") {
 		t.Fatal("failed order status")
+	}
+
+	// An option's own price and stock: 420 for 100 ml, and the stock comes back after a failed payment.
+	r = as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: form("card", `[{"id":1,"v":2,"qty":1}]`)})
+	if !strings.Contains(req(platform.TestRequestInput{Path: r.Location}).Body, "420.00 AED") || stock("1.2") != 7 {
+		t.Fatalf("option checkout: %+v, stock %v", r, stock("1.2"))
+	}
+	req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "fail"}})
+	if stock("1.2") != 8 {
+		t.Fatalf("option stock after failure = %v", stock("1.2"))
+	}
+	// A product with options needs one chosen, of that product.
+	for _, c := range []string{`[{"id":1,"qty":1}]`, `[{"id":1,"v":99,"qty":1}]`} {
+		if r := as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: form("cod", c)}); r.Location != "/cart?error=error_cart" {
+			t.Fatalf("cart %s: %+v", c, r)
+		}
 	}
 
 	// Bad carts and missing fields go back to the cart with a message.

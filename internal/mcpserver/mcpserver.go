@@ -29,7 +29,7 @@ How to work:
 2. Read get_example first: it returns complete, working app definitions to copy from.
    For an online store, offer the "store-uae" example: a finished shop (catalog, cart, card payment and cash on delivery,
    AED with VAT, orders, English and Arabic). Ask only for the shop's name, WhatsApp number, delivery fee and products,
-   then change the seed rows of its store, products and texts tables (and the styling if the user wants) and keep the scripts.
+   then change the seed rows of its store, products, variants (sizes or colours, each with an optional own price and its own stock; leave it empty when products have no options) and texts tables (and the styling if the user wants) and keep the scripts.
    Product photos: upload_file, then put the url in the products.image seed. Owners can edit everything later in the admin panel.
 3. list_apps to find the user's existing apps. create_app once for a new app, then apply_change with the complete definition.
    For later changes use patch_app (change one template, script, route list or table) instead of resending everything.
