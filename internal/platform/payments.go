@@ -43,6 +43,7 @@ type Payment struct {
 	Currency      string  `json:"currency"`
 	CustomerEmail string  `json:"customer_email"`
 	CustomerName  string  `json:"customer_name"`
+	Refunded      float64 `json:"refunded_amount"` // refunded so far, in major units
 	CreatedAt     string  `json:"created_at"`
 	UpdatedAt     string  `json:"updated_at,omitempty"`
 }
@@ -122,7 +123,7 @@ func (p *Platform) Payments(ctx context.Context, app string, limit int) ([]Payme
 
 func queryPayments(ctx context.Context, st *stage, tail string, args ...any) ([]Payment, error) {
 	rows, err := st.admin.QueryContext(ctx, `SELECT id, reference, status, amount, currency, customer_email, customer_name, created_at,
-		coalesce(updated_at, '') FROM rx_payments `+tail, args...)
+		coalesce(updated_at, ''), refunded FROM rx_payments `+tail, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -130,11 +131,12 @@ func queryPayments(ctx context.Context, st *stage, tail string, args ...any) ([]
 	out := []Payment{}
 	for rows.Next() {
 		var pm Payment
-		var minor int64
-		if err := rows.Scan(&pm.ID, &pm.Reference, &pm.Status, &minor, &pm.Currency, &pm.CustomerEmail, &pm.CustomerName, &pm.CreatedAt, &pm.UpdatedAt); err != nil {
+		var minor, refunded int64
+		if err := rows.Scan(&pm.ID, &pm.Reference, &pm.Status, &minor, &pm.Currency, &pm.CustomerEmail, &pm.CustomerName, &pm.CreatedAt, &pm.UpdatedAt, &refunded); err != nil {
 			return nil, err
 		}
 		pm.Amount = float64(minor) / 100
+		pm.Refunded = float64(refunded) / 100
 		out = append(out, pm)
 	}
 	return out, rows.Err()
@@ -271,10 +273,12 @@ func (p *Platform) paymentStatus(ctx context.Context, st *stage, arg any) (any, 
 
 // settle records a payment's new status. On a change it runs the app's
 // on_payment script once with the payment in req.body.
-func (p *Platform) settle(ctx context.Context, st *stage, id, status, email, name string) error {
+func (p *Platform) settle(ctx context.Context, st *stage, id, status, email, name, paymentIntent string) error {
 	res, err := st.admin.ExecContext(ctx, `UPDATE rx_payments SET status = ?, customer_email = CASE WHEN ? != '' THEN ? ELSE customer_email END,
-		customer_name = CASE WHEN ? != '' THEN ? ELSE customer_name END, updated_at = datetime('now')
-		WHERE id = ? AND status != ? AND status != 'paid'`, status, email, email, name, name, id, status)
+		customer_name = CASE WHEN ? != '' THEN ? ELSE customer_name END, payment_intent = CASE WHEN ? != '' THEN ? ELSE payment_intent END,
+		updated_at = datetime('now')
+		WHERE id = ? AND status != ? AND status NOT IN ('paid', 'refunded', 'partially_refunded')`,
+		status, email, email, name, name, paymentIntent, paymentIntent, id, status)
 	if err != nil {
 		return err
 	}
@@ -292,23 +296,55 @@ func (p *Platform) settle(ctx context.Context, st *stage, id, status, email, nam
 			fmt.Sprintf("A card payment was completed.\n\nReference: %s\nAmount: %s %.2f\nCustomer: %s %s\n\nThe money is in your Stripe account.",
 				pm.Reference, strings.ToUpper(pm.Currency), pm.Amount, pm.CustomerName, pm.CustomerEmail))
 	}
+	p.runPaymentHook(ctx, st, pm, status)
+	return nil
+}
+
+// runPaymentHook runs the app's on_payment script with the payment.
+func (p *Platform) runPaymentHook(ctx context.Context, st *stage, pm Payment, event string) {
 	if st.def.OnPayment == "" {
-		return nil
+		return
 	}
-	body := map[string]any{"event": status, "id": pm.ID, "reference": pm.Reference, "status": pm.Status, "amount": pm.Amount,
-		"currency": pm.Currency, "customer_email": pm.CustomerEmail, "customer_name": pm.CustomerName}
+	body := map[string]any{"event": event, "id": pm.ID, "reference": pm.Reference, "status": pm.Status, "amount": pm.Amount,
+		"refunded_amount": pm.Refunded, "currency": pm.Currency, "customer_email": pm.CustomerEmail, "customer_name": pm.CustomerName}
 	release, ok := p.acquireSlot(ctx, st.app)
 	if !ok {
 		p.event(st, "payment", "error", "", "on_payment script not run: the app is too busy")
-		return nil
+		return
 	}
 	defer release()
 	rid := newRequestID()
-	_, err = p.sb.Run(ctx, st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
+	_, err := p.sb.Run(ctx, st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}}, &scriptHost{st: st, p: p, rid: rid})
 	if err != nil {
 		p.event(st, "payment", "error", rid, "on_payment script "+st.def.OnPayment+": "+err.Error())
 	}
+}
+
+// refund records a refund made in the merchant's Stripe Dashboard, found by
+// its PaymentIntent, and runs on_payment when the refunded amount grows.
+func (p *Platform) refund(ctx context.Context, st *stage, paymentIntent string, refundedMinor int64, full bool) error {
+	status := "partially_refunded"
+	if full {
+		status = "refunded"
+	}
+	res, err := st.admin.ExecContext(ctx, `UPDATE rx_payments SET status = ?, refunded = ?, updated_at = datetime('now')
+		WHERE payment_intent = ? AND payment_intent != '' AND status IN ('paid', 'partially_refunded') AND refunded < ?`,
+		status, refundedMinor, paymentIntent, refundedMinor)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+	list, err := queryPayments(ctx, st, `WHERE payment_intent = ?`, paymentIntent)
+	if err != nil || len(list) == 0 {
+		return err
+	}
+	pm := list[0]
+	p.event(st, "payment", "warn", "", fmt.Sprintf("payment for %s was %s: %s %.2f", pm.Reference, strings.ReplaceAll(status, "_", " "),
+		strings.ToUpper(pm.Currency), pm.Refunded))
+	p.runPaymentHook(ctx, st, pm, status)
 	return nil
 }
 
@@ -335,13 +371,13 @@ func (p *Platform) servePay(w http.ResponseWriter, r *http.Request, st *stage) {
 		}
 		switch r.PostFormValue("decision") {
 		case "pay":
-			if err := p.settle(r.Context(), st, id, "paid", "preview.buyer@example.com", "Preview buyer"); err != nil {
+			if err := p.settle(r.Context(), st, id, "paid", "preview.buyer@example.com", "Preview buyer", ""); err != nil {
 				http.Error(w, "could not record the payment", http.StatusInternalServerError)
 				return
 			}
 			http.Redirect(w, r, success, http.StatusSeeOther)
 		case "fail":
-			p.settle(r.Context(), st, id, "failed", "", "")
+			p.settle(r.Context(), st, id, "failed", "", "", "")
 			http.Redirect(w, r, cancel, http.StatusSeeOther)
 		default:
 			http.Redirect(w, r, cancel, http.StatusSeeOther)
@@ -382,6 +418,20 @@ func (p *Platform) HandleStripeEvent(ctx context.Context, e stripe.Event) error 
 		_, err := p.db.ExecContext(ctx, `UPDATE payment_accounts SET charges_enabled = ?, details_submitted = ?, updated_at = ? WHERE stripe_account = ?`,
 			a.ChargesEnabled, a.DetailsSubmitted, now(), a.ID)
 		return err
+	case "charge.refunded":
+		var c stripe.Charge
+		if err := json.Unmarshal(e.Data.Object, &c); err != nil || c.PaymentIntent == "" {
+			return nil
+		}
+		var app string
+		if err := p.db.QueryRowContext(ctx, `SELECT app FROM payment_accounts WHERE stripe_account = ?`, e.Account).Scan(&app); err != nil {
+			return nil // not an account of ours
+		}
+		st, err := p.loadStage(app, Live)
+		if err != nil || st == nil {
+			return err
+		}
+		return p.refund(ctx, st, c.PaymentIntent, c.AmountRefunded, c.Refunded)
 	case "checkout.session.completed", "checkout.session.async_payment_succeeded", "checkout.session.async_payment_failed", "checkout.session.expired":
 	default:
 		return nil
@@ -421,7 +471,7 @@ func (p *Platform) HandleStripeEvent(ctx context.Context, e stripe.Event) error 
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	return p.settle(ctx, st, s.ID, status, s.Customer.Email, s.Customer.Name)
+	return p.settle(ctx, st, s.ID, status, s.Customer.Email, s.Customer.Name, s.PaymentIntent)
 }
 
 // SalesPeriod sums paid card payments in one period.

@@ -96,8 +96,9 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
   reference is your own order id, e.g. "order-12"; success_path and cancel_path are paths on the app (default "/").
   currency defaults to "aed" (also usd, eur, gbp, sar). It returns {url, id, reference, amount, currency}.
 - Set "on_payment": "<script name>" in the app definition. That script runs when a payment is paid, fails or expires, with
-  req.body = {event, status, reference, id, amount, currency, customer_email, customer_name}; event is "paid", "failed" or
-  "expired". Mark the order there (e.g. UPDATE orders SET status = 'paid' WHERE id = ?). It runs once per change.
+  req.body = {event, status, reference, id, amount, refunded_amount, currency, customer_email, customer_name}; event is "paid",
+  "failed", "expired", or later "partially_refunded" / "refunded" when the owner refunds in Stripe. Mark the order there
+  (e.g. UPDATE orders SET status = 'paid' WHERE id = ?). It runs once per change.
 - On the success page do not trust the URL: read payments.get(reference), which returns the newest payment for the reference
   ({status, amount, ...}) or null. Status "pending" can still turn "paid" a few seconds later.
 - Database changes are not undone when a script fails afterwards: if checkout fails, the order you created stays; show an error

@@ -119,7 +119,8 @@ negative balances, and charges shoppers directly on the merchant's account. Reno
    - URL: `https://www.renoxium.com/stripe/webhook` (the site address in `-base-url`)
    - Listen to: **Events on Connected accounts**
    - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
-     `checkout.session.async_payment_failed`, `checkout.session.expired`, `account.updated`
+     `checkout.session.async_payment_failed`, `checkout.session.expired`, `account.updated`, `charge.refunded`
+     (the last one marks orders refunded when an owner refunds in their Stripe Dashboard)
    Copy its signing secret (`whsec_...`).
 3. Add both to `/etc/renoxium/env` and restart:
 

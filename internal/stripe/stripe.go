@@ -188,6 +188,7 @@ type Session struct {
 	AmountTotal   int64             `json:"amount_total"`
 	Currency      string            `json:"currency"`
 	Reference     string            `json:"client_reference_id"`
+	PaymentIntent string            `json:"payment_intent"`
 	Metadata      map[string]string `json:"metadata"`
 	Customer      struct {
 		Email string `json:"email"`
@@ -308,6 +309,15 @@ func (c *Client) BillingPortal(ctx context.Context, customer, returnURL string) 
 	}
 	err := c.do(ctx, http.MethodPost, "/v1/billing_portal/sessions", "", url.Values{"customer": {customer}, "return_url": {returnURL}}, &out)
 	return out.URL, err
+}
+
+// Charge is the part of a charge Renoxium needs for refunds.
+type Charge struct {
+	ID             string `json:"id"`
+	PaymentIntent  string `json:"payment_intent"`
+	Amount         int64  `json:"amount"`
+	AmountRefunded int64  `json:"amount_refunded"`
+	Refunded       bool   `json:"refunded"` // fully refunded
 }
 
 // Event is a webhook event. Account is set for events from connected

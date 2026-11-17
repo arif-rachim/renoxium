@@ -390,6 +390,15 @@ func upgradePlatformTables(db execer) error {
 			return err
 		}
 	}
+	// Columns added after the tables first shipped.
+	for _, stmt := range []string{
+		`ALTER TABLE rx_payments ADD COLUMN payment_intent TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE rx_payments ADD COLUMN refunded INTEGER NOT NULL DEFAULT 0`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return err
+		}
+	}
 	return nil
 }
 

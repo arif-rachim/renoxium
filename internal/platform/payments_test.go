@@ -177,7 +177,7 @@ func TestLiveCheckoutThroughStripe(t *testing.T) {
 	}
 
 	event := func(typ, account, paymentStatus string) stripe.Event {
-		obj, _ := json.Marshal(map[string]any{"id": "cs_test_1", "payment_status": paymentStatus, "metadata": map[string]string{"rx_app": "oud"},
+		obj, _ := json.Marshal(map[string]any{"id": "cs_test_1", "payment_status": paymentStatus, "metadata": map[string]string{"rx_app": "oud"}, "payment_intent": "pi_1",
 			"customer_details": map[string]string{"email": "buyer@mail.ae", "name": "Buyer"}})
 		e := stripe.Event{ID: "evt", Type: typ, Account: account}
 		e.Data.Object = obj
@@ -221,6 +221,36 @@ func TestLiveCheckoutThroughStripe(t *testing.T) {
 	if err != nil || cur != "AED" || len(sales) != 3 || sales[0].Count != 1 || sales[0].Amount != 500 || sales[2].Amount != 500 {
 		t.Fatalf("sales: %v %s %+v", err, cur, sales)
 	}
+	// Refunds made in the merchant's Stripe Dashboard reach the order.
+	refund := func(account string, amount int64, full bool) {
+		obj, _ := json.Marshal(map[string]any{"id": "ch_1", "payment_intent": "pi_1", "amount": 50000, "amount_refunded": amount, "refunded": full})
+		e := stripe.Event{ID: "evt_r", Type: "charge.refunded", Account: account}
+		e.Data.Object = obj
+		if err := p.HandleStripeEvent(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	refund("acct_someone_else", 50000, true)
+	if status() != "paid" {
+		t.Fatal("refund from another account applied")
+	}
+	refund("acct_merchant", 10000, false)
+	if status() != "partially_refunded" {
+		t.Fatalf("after a partial refund: %q", status())
+	}
+	refund("acct_merchant", 10000, false) // repeated delivery
+	refund("acct_merchant", 50000, true)
+	if status() != "refunded" {
+		t.Fatalf("after the full refund: %q", status())
+	}
+	logs, _ = p.Logs("oud", logFilterAll())
+	if n := countMessages(logs, "on_payment partially_refunded"); n != 1 {
+		t.Fatalf("partial refund hook ran %d times", n)
+	}
+	if list, _ := p.Payments(ctx, "oud", 1); list[0].Status != "refunded" || list[0].Refunded != 500 {
+		t.Fatalf("payment after refund: %+v", list[0])
+	}
+
 	// Live never serves the simulated checkout.
 	if r := do(t, p, "GET", host, "/_rx/pay/cs_test_1", nil); r.status != 404 {
 		t.Fatalf("simulated checkout on live: %d", r.status)
