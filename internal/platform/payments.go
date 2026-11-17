@@ -423,3 +423,42 @@ func (p *Platform) HandleStripeEvent(ctx context.Context, e stripe.Event) error 
 	defer cancel()
 	return p.settle(ctx, st, s.ID, status, s.Customer.Email, s.Customer.Name)
 }
+
+// SalesPeriod sums paid card payments in one period.
+type SalesPeriod struct {
+	Label  string
+	Count  int
+	Amount float64
+}
+
+// Sales summarises an app's paid live card payments, in the app's main
+// currency (the one with the most payments). Cash on delivery is not seen
+// by the platform.
+func (p *Platform) Sales(ctx context.Context, app string) (currency string, periods []SalesPeriod, err error) {
+	st, err := p.loadStage(app, Live)
+	if err != nil || st == nil {
+		return "", nil, err
+	}
+	currency = "aed"
+	st.admin.QueryRowContext(ctx, `SELECT currency FROM rx_payments WHERE status = 'paid' GROUP BY currency ORDER BY count(*) DESC LIMIT 1`).Scan(&currency)
+	now := time.Now().UTC()
+	for _, pr := range []struct {
+		label string
+		from  time.Time
+	}{
+		{"Today", time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)},
+		{"This month", time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)},
+		{"Last 30 days", now.AddDate(0, 0, -30)},
+	} {
+		sp := SalesPeriod{Label: pr.label}
+		var minor int64
+		err := st.admin.QueryRowContext(ctx, `SELECT count(*), coalesce(sum(amount), 0) FROM rx_payments
+			WHERE status = 'paid' AND currency = ? AND coalesce(updated_at, created_at) >= ?`, currency, pr.from.Format("2006-01-02 15:04:05")).Scan(&sp.Count, &minor)
+		if err != nil {
+			return "", nil, err
+		}
+		sp.Amount = float64(minor) / 100
+		periods = append(periods, sp)
+	}
+	return strings.ToUpper(currency), periods, nil
+}

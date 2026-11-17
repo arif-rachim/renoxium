@@ -137,7 +137,8 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 	}
 	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
 	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
-	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors})
+	currency, sales, _ := s.platform.Sales(r.Context(), app)
+	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors, "Sales": sales, "Currency": currency})
 }
 
 type column struct {

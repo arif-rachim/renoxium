@@ -217,6 +217,10 @@ func TestLiveCheckoutThroughStripe(t *testing.T) {
 	if len(list) != 1 || list[0].CustomerEmail != "buyer@mail.ae" || list[0].Amount != 500 {
 		t.Fatalf("payments: %+v", list)
 	}
+	cur, sales, err := p.Sales(ctx, "oud")
+	if err != nil || cur != "AED" || len(sales) != 3 || sales[0].Count != 1 || sales[0].Amount != 500 || sales[2].Amount != 500 {
+		t.Fatalf("sales: %v %s %+v", err, cur, sales)
+	}
 	// Live never serves the simulated checkout.
 	if r := do(t, p, "GET", host, "/_rx/pay/cs_test_1", nil); r.status != 404 {
 		t.Fatalf("simulated checkout on live: %d", r.status)
