@@ -56,6 +56,9 @@ type Site struct {
 	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
 	AbuseEmail string
 
+	// Legal fills the company details on /privacy and /terms.
+	Legal Legal
+
 	// Operators are the emails allowed into /operator (confirmed accounts only).
 	Operators []string
 
@@ -111,6 +114,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerBilling()
 	s.registerAccount()
 	s.registerOperator()
+	s.registerLanding()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
@@ -251,7 +255,7 @@ func (s *Site) clientIP(r *http.Request) string {
 func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
 	if !ok {
-		render(w, http.StatusOK, "welcome", map[string]any{"MCP": s.base + "/mcp"})
+		renderLanding(w, s.landingData())
 		return
 	}
 	apps, err := s.platform.Apps(u.ID)

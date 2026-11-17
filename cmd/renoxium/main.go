@@ -132,6 +132,8 @@ func main() {
 	site.Mailer = mailer
 	site.Version = buildVersion()
 	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	site.Legal = web.Legal{Company: os.Getenv("RENOXIUM_LEGAL_NAME"), Address: os.Getenv("RENOXIUM_LEGAL_ADDRESS"),
+		Email: os.Getenv("RENOXIUM_LEGAL_EMAIL"), Reviewed: os.Getenv("RENOXIUM_LEGAL_REVIEWED") == "1"}
 	if ops := strings.TrimSpace(os.Getenv("RENOXIUM_OPERATORS")); ops != "" {
 		site.Operators = strings.Split(ops, ",")
 	}

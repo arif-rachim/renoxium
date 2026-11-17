@@ -184,6 +184,21 @@ sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com busin
 
 `plan EMAIL free` removes such a grant.
 
+### Privacy Policy and Terms
+
+`/privacy` and `/terms` are drafts until a lawyer has reviewed them. They show the company details from
+these settings, and a "Draft" notice until `RENOXIUM_LEGAL_REVIEWED=1`:
+
+```bash
+sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
+RENOXIUM_LEGAL_NAME=Renoxium (FZC)
+RENOXIUM_LEGAL_ADDRESS=your registered address
+RENOXIUM_LEGAL_EMAIL=privacy@renoxium.com
+ENV
+```
+
+The texts live in `internal/web/landing.go`.
+
 ### Operator panel
 
 `https://www.renoxium.com/operator` shows totals (accounts per plan, monthly subscription revenue, apps,
