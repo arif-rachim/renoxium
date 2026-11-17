@@ -519,6 +519,31 @@ sudo systemctl start renoxium
 Preview databases are not backed up because they only hold a copy of live data. The next
 `apply_change` creates the preview again.
 
+## Monitoring and alerts
+
+Renoxium checks itself every 5 minutes and emails the addresses in `RENOXIUM_OPERATORS` (through
+Resend) when:
+
+- the data disk has less than 10% or 2 GB free;
+- the last backup is more than 26 hours old, or the last off-site copy is (backup checks start once
+  `/etc/cron.d/renoxium-backup` exists; `backup.sh` writes `.last-backup` and `.last-offsite` time
+  stamps in the data folder for this);
+- live apps log 200 or more server errors in 5 minutes.
+
+Each kind of alert is sent at most every 6 hours, and the latest state is on the operator panel
+(`/operator`). App owners get an email on their live app's first server error, then at most one a day,
+with the latest error and a link to the app page.
+
+Renoxium cannot report its own crash or a dead VPS. For that, add an external uptime check (for example
+UptimeRobot or Better Stack, both free for a few checks) on:
+
+```
+https://renoxium.com/healthz
+```
+
+It answers `ok`, or HTTP 503 when the disk is almost full (under 3% free). In Cloudflare,
+**Notifications → Add → Tunnel Health Alert** also emails you when the tunnel goes down.
+
 ## 7. Updating to a new version
 
 Build and copy the new binary as in step 2, then on the VPS:

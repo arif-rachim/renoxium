@@ -24,6 +24,10 @@ rm -rf "$DEST"
 find "$ROOT" -name 'renoxium-*.tar.gz' -mtime +"$KEEP_DAYS" -delete
 ARCHIVE="$ROOT/renoxium-$STAMP.tar.gz"
 echo "$ARCHIVE"
+# The server's monitor reads these stamps (it cannot read the root-only
+# backup folder) and alerts the operators when backups stop.
+stamp() { date -u +%s > "$DATA/$1.tmp" && chmod 644 "$DATA/$1.tmp" && mv "$DATA/$1.tmp" "$DATA/$1"; }
+stamp .last-backup
 
 # Off-site copy: set RENOXIUM_BACKUP_REMOTE (an rclone remote and path, e.g.
 # "r2:renoxium-backups") in /etc/renoxium/env and configure that remote with
@@ -43,7 +47,9 @@ if [ -n "${RENOXIUM_BACKUP_REMOTE:-}" ]; then
   rclone copy --no-traverse "$ARCHIVE" "$REMOTE/db/"
   rclone delete --min-age 30d "$REMOTE/db/" || true
   if [ -d "$DATA/files" ]; then
-    rclone copy --ignore-existing --exclude 'tmp/**' "$DATA/files" "$REMOTE/files"
+    # variants/ holds resized copies, made again on demand.
+    rclone copy --ignore-existing --exclude 'tmp/**' --exclude 'variants/**' "$DATA/files" "$REMOTE/files"
   fi
+  stamp .last-offsite
   echo "copied to $REMOTE"
 fi

@@ -41,7 +41,10 @@ Working today:
 - Owners can get `notify.owner` notices and card payments on WhatsApp (a Utility template), after confirming their number with a code; notices count towards the monthly WhatsApp messages.
 - Images resize on request (`?w=480`), and the admin panel shows table and column labels, help text and drop-down options from the app definition.
 
-Not built yet (see the plan): per-app MCP, product variants, monitoring and alerts.
+- Monitoring: every 5 minutes the server checks disk space, backup age (stamps written by `backup.sh`) and error spikes, emails the operators, and shows the state on `/operator`; owners get an email on their live app's first error, then at most daily. `/healthz` answers 503 when the disk is almost full.
+- The store template has product options (sizes, colours) with their own price and stock.
+
+Not built yet (see the plan): per-app MCP.
 
 ## Run
 

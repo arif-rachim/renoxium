@@ -85,7 +85,11 @@ func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
 			open++
 		}
 	}
-	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "CSRF": s.csrfToken(w, r), "Accounts": total, "PerPlan": perPlan,
+	var health any
+	if s.Monitor != nil {
+		health = s.Monitor.Status()
+	}
+	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": s.csrfToken(w, r), "Accounts": total, "PerPlan": perPlan,
 		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open})
 }
 

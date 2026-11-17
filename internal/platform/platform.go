@@ -111,6 +111,7 @@ type Platform struct {
 	owners sync.Map // app -> owner
 	// liveHosts maps an app to its active custom domain.
 	liveHosts sync.Map
+	errors    errorCounter
 	intake    map[string]*window
 	slots     map[string]chan struct{} // per-app script concurrency
 	limits    map[string]*window       // visitor sign-in rate limits
@@ -600,6 +601,9 @@ func (p *Platform) event(st *stage, source, level, rid, msg string) {
 		return
 	}
 	l.Add(applog.Event{Stage: st.name, Version: st.version, Source: source, Level: level, RequestID: rid, Message: msg})
+	if level == "error" && st.name == Live && source != "browser" {
+		p.errors.note(st.app, msg)
+	}
 }
 
 // Resolve finds the app and stage served on a request host. Hosts are looked

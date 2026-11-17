@@ -20,6 +20,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/cloudflare"
 	"github.com/arif-rachim/renoxium/internal/email"
+	"github.com/arif-rachim/renoxium/internal/monitor"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 	"github.com/arif-rachim/renoxium/internal/stripe"
@@ -160,6 +161,13 @@ func main() {
 			site.ServeHTTP(w, r)
 		}
 	})
+	// Backups are checked once backup.sh is set up: its cron entry or its stamp exists.
+	_, cronErr := os.Stat("/etc/cron.d/renoxium-backup")
+	_, stampErr := os.Stat(filepath.Join(*dataDir, ".last-backup"))
+	mon := &monitor.Monitor{Platform: p, Mailer: mailer, Operators: site.Operators, DataDir: *dataDir, SiteURL: *baseURL,
+		Backups: cronErr == nil || stampErr == nil}
+	site.Monitor = mon
+	go mon.Run(context.Background())
 	go func() {
 		for range time.Tick(time.Hour) {
 			acc.Cleanup()

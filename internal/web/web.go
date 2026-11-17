@@ -24,6 +24,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/email"
+	"github.com/arif-rachim/renoxium/internal/monitor"
 	"github.com/arif-rachim/renoxium/internal/mcpserver"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
@@ -47,6 +48,11 @@ type Site struct {
 	// accountLimiter caps sign-in attempts for one account from everywhere.
 	accountLimiter *limiter
 
+	// Monitor, when set, adds server health to /healthz and the operator panel.
+	Monitor interface {
+		Healthy() error
+		Status() monitor.Status
+	}
 	// Mailer sends account emails. New sets it to email.Log; set a real
 	// sender before serving.
 	Mailer email.Sender
@@ -119,7 +125,15 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerDomain()
 	s.registerAlerts()
 	s.registerAbuse()
-	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok\n") })
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if s.Monitor != nil {
+			if err := s.Monitor.Healthy(); err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+		}
+		io.WriteString(w, "ok\n")
+	})
 	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
 	return s
 }
@@ -748,12 +762,13 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "operator"}}{{template "wide" "Operator"}}<p class="crumbs"><a href="/">Your apps</a></p>
-<div class="card"><h1>Renoxium operator</h1><div class="tiles">
+<div class="card"><h1>Renoxium operator</h1>{{with .Health}}{{range .Problems}}<p class="error">{{.}}</p>{{end}}{{end}}<div class="tiles">
 <div class="tile"><div class="muted">Accounts</div><div class="big">{{.Accounts}}</div><div class="muted">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
 <div class="tile"><div class="muted">Subscription revenue</div><div class="big">AED {{.MRR}}</div><div class="muted">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
 <div class="tile"><div class="muted">Apps</div><div class="big">{{.Stats.Apps}}</div><div class="muted">{{.Stats.LiveApps}} live · {{.Stats.SuspendedApps}} suspended · {{.Stats.StripeReady}} take cards</div></div>
 <div class="tile"><div class="muted">WhatsApp codes</div><div class="big">{{.Stats.WhatsAppCodes}}</div><div class="muted">this month, all accounts</div></div>
-</div><p class="muted">Card fees collected and subscription payments are in the Stripe Dashboard (Connect, Collected fees; Billing, Subscriptions).</p>
+{{with .Health}}<div class="tile"><div class="muted">Server</div><div class="big">{{.DiskFreeGB}} GB free</div><div class="muted">of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
+</div>{{with .Health}}{{with .Alerts}}<details><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}<p class="muted">Card fees collected and subscription payments are in the Stripe Dashboard (Connect, Collected fees; Billing, Subscriptions).</p>
 <form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button></form></div>
 
 {{if .Reports}}<div class="card" style="margin-top:16px"><h1>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h1>
