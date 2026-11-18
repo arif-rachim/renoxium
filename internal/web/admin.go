@@ -168,8 +168,9 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
 	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
 	currency, sales, _ := s.platform.Sales(r.Context(), app)
+	status, statusText := appStatus(info)
 	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors, "Sales": sales, "Currency": currency,
-		"IsOwner": s.isOwnerOf(u, app), "MCPURL": s.platform.LiveMCPURL(app), "Jobs": s.platform.JobStates(app)})
+		"IsOwner": s.isOwnerOf(u, app), "MCPURL": s.platform.LiveMCPURL(app), "Jobs": s.platform.JobStates(app), "Status": status, "StatusText": statusText})
 }
 
 type column struct {

@@ -116,7 +116,7 @@ test('external API: only after the owner allows the host and enters the key; the
 
   // The Connections page explains the request; another owner cannot open it.
   await page.goto(`/apps/${app}`);
-  await page.getByRole('link', { name: 'Other sites and API keys' }).click();
+  await page.getByRole('link', { name: /Connections/ }).click();
   await expect(page.locator('body')).toContainText(API_HOST);
   await expect(page.locator('body')).toContainText('Gets delivery prices from the courier');
   await expect(page.locator('body')).toContainText('Courier portal, API keys page');

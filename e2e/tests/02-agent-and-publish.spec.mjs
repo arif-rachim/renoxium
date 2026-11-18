@@ -171,7 +171,7 @@ test('builder tools: create, apply, patch, test, upload, logs, publish, roll bac
   // The admin overview shows both stages and live errors.
   expect((await page.request.get(appURL(app) + '/boom')).status()).toBe(500);
   await page.goto(`/apps/${app}`);
-  await expect(page.locator('body')).toContainText('live version 1');
+  await expect(page.locator('.pill').first()).toContainText('Live');
   await expect(page.locator('body')).toContainText('Recent errors');
   const listed = await agent.call('list_apps');
   expect(JSON.stringify(listed)).toContain(app);
