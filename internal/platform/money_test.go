@@ -540,3 +540,29 @@ func TestMoneyActionsAreRateLimited(t *testing.T) {
 		t.Fatalf("past the limit: %+v", r)
 	}
 }
+
+// A refund made by on_admin_change runs on_payment too, as from any script.
+func TestAdminHookRefundRunsOnPayment(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "rent")
+	def := moneyShop()
+	def.Scripts["admin"] = `function handle(req) {
+		if (req.body.row && req.body.row.status === 'cancelled') payments.refund({reference: 'order-' + req.body.id});
+		return {text: 'ok'};
+	}`
+	def.OnAdminChange = "admin"
+	if res, err := p.ApplyChange(ctx, "rent", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	buy, _ := p.TestRequest(ctx, "rent", platform.TestRequestInput{Method: "POST", Path: "/buy"})
+	p.TestRequest(ctx, "rent", platform.TestRequestInput{Method: "POST", Path: buy.Location, Form: map[string]string{"decision": "pay"}})
+	r, err := p.TestRequest(ctx, "rent", platform.TestRequestInput{Admin: &platform.TestAdminInput{Action: "update", Table: "orders", ID: 1,
+		Values: map[string]any{"status": "cancelled"}}})
+	if err != nil || r.Status != 200 {
+		t.Fatalf("admin change: %v %+v", err, r)
+	}
+	if n := hookCount(t, p, "rent", "refunded order-1 500"); n != 1 {
+		t.Fatalf("on_payment after an admin-hook refund ran %d times", n)
+	}
+}

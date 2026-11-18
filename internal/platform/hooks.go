@@ -108,6 +108,8 @@ func (p *Platform) afterAdminChange(ctx context.Context, st *stage, t appdef.Tab
 		}
 		return run
 	}
+	host := &scriptHost{st: st, p: p, rid: rid}
+	defer host.runDeferred(ctx) // after release: on_payment from money calls needs a slot of its own
 	release, ok := p.acquireSlot(ctx, st.app)
 	if !ok {
 		return fail(errors.New("too many requests running at once for this app; the script was not run"))
@@ -117,7 +119,7 @@ func (p *Platform) afterAdminChange(ctx context.Context, st *stage, t appdef.Tab
 	req := sandbox.Request{Method: "ADMIN", Path: "/_rx/admin/" + t.Name, Origin: p.URL(st.app, st.name),
 		Body:   map[string]any{"action": action, "table": t.Name, "id": id, "row": row, "before": prev, "by": by},
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}, FormAll: map[string][]string{}}
-	resp, err := p.sb.Run(ctx, st.def.Scripts[script], req, &scriptHost{st: st, p: p, rid: rid})
+	resp, err := p.sb.Run(ctx, st.def.Scripts[script], req, host)
 	took := time.Since(start).Round(time.Microsecond)
 	if err != nil {
 		var se *sandbox.ScriptError
