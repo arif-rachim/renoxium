@@ -18,5 +18,7 @@ export default defineConfig({
     video: process.env.E2E_VIDEO ? 'on' : 'retain-on-failure',
     locale: 'en-US',
     timezoneId: 'Asia/Dubai',
+    // E2E_CHROMIUM: use a Chromium already on the machine instead of Playwright's own download.
+    ...(process.env.E2E_CHROMIUM ? { launchOptions: { executablePath: process.env.E2E_CHROMIUM } } : {}),
   },
 });

@@ -31,6 +31,7 @@ npx playwright install chromium   # once
 ./run.sh tests/04                 # one file
 ./run.sh -g "refund"              # tests whose name matches
 E2E_VIDEO=1 ./run.sh              # record a video of every test
+E2E_CHROMIUM=/path/to/chrome ./run.sh   # use a Chromium already installed
 ```
 
 You need Go and Node 20 or newer.
