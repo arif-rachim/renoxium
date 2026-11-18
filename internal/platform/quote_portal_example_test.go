@@ -2,6 +2,7 @@ package platform_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -504,6 +505,106 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 	has("quote email on preview", mails(), `not sent from preview: to fatima@mail.ae, "Your quote #8 from Bayan Business Setup is ready"`, "Total: AED 4200.00", "/quotes/8\n")
 	has("the new quote", as(client, "GET", "/quotes/8", nil).Body, "Annual audit", "AED 4200.00", "Accept quote")
+
+	// ---- Client documents: private uploads attached to a quote, only by the client who uploaded them, at most 20 per quote.
+	upload := func(email, name string) string {
+		t.Helper()
+		r := req(platform.TestRequestInput{Method: "POST", Path: platform.UploadPath, UserEmail: email,
+			Files: map[string]platform.TestFile{"file": {Name: name, Type: "image/jpeg", Base64: base64.StdEncoding.EncodeToString(jpegBytes(t))}}})
+		var f struct{ ID string }
+		if r.Status != 200 || json.Unmarshal([]byte(r.Body), &f) != nil || f.ID == "" {
+			t.Fatalf("upload %s as %s: %+v", name, email, r)
+		}
+		return f.ID
+	}
+	attach := func(email string, quote int, form map[string]string) platform.TestResponse {
+		t.Helper()
+		return as(email, "POST", fmt.Sprintf("/quotes/%d/documents", quote), form)
+	}
+	q5 = as(client, "GET", "/quotes/5", nil).Body
+	has("quote without documents", q5, "No documents yet", `src="/_rx/upload.js"`, `data-rx-upload`, `action="/quotes/5/documents"`, `<option value="emirates_id">Emirates ID</option>`)
+	passport := upload(client, "passport.jpg")
+	if r := attach(client, 5, map[string]string{"label": "passport", "file": passport}); r.Location != "/quotes/5?done=done_document" {
+		t.Fatalf("attach a passport copy: %+v\n%s", r, logText(r))
+	}
+	q5 = as(client, "GET", "/quotes/5?done=done_document", nil).Body
+	has("quote with a document", q5, "Your document is attached", "Passport copy", "passport.jpg", `href="/_rx/private/`+passport+`"`)
+	has("document notice to the owner", mails(), `to the owner, "New document on quote #5 from Fatima Al Marri: Passport copy"`, "passport.jpg", "Client documents (quote number 5)")
+	// Someone else's upload, a made-up id or someone else's quote are refused; the same file twice is stored once.
+	omarFile := upload("omar@mail.ae", "omar-id.jpg")
+	for _, file := range []string{omarFile, "nope", ""} {
+		if r := attach(client, 5, map[string]string{"label": "emirates_id", "file": file}); r.Location != "/quotes/5?error=error_document" {
+			t.Fatalf("attach file %q: %+v", file, r)
+		}
+	}
+	has("refused document", as(client, "GET", "/quotes/5?error=error_document", nil).Body, "Please choose the file again")
+	if r := attach("omar@mail.ae", 5, map[string]string{"label": "other", "file": omarFile}); r.Status != 404 {
+		t.Fatalf("documents on someone else's quote: %+v", r)
+	}
+	if r := attach(client, 5, map[string]string{"label": "passport", "file": passport}); r.Location != "/quotes/5?done=done_document" {
+		t.Fatalf("the same file again: %+v", r)
+	}
+	// The owner sees the documents in the admin panel (here: 18 more rows added there), up to 20 per quote.
+	doc := admin(platform.TestAdminInput{Action: "update", Table: "documents", ID: 1, Values: map[string]any{}})
+	if doc.Body != "nothing to do" || doc.Admin.Row["file"] != passport || doc.Admin.Row["label"] != "passport" || doc.Admin.Row["quote_id"] != int64(5) {
+		t.Fatalf("document in the admin panel: %s %v", doc.Body, doc.Admin.Row)
+	}
+	for i := 0; i < 18; i++ {
+		admin(platform.TestAdminInput{Action: "insert", Table: "documents", Values: map[string]any{"quote_id": 5, "file": fmt.Sprintf("added-%d", i), "label": "other"}})
+	}
+	licence := upload(client, "licence.jpg")
+	if r := attach(client, 5, map[string]string{"label": "trade_licence", "file": licence}); r.Location != "/quotes/5?done=done_document" {
+		t.Fatalf("the 20th document: %+v", r)
+	}
+	last := upload(client, "one-more.jpg")
+	if r := attach(client, 5, map[string]string{"label": "other", "file": last}); r.Location != "/quotes/5?error=error_many_documents" {
+		t.Fatalf("the 21st document: %+v", r)
+	}
+	q5 = as(client, "GET", "/quotes/5?lang=ar", nil).Body
+	has("full quote in Arabic", q5, "الرخصة التجارية", "licence.jpg", "وصل هذا العرض إلى الحد الأقصى للمستندات", "الملف لم يعد متاحاً")
+	hasNot("full quote", q5, `action="/quotes/5/documents"`, "one-more.jpg")
+
+	// ---- Cancelling a quote paid by card (quote 4: 630 + 945 on preview): refunded only when refund_on_cancel is ticked.
+	a = admin(platform.TestAdminInput{Action: "update", Table: "quotes", ID: 4, Values: map[string]any{"status": "cancelled"}})
+	if a.Body != "0 emails sent, AED 1575.00 paid by card not refunded" || a.Admin.Row["status"] != "cancelled" {
+		t.Fatalf("cancel without refund: %s %v\n%s", a.Body, a.Admin.Row, logText(a))
+	}
+	q4 = as(client, "GET", "/quotes/4", nil).Body
+	has("cancelled quote", q4, "<span class=\"badge\">Cancelled</span>", "AED 630.00", "AED 945.00", `href="/quotes/4/invoice/5"`)
+	hasNot("cancelled quote", q4, "Refunded", "Pay by card")
+	hasNot("emails after cancelling", mails(), "Refund of")
+	a = admin(platform.TestAdminInput{Action: "update", Table: "quotes", ID: 4, Values: map[string]any{"refund_on_cancel": true}})
+	if !strings.HasSuffix(a.Body, " emails sent, AED 1575.00 refunded") {
+		t.Fatalf("refund on cancel: %s\n%s", a.Body, logText(a))
+	}
+	has("refund emails", mails(), "5 to 10 working days", "of your payment (Deposit)", "/quotes/4\n")
+	// One email per refund, whether or not on_payment also gets the refund events (it then finds them recorded).
+	for _, want := range []string{`not sent from preview: to fatima@mail.ae, "Refund of AED 630.00 for quote #4"`, `"Refund of AED 945.00 for quote #4"`} {
+		if n := strings.Count(mails(), want); n != 1 {
+			t.Errorf("%s: %d emails, want 1", want, n)
+		}
+	}
+	q4 = as(client, "GET", "/quotes/4", nil).Body
+	has("refunded quote", q4, "Refunded to you", "AED 1575.00", "Refunded: AED 630.00", "Refunded: AED 945.00", "<span class=\"badge\">Cancelled</span>")
+	hasNot("refunded quote", q4, `href="/quotes/4/invoice/5"`)
+	// The ledger keeps what was paid and what went back; saving again refunds nothing more.
+	for id, amount := range map[int64]float64{4: 630, 5: 945} {
+		pr := admin(platform.TestAdminInput{Action: "update", Table: "quote_payments", ID: id, Values: map[string]any{}})
+		if pr.Admin.Row["status"] != "refunded" || pr.Admin.Row["amount"] != amount || pr.Admin.Row["refunded_amount"] != amount {
+			t.Fatalf("ledger row %d after the refund: %v", id, pr.Admin.Row)
+		}
+	}
+	if a = admin(platform.TestAdminInput{Action: "update", Table: "quotes", ID: 4, Values: map[string]any{"notes": "Client changed plans"}}); a.Body != "0 emails sent" ||
+		a.Admin.Row["paid_amount"] != float64(0) {
+		t.Fatalf("saving the refunded quote again: %s %v", a.Body, a.Admin.Row)
+	}
+	if logs, _ := p.Logs(app, logFilterAll()); countMessages(logs, "a script refunded AED") != 2 {
+		t.Error("the payments were not refunded exactly once each")
+	}
+	// Bank transfers are never refunded by the script (quote 1 was paid by transfer).
+	if a = admin(platform.TestAdminInput{Action: "update", Table: "quotes", ID: 1, Values: map[string]any{"status": "cancelled", "refund_on_cancel": true}}); a.Body != "0 emails sent" {
+		t.Fatalf("cancelling a quote paid by transfer: %s", a.Body)
+	}
 
 	// ---- Prices that include VAT, and a TRN: 2100 holds 100 VAT, and receipts become tax invoices.
 	edit("business", 1, map[string]string{"prices_include_vat": "1", "trn": "100123456700003"})

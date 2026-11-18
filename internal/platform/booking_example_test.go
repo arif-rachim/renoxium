@@ -355,3 +355,236 @@ func TestBookingUAETools(t *testing.T) {
 		t.Errorf("daily schedule: %v %+v", err, r)
 	}
 }
+
+// Money after booking in the UAE booking example, on preview: a customer's
+// cancellation refunds the card, the owner's changes in the admin panel
+// (test_request admin) refund and email the customer, a moved booking is
+// checked for double booking, and a monthly class runs on a subscription
+// that renews, fails, is stopped by the customer and ends.
+func TestBookingUAERefundsAndSubscriptions(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	ex, _ := examples.Get("booking-uae")
+	def, problems := appdef.Parse(ex.JSON)
+	if len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	p.CreateApp("usr_test", "lamsa")
+	if res, err := p.ApplyChange(ctx, "lamsa", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	req := func(in platform.TestRequestInput) platform.TestResponse {
+		t.Helper()
+		r, err := p.TestRequest(ctx, "lamsa", in)
+		if err != nil {
+			t.Fatalf("%+v: %v", in, err)
+		}
+		if r.Status >= 500 {
+			t.Fatalf("%s %s: %d\n%s", in.Method, in.Path, r.Status, logText(r))
+		}
+		return r
+	}
+	user := "fatima@mail.ae"
+	as := func(in platform.TestRequestInput) platform.TestResponse {
+		t.Helper()
+		in.UserEmail = user
+		return req(in)
+	}
+	admin := func(id int64, values map[string]any) platform.TestResponse {
+		t.Helper()
+		r, err := p.TestRequest(ctx, "lamsa", platform.TestRequestInput{Admin: &platform.TestAdminInput{Action: "update", Table: "bookings", ID: id, Values: values, By: "owner@lamsa.ae"}})
+		if err != nil || r.Status != 200 || r.Admin == nil {
+			t.Fatalf("admin %d %v: %v %+v\n%s", id, values, err, r, logText(r))
+		}
+		return r
+	}
+	logged := func(text string) bool {
+		t.Helper()
+		logs, _ := p.Logs("lamsa", logFilterAll())
+		return anyLog(logs, text)
+	}
+	tomorrow := time.Now().UTC().Add(4*time.Hour).AddDate(0, 0, 1).Format("2006-01-02")
+	free := func(service, staff, clock string) bool {
+		t.Helper()
+		r := req(platform.TestRequestInput{Path: "/api/slots?service=" + service + "&staff=" + staff + "&date=" + tomorrow})
+		return strings.Contains(r.Body, `"time":"`+clock+`"`)
+	}
+	req(platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": "Fatima", "email": "fatima@mail.ae", "password": "fatima password"}})
+	req(platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": "Mona", "email": "mona@mail.ae", "password": "mona password"}})
+	book := func(service, staff, clock, payment string) {
+		t.Helper()
+		r := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: map[string]string{"service": service, "staff": staff, "date": tomorrow, "time": clock,
+			"name": "Fatima", "phone": "+971501234567", "payment": payment}})
+		if r.Status != 303 || strings.Contains(r.Location, "error=") {
+			t.Fatalf("booking %s %s: %+v", service, clock, r)
+		}
+		if strings.HasPrefix(r.Location, "/_rx/pay/") {
+			if paid := req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "pay"}}); !strings.HasPrefix(paid.Location, "/bookings/") {
+				t.Fatalf("paying %s: %+v", r.Location, paid)
+			}
+		}
+	}
+
+	// The customer cancels a card booking in time: the AED 75 deposit goes back to the card at once and the booking stays cancelled.
+	book("1", "1", "10:00", "card")
+	if r := as(platform.TestRequestInput{Method: "POST", Path: "/bookings/1/cancel"}); r.Location != "/bookings/1" {
+		t.Fatalf("cancel: %+v", r)
+	}
+	page := as(platform.TestRequestInput{Path: "/bookings/1"})
+	for _, want := range []string{"<strong>Cancelled</strong>", "<span>Refunded</span><span>AED 75.00</span>", "<span>Paid online</span><span>AED 0.00</span>"} {
+		if !strings.Contains(page.Body, want) {
+			t.Errorf("cancelled booking page lacks %q", want)
+		}
+	}
+	if !free("1", "1", "10:00") {
+		t.Error("time not freed after the cancellation")
+	}
+	for _, want := range []string{"a script refunded AED 75.00 of the payment for booking-1", `to fatima@mail.ae, "Booking #1 at Lamsa Beauty Lounge is cancelled"`,
+		"AED 75.00 has been refunded to your card", `to the owner, "Cancelled by customer #1: Haircut & Blow-dry, `, "AED 75.00 was refunded to the card automatically"} {
+		if !logged(want) {
+			t.Errorf("customer cancellation: missing in log: %s", want)
+		}
+	}
+	if r := as(platform.TestRequestInput{Path: "/bookings/1?lang=ar"}); !strings.Contains(r.Body, "المبلغ المسترد") {
+		t.Error("Arabic refund line")
+	}
+
+	// The owner cancels a paid booking in the admin panel: on_admin_change refunds it and emails the customer.
+	book("1", "1", "12:00", "card")
+	r := admin(2, map[string]any{"status": "cancelled"})
+	if r.Body != "refunded AED 75.00; cancelled email sent" || r.Admin.Row["status"] != "cancelled" || r.Admin.Row["refunded_amount"] != 75.0 || r.Admin.Row["paid_amount"] != 0.0 {
+		t.Fatalf("owner cancel: %q %v\n%s", r.Body, r.Admin.Row, logText(r))
+	}
+	if !logged("a script refunded AED 75.00 of the payment for booking-2") || !logged(`to fatima@mail.ae, "Booking #2 at Lamsa Beauty Lounge is cancelled"`) {
+		t.Error("owner cancel: refund or email missing in log")
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/2"}); !strings.Contains(o.Body, "<strong>Cancelled</strong>") || !strings.Contains(o.Body, "<span>Refunded</span><span>AED 75.00</span>") {
+		t.Errorf("owner-cancelled booking page: %s", o.Body)
+	}
+
+	// The owner moves a pay-at-venue booking: the end follows the start, the customer is emailed the new time.
+	book("3", "2", "11:00", "venue") // #3 Classic Manicure with Maryam
+	r = admin(3, map[string]any{"time": "15:00"})
+	if r.Body != "changed email sent" || r.Admin.Row["end_time"] != "15:30" {
+		t.Fatalf("owner time change: %q %v\n%s", r.Body, r.Admin.Row, logText(r))
+	}
+	if !logged(`to fatima@mail.ae, "Booking #3 changed: `+weekdayOf(tomorrow)+" "+tomorrow+` at 15:00"`) || !free("3", "2", "11:00") || free("3", "2", "15:00") {
+		t.Error("owner time change: email or free times")
+	}
+	// A new staff member: the name follows; moving onto a booked time tells the owner.
+	book("3", "3", "16:00", "venue") // #4 with Priya
+	r = admin(3, map[string]any{"staff_id": 3, "time": "16:00"})
+	if !strings.HasPrefix(r.Body, "double booking: overlaps booking #4") || r.Admin.Row["staff_name"] != "Priya" || !logged(`to the owner, "DOUBLE BOOKING after an admin change #3: `) {
+		t.Fatalf("double booking after an admin change: %q %v", r.Body, r.Admin.Row)
+	}
+	r = admin(4, map[string]any{"status": "no_show"})
+	if r.Body != "no_show email sent" || !logged(`to fatima@mail.ae, "We missed you: booking #4"`) {
+		t.Fatalf("no show: %q", r.Body)
+	}
+	r = admin(3, map[string]any{"status": "completed"})
+	if r.Body != "completed email sent" || !logged(`to fatima@mail.ae, "Thank you for visiting Lamsa Beauty Lounge"`) {
+		t.Fatalf("completed: %q", r.Body)
+	}
+	if r := admin(3, map[string]any{"phone": "+971509999999"}); r.Body != "nothing to do" {
+		t.Fatalf("an unrelated change: %q", r.Body)
+	}
+
+	// A monthly class: the card is charged AED 400 every month. Mona enrols (emails per address are limited per day).
+	user = "mona@mail.ae"
+	if c := req(platform.TestRequestInput{Path: "/c/1"}); !strings.Contains(c.Body, "AED 400.00 per month") || !strings.Contains(c.Body, "6 seats left") {
+		t.Fatalf("monthly class page: %s", c.Body)
+	}
+	if c := as(platform.TestRequestInput{Path: "/c/1?lang=ar"}); !strings.Contains(c.Body, "ادفع شهرياً بالبطاقة: AED 400.00 شهرياً") {
+		t.Errorf("Arabic monthly payment option: %s", c.Body)
+	}
+	enrol := as(platform.TestRequestInput{Method: "POST", Path: "/enrol", Form: map[string]string{"class": "1", "participant": "Amal", "name": "Mona", "phone": "+971501234567", "payment": "card"}})
+	if !strings.HasPrefix(enrol.Location, "/_rx/pay/rxs_") || !strings.Contains(req(platform.TestRequestInput{Path: enrol.Location}).Body, "400.00 AED every month") {
+		t.Fatalf("monthly enrolment: %+v", enrol)
+	}
+	sub := enrol.Location
+	decide := func(decision string) {
+		t.Helper()
+		if r := req(platform.TestRequestInput{Method: "POST", Path: sub, Form: map[string]string{"decision": decision}}); r.Status != 303 {
+			t.Fatalf("%s: %+v", decision, r)
+		}
+	}
+	decide("pay")
+	o := as(platform.TestRequestInput{Path: "/bookings/5"})
+	for _, want := range []string{"<strong>Confirmed</strong>", "AED 400.00 per month", "Next payment on ", "<span>Paid online</span><span>AED 400.00</span>", "Stop monthly payments"} {
+		if !strings.Contains(o.Body, want) {
+			t.Errorf("monthly enrolment page lacks %q", want)
+		}
+	}
+	if strings.Contains(o.Body, "Cancel booking") || !strings.Contains(req(platform.TestRequestInput{Path: "/c/1"}).Body, "5 seats left") {
+		t.Error("a running monthly enrolment is cancelled like a booking, or holds no seat")
+	}
+	decide("renew")
+	if o := as(platform.TestRequestInput{Path: "/bookings/5"}); !strings.Contains(o.Body, "<span>Paid online</span><span>AED 800.00</span>") {
+		t.Errorf("after a renewal: %s", o.Body)
+	}
+	decide("renewal_failed")
+	if o := as(platform.TestRequestInput{Path: "/bookings/5"}); !strings.Contains(o.Body, "Payment overdue") || !strings.Contains(o.Body, "did not go through") ||
+		!strings.Contains(o.Body, "<strong>Confirmed</strong>") || !logged(`to mona@mail.ae, "Monthly payment for Everyday Makeup Workshop did not go through"`) {
+		t.Errorf("after a failed renewal: %s", o.Body)
+	}
+	decide("renew")
+	if o := as(platform.TestRequestInput{Path: "/bookings/5"}); !strings.Contains(o.Body, "Next payment on ") || !strings.Contains(o.Body, "AED 1200.00") {
+		t.Errorf("after a retried renewal: %s", o.Body)
+	}
+	// The customer stops it: it ends at the end of the month paid, then the seat is free.
+	if r := as(platform.TestRequestInput{Method: "POST", Path: "/bookings/5/stop"}); r.Location != "/bookings/5" {
+		t.Fatalf("stop: %+v", r)
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/5"}); !strings.Contains(o.Body, "Ends on ") || strings.Contains(o.Body, "Stop monthly payments") ||
+		!strings.Contains(req(platform.TestRequestInput{Path: "/c/1"}).Body, "5 seats left") || !logged(`to the owner, "Monthly enrolment stopped by customer #5: `) {
+		t.Errorf("after stopping: %s", o.Body)
+	}
+	if r := as(platform.TestRequestInput{Method: "POST", Path: "/bookings/5/stop"}); r.Location != "/bookings/5?error=error_stop" {
+		t.Fatalf("stopping twice: %+v", r)
+	}
+	decide("renew") // the period ends
+	if o := as(platform.TestRequestInput{Path: "/bookings/5"}); !strings.Contains(o.Body, "<strong>Completed</strong>") || !strings.Contains(o.Body, "Ended") ||
+		!strings.Contains(req(platform.TestRequestInput{Path: "/c/1"}).Body, "6 seats left") || !logged(`to mona@mail.ae, "Monthly enrolment ended: Everyday Makeup Workshop"`) {
+		t.Errorf("after the subscription ended: %s", o.Body)
+	}
+	if rec := as(platform.TestRequestInput{Path: "/bookings/5/receipt"}); rec.Status != 200 || !strings.Contains(rec.Body, "AED 1200.00") {
+		t.Errorf("monthly receipt: %d %s", rec.Status, rec.Body)
+	}
+
+	// The owner cancels a running monthly enrolment: the subscription stops now and this month is refunded.
+	enrol = as(platform.TestRequestInput{Method: "POST", Path: "/enrol", Form: map[string]string{"class": "1", "participant": "Huda", "name": "Mona", "phone": "+971501234567", "payment": "card"}})
+	sub = enrol.Location
+	decide("pay")
+	decide("renew")
+	r = admin(6, map[string]any{"status": "cancelled"})
+	if r.Body != "refunded AED 400.00; cancelled email sent" || r.Admin.Row["sub_status"] != "ended" || r.Admin.Row["paid_amount"] != 400.0 || r.Admin.Row["refunded_amount"] != 400.0 {
+		t.Fatalf("owner cancels a monthly enrolment: %q %v\n%s", r.Body, r.Admin.Row, logText(r))
+	}
+	if r := req(platform.TestRequestInput{Method: "POST", Path: sub, Form: map[string]string{"decision": "renew"}}); r.Status != 409 {
+		t.Fatalf("a stopped subscription renewed: %+v", r)
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/6"}); !strings.Contains(o.Body, "<strong>Cancelled</strong>") || !strings.Contains(o.Body, "<span>Refunded</span><span>AED 400.00</span>") {
+		t.Errorf("owner-cancelled monthly enrolment: %s", o.Body)
+	}
+
+	// Paid after the customer cancelled it: the payment is refunded at once and the owner is told.
+	pay := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: map[string]string{"service": "5", "staff": "", "date": tomorrow, "time": "18:00",
+		"name": "Mona", "phone": "+971501234568", "payment": "card"}})
+	if !strings.HasPrefix(pay.Location, "/_rx/pay/") {
+		t.Fatalf("card booking: %+v", pay)
+	}
+	if r := as(platform.TestRequestInput{Method: "POST", Path: "/bookings/7/cancel"}); r.Location != "/bookings/7" {
+		t.Fatalf("cancel before paying: %+v", r)
+	}
+	req(platform.TestRequestInput{Method: "POST", Path: pay.Location, Form: map[string]string{"decision": "pay"}})
+	if o := as(platform.TestRequestInput{Path: "/bookings/7"}); !strings.Contains(o.Body, "<strong>Cancelled</strong>") || !strings.Contains(o.Body, "<span>Refunded</span><span>AED 125.00</span>") ||
+		!logged("AED 125.00 was paid by card after the booking was cancelled and has been refunded automatically") {
+		t.Errorf("paid after cancelling: %s", o.Body)
+	}
+}
+
+// weekdayOf is the English weekday name of a YYYY-MM-DD date.
+func weekdayOf(date string) string {
+	d, _ := time.Parse("2006-01-02", date)
+	return d.Weekday().String()
+}

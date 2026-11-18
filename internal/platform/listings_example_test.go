@@ -8,6 +8,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/examples"
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
@@ -231,6 +232,75 @@ func TestListingsUAEExample(t *testing.T) {
 	}
 	if r := job(); !strings.HasPrefix(r.Body, "7 new leads in the last 24 hours, ") {
 		t.Fatalf("daily report after the limit: %s", r.Body)
+	}
+
+	// The owner books viewings in the admin panel (on_admin_change); leads carry the listing reference for the calendar.
+	admin := func(in platform.TestAdminInput) platform.TestResponse {
+		t.Helper()
+		r, err := p.TestRequest(ctx, "marsa", platform.TestRequestInput{Admin: &in})
+		if err != nil || r.Status != 200 {
+			t.Fatalf("admin %+v: %v %+v\n%s", in, err, r, logText(r))
+		}
+		return r
+	}
+	book := func(id int64, values map[string]any, want string) platform.TestResponse {
+		t.Helper()
+		r := admin(platform.TestAdminInput{Action: "update", Table: "leads", ID: id, Values: values, By: "owner@marsahomes.example"})
+		if r.Body != want {
+			t.Fatalf("lead %d %v: %q, want %q\n%s", id, values, r.Body, want, logText(r))
+		}
+		return r
+	}
+	// mailed checks the newest email written to the preview log (preview never sends email).
+	// lastMail is the newest email written to the preview log (preview never sends email).
+	lastMail := func() string {
+		t.Helper()
+		events, err := p.Logs("marsa", applog.Filter{Stage: "preview", Source: "email", Limit: 1})
+		if err != nil || len(events) == 0 {
+			t.Fatalf("no email in the log: %v", err)
+		}
+		return events[0].Message
+	}
+	mailed := func(_ platform.TestResponse, wants ...string) {
+		t.Helper()
+		m := lastMail()
+		for _, w := range wants {
+			if !strings.Contains(m, w) {
+				t.Errorf("email lacks %q:\n%s", w, m)
+			}
+		}
+	}
+	r := book(1, map[string]any{"notes": "Called, wants the evening"}, "saved")
+	if r.Admin.Row["listing_ref"] != "MH-1001" || r.Admin.Row["agent_id"] != int64(1) {
+		t.Fatalf("lead from the listing page: %v", r.Admin.Row)
+	}
+	r = book(1, map[string]any{"status": "viewing_booked", "preferred_date": "2099-01-16", "preferred_time": "18:00"}, "viewing confirmation emailed to fatima@mail.ae")
+	mailed(r, `not sent from preview: to fatima@mail.ae, "Viewing confirmed: MH-1001 on 2099-01-16 at 18:00 – Marsa Homes"`, "Hello Fatima Al Ali",
+		"Two-bedroom apartment with full marina view", "Dubai Marina", "Time: 18:00", "Omar Al Hashimi\n+971500000001\nomar@marsahomes.example",
+		"https://marsa--preview.renoxium.test/l/1")
+	// Saving the booked lead again sends nothing; moving the viewing sends the new time.
+	book(1, map[string]any{"notes": "Bring the parking card"}, "viewing unchanged")
+	mailed(book(1, map[string]any{"preferred_time": "19:30"}, "new viewing time emailed to fatima@mail.ae"), `"Viewing confirmed: MH-1001 on 2099-01-16 at 19:30 – Marsa Homes"`)
+	// Without a date there is no email; in Arabic for an Arabic lead; no email address, no email.
+	book(2, map[string]any{"status": "viewing_booked"}, "no date: visitor not emailed")
+	mailed(book(2, map[string]any{"preferred_date": "2099-02-01"}, "viewing confirmation emailed to fatima@mail.ae"),
+		`"تأكيد المعاينة: MH-1002 في 2099-02-01 الساعة سيتم تأكيده – مرسى هومز"`, "مرحباً Fatima Al Ali", "/l/2?lang=ar")
+	book(3, map[string]any{"status": "viewing_booked", "preferred_date": "2099-02-02", "preferred_time": "10:00"}, "no email address: call the visitor on +971521112233")
+	book(3, map[string]any{"preferred_time": "5pm"}, "no date: visitor not emailed")
+	// A lead the owner types in for a listing gets its reference and agent; a sold listing is never linked.
+	r = admin(platform.TestAdminInput{Action: "insert", Table: "leads", Values: map[string]any{"listing_id": 10, "kind": "viewing", "name": "Walk-in",
+		"phone": "+971500001111", "email": "walkin@mail.ae", "status": "viewing_booked", "preferred_date": "2099-03-01", "preferred_time": "11:00"}})
+	if r.Body != "viewing confirmation emailed to walkin@mail.ae" || r.Admin.Row["listing_ref"] != "MH-1010" || r.Admin.Row["agent_id"] == nil {
+		t.Fatalf("lead typed in by the owner: %s %v\n%s", r.Body, r.Admin.Row, logText(r))
+	}
+	if m := lastMail(); !strings.Contains(m, "to walkin@mail.ae") || !strings.Contains(m, "MH-1010") || strings.Contains(m, "/l/10") {
+		t.Errorf("the email to the walk-in, without a link to the sold listing:\n%s", m)
+	}
+	if r := admin(platform.TestAdminInput{Action: "update", Table: "listings", ID: 1, Values: map[string]any{"status": "sold"}}); r.Body != "nothing to do" {
+		t.Errorf("listing change: %s", r.Body)
+	}
+	if r := get("/l/1"); r.Status != 404 {
+		t.Errorf("sold listing: %d", r.Status)
 	}
 }
 

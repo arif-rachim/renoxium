@@ -40,8 +40,10 @@ var all = map[string]Example{
 		"(beauty salons, barbershops, spas) and group classes with limited seats (academies, training centres, tutors). Free times are worked out from the " +
 		"opening hours, each service's duration and each staff member's bookings, and checked again when booking; classes refuse enrolments when full. " +
 		"AED prices including 5% VAT, an online deposit by card (Stripe; 0 to 100% of the price) or pay at the venue, bookings for signed-in customers " +
-		"with cancellation until a set number of hours before, printable receipts (a UAE tax invoice once the TRN is set), confirmation and day-before " +
-		"reminder emails, tomorrow's schedule emailed to the owner every evening, read-only tools for customers' AI assistants, English and Arabic " +
+		"with cancellation until a set number of hours before (what was paid by card is refunded at once), classes billed per term or monthly by card " +
+		"(a subscription the customer can stop), emails to the customer when the owner moves, confirms or cancels a booking in the admin panel " +
+		"(cancelling refunds it; a moved booking is checked for double booking), printable receipts (a UAE tax invoice once the TRN is set), " +
+		"confirmation and day-before reminder emails, tomorrow's schedule emailed to the owner every evening, read-only tools for customers' AI assistants, English and Arabic " +
 		"(right to left). Change the business, services, staff, classes and texts tables' seed rows and keep the scripts: " +
 		"a salon fills services and staff and may leave classes empty; an academy fills classes and may leave services and staff empty.", JSON: bookingUAE},
 	"catalog": {Name: "catalog", Description: "A small shop: product list, product page with an order form, and a JSON API.", JSON: catalog},
@@ -54,7 +56,10 @@ var all = map[string]Example{
 		"English and Arabic (right to left). To reuse it, change the seed rows of business, packages and texts and keep the scripts: " +
 		"for an event planner or photographer, replace the packages (e.g. wedding planning, corporate event, half-day shoot) with their categories, " +
 		"set prices_include_vat to 1 when selling to private clients, adjust deposit_percent, and reword the how_* and message_hint texts " +
-		"(the enquiry form already has a target date and a budget). Clients cannot upload files: the owner pastes links in updates.", JSON: quotePortalUAE},
+		"(the enquiry form already has a target date and a budget). Signed-in clients attach documents to a quote (passport copy, Emirates ID, trade licence) " +
+		"as private uploads (file column, /_rx/upload.js, ownership checked with files.get, at most 20 per quote; the owner opens them in the admin panel and is notified). " +
+		"Setting a quote to cancelled refunds its card payments with payments.refund when the owner ticks refund_on_cancel (otherwise the money stays recorded); " +
+		"refunds keep the amount paid and record refunded_amount in the ledger, are emailed to the client and shown in the portal.", JSON: quotePortalUAE},
 	"reservation-uae": {Name: "reservation-uae", Description: "A complete reservation site for UAE businesses that sell dated inventory, ready to customise. " +
 		"Each item is sold in one of two ways (items.mode): departure = seats on dated departures with adult and child prices (desert safari, dhow cruise, " +
 		"yacht trip, city tour); range = a quantity rented from a start date to an end date with a price per day, optional weekly price, minimum days and a " +
@@ -92,7 +97,9 @@ var all = map[string]Example{
 		"email (and WhatsApp notices) and into the admin panel with a follow-up status, with spam limits for forms that need no sign-in. " +
 		"Regulatory fields are first-class: each listing shows its advertising permit number and QR code (Trakheesi in Dubai, ADREC in Abu Dhabi), " +
 		"the office number (ORN) and the agent's broker number (BRN), and a listing without a permit number is hidden from visitors. " +
-		"English and Arabic (right to left), a daily summary for the owner, and read-only tools for buyers' AI assistants. " +
+		"Viewing requests appear in an admin calendar by day, one lane per agent (spam and lost leads hidden); when the owner sets a lead to " +
+		"viewing booked with a date and time, on_admin_change emails the visitor a confirmation with the listing and the agent's contact. " +
+		"English and Arabic (right to left), a daily summary for the owner, read-only tools for buyers' AI assistants, and shared helpers in lib. " +
 		"Change the agency, agents, listings and texts tables' seed rows; it also suits car dealers or other listing-and-lead businesses by changing the listing fields.", JSON: listingsUAE},
 	"tasks": {Name: "tasks", Description: "Create, edit, toggle and delete records: forms, path parameters, boolean columns, filters and counts.", JSON: tasks},
 }
