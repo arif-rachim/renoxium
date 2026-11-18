@@ -7,6 +7,8 @@
 //   /resend/...   Resend email API
 //   /meta/...     WhatsApp Cloud API
 //   /cf/...       Cloudflare custom hostnames API
+//   /extapi/<host>/...  the external APIs apps reach with http.fetch
+//                 (FETCH_API_BASE sends every call here)
 //   /_fake/...    control and inspection for the tests
 //
 // Everything is kept in memory; nothing leaves this machine.
@@ -15,7 +17,7 @@ import crypto from 'node:crypto';
 
 export function startFakes({ port = 0, renoxiumURL, webhookSecret, billingWebhookSecret, pricePro, priceBusiness }) {
   const state = {
-    emails: [], whatsapp: [], stripeCalls: [],
+    emails: [], whatsapp: [], stripeCalls: [], apiCalls: [],
     accounts: new Map(),      // acct_ → { id, email, country, charges_enabled, details_submitted }
     links: new Map(),         // link id → { account, return_url, refresh_url }
     sessions: new Map(),      // cs_ → session
@@ -273,6 +275,7 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
       return json(res, 200, h);
     }
     if (path === '/cf/hostnames') return json(res, 200, [...state.hostnames.values()]);
+    if (path === '/extapi/calls') return json(res, 200, state.apiCalls.filter((c) => !q.get('host') || c.host === q.get('host')));
     return json(res, 404, { error: 'no such control' });
   }
 
@@ -296,6 +299,19 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
         const params = m.template.components.flatMap((c) => c.parameters.map((x) => x.text));
         state.whatsapp.push({ to: m.to, template: m.template.name, language: m.template.language.code, params, at: Date.now() });
         return json(res, 200, { messaging_product: 'whatsapp', messages: [{ id: id('wamid') }] });
+      }
+      if (p.startsWith('/extapi/')) {
+        // A courier-style API: /rates needs a Bearer key, /echo repeats what it was sent.
+        const [host, ...rest] = p.slice('/extapi/'.length).split('/');
+        const apiPath = '/' + rest.join('/');
+        const auth = req.headers.authorization || '';
+        state.apiCalls.push({ host, path: apiPath, method: req.method, query: Object.fromEntries(url.searchParams), authorization: auth, body, at: Date.now() });
+        if (apiPath === '/rates') {
+          if (!auth.startsWith('Bearer ')) return json(res, 401, { error: 'missing key' });
+          return json(res, 200, { price: 25, currency: 'AED', emirate: url.searchParams.get('emirate') });
+        }
+        if (apiPath === '/echo') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('you sent: ' + auth); }
+        return json(res, 404, { error: 'no such endpoint' });
       }
       if (p.startsWith('/cf/')) return cloudflare(req, res, p.slice(3), body);
       if (p.startsWith('/_fake/')) return await control(req, res, p.slice(6), body);

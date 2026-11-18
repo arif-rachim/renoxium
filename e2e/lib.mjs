@@ -28,6 +28,7 @@ export const fake = {
   emails: (to) => fake.get('/emails?to=' + encodeURIComponent(to)),
   whatsapp: (to) => fake.get('/whatsapp?to=' + encodeURIComponent(to)),
   stripeCalls: () => fake.get('/stripe/calls'),
+  apiCalls: (host) => fake.get('/extapi/calls?host=' + encodeURIComponent(host)),
   sessions: () => fake.get('/stripe/sessions'),
 };
 

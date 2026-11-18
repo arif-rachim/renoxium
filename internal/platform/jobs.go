@@ -51,9 +51,13 @@ func (p *Platform) ensureJobTable() error {
 	return err
 }
 
-// RunJobs checks for due jobs every 30 seconds until ctx ends.
-func (p *Platform) RunJobs(ctx context.Context) {
-	t := time.NewTicker(30 * time.Second)
+// RunJobs checks for due jobs every interval (30 seconds when zero) until
+// ctx ends.
+func (p *Platform) RunJobs(ctx context.Context, every time.Duration) {
+	if every <= 0 {
+		every = 30 * time.Second
+	}
+	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
 		p.RunDueJobs(ctx, time.Now())

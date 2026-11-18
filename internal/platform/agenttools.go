@@ -24,7 +24,7 @@ import (
 type TestRequestInput struct {
 	Stage  string            `json:"stage,omitempty" jsonschema:"preview (default) or live; live accepts only GET so tests never change live data"`
 	Method string            `json:"method,omitempty" jsonschema:"GET (default) or POST"`
-	Path   string            `json:"path" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud"`
+	Path   string            `json:"path,omitempty" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud; required unless job is set"`
 	Form   map[string]string `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
 	JSON   any               `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
 	// UserEmail sends the request as a signed-in visitor (preview only).

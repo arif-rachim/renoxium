@@ -20,6 +20,11 @@ unset in production, so the real services are used there:
 - `RESEND_API_URL`
 - `WHATSAPP_API_BASE`
 - `CLOUDFLARE_API_BASE`
+- `FETCH_API_BASE`: every `http.fetch` an app makes goes to `<base>/<host>/<path>` (the fake API in
+  `fakes.mjs`) instead of the internet. The server logs a warning when it is set.
+
+`JOBS_CHECK_EVERY=1s` makes the server look for due scheduled jobs every second instead of every 30,
+so the job scenario waits about a minute, not a minute and a half.
 
 ## Run
 
@@ -53,6 +58,7 @@ opens with `npx playwright show-report`.
 | `06-admin-panel` | Products: add with a photo, field errors, edit, search, delete, and the live shop follows; staff: invitation email, signing in, editing data, no access to payments, staff, domain, notifications or publishing, removal; custom domain: refused names, DNS records, active after Cloudflare validates, served on the domain, removed; deleting a visitor ends their session |
 | `07-operator` | 404 for owners and for an unconfirmed operator address; figures; search; giving Pro without payment (it survives a billing sync); suspending an app (451) and bringing it back; abuse reports marked handled; back to Free |
 | `08-account-deletion` | Wrong confirmation and wrong password change nothing; a paid plan is cancelled at Stripe at once; the apps go offline; the agent's token dies; the app name is free again |
+| `09-jobs-realtime-fetch` | Scheduled job: rejected schedules, tried on preview with `test_request {job}`, runs on live by itself after its interval, shown on the app page and in the log; realtime: the job's message updates an open page, a courier's phone (emulated GPS) moves the marker on the customer's map in the delivery-tracking example, the live channel refuses a missing or forged token, the owner is emailed on delivery; external API: `owner_actions` from `apply_change`, calls refused until the owner allows the host and enters the key on the Connections page (404 for another owner), the key reaches the API but not the script, the page, `get_app` or the log, unlisted hosts refused, the monthly meter on `/billing`, Stop refuses calls again |
 
 The Go tests (`go test ./...`) cover the rest at unit level, such as rate
 limits, quotas, the sandbox, migrations and monitoring.
