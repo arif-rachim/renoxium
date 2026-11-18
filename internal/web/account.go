@@ -2,6 +2,7 @@ package web
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +32,8 @@ func (s *Site) accountPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) renderAccount(w http.ResponseWriter, r *http.Request, u accounts.User, status int, extra map[string]any) {
 	apps, _ := s.platform.Apps(u.ID)
-	data := map[string]any{"User": u, "CSRF": s.csrfToken(w, r), "Apps": apps}
+	b, _ := s.accounts.Billing(u.ID)
+	data := map[string]any{"User": u, "CSRF": s.csrfToken(w, r), "Apps": apps, "Billing": b}
 	for k, v := range extra {
 		data[k] = v
 	}
@@ -95,8 +97,8 @@ func (s *Site) exportAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 // deleteAccount removes the account and all its apps after the owner
-// confirms with their password and email. A paid subscription must be
-// cancelled first, so nobody is billed for a deleted account.
+// confirms with their password and email. A running paid subscription is
+// cancelled at Stripe first, so nobody is billed for a deleted account.
 func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
 	if !ok || !s.checkCSRF(r) {
@@ -107,17 +109,17 @@ func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many attempts; try again later", http.StatusTooManyRequests)
 		return
 	}
-	b, _ := s.accounts.Billing(u.ID)
-	if b.Plan != accounts.PlanFree && b.Status != accounts.StatusGranted {
-		s.renderAccount(w, r, u, http.StatusConflict, map[string]any{"DeleteError": "Cancel your paid plan first (Plan and billing, Manage billing), then delete the account."})
-		return
-	}
 	if !strings.EqualFold(strings.TrimSpace(r.PostFormValue("confirm")), u.Email) {
 		s.renderAccount(w, r, u, http.StatusBadRequest, map[string]any{"DeleteError": "Type your email address exactly to confirm."})
 		return
 	}
 	if _, err := s.accounts.Authenticate(u.Email, r.PostFormValue("password")); err != nil {
 		s.renderAccount(w, r, u, http.StatusUnauthorized, map[string]any{"DeleteError": "Your password is not right."})
+		return
+	}
+	if err := s.cancelSubscriptions(r.Context(), u.ID); err != nil {
+		slog.Error("cancel subscription before delete", "user", u.ID, "err", err)
+		s.renderAccount(w, r, u, http.StatusBadGateway, map[string]any{"DeleteError": "Your paid plan could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
 		return
 	}
 	apps, err := s.platform.Apps(u.ID)
@@ -140,4 +142,34 @@ func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	s.setCookie(w, sessionCookie, "", -time.Second)
 	render(w, http.StatusOK, "notice", map[string]any{"Title": "Account deleted",
 		"Message": fmt.Sprintf("Your account and %d app(s) were deleted. Your Stripe accounts are yours and were not changed.", len(apps)), "Link": "/"})
+}
+
+// cancelSubscriptions ends every subscription of the account that Stripe
+// would still bill, including one already set to end at the period's end.
+func (s *Site) cancelSubscriptions(ctx context.Context, userID string) error {
+	b, err := s.accounts.Billing(userID)
+	if err != nil || b.Customer == "" {
+		return err
+	}
+	if !s.Billing.ready() {
+		if b.Plan != accounts.PlanFree && b.Status != accounts.StatusGranted {
+			return errors.New("billing is not configured on this server")
+		}
+		return nil
+	}
+	subs, err := s.Billing.Stripe.Subscriptions(ctx, b.Customer)
+	if err != nil {
+		return err
+	}
+	for _, sub := range subs {
+		switch sub.Status {
+		case "canceled", "incomplete_expired":
+			continue
+		}
+		if err := s.Billing.Stripe.CancelSubscription(ctx, sub.ID); err != nil {
+			return err
+		}
+		slog.Info("subscription cancelled for account deletion", "user", userID, "subscription", sub.ID)
+	}
+	return nil
 }

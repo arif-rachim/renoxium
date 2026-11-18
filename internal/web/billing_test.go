@@ -16,11 +16,13 @@ import (
 )
 
 type fakeBilling struct {
-	mu        sync.Mutex
-	customers int
-	status    string // status of the one subscription, "" for none
-	price     string
-	checkouts []url.Values
+	mu         sync.Mutex
+	customers  int
+	status     string // status of the one subscription, "" for none
+	price      string
+	checkouts  []url.Values
+	cancels    []string // subscriptions cancelled with DELETE
+	failCancel bool
 }
 
 func (f *fakeBilling) server(t *testing.T) *httptest.Server {
@@ -29,6 +31,18 @@ func (f *fakeBilling) server(t *testing.T) *httptest.Server {
 		defer f.mu.Unlock()
 		raw, _ := io.ReadAll(r.Body)
 		form, _ := url.ParseQuery(string(raw))
+		if r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/") {
+			if f.failCancel {
+				w.WriteHeader(500)
+				w.Write([]byte(`{"error":{"type":"api_error","message":"try later"}}`))
+				return
+			}
+			id := strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/")
+			f.cancels = append(f.cancels, id)
+			f.status = "canceled"
+			w.Write([]byte(`{"id":"` + id + `","status":"canceled"}`))
+			return
+		}
 		switch r.URL.Path {
 		case "/v1/customers":
 			f.customers++

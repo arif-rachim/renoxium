@@ -236,14 +236,19 @@ func (s *Site) checkCSRF(r *http.Request) bool {
 	return err == nil && len(c.Value) >= 32 && subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("csrf"))) == 1
 }
 
-// safeNext only allows returning to the authorize endpoint or the admin
-// panel on this site.
+// safeNext only allows returning to the authorize endpoint or a page of
+// the signed-in site (admin panel, account, billing, operator).
 func safeNext(next string) string {
 	if strings.ContainsAny(next, "\\\r\n") || strings.Contains(next, "//") {
 		return "/"
 	}
 	if strings.HasPrefix(next, "/oauth/authorize?") || strings.HasPrefix(next, "/apps/") {
 		return next
+	}
+	for _, page := range []string{"/account", "/billing", "/operator"} {
+		if next == page || strings.HasPrefix(next, page+"?") {
+			return next
+		}
 	}
 	return "/"
 }
@@ -663,7 +668,7 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);white-spac
 textarea{width:100%;min-height:96px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 textarea.json{font-family:ui-monospace,monospace;font-size:14px}
 .help{margin:4px 0 0;font-size:13px}.check{display:flex;gap:8px;align-items:center;margin-top:12px}.check input{width:auto}
-.ok{color:#2e7d32}.field-error{color:#c62828;font-size:14px;margin-top:4px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ok{color:#2e7d32}.note{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:12px 0}.note ul{margin:0 0 8px;padding-inline-start:20px}.field-error{color:#c62828;font-size:14px;margin-top:4px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
 .bar form{display:flex;gap:8px}.bar input{width:220px}.bar button,.bar .button{margin-top:0}.button{display:inline-block;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
 button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pager{display:flex;gap:12px;margin-top:12px;font-size:14px}
 .connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}.plan{border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -800,7 +805,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <div class="card" style="margin-top:16px"><h1>Export your data</h1><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
 <a class="button" href="/account/export">Download export</a></div>
 <form class="card" method="post" action="/account/delete" style="margin-top:16px"><h1>Delete account</h1>
-<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.</p>{{with .DeleteError}}<p class="error">{{.}}</p>{{end}}
+<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
 <label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger">Delete my account</button></form>{{template "bottom"}}{{end}}
@@ -868,7 +873,11 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "admin_payments"}}{{template "wide" "Payments"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <h1>Payments</h1>
 {{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
-{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account, and Renoxium takes no fee.</p>
+{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and on the Free plan Renoxium takes {{.Fee}}% of each card payment (<a href="/billing">no fee on Pro and Business</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
+<div class="note"><p><strong>Before you start, have these ready.</strong> Stripe checks every business by law, and its form takes 15–30 minutes. In the UAE it usually asks for:</p>
+<ul><li>the trade licence and the memorandum of association (for a company)</li><li>the passport and Emirates ID or visa of the owner and of each person owning 25% or more</li>
+<li>the business address and phone number</li><li>a UAE bank account in the business's name (IBAN), for payouts</li></ul>
+<p class="muted">Stripe may show a CAPTCHA and ask for more. You can stop and continue later from this page; payments open once Stripe has checked your details, often within minutes.</p></div>
 <form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Connect Stripe</button></form>
 {{else if .Account.ChargesEnabled}}<p class="ok">Stripe is connected and ready to take payments.</p><p class="muted">Account {{.Account.StripeAccount}}. Manage payouts, refunds and disputes in your Stripe Dashboard.</p>
 {{else}}<p>Your Stripe account is connected but not ready to take payments yet{{if .Account.DetailsSubmitted}}: Stripe is reviewing your details{{end}}.</p>

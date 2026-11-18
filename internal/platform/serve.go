@@ -81,6 +81,16 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.serveMCP(w, r, st)
 		return true
 	}
+	if r.URL.Path == "/favicon.ico" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+		if route, _ := st.def.Match(http.MethodGet, r.URL.Path); route == nil {
+			// Browsers ask for it on every first visit; an app without its
+			// own icon gets a plain one instead of a 404 in its log.
+			w.Header().Set("Content-Type", "image/png")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+			w.Write(defaultFavicon)
+			return true
+		}
+	}
 	if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)

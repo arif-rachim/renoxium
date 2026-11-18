@@ -695,3 +695,20 @@ func TestAbuseReportsReachTheOperator(t *testing.T) {
 }
 
 func (e *env) accounts() *accounts.Store { return e.acc }
+
+func TestLoginReturnsToPage(t *testing.T) {
+	e := newEnv(t)
+	e.signup(e.browser(), "nadia@shop.ae")
+	for next, want := range map[string]string{
+		"/account": "/account", "/billing": "/billing", "/operator": "/operator", "/billing?done=1": "/billing?done=1",
+		"/apps/x/payments": "/apps/x/payments", "//evil.example/account": "/", "https://evil.example/": "/",
+		"/accounting": "/", "/account/../x": "/",
+	} {
+		c := e.browser()
+		token := e.csrf(c, "/login?next="+url.QueryEscape(next))
+		r, _ := c.PostForm(e.base+"/login", url.Values{"csrf": {token}, "email": {"nadia@shop.ae"}, "password": {"correct horse battery"}, "next": {next}})
+		if loc := r.Header.Get("Location"); r.StatusCode != 303 || loc != want {
+			t.Errorf("next %q: %d %q, want %q", next, r.StatusCode, loc, want)
+		}
+	}
+}

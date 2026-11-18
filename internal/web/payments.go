@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/stripe"
 )
 
@@ -31,9 +33,13 @@ func (s *Site) registerPayments() {
 }
 
 func (s *Site) adminPayments(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	u, app, ok := s.owner(w, r)
 	if !ok {
 		return
+	}
+	fee := 0
+	if b, _ := s.accounts.Billing(u.ID); b.Plan == accounts.PlanFree {
+		fee = platform.FreePlanFeePercent
 	}
 	pa, err := s.platform.PaymentAccount(app)
 	if err == nil && pa.StripeAccount != "" && r.URL.Query().Get("returned") == "1" {
@@ -44,7 +50,7 @@ func (s *Site) adminPayments(w http.ResponseWriter, r *http.Request) {
 		slog.Error("payment account", "app", app, "err", err)
 	}
 	list, _ := s.platform.Payments(r.Context(), app, 50)
-	render(w, http.StatusOK, "admin_payments", map[string]any{"App": app, "Account": pa, "Payments": list, "CSRF": s.csrfToken(w, r)})
+	render(w, http.StatusOK, "admin_payments", map[string]any{"App": app, "Account": pa, "Payments": list, "CSRF": s.csrfToken(w, r), "Fee": fee})
 }
 
 // connectStripe sends the owner to Stripe's onboarding, creating the

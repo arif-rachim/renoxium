@@ -12,6 +12,8 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/stripe"
+	"github.com/arif-rachim/renoxium/internal/web"
 )
 
 func TestAccountPage(t *testing.T) {
@@ -81,22 +83,39 @@ func TestAccountPage(t *testing.T) {
 		}
 	}
 
-	// Delete: refused while a paid plan runs, and without the right confirmation.
+	// Delete: a running paid plan is cancelled at Stripe first; nothing is
+	// deleted when that fails or the confirmation is wrong.
+	fb := &fakeBilling{status: "active", price: "price_pro"}
+	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
 	u, _ := e.acc.UserByEmail("xena@shop.ae")
-	e.acc.SetCustomer(u.ID, "cus_x")
-	e.acc.SetSubscription(u.ID, accounts.Billing{Plan: "pro", Status: "active"})
-	if r, page := post("/account/delete", url.Values{"confirm": {"xena@shop.ae"}, "password": {"a brand new password"}}); r.StatusCode != 409 || !strings.Contains(page, "Cancel your paid plan") {
-		t.Fatalf("delete while paying: %d", r.StatusCode)
+	e.acc.SetCustomer(u.ID, "cus_1")
+	e.acc.SetSubscription(u.ID, accounts.Billing{Plan: "pro", Status: "active", Subscription: "sub_1"})
+	if r, _ := c.Get(e.base + "/account"); !strings.Contains(read(t, r), "Your paid plan is cancelled at once") {
+		t.Fatal("the delete form does not warn about the paid plan")
 	}
-	e.acc.SetSubscription(u.ID, accounts.Billing{Plan: "free", Status: "canceled"})
+	fb.failCancel = true
+	if r, page := post("/account/delete", url.Values{"confirm": {"xena@shop.ae"}, "password": {"a brand new password"}}); r.StatusCode != 502 || !strings.Contains(page, "nothing was deleted") {
+		t.Fatalf("delete when Stripe fails: %d", r.StatusCode)
+	}
+	if _, err := e.acc.UserByEmail("xena@shop.ae"); err != nil {
+		t.Fatal("the account was deleted although the plan was not cancelled")
+	}
+	fb.failCancel = false
 	if r, _ := post("/account/delete", url.Values{"confirm": {"someone@else.ae"}, "password": {"a brand new password"}}); r.StatusCode != 400 {
 		t.Fatalf("wrong confirmation: %d", r.StatusCode)
 	}
 	if r, _ := post("/account/delete", url.Values{"confirm": {"xena@shop.ae"}, "password": {"wrong password!"}}); r.StatusCode != 401 {
 		t.Fatalf("wrong password: %d", r.StatusCode)
 	}
+	if len(fb.cancels) != 0 {
+		t.Fatalf("cancelled before the confirmation was right: %v", fb.cancels)
+	}
 	if r, page := post("/account/delete", url.Values{"confirm": {"XENA@shop.ae"}, "password": {"a brand new password"}}); r.StatusCode != 200 || !strings.Contains(page, "1 app(s) were deleted") {
 		t.Fatalf("delete: %d %s", r.StatusCode, page)
+	}
+	if len(fb.cancels) != 1 || fb.cancels[0] != "sub_1" {
+		t.Fatalf("subscription not cancelled: %v", fb.cancels)
 	}
 	if e.p.ServeApp(httptest.NewRecorder(), httptest.NewRequest("GET", "http://xena-shop.renoxium.test/", nil)) {
 		t.Fatal("the app still serves")

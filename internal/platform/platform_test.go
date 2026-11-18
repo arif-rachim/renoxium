@@ -446,3 +446,23 @@ func TestRepeatedFormFields(t *testing.T) {
 		t.Fatalf("got %s", r.body)
 	}
 }
+
+func TestDefaultFavicon(t *testing.T) {
+	p := newPlatform(t)
+	if _, err := p.CreateApp("usr_test", "al-noor"); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := p.ApplyChange(context.Background(), "al-noor", catalog(t)); err != nil || !res.OK {
+		t.Fatalf("apply: %v %+v", err, res)
+	}
+	r := do(t, p, "GET", previewHost, "/favicon.ico", nil)
+	if r.status != 200 || r.header.Get("Content-Type") != "image/png" || !strings.HasPrefix(r.body, "\x89PNG") {
+		t.Fatalf("favicon: %d %s", r.status, r.header.Get("Content-Type"))
+	}
+	logs, _ := p.Logs("al-noor", applog.Filter{Level: "warn"})
+	for _, l := range logs {
+		if strings.Contains(l.Message, "favicon") {
+			t.Fatalf("favicon still logged: %s", l.Message)
+		}
+	}
+}

@@ -363,6 +363,15 @@ func (c *Client) Subscriptions(ctx context.Context, customer string) ([]Subscrip
 	return out.Data, err
 }
 
+// CancelSubscription ends a subscription at once, without proration
+// credit. Used when an owner deletes their account.
+func (c *Client) CancelSubscription(ctx context.Context, id string) error {
+	var out struct {
+		ID string `json:"id"`
+	}
+	return c.do(ctx, http.MethodDelete, "/v1/subscriptions/"+url.PathEscape(id), "", nil, &out)
+}
+
 // BillingPortal returns a Customer Portal URL where the customer manages
 // payment methods, invoices and cancellation.
 func (c *Client) BillingPortal(ctx context.Context, customer, returnURL string) (string, error) {
