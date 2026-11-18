@@ -142,6 +142,8 @@ func (p *Platform) runTool(ctx context.Context, st *stage, t appdef.Tool, args m
 	if args == nil {
 		args = map[string]any{}
 	}
+	host := &scriptHost{st: st, p: p, rid: rid, readOnly: t.ReadOnly}
+	defer host.runDeferred(ctx) // on_payment runs from money calls, after the slot is released
 	release, ok := p.acquireSlot(ctx, st.app)
 	if !ok {
 		return "", publicError{"the app is busy; try again in a moment"}
@@ -149,7 +151,7 @@ func (p *Platform) runTool(ctx context.Context, st *stage, t appdef.Tool, args m
 	defer release()
 	req := sandbox.Request{Method: "TOOL", Path: MCPPath + "/" + t.Name, Origin: p.URL(st.app, st.name), Body: args,
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}, FormAll: map[string][]string{}}
-	resp, err := p.sb.Run(ctx, st.def.Scripts[t.Script], req, &scriptHost{st: st, p: p, rid: rid, readOnly: t.ReadOnly})
+	resp, err := p.sb.Run(ctx, st.def.Scripts[t.Script], req, host)
 	if err != nil {
 		var se *sandbox.ScriptError
 		if errors.As(err, &se) {

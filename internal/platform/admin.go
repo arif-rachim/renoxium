@@ -27,11 +27,20 @@ func (p *Platform) Tables(app string) ([]appdef.Table, error) {
 }
 
 func (p *Platform) liveTable(app, table string) (*stage, appdef.Table, error) {
-	st, err := p.loadStage(app, Live)
+	return p.stageTable(app, Live, table)
+}
+
+// stageTable finds a table of a stage. The admin panel uses live only;
+// test_request edits preview rows the same way.
+func (p *Platform) stageTable(app, stageName, table string) (*stage, appdef.Table, error) {
+	st, err := p.loadStage(app, stageName)
 	if err != nil {
 		return nil, appdef.Table{}, err
 	}
 	if st == nil {
+		if stageName == Preview {
+			return nil, appdef.Table{}, errors.New("preview has no version yet: call apply_change first")
+		}
 		return nil, appdef.Table{}, fmt.Errorf("app %q is not published yet", app)
 	}
 	for _, t := range st.def.Tables {
@@ -109,14 +118,23 @@ func (f FieldErrors) Error() string {
 
 // AdminSave inserts (id == 0) or updates a row from submitted form values.
 // Every column of the table is written; a missing value is stored as NULL.
+// The app's on_admin_change script then runs; its failure is logged and
+// does not undo or fail the save.
 func (p *Platform) AdminSave(ctx context.Context, app, table string, id int64, values map[string]string, by string) (int64, error) {
 	st, t, err := p.liveTable(app, table)
 	if err != nil {
 		return 0, err
 	}
+	id, _, err = p.adminSave(ctx, st, t, id, values, by, newRequestID())
+	return id, err
+}
+
+// adminSave is AdminSave on any stage. It also returns the on_admin_change
+// run, nil when the app has none.
+func (p *Platform) adminSave(ctx context.Context, st *stage, t appdef.Table, id int64, values map[string]string, by, rid string) (int64, *hookRun, error) {
 	cols, args, ferr := convert(t, values)
 	if len(ferr) > 0 {
-		return 0, ferr
+		return 0, nil, ferr
 	}
 	quoted := make([]string, len(cols))
 	for i, c := range cols {
@@ -126,41 +144,48 @@ func (p *Platform) AdminSave(ctx context.Context, app, table string, id int64, v
 		marks := strings.TrimSuffix(strings.Repeat("?,", len(cols)), ",")
 		_, newID, err := st.db.Exec(ctx, "INSERT INTO "+quote(t.Name)+" ("+strings.Join(quoted, ",")+") VALUES ("+marks+")", args)
 		if err != nil {
-			return 0, friendly(err)
+			return 0, nil, friendly(err)
 		}
-		p.event(st, "admin", "info", "", fmt.Sprintf("%s added %s #%d", by, t.Name, newID))
-		return newID, nil
+		p.event(st, "admin", "info", rid, fmt.Sprintf("%s added %s #%d", by, t.Name, newID))
+		return newID, p.afterAdminChange(ctx, st, t, "insert", newID, nil, by, rid), nil
 	}
+	before := p.hookRow(ctx, st, t, id)
 	sets := make([]string, len(cols))
 	for i, q := range quoted {
 		sets[i] = q + " = ?"
 	}
 	n, _, err := st.db.Exec(ctx, "UPDATE "+quote(t.Name)+" SET "+strings.Join(sets, ", ")+" WHERE id = ?", append(args, id))
 	if err != nil {
-		return 0, friendly(err)
+		return 0, nil, friendly(err)
 	}
 	if n == 0 {
-		return 0, fmt.Errorf("row %d: %w", id, ErrNotFound)
+		return 0, nil, fmt.Errorf("row %d: %w", id, ErrNotFound)
 	}
-	p.event(st, "admin", "info", "", fmt.Sprintf("%s changed %s #%d", by, t.Name, id))
-	return id, nil
+	p.event(st, "admin", "info", rid, fmt.Sprintf("%s changed %s #%d", by, t.Name, id))
+	return id, p.afterAdminChange(ctx, st, t, "update", id, before, by, rid), nil
 }
 
-// AdminDelete deletes one row.
+// AdminDelete deletes one row, then runs the app's on_admin_change script.
 func (p *Platform) AdminDelete(ctx context.Context, app, table string, id int64, by string) error {
 	st, t, err := p.liveTable(app, table)
 	if err != nil {
 		return err
 	}
+	_, err = p.adminDelete(ctx, st, t, id, by, newRequestID())
+	return err
+}
+
+func (p *Platform) adminDelete(ctx context.Context, st *stage, t appdef.Table, id int64, by, rid string) (*hookRun, error) {
+	before := p.hookRow(ctx, st, t, id)
 	n, _, err := st.db.Exec(ctx, "DELETE FROM "+quote(t.Name)+" WHERE id = ?", []any{id})
 	if err != nil {
-		return friendly(err)
+		return nil, friendly(err)
 	}
 	if n == 0 {
-		return fmt.Errorf("row %d: %w", id, ErrNotFound)
+		return nil, fmt.Errorf("row %d: %w", id, ErrNotFound)
 	}
-	p.event(st, "admin", "warn", "", fmt.Sprintf("%s deleted %s #%d", by, t.Name, id))
-	return nil
+	p.event(st, "admin", "warn", rid, fmt.Sprintf("%s deleted %s #%d", by, t.Name, id))
+	return p.afterAdminChange(ctx, st, t, "delete", id, before, by, rid), nil
 }
 
 func convert(t appdef.Table, values map[string]string) ([]string, []any, FieldErrors) {

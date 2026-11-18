@@ -380,6 +380,17 @@ var platformTables = []string{
 		customer_email TEXT NOT NULL DEFAULT '', customer_name TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`,
 	`CREATE INDEX IF NOT EXISTS rx_payments_reference ON rx_payments (reference)`,
+	// Recurring payments started with payments.subscribe; each invoice is a
+	// row in rx_payments with subscription = id.
+	`CREATE TABLE IF NOT EXISTS rx_subscriptions (id TEXT PRIMARY KEY, reference TEXT NOT NULL, status TEXT NOT NULL,
+		stripe_id TEXT NOT NULL DEFAULT '', amount INTEGER NOT NULL, currency TEXT NOT NULL, items TEXT NOT NULL,
+		interval TEXT NOT NULL, interval_count INTEGER NOT NULL DEFAULT 1, trial_days INTEGER NOT NULL DEFAULT 0,
+		end_after INTEGER NOT NULL DEFAULT 0, paid_count INTEGER NOT NULL DEFAULT 0, fee_percent REAL NOT NULL DEFAULT 0,
+		customer_email TEXT NOT NULL DEFAULT '', customer_name TEXT NOT NULL DEFAULT '',
+		current_period_end TEXT NOT NULL DEFAULT '', cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+		success_path TEXT NOT NULL, cancel_path TEXT NOT NULL,
+		created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`,
+	`CREATE INDEX IF NOT EXISTS rx_subscriptions_reference ON rx_subscriptions (reference)`,
 	// One-time codes that carry a finished sign-in from the platform's
 	// sign-in host to the app's host (see platform/idhost.go).
 	`CREATE TABLE IF NOT EXISTS rx_auth_codes (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
@@ -421,6 +432,14 @@ func upgradePlatformTables(db execer) error {
 	for _, stmt := range []string{
 		`ALTER TABLE rx_payments ADD COLUMN payment_intent TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE rx_payments ADD COLUMN refunded INTEGER NOT NULL DEFAULT 0`,
+		// Card holds, the platform fee taken, and subscription invoices.
+		`ALTER TABLE rx_payments ADD COLUMN hold INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE rx_payments ADD COLUMN authorized INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE rx_payments ADD COLUMN hold_expires_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE rx_payments ADD COLUMN application_fee INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE rx_payments ADD COLUMN subscription TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE rx_payments ADD COLUMN period_start TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE rx_payments ADD COLUMN period_end TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err

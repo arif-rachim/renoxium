@@ -17,6 +17,7 @@ type VisitorRow struct {
 	Name      string
 	Verified  bool
 	CreatedAt string
+	Files     int // private files the visitor uploaded
 }
 
 // Visitors lists one page of an app's live visitor accounts, newest first.
@@ -45,6 +46,7 @@ func (p *Platform) Visitors(ctx context.Context, app, search string, page int) (
 	}
 	defer rows.Close()
 	out := []VisitorRow{}
+	counts := p.PrivateFileCounts(app, Live)
 	for rows.Next() {
 		var v VisitorRow
 		var verified sql.NullString
@@ -52,6 +54,7 @@ func (p *Platform) Visitors(ctx context.Context, app, search string, page int) (
 			return nil, 0, err
 		}
 		v.Verified = verified.Valid
+		v.Files = counts[v.ID]
 		out = append(out, v)
 	}
 	return out, total, rows.Err()
@@ -73,6 +76,9 @@ func (p *Platform) DeleteVisitor(ctx context.Context, app string, id int64, by s
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return fmt.Errorf("visitor %d: %w", id, ErrNotFound)
+	}
+	if err := p.deleteVisitorFiles(app, Live, id); err != nil {
+		return err
 	}
 	p.event(st, "admin", "warn", "", fmt.Sprintf("%s deleted visitor account #%d", by, id))
 	return nil

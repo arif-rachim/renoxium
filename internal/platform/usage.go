@@ -19,6 +19,9 @@ var StorageMBPerPlan = map[string]int64{planFree: 200, planPro: 2048, planBusine
 func (p *Platform) StorageUsage(owner string) (used, quota int64) {
 	p.db.QueryRow(`SELECT coalesce(sum(size), 0) FROM blobs WHERE hash IN
 		(SELECT f.hash FROM app_files f JOIN apps a ON a.name = f.app WHERE a.owner = ?)`, owner).Scan(&used)
+	var private int64 // visitor uploads; never shared, so each counts
+	p.db.QueryRow(`SELECT coalesce(sum(size), 0) FROM private_files WHERE app IN (SELECT name FROM apps WHERE owner = ?)`, owner).Scan(&private)
+	used += private
 	return used, StorageMBPerPlan[p.planOf(owner)] << 20
 }
 

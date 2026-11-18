@@ -20,6 +20,7 @@ import (
 func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}", s.adminApp)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}", s.adminList)
+	s.mux.HandleFunc("GET /apps/{app}/t/{table}/calendar", s.adminCalendar)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/new", s.adminForm)
 	s.mux.HandleFunc("POST /apps/{app}/t/{table}/new", s.adminSave)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/{id}", s.adminForm)
@@ -29,6 +30,7 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
 	s.mux.HandleFunc("GET /apps/{app}/preview", s.adminPreview)
 	s.mux.HandleFunc("GET /apps/{app}/publish", s.publishForm)
+	s.mux.HandleFunc("GET /apps/{app}/files/{id}", s.adminPrivateFile)
 	s.mux.HandleFunc("POST /apps/{app}/publish", s.publishConfirm)
 }
 
@@ -207,6 +209,10 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows {
 		var line []string
 		for _, c := range cols {
+			if types[c.Name] == "file" {
+				line = append(line, short(s.privateFileName(app, row[c.Name])))
+				continue
+			}
 			line = append(line, short(display(row[c.Name], types[c.Name])))
 		}
 		cells = append(cells, line)
@@ -216,6 +222,8 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 	render(w, http.StatusOK, "admin_list", map[string]any{
 		"App": app, "Table": table, "Label": tableLabel(t), "Columns": cols, "Cells": cells, "IDs": ids,
 		"Total": total, "Query": q, "Page": page, "Pages": pages, "Prev": page - 1, "Next": page + 1,
+		"HasCalendar": t.Calendar != nil,
+		"Notice":      s.hookNotice(r, app),
 	})
 }
 
@@ -223,6 +231,7 @@ type field struct {
 	Name, Label, Help, Type, Input, Value, Error string
 	Options                                      []string
 	Required, Checked                            bool
+	FileName                                     string // file columns: the stored file's name, "" if it is gone
 }
 
 func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +289,11 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		case "image":
 			f.Input = "image"
 			hasImage = true
+		case "file":
+			f.Input = "file"
+			if pf, err := s.platform.PrivateFileInfo(app, platform.Live, f.Value); err == nil {
+				f.FileName = pf.Name
+			}
 		default:
 			if f.Input == "select" {
 				break
@@ -308,8 +322,18 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 	render(w, status, "admin_form", map[string]any{
 		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
-		"HasImage": hasImage, "LiveURL": liveURL,
+		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name), "Notice": s.hookNotice(r, app),
 	})
+}
+
+// hookNotice is the notice about a failed on_admin_change run after this
+// person's last change, shown once on the next admin page.
+func (s *Site) hookNotice(r *http.Request, app string) string {
+	u, ok := s.currentUser(r)
+	if !ok {
+		return ""
+	}
+	return s.platform.AdminNotice(app, u.Email)
 }
 
 func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
@@ -349,8 +373,13 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	}
 	values := map[string]string{}
 	uploadErrs := platform.FieldErrors{}
+	var dropFiles []string // visitor files the owner chose to delete, once the row is saved
 	for _, c := range t.Columns {
 		values[c.Name] = r.PostFormValue(c.Name)
+		if c.Type == "file" && r.PostFormValue(c.Name+"__delete") == "1" {
+			dropFiles = append(dropFiles, values[c.Name])
+			values[c.Name] = ""
+		}
 		if c.Type != "image" {
 			continue
 		}
@@ -386,8 +415,46 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		serverError(w, err)
 	default:
-		http.Redirect(w, r, fmt.Sprintf("/apps/%s/t/%s/%d?saved=1", app, table, newID), http.StatusSeeOther)
+		for _, id := range dropFiles {
+			if s.platform.DeletePrivateFile(app, platform.Live, id) == nil {
+				s.platform.Note(app, fmt.Sprintf("%s deleted uploaded file %s", u.Email, id))
+			}
+		}
+		next := fmt.Sprintf("/apps/%s/t/%s/%d?saved=1", app, table, newID)
+		if back := calendarBack(r, app, table); back != "" {
+			next += "&back=" + url.QueryEscape(back)
+		}
+		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
+}
+
+// adminPrivateFile streams a visitor's private upload of the live app to
+// its owner or staff, signed in to the Renoxium site; the app host only
+// ever shows a file to the visitor who uploaded it.
+func (s *Site) adminPrivateFile(w http.ResponseWriter, r *http.Request) {
+	_, app, ok := s.member(w, r)
+	if !ok {
+		return
+	}
+	f, fh, err := s.platform.OpenPrivateFile(app, platform.Live, r.PathValue("id"))
+	if err != nil {
+		notFound(w, err)
+		return
+	}
+	defer fh.Close()
+	platform.ServePrivateFile(w, r, f, fh)
+}
+
+// privateFileName is what the table list shows for a file column.
+func (s *Site) privateFileName(app string, v any) string {
+	id, _ := v.(string)
+	if id == "" {
+		return ""
+	}
+	if f, err := s.platform.PrivateFileInfo(app, platform.Live, id); err == nil {
+		return f.Name
+	}
+	return "(file deleted)"
 }
 
 func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
@@ -413,7 +480,11 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 		render(w, http.StatusConflict, "error", map[string]any{"Message": "Could not delete: " + err.Error()})
 		return
 	}
-	http.Redirect(w, r, "/apps/"+app+"/t/"+table, http.StatusSeeOther)
+	next := "/apps/" + app + "/t/" + table
+	if back := calendarBack(r, app, table); back != "" {
+		next = back
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (s *Site) adminVisitors(w http.ResponseWriter, r *http.Request) {
@@ -547,7 +618,7 @@ func display(v any, typ string) string {
 // formValue formats a stored value for an input field.
 func formValue(v any, typ string) string {
 	switch typ {
-	case "image":
+	case "image", "file":
 		s, _ := v.(string)
 		return s
 	case "boolean":

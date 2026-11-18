@@ -1,0 +1,1666 @@
+{
+  "tables": [
+    {
+      "name": "business",
+      "label": "Business settings",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "label": "Business name"
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Business name (Arabic)"
+        },
+        {
+          "name": "tagline",
+          "type": "text"
+        },
+        {
+          "name": "tagline_ar",
+          "type": "text",
+          "label": "Tagline (Arabic)"
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "label": "WhatsApp number",
+          "help": "International format, e.g. +971501234567. Shown as a chat button on every page."
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "label": "Email shown to clients"
+        },
+        {
+          "name": "legal_name",
+          "type": "text",
+          "label": "Legal name (on invoices)"
+        },
+        {
+          "name": "address",
+          "type": "text"
+        },
+        {
+          "name": "trn",
+          "type": "text",
+          "label": "VAT TRN",
+          "help": "Your 15-digit Tax Registration Number. When set, receipts become tax invoices."
+        },
+        {
+          "name": "licence",
+          "type": "text",
+          "label": "Licence",
+          "help": "E.g. DET trade licence 1234567. Shown in the footer and on invoices."
+        },
+        {
+          "name": "deposit_percent",
+          "type": "integer",
+          "required": true,
+          "label": "Default deposit (%)",
+          "help": "Share of the total asked when a quote is accepted, e.g. 50. A quote can set its own."
+        },
+        {
+          "name": "quote_valid_days",
+          "type": "integer",
+          "required": true,
+          "label": "Quote validity (days)",
+          "help": "How long a quote can be accepted when it has no valid-until date of its own."
+        },
+        {
+          "name": "card_enabled",
+          "type": "boolean",
+          "label": "Card payments",
+          "help": "Needs Stripe connected in Renoxium, Payments."
+        },
+        {
+          "name": "bank_details",
+          "type": "text",
+          "label": "Bank transfer details",
+          "help": "Bank, account name and IBAN, shown to a client who chooses bank transfer. Leave empty to turn transfers off."
+        },
+        {
+          "name": "prices_include_vat",
+          "type": "boolean",
+          "label": "Quote prices include VAT",
+          "help": "Off (usual for business clients): 5% VAT is added on top of the quote lines. On: the line prices already include VAT."
+        }
+      ]
+    },
+    {
+      "name": "packages",
+      "label": "Packages",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "label": "Name"
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Name (Arabic)"
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "description_ar",
+          "type": "text",
+          "label": "Description (Arabic)"
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "required": true,
+          "label": "Category",
+          "help": "Packages with the same category are shown together on the home page."
+        },
+        {
+          "name": "category_ar",
+          "type": "text",
+          "label": "Category (Arabic)"
+        },
+        {
+          "name": "price_from",
+          "type": "real",
+          "label": "Price from (AED)",
+          "help": "Shown as \"From AED ...\". Leave empty to show \"Price on request\"."
+        },
+        {
+          "name": "included",
+          "type": "text",
+          "label": "What is included",
+          "help": "One item per line."
+        },
+        {
+          "name": "included_ar",
+          "type": "text",
+          "label": "What is included (Arabic)",
+          "help": "One item per line."
+        },
+        {
+          "name": "duration",
+          "type": "text",
+          "label": "Typical duration",
+          "help": "E.g. 2 to 3 weeks."
+        },
+        {
+          "name": "duration_ar",
+          "type": "text",
+          "label": "Typical duration (Arabic)"
+        },
+        {
+          "name": "image",
+          "type": "image"
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "label": "Shown on the site"
+        }
+      ]
+    },
+    {
+      "name": "enquiries",
+      "label": "Enquiries",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "integer",
+          "required": true,
+          "label": "Client account",
+          "help": "Set by the site. The client with this account sees the quotes of this enquiry."
+        },
+        {
+          "name": "client_name",
+          "type": "text",
+          "required": true,
+          "label": "Client name"
+        },
+        {
+          "name": "company",
+          "type": "text"
+        },
+        {
+          "name": "phone",
+          "type": "text"
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "help": "Quotes, updates and receipts are emailed here."
+        },
+        {
+          "name": "package_id",
+          "type": "integer",
+          "label": "Package number",
+          "help": "Empty for a free-form enquiry."
+        },
+        {
+          "name": "message",
+          "type": "text"
+        },
+        {
+          "name": "target_date",
+          "type": "text",
+          "label": "Event or target date"
+        },
+        {
+          "name": "budget",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "options": [
+            "new",
+            "quoted",
+            "won",
+            "lost"
+          ]
+        },
+        {
+          "name": "lang",
+          "type": "text",
+          "label": "Language",
+          "options": [
+            "en",
+            "ar"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "quotes",
+      "label": "Quotes",
+      "columns": [
+        {
+          "name": "enquiry_id",
+          "type": "integer",
+          "required": true,
+          "label": "Enquiry number",
+          "help": "The number (id) of the enquiry this quote answers. The client who sent that enquiry sees the quote."
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "label": "Title",
+          "help": "E.g. Mainland LLC setup for Al Reem Trading."
+        },
+        {
+          "name": "lines",
+          "type": "json",
+          "required": true,
+          "label": "Lines",
+          "help": "One entry per line of the quote: [{\"name\": \"Service fee\", \"qty\": 1, \"price\": 1500}, {\"name\": \"Government fees\", \"qty\": 1, \"price\": 3200}]. Prices in AED; qty can be left out (1). Changes after the client accepted do not change the accepted quote."
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "label": "Notes and terms"
+        },
+        {
+          "name": "notes_ar",
+          "type": "text",
+          "label": "Notes and terms (Arabic)"
+        },
+        {
+          "name": "deposit_percent",
+          "type": "integer",
+          "label": "Deposit (%)",
+          "help": "Leave empty to use the default from Business settings. 0 = no deposit, 100 = full payment up front."
+        },
+        {
+          "name": "valid_until",
+          "type": "text",
+          "label": "Valid until",
+          "help": "Date as YYYY-MM-DD, e.g. 2026-12-31. Leave empty to count the validity days of Business settings from the day the client is told."
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "label": "Status",
+          "help": "draft: only you see it. sent: the client sees it and is emailed right away. The other values are set by the site; choose cancelled to withdraw a quote.",
+          "options": [
+            "draft",
+            "sent",
+            "accepted",
+            "declined",
+            "expired",
+            "deposit_paid",
+            "paid",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "refund_on_cancel",
+          "type": "boolean",
+          "label": "Refund card payments when cancelled",
+          "help": "Tick it and set the status to cancelled (in either order) to refund what the client paid by card for this quote, in full. Untick it to keep the money; you can still refund all or part of it on the Payments page. Bank transfers are refunded by you."
+        },
+        {
+          "name": "balance_due",
+          "type": "boolean",
+          "label": "Ask for the balance",
+          "help": "Tick when the work is done (or any time): the client can then pay the balance and is emailed."
+        },
+        {
+          "name": "notified",
+          "type": "boolean",
+          "label": "Client told about the quote",
+          "help": "Ticked by the site after the email. Untick to send the email again."
+        },
+        {
+          "name": "balance_notified",
+          "type": "boolean",
+          "label": "Client told about the balance",
+          "help": "Ticked by the site after the email."
+        },
+        {
+          "name": "accepted_at",
+          "type": "text",
+          "label": "Accepted at (UTC)",
+          "help": "Filled in when the client accepts."
+        },
+        {
+          "name": "accepted_name",
+          "type": "text",
+          "label": "Accepted by (name typed)"
+        },
+        {
+          "name": "accepted_by",
+          "type": "integer",
+          "label": "Accepted by (client account)"
+        },
+        {
+          "name": "accepted_lines",
+          "type": "json",
+          "label": "Lines as accepted",
+          "help": "Copy of the lines at the moment the client accepted. Do not change."
+        },
+        {
+          "name": "subtotal",
+          "type": "real",
+          "label": "Total before VAT (AED)",
+          "help": "Stored when the client accepts."
+        },
+        {
+          "name": "vat",
+          "type": "real",
+          "label": "VAT (AED)"
+        },
+        {
+          "name": "total",
+          "type": "real",
+          "label": "Total (AED)"
+        },
+        {
+          "name": "deposit_amount",
+          "type": "real",
+          "label": "Deposit (AED)"
+        },
+        {
+          "name": "paid_amount",
+          "type": "real",
+          "label": "Paid so far (AED)",
+          "help": "Kept up to date from the Payments table."
+        },
+        {
+          "name": "decline_reason",
+          "type": "text",
+          "label": "Reason given when declined"
+        }
+      ]
+    },
+    {
+      "name": "quote_payments",
+      "label": "Payments",
+      "columns": [
+        {
+          "name": "quote_id",
+          "type": "integer",
+          "required": true,
+          "label": "Quote number"
+        },
+        {
+          "name": "stage",
+          "type": "text",
+          "required": true,
+          "options": [
+            "deposit",
+            "balance"
+          ]
+        },
+        {
+          "name": "amount",
+          "type": "real",
+          "required": true,
+          "label": "Amount (AED)"
+        },
+        {
+          "name": "refunded_amount",
+          "type": "real",
+          "label": "Refunded (AED)",
+          "help": "Card refunds are filled in automatically; the amount stays what was paid. Paid so far counts the amount less this."
+        },
+        {
+          "name": "method",
+          "type": "text",
+          "required": true,
+          "options": [
+            "card",
+            "transfer"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "label": "Status",
+          "help": "For a bank transfer: choose paid once the money is in your account. Card payments are updated by the site.",
+          "options": [
+            "pending",
+            "paid",
+            "failed",
+            "expired",
+            "refunded"
+          ]
+        },
+        {
+          "name": "reference",
+          "type": "text",
+          "help": "For a transfer: what the client was asked to write on the transfer."
+        },
+        {
+          "name": "paid_at",
+          "type": "text",
+          "label": "Paid at (UTC)",
+          "help": "Filled in by the site."
+        },
+        {
+          "name": "notified",
+          "type": "boolean",
+          "label": "Receipt emailed",
+          "help": "Ticked by the site after the receipt email."
+        }
+      ]
+    },
+    {
+      "name": "updates",
+      "label": "Progress updates",
+      "columns": [
+        {
+          "name": "quote_id",
+          "type": "integer",
+          "required": true,
+          "label": "Quote number"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "label": "Title",
+          "help": "E.g. Trade licence issued."
+        },
+        {
+          "name": "text",
+          "type": "text"
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "label": "Link",
+          "help": "Optional, starting with https://, e.g. a shared folder with documents or photos."
+        },
+        {
+          "name": "visible",
+          "type": "boolean",
+          "label": "Shown to the client"
+        },
+        {
+          "name": "notified",
+          "type": "boolean",
+          "label": "Client emailed",
+          "help": "Ticked by the site after the email."
+        }
+      ]
+    },
+    {
+      "name": "messages",
+      "label": "Messages",
+      "columns": [
+        {
+          "name": "quote_id",
+          "type": "integer",
+          "required": true,
+          "label": "Quote number"
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "label": "Client account",
+          "help": "Empty for your own replies."
+        },
+        {
+          "name": "sender",
+          "type": "text",
+          "required": true,
+          "label": "From",
+          "help": "To reply to a client, add a row with From = firm.",
+          "options": [
+            "client",
+            "firm"
+          ]
+        },
+        {
+          "name": "text",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "notified",
+          "type": "boolean",
+          "label": "Client emailed",
+          "help": "Ticked by the site after your reply was emailed."
+        }
+      ]
+    },
+    {
+      "name": "documents",
+      "label": "Client documents",
+      "columns": [
+        {
+          "name": "quote_id",
+          "type": "integer",
+          "required": true,
+          "label": "Quote number"
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "label": "Client account"
+        },
+        {
+          "name": "file",
+          "type": "file",
+          "required": true,
+          "label": "File",
+          "help": "Uploaded by the client on the quote page. Private: only the client and you can open it."
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "required": true,
+          "label": "Document",
+          "options": [
+            "passport",
+            "emirates_id",
+            "trade_licence",
+            "other"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "texts",
+      "label": "Site texts",
+      "columns": [
+        {
+          "name": "key",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "en",
+          "type": "text",
+          "required": true,
+          "label": "English"
+        },
+        {
+          "name": "ar",
+          "type": "text",
+          "label": "Arabic"
+        }
+      ]
+    }
+  ],
+  "templates": {
+    "top": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.bizName}}</title><style>\n:root{--bg:#f7f8f7;--fg:#17201d;--muted:#5d6b66;--card:#fff;--line:#dfe5e2;--accent:#0d5c4d;--accent-fg:#fff;--soft:#e6f1ee;--warn:#9a5b00;--bad:#b3261e;--good:#1b6e3c}\n@media (prefers-color-scheme:dark){:root{--bg:#111514;--fg:#eef2f0;--muted:#9aa8a3;--card:#1a201e;--line:#2c3532;--accent:#5fc9b2;--accent-fg:#0c1f1a;--soft:#1d2d29;--warn:#e0a54a;--bad:#f2857d;--good:#7fd19e}}\n*{box-sizing:border-box}body{margin:0;font:16px/1.55 system-ui,-apple-system,\"Segoe UI\",Tahoma,sans-serif;background:var(--bg);color:var(--fg)}\na{color:inherit}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1}\n.brand{font-weight:700;font-size:18px;text-decoration:none}nav{display:flex;gap:14px;align-items:center;font-size:14px;flex-wrap:wrap}\nmain{max-width:920px;margin:0 auto;padding:16px 16px 88px}h1{font-size:26px;line-height:1.25;margin:12px 0 6px}h2{font-size:19px;margin:28px 0 10px}h3{font-size:16px;margin:0 0 4px}\n.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}\n.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-decoration:none;display:flex;flex-direction:column;gap:6px}\n.card img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px}.price{font-weight:700}.muted{color:var(--muted);font-size:14px}\n.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;padding:0;margin:0;list-style:none;counter-reset:s}\n.steps li{background:var(--soft);border-radius:12px;padding:14px;counter-increment:s}.steps li::before{content:counter(s);display:inline-block;font-weight:700;color:var(--accent);font-size:20px}\nbutton,.btn{display:inline-block;padding:11px 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}\nbutton.secondary,.btn.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}\ninput,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}\ninput[type=checkbox]{width:auto}textarea{min-height:96px}label{display:block;margin:12px 0 4px;font-size:14px}label.check{display:flex;gap:8px;align-items:flex-start}\n.two{display:grid;grid-template-columns:1fr;gap:0 12px}@media(min-width:640px){.two{grid-template-columns:1fr 1fr}}\n.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0}.row span:last-child{white-space:nowrap}.total{font-weight:700;border-top:1px solid var(--line);padding-top:10px}\n.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 16px}.panel>h2:first-child{margin-top:0}\n.error{color:var(--bad)}.ok{color:var(--good)}.flash{padding:10px 14px;border-radius:10px;background:var(--soft);margin:12px 0}\n.badge{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--soft);font-size:13px;font-weight:600;white-space:nowrap}\n.pre{white-space:pre-line}.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}.actions form{margin:0}\n.timeline{list-style:none;margin:0;padding:0;border-inline-start:2px solid var(--line)}.timeline li{padding:0 14px 14px;position:relative}\n.timeline li::before{content:\"\";position:absolute;inset-inline-start:-6px;top:7px;width:10px;height:10px;border-radius:50%;background:var(--accent)}\n.msg{max-width:85%;padding:8px 12px;border-radius:12px;background:var(--soft);margin:0 0 8px}.msg.mine{margin-inline-start:auto;background:var(--accent);color:var(--accent-fg)}\n.msg small{display:block;opacity:.75;font-size:12px}ul.tick{margin:8px 0;padding-inline-start:20px}details summary{cursor:pointer;color:var(--muted);font-size:14px}\n.wa{position:fixed;bottom:16px;inset-inline-end:16px;background:#25d366;color:#fff;border-radius:99px;padding:10px 16px;text-decoration:none;font-weight:600}\nfooter{max-width:920px;margin:0 auto;padding:0 16px 96px;color:var(--muted);font-size:13px}\n</style></head><body>\n<header><a class=\"brand\" href=\"/{{.lq}}\">{{.bizName}}</a>\n<nav>{{if .user}}<a href=\"/portal{{.lq}}\">{{.t.my_portal}}</a><form method=\"post\" action=\"/_rx/auth/logout\" style=\"display:inline\"><button class=\"secondary\" style=\"padding:4px 10px\">{{.t.sign_out}}</button></form>\n{{else}}<a href=\"/_rx/auth/login?next={{.path}}\">{{.t.sign_in}}</a>{{end}}\n<a href=\"{{.path}}?lang={{.other}}\">{{.t.language}}</a></nav></header>\n<main>",
+    "bottom": "</main><footer>{{with .biz.legal_name}}{{.}}{{end}}{{with .biz.licence}} · {{.}}{{end}}{{with .biz.address}} · {{.}}{{end}}{{with .biz.email}} · <a href=\"mailto:{{.}}\">{{.}}</a>{{end}}</footer>\n{{if .wa}}<a class=\"wa\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}</body></html>",
+    "home": "{{template \"top\" .}}<h1>{{.bizName}}</h1>{{with .tagline}}<p class=\"muted\" style=\"font-size:17px\">{{.}}</p>{{end}}\n<div class=\"actions\"><a class=\"btn\" href=\"/enquiry{{.lq}}\">{{.t.ask_quote}}</a>{{if .user}}<a class=\"btn secondary\" href=\"/portal{{.lq}}\">{{.t.my_portal}}</a>{{end}}</div>\n{{range .groups}}<h2>{{.name}}</h2><div class=\"grid\">{{range .packages}}<a class=\"card\" href=\"/packages/{{.id}}{{$.lq}}\">{{if .image}}<img src=\"{{.image}}?w=640\" alt=\"{{.name}}\" loading=\"lazy\">{{end}}\n<h3>{{.name}}</h3><div class=\"muted\">{{.description}}</div><div class=\"price\">{{if .price}}{{$.t.from}} AED {{.price}}{{else}}{{$.t.on_request}}{{end}}</div>\n{{with .duration}}<div class=\"muted\">{{$.t.duration}}: {{.}}</div>{{end}}</a>{{end}}</div>{{end}}\n<h2>{{.t.how_title}}</h2><ol class=\"steps\"><li><h3>{{.t.how_1_title}}</h3><div class=\"muted\">{{.t.how_1}}</div></li><li><h3>{{.t.how_2_title}}</h3><div class=\"muted\">{{.t.how_2}}</div></li>\n<li><h3>{{.t.how_3_title}}</h3><div class=\"muted\">{{.t.how_3}}</div></li><li><h3>{{.t.how_4_title}}</h3><div class=\"muted\">{{.t.how_4}}</div></li></ol>\n<div class=\"panel\" style=\"margin-top:28px\"><h2>{{.t.custom_title}}</h2><p class=\"muted\">{{.t.custom_text}}</p><a class=\"btn\" href=\"/enquiry{{.lq}}\">{{.t.ask_quote}}</a></div>\n{{template \"bottom\" .}}",
+    "enquiry_form": "<form method=\"post\" action=\"/enquiry\"><input type=\"hidden\" name=\"lang\" value=\"{{.lang}}\">\n{{if .packages}}<label for=\"package_id\">{{.t.package}}</label><select id=\"package_id\" name=\"package_id\"><option value=\"\">{{.t.custom_enquiry}}</option>\n{{range .packages}}<option value=\"{{.id}}\"{{if eq (print .id) $.form.package_id}} selected{{end}}>{{.name}}</option>{{end}}</select>\n{{else}}<input type=\"hidden\" name=\"package_id\" value=\"{{.form.package_id}}\">{{end}}\n<div class=\"two\"><div><label for=\"name\">{{.t.your_name}} *</label><input id=\"name\" name=\"name\" required maxlength=\"100\" value=\"{{.form.name}}\"></div>\n<div><label for=\"company\">{{.t.company}}</label><input id=\"company\" name=\"company\" maxlength=\"150\" value=\"{{.form.company}}\"></div>\n<div><label for=\"phone\">{{.t.phone}} *</label><input id=\"phone\" name=\"phone\" type=\"tel\" required maxlength=\"30\" placeholder=\"+9715...\" value=\"{{.form.phone}}\"></div>\n<div><label for=\"email\">{{.t.email}}</label><input id=\"email\" name=\"email\" type=\"email\" maxlength=\"200\" value=\"{{.form.email}}\"></div>\n<div><label for=\"target_date\">{{.t.target_date}}</label><input id=\"target_date\" name=\"target_date\" maxlength=\"60\" value=\"{{.form.target_date}}\"></div>\n<div><label for=\"budget\">{{.t.budget}}</label><input id=\"budget\" name=\"budget\" maxlength=\"60\" value=\"{{.form.budget}}\"></div></div>\n<label for=\"message\">{{.t.message}}</label><textarea id=\"message\" name=\"message\" maxlength=\"3000\" placeholder=\"{{.t.message_hint}}\">{{.form.message}}</textarea>\n<p class=\"muted\">{{.t.enquiry_note}}</p><button>{{.t.send_enquiry}}</button></form>",
+    "package": "{{template \"top\" .}}{{with .pkg}}<p class=\"muted\"><a href=\"/{{$.lq}}\">{{$.t.all_packages}}</a> · {{.category}}</p><h1>{{.name}}</h1>\n{{if .image}}<img src=\"{{.image}}?w=960\" alt=\"{{.name}}\" style=\"width:100%;max-height:340px;object-fit:cover;border-radius:12px\">{{end}}\n<p>{{.description}}</p><p class=\"price\">{{if .price}}{{$.t.from}} AED {{.price}}{{else}}{{$.t.on_request}}{{end}} <span class=\"muted\">{{if $.biz.prices_include_vat}}{{$.t.incl_vat}}{{else}}{{$.t.excl_vat}}{{end}}</span></p>\n{{with .duration}}<p class=\"muted\">{{$.t.duration}}: {{.}}</p>{{end}}\n{{if .included}}<div class=\"panel\"><h2>{{$.t.included}}</h2><ul class=\"tick\">{{range .included}}<li>{{.}}</li>{{end}}</ul></div>{{end}}{{end}}\n<div class=\"panel\"><h2>{{.t.ask_quote}}</h2>{{if .user}}{{template \"enquiry_form\" .}}\n{{else}}<p class=\"muted\">{{.t.sign_in_to_ask}}</p><a class=\"btn\" href=\"/_rx/auth/login?next={{.path}}\">{{.t.sign_in}}</a>{{end}}</div>\n{{template \"bottom\" .}}",
+    "enquiry": "{{template \"top\" .}}<h1>{{.t.ask_quote}}</h1><p class=\"muted\">{{.t.custom_text}}</p>\n{{with .error}}<p class=\"flash error\">{{.}}</p>{{end}}<div class=\"panel\">{{template \"enquiry_form\" .}}</div>{{template \"bottom\" .}}",
+    "portal": "{{template \"top\" .}}<h1>{{.t.my_portal}}</h1>{{with .flash}}<p class=\"flash ok\">{{.}}</p>{{end}}\n{{range .enquiries}}<div class=\"panel\"><div class=\"row\"><h3>{{.title}}</h3><span class=\"badge\">{{.statusText}}</span></div>\n<div class=\"muted\">{{$.t.enquiry}} #{{.id}} · {{.date}}</div>{{with .message}}<p class=\"muted pre\">{{.}}</p>{{end}}\n{{range .quotes}}<a class=\"row total\" style=\"text-decoration:none\" href=\"/quotes/{{.id}}{{$.lq}}\"><span>{{$.t.quote}} #{{.id}}: {{.title}}<br><span class=\"badge\">{{.statusText}}</span></span>\n<span>{{if .total}}AED {{.total}}{{end}}</span></a>{{else}}<p class=\"muted\">{{$.t.no_quote_yet}}</p>{{end}}</div>\n{{else}}<p class=\"muted\">{{.t.no_enquiries}}</p>{{end}}\n<p><a class=\"btn\" href=\"/enquiry{{.lq}}\">{{.t.new_enquiry}}</a></p>{{template \"bottom\" .}}",
+    "quote": "{{template \"top\" .}}<p class=\"muted\"><a href=\"/portal{{.lq}}\">{{.t.my_portal}}</a></p>\n{{with .notice}}<p class=\"flash ok\">{{.}}</p>{{end}}{{with .error}}<p class=\"flash error\">{{.}}</p>{{end}}\n{{with .q}}<div class=\"row\"><h1 style=\"margin:0\">{{$.t.quote}} #{{.id}}</h1><span class=\"badge\">{{.statusText}}</span></div><p>{{.title}}</p>\n{{if .broken}}<div class=\"panel\"><p>{{$.t.quote_updating}}</p></div>{{else}}\n<div class=\"panel\">{{range .lines}}<div class=\"row\"><span>{{.name}}{{with .qty}} × {{.}}{{end}}</span><span>AED {{.line}}</span></div>{{end}}\n<div class=\"row total\"><span>{{$.t.subtotal}}</span><span>AED {{.subtotal}}</span></div><div class=\"row\"><span>{{$.t.vat}}</span><span>AED {{.vat}}</span></div>\n<div class=\"row total\" style=\"font-size:18px\"><span>{{$.t.total}}</span><span>AED {{.total}}</span></div>\n{{if .inclusive}}<p class=\"muted\">{{$.t.lines_incl_vat}}</p>{{end}}\n{{if .deposit}}<p class=\"muted\">{{$.t.deposit_terms}}: AED {{.deposit}} ({{.pct}}%)</p>{{end}}\n{{if .accepted}}<p class=\"muted\">{{$.t.accepted_by}} {{.acceptedName}}, {{.acceptedAt}} UTC</p>{{else}}<p class=\"muted\">{{$.t.valid_until}}: {{.until}}</p>{{end}}\n{{with .notes}}<p class=\"pre\">{{.}}</p>{{end}}</div>\n{{if .canAccept}}<div class=\"panel\"><h2>{{$.t.accept_title}}</h2><form method=\"post\" action=\"/quotes/{{.id}}/accept\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\">\n<label for=\"name\">{{$.t.your_name}} *</label><input id=\"name\" name=\"name\" required maxlength=\"100\" value=\"{{$.clientName}}\">\n<label class=\"check\"><input type=\"checkbox\" name=\"agree\" value=\"1\" required> <span>{{$.t.accept_agree}}</span></label>\n<div class=\"actions\"><button>{{$.t.accept_quote}}</button></div></form>\n<details style=\"margin-top:14px\"><summary>{{$.t.decline_quote}}</summary><form method=\"post\" action=\"/quotes/{{.id}}/decline\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\">\n<label for=\"reason\">{{$.t.decline_reason}}</label><textarea id=\"reason\" name=\"reason\" maxlength=\"500\"></textarea><div class=\"actions\"><button class=\"secondary\">{{$.t.decline_quote}}</button></div></form></details></div>{{end}}\n{{if .showPayments}}<div class=\"panel\" id=\"payment\"><h2>{{$.t.payment}}</h2>\n{{if .accepted}}<div class=\"row\"><span>{{$.t.paid_so_far}}</span><span>AED {{.paid}}</span></div><div class=\"row total\"><span>{{$.t.balance_left}}</span><span>AED {{.balance}}</span></div>{{end}}\n{{with .refunded}}<div class=\"row\"><span>{{$.t.refunded_total}}</span><span>AED {{.}}</span></div>{{end}}\n{{if .failed}}<p class=\"error\">{{$.t.pay_failed}}</p>{{end}}\n{{if .notDue}}<p class=\"muted\">{{$.t.balance_later}}</p>{{end}}\n{{if .canPay}}<p><strong>{{$.t.due_now}}: {{.stageText}}, AED {{.due}}</strong></p><div class=\"actions\">\n{{if .card}}<form method=\"post\" action=\"/quotes/{{.id}}/pay\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\"><input type=\"hidden\" name=\"method\" value=\"card\"><button>{{$.t.pay_card}}</button></form>{{end}}\n{{if .transfer}}<form method=\"post\" action=\"/quotes/{{.id}}/pay\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\"><input type=\"hidden\" name=\"method\" value=\"transfer\"><button class=\"secondary\">{{$.t.pay_transfer}}</button></form>{{end}}</div>{{end}}\n{{with .waiting}}<div class=\"flash\"><strong>{{$.t.transfer_title}}</strong><p>{{$.t.transfer_text}}</p><p>{{$.t.amount}}: <strong>AED {{.amount}}</strong><br>{{$.t.reference}}: <strong>{{.reference}}</strong></p>\n<p class=\"pre\">{{$.q.bank}}</p></div>{{end}}\n{{range $.payments}}<div class=\"row\"><span>{{.date}} · {{.stageText}} · {{.methodText}} · {{.statusText}}{{if .paid}} · <a href=\"/quotes/{{$.q.id}}/invoice/{{.id}}{{$.lq}}\">{{$.t.view_invoice}}</a>{{end}}</span><span>AED {{.amount}}{{with .refunded}}<br><small>{{$.t.refunded}}: AED {{.}}</small>{{end}}</span></div>{{end}}</div>{{end}}\n{{if $.updates}}<div class=\"panel\"><h2>{{$.t.updates}}</h2><ul class=\"timeline\">{{range $.updates}}<li><div class=\"muted\">{{.date}}</div><strong>{{.title}}</strong>\n{{with .text}}<div class=\"pre\">{{.}}</div>{{end}}{{with .link}}<div><a href=\"{{.}}\" target=\"_blank\" rel=\"noopener\">{{$.t.open_link}}</a></div>{{end}}</li>{{end}}</ul></div>{{end}}{{end}}\n<div class=\"panel\" id=\"documents\"><h2>{{$.t.documents}}</h2>\n{{range $.documents}}<div class=\"row\"><span>{{.date}} · {{.label}}</span><span>{{if .url}}<a href=\"{{.url}}\" target=\"_blank\" rel=\"noopener\">{{.name}}</a>{{else}}{{.name}}{{end}}</span></div>\n{{else}}<p class=\"muted\">{{$.t.no_documents}}</p>{{end}}\n{{if $.canUpload}}<form method=\"post\" action=\"/quotes/{{.id}}/documents\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\">\n<label for=\"doc-label\">{{$.t.doc_label}}</label><select id=\"doc-label\" name=\"label\">{{range $.docLabels}}<option value=\"{{.value}}\">{{.label}}</option>{{end}}</select>\n<label for=\"doc-file\">{{$.t.doc_file}}</label><input id=\"doc-file\" type=\"file\" name=\"file\" data-rx-upload accept=\"image/*,application/pdf\" required>\n<div class=\"actions\"><button class=\"secondary\">{{$.t.upload_document}}</button></div></form><script src=\"/_rx/upload.js\"></script>\n{{else}}<p class=\"muted\">{{$.t.documents_full}}</p>{{end}}<p class=\"muted\">{{$.t.documents_private}}</p></div>\n<div class=\"panel\" id=\"messages\"><h2>{{$.t.messages}}</h2>{{range $.messages}}<div class=\"msg{{if not .firm}} mine{{end}}\"><small>{{if .firm}}{{$.bizName}}{{else}}{{$.t.you}}{{end}} · {{.date}}</small><span class=\"pre\">{{.text}}</span></div>\n{{else}}<p class=\"muted\">{{$.t.no_messages}}</p>{{end}}\n<form method=\"post\" action=\"/quotes/{{.id}}/message\"><input type=\"hidden\" name=\"lang\" value=\"{{$.lang}}\"><label for=\"text\">{{$.t.write_message}}</label>\n<textarea id=\"text\" name=\"text\" required maxlength=\"1000\"></textarea><div class=\"actions\"><button class=\"secondary\">{{$.t.send_message}}</button></div></form>\n<p class=\"muted\">{{$.t.documents_note}}</p></div>{{end}}{{template \"bottom\" .}}",
+    "invoice": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.inv.title}} {{.inv.number}}</title><style>body{font:14px/1.5 system-ui,Tahoma,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#111;background:#fff}\nh1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{padding:8px 6px;border-bottom:1px solid #ddd;text-align:start}td.n,th.n{text-align:end;white-space:nowrap}\n.head{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}.muted{color:#555}.tot td{font-weight:700}@media print{.noprint{display:none}}</style></head><body>\n<div class=\"head\"><div><h1>{{.inv.title}}</h1><div>{{.t.invoice_no}}: {{.inv.number}}</div><div>{{.t.date}}: {{.inv.date}}</div></div>\n<div><strong>{{.inv.seller}}</strong><div class=\"muted\">{{.inv.sellerAddress}}</div>{{with .inv.licence}}<div class=\"muted\">{{.}}</div>{{end}}{{if .inv.trn}}<div>{{.t.trn}}: {{.inv.trn}}</div>{{end}}</div></div>\n<p><strong>{{.t.bill_to}}:</strong> {{.inv.buyer}}{{with .inv.company}}, {{.}}{{end}}{{with .inv.phone}} · {{.}}{{end}}{{with .inv.email}} · {{.}}{{end}}</p>\n<table><thead><tr><th>{{.t.item}}</th><th class=\"n\">{{.t.amount_excl}}</th><th class=\"n\">{{.t.vat}}</th><th class=\"n\">{{.t.total}}</th></tr></thead><tbody>\n<tr><td>{{.inv.description}}</td><td class=\"n\">{{.inv.net}}</td><td class=\"n\">{{.inv.vat}}</td><td class=\"n\">{{.inv.total}}</td></tr>\n<tr><td colspan=\"3\">{{.t.total_excl}}</td><td class=\"n\">AED {{.inv.net}}</td></tr><tr><td colspan=\"3\">{{.t.vat}}</td><td class=\"n\">AED {{.inv.vat}}</td></tr>\n<tr class=\"tot\"><td colspan=\"3\">{{.t.amount_paid}} ({{.inv.method}})</td><td class=\"n\">AED {{.inv.total}}</td></tr></tbody></table>\n<p class=\"muted\">{{.t.quote_total}}: AED {{.inv.quoteTotal}} · {{.t.paid_so_far}}: AED {{.inv.paid}} · {{.t.balance_left}}: AED {{.inv.balance}}</p>\n<p class=\"noprint\"><button onclick=\"window.print()\">{{.t.print}}</button></p></body></html>",
+    "not_found": "{{template \"top\" .}}<p>{{.t.not_found}}</p><p><a class=\"btn secondary\" href=\"/{{.lq}}\">{{.t.all_packages}}</a></p>{{template \"bottom\" .}}"
+  },
+  "scripts": {
+    "home": "// GET /  The packages by category and how it works.\nfunction handle(req) {\n  const lang = langOf(req), groups = [], byName = {};\n  for (const p of db.query('SELECT * FROM packages WHERE active = 1 ORDER BY id')) {\n    const v = packageView(p, lang);\n    if (!byName[p.category]) groups.push(byName[p.category] = {name: v.category, packages: []});\n    byName[p.category].packages.push(v);\n  }\n  return {template: 'home', data: page(req, {groups: groups})};\n}\n",
+    "package": "// GET /packages/:id  One package with the enquiry form (for signed-in visitors).\nfunction handle(req) {\n  const p = db.query('SELECT * FROM packages WHERE id = ? AND active = 1', Number(req.params.id))[0];\n  if (!p) return notFound(req);\n  const u = req.user;\n  return {template: 'package', data: page(req, {pkg: packageView(p, langOf(req)),\n    form: formOf({package_id: p.id, name: u && u.name, email: u && u.email, phone: u && u.phone})})};\n}\n",
+    "enquiry_form": "// GET /enquiry  Free-form enquiry (signed in). ?package=ID preselects a package.\nfunction handle(req) {\n  const lang = langOf(req), u = req.user;\n  const packages = db.query('SELECT * FROM packages WHERE active = 1 ORDER BY id').map(p => packageView(p, lang));\n  return {template: 'enquiry', data: page(req, {packages: packages,\n    form: formOf({package_id: req.query.package, name: u.name, email: u.email, phone: u.phone})})};\n}\n",
+    "enquiry": "// POST /enquiry (signed in)  Stores the enquiry and tells the owner. On a mistake the form comes back with what was typed.\nfunction handle(req) {\n  const lang = langOf(req), f = req.form;\n  const form = {package_id: clip(f.package_id, 10), name: clip(f.name, 100), company: clip(f.company, 150), phone: clip(f.phone, 30),\n    email: clip(f.email, 200).toLowerCase(), message: clip(f.message, 3000), target_date: clip(f.target_date, 60), budget: clip(f.budget, 60)};\n  const again = (key) => {\n    const packages = db.query('SELECT * FROM packages WHERE active = 1 ORDER BY id').map(p => packageView(p, lang));\n    return {template: 'enquiry', data: page(req, {packages: packages, form: form, error: texts(lang)[key]}), status: 422};\n  };\n  let pkg = null;\n  if (form.package_id) {\n    pkg = db.query('SELECT * FROM packages WHERE id = ? AND active = 1', Number(form.package_id))[0];\n    if (!pkg) form.package_id = '';\n  }\n  if (!form.name || !form.phone || (!pkg && !form.message)) return again('error_fields');\n  if (form.email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(form.email)) return again('error_email');\n  const since = new Date(Date.now() - 86400000).toISOString().replace('T', ' ').slice(0, 19);\n  if (db.query('SELECT COUNT(*) AS n FROM enquiries WHERE user_id = ? AND created_at >= ?', req.user.id, since)[0].n >= 5) return again('error_many');\n  const id = db.exec(`INSERT INTO enquiries (user_id, client_name, company, phone, email, package_id, message, target_date, budget, status, lang)\n    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`, req.user.id, form.name, form.company, form.phone, form.email, pkg ? pkg.id : null,\n    form.message, form.target_date, form.budget, lang).lastInsertId;\n  tellOwner('New enquiry #' + id + ': ' + (pkg ? pkg.name : 'custom request') + ' from ' + form.name + ', ' + form.phone,\n    'Client: ' + form.name + (form.company ? ' (' + form.company + ')' : '') + '\\nPhone: ' + form.phone + '\\nEmail: ' + (form.email || '-') +\n    '\\nPackage: ' + (pkg ? pkg.name : '-') + '\\nTarget date: ' + (form.target_date || '-') + '\\nBudget: ' + (form.budget || '-') +\n    '\\n\\n' + (form.message || '') + '\\n\\nTo answer, add a quote with enquiry number ' + id + ' in the admin panel (Quotes) and set its status to sent.');\n  return {redirect: '/portal?done=done_enquiry' + (lang === 'ar' ? '&lang=ar' : '')};\n}\n",
+    "portal": "// GET /portal (signed in)  The visitor's own enquiries with their quotes.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = biz();\n  const enquiries = db.query(`SELECT e.*, p.name AS package_name, p.name_ar AS package_name_ar FROM enquiries e LEFT JOIN packages p ON p.id = e.package_id\n    WHERE e.user_id = ? ORDER BY e.id DESC LIMIT 50`, req.user.id);\n  const quotes = db.query(`SELECT q.* FROM quotes q JOIN enquiries e ON e.id = q.enquiry_id\n    WHERE e.user_id = ? AND q.status <> 'draft' ORDER BY q.id DESC LIMIT 100`, req.user.id);\n  const paid = {};\n  for (const r of db.query(`SELECT p.quote_id, SUM(p.amount - coalesce(p.refunded_amount, 0)) AS n FROM quote_payments p JOIN quotes q ON q.id = p.quote_id\n    JOIN enquiries e ON e.id = q.enquiry_id WHERE e.user_id = ? AND p.status = 'paid' GROUP BY p.quote_id`, req.user.id)) paid[r.quote_id] = round2(r.n);\n  const byEnquiry = {};\n  for (const q of quotes) {\n    const st = quoteState(q, b, paid[q.id] || 0);\n    (byEnquiry[q.enquiry_id] = byEnquiry[q.enquiry_id] || []).push({id: q.id, title: q.title, status: st.status,\n      statusText: t['status_' + st.status] || st.status, total: st.ok ? money(st.total) : '', date: q.created_at.slice(0, 10)});\n  }\n  const list = enquiries.map(e => {\n    const qs = byEnquiry[e.id] || [];\n    const status = e.status === 'new' && qs.length ? 'quoted' : e.status;\n    return {id: e.id, title: e.package_name ? (lang === 'ar' && e.package_name_ar ? e.package_name_ar : e.package_name) : t.custom_enquiry,\n      message: e.message || '', date: e.created_at.slice(0, 10), statusText: t['enquiry_' + status] || status, quotes: qs};\n  });\n  const done = req.query.done === 'done_enquiry' ? t.done_enquiry : '';\n  return {template: 'portal', data: page(req, {enquiries: list, flash: done})};\n}\n",
+    "quote": "// GET /quotes/:id (signed in; own quotes)  Lines, VAT, accept or decline, payments, updates and messages.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = biz(), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const st = quoteState(q, b);\n  const flash = /^done_\\w+$/.test(req.query.done || '') ? req.query.done : '', error = /^error_\\w+$/.test(req.query.error || '') ? t[req.query.error] : '';\n  const messages = db.query('SELECT sender, text, created_at FROM messages WHERE quote_id = ? ORDER BY id DESC LIMIT 100', id).reverse()\n    .map(m => ({firm: m.sender === 'firm', text: m.text, date: m.created_at.slice(0, 16)}));\n  // The client's documents; each file opens only for the client who uploaded it (and for the owner in the admin panel).\n  const documents = db.query('SELECT file, label, created_at FROM documents WHERE quote_id = ? ORDER BY id LIMIT ?', id, MAX_DOCUMENTS).map(d => {\n    const f = files.get(d.file);\n    return {label: t['doc_' + d.label] || d.label, name: f ? f.name : t.doc_missing, url: f && f.user_id === req.user.id ? files.url(d.file) : '',\n      date: d.created_at.slice(0, 10)};\n  });\n  const docs = {documents: documents, canUpload: documents.length < MAX_DOCUMENTS, docLabels: DOC_LABELS.map(v => ({value: v, label: t['doc_' + v]}))};\n  if (!st.ok) {\n    // The owner's lines cannot be read: say so kindly instead of failing, and leave a trace for the owner's agent.\n    console.warn('quote ' + id + ' has lines that cannot be read; expected [{\"name\": \"...\", \"qty\": 1, \"price\": 1500}]');\n    return {template: 'quote', data: page(req, {q: {id: id, title: q.title, broken: true, statusText: t['status_' + q.status] || q.status},\n      messages: messages, error: error, notice: flash ? t[flash] : '', clientName: q.client_name, ...docs})};\n  }\n  syncQuote(q, st);\n  const rows = db.query('SELECT * FROM quote_payments WHERE quote_id = ? ORDER BY id', id);\n  let waiting = null, failed = false;\n  for (const p of rows) {\n    if (p.stage !== st.stage) continue;\n    if (p.method === 'transfer' && p.status === 'pending') waiting = {amount: money(p.amount), reference: p.reference};\n    if (p.method === 'card') failed = p.status === 'failed' || p.status === 'expired';\n  }\n  let notice = flash ? t[flash] : '';\n  if (flash === 'done_paid') {\n    // Do not trust the address: say thank you only when the ledger shows the payment.\n    const last = rows.filter(p => p.method === 'card').pop();\n    if (!last || last.status !== 'paid') {\n      const pay = last ? payments.get(last.reference) : null;\n      notice = pay && (pay.status === 'paid' || pay.status === 'pending') ? t.pay_processing : '';\n    }\n  }\n  const canPay = st.stage !== '' && (st.stage === 'deposit' || q.balance_due === 1);\n  const view = {id: id, title: q.title, status: st.status, statusText: t['status_' + st.status] || st.status,\n    lines: st.lines.map(l => ({name: l.name, qty: l.qty === 1 ? '' : String(l.qty), price: money(l.price), line: money(l.qty * l.price)})),\n    subtotal: money(st.subtotal), vat: money(st.vat), total: money(st.total), inclusive: st.inclusive, until: st.until,\n    notes: loc(q, 'notes', lang), pct: st.pct, deposit: st.deposit > 0 && st.deposit < st.total ? money(st.deposit) : '',\n    accepted: st.accepted, acceptedAt: (q.accepted_at || '').slice(0, 16), acceptedName: q.accepted_name || '',\n    paid: money(st.paid), balance: money(st.total - st.paid), stage: st.stage, stageText: st.stage ? t['stage_' + st.stage] : '', due: money(st.due),\n    canAccept: st.status === 'sent', canPay: canPay, notDue: st.stage === 'balance' && !canPay,\n    card: canPay && b.card_enabled === 1, transfer: canPay && !!b.bank_details && !waiting, waiting: waiting, bank: waiting ? b.bank_details : '',\n    failed: failed && canPay};\n  let refunded = 0;\n  const pays = rows.filter(p => p.status === 'paid' || p.status === 'refunded' || (p.status === 'pending' && p.method === 'transfer')).map(p => {\n    // A refunded payment keeps the amount paid; refunded_amount is what went back (all of it when the status is refunded).\n    const back = p.status === 'refunded' ? p.refunded_amount || p.amount : p.refunded_amount || 0;\n    refunded += back;\n    const status = p.status === 'paid' && back > 0 ? 'partially_refunded' : p.status;\n    return {id: p.id, stageText: t['stage_' + p.stage] || p.stage, amount: money(p.amount), methodText: t['method_' + p.method] || p.method,\n      statusText: t['payment_' + status] || status, paid: p.status === 'paid', refunded: back > 0 ? money(back) : '', date: (p.paid_at || p.created_at).slice(0, 10)};\n  });\n  view.refunded = refunded > 0 ? money(refunded) : '';\n  view.showPayments = st.accepted || pays.length > 0;\n  const updates = db.query('SELECT title, text, link, created_at FROM updates WHERE quote_id = ? AND visible = 1 ORDER BY id DESC LIMIT 100', id)\n    .map(u => ({title: u.title, text: u.text || '', link: /^https?:\\/\\//.test(u.link || '') ? u.link : '', date: u.created_at.slice(0, 10)}));\n  return {template: 'quote', data: page(req, {q: view, payments: pays, updates: updates, messages: messages, notice: notice, error: error,\n    clientName: q.client_name, ...docs})};\n}\n",
+    "accept": "// POST /quotes/:id/accept (signed in; own quotes)  Acceptance is a recorded click: the typed name, the time and the account.\n// The lines and totals are stored as accepted, so later edits in the admin panel do not change what the client agreed to.\nfunction handle(req) {\n  const lang = langOf(req), b = biz(), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const st = quoteState(q, b);\n  if (!st.ok) return back(id, lang, 'error', 'error_unavailable');\n  if (st.status === 'expired') return back(id, lang, 'error', 'error_expired');\n  if (st.status !== 'sent') return back(id, lang, 'error', 'error_not_open');\n  const name = clip(req.form.name, 100);\n  if (!name || req.form.agree !== '1') return back(id, lang, 'error', 'error_accept');\n  const r = db.exec(`UPDATE quotes SET status = 'accepted', accepted_at = ?, accepted_name = ?, accepted_by = ?, accepted_lines = ?, subtotal = ?, vat = ?,\n    total = ?, deposit_amount = ?, paid_amount = 0, valid_until = ? WHERE id = ? AND status = 'sent'`,\n    nowUTC(), name, req.user.id, JSON.stringify(st.lines), st.subtotal, st.vat, st.total, st.deposit, st.until, id);\n  if (r.rowsAffected === 0) return back(id, lang, 'error', 'error_not_open');\n  db.exec(\"UPDATE enquiries SET status = 'won' WHERE id = ?\", q.enquiry_id);\n  tellOwner('Quote #' + id + ' accepted by ' + name + ': AED ' + money(st.total),\n    q.title + '\\nAccepted by ' + name + ' (' + q.client_name + ', ' + (q.client_phone || '-') + ')\\nTotal: AED ' + money(st.total) +\n    ' including VAT AED ' + money(st.vat) + '\\nDeposit: AED ' + money(st.deposit) + '\\n\\n' + quoteLink(req, id, 'en'));\n  mailClient(q.client_email, lang, 'email_accepted', {id: id, title: q.title, name: q.client_name, total: money(st.total),\n    deposit: money(st.deposit), link: quoteLink(req, id, lang)});\n  return back(id, lang, 'done', 'done_accepted');\n}\n",
+    "decline": "// POST /quotes/:id/decline (signed in; own quotes)\nfunction handle(req) {\n  const lang = langOf(req), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const reason = clip(req.form.reason, 500);\n  const r = db.exec(\"UPDATE quotes SET status = 'declined', decline_reason = ? WHERE id = ? AND status = 'sent'\", reason, id);\n  if (r.rowsAffected === 0) return back(id, lang, 'error', 'error_not_open');\n  tellOwner('Quote #' + id + ' declined by ' + q.client_name, q.title + '\\nReason: ' + (reason || '-') + '\\nPhone: ' + (q.client_phone || '-') +\n    '\\n\\nYou can send a new quote for enquiry number ' + q.enquiry_id + ' in the admin panel.');\n  return back(id, lang, 'done', 'done_declined');\n}\n",
+    "pay": "// POST /quotes/:id/pay (signed in; own quotes)  form: method = card | transfer.\n// Pays what is due now: the deposit after acceptance, the balance once the owner has asked for it. The amount is always\n// worked out here, never taken from the browser.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = biz(), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const st = quoteState(q, b);\n  if (!st.ok || !st.accepted) return back(id, lang, 'error', 'error_unavailable');\n  if (st.stage === '') return back(id, lang, 'done', 'done_paid');\n  if (st.stage === 'balance' && q.balance_due !== 1) return back(id, lang, 'error', 'error_not_due');\n  if (req.form.method === 'transfer') {\n    if (!b.bank_details) return back(id, lang, 'error', 'error_payment');\n    const old = db.query(\"SELECT id FROM quote_payments WHERE quote_id = ? AND stage = ? AND method = 'transfer' AND status = 'pending'\", id, st.stage)[0];\n    if (old) db.exec('UPDATE quote_payments SET amount = ? WHERE id = ?', st.due, old.id);\n    else {\n      db.exec(\"INSERT INTO quote_payments (quote_id, stage, amount, method, status, reference, notified) VALUES (?, ?, ?, 'transfer', 'pending', ?, 0)\",\n        id, st.stage, st.due, 'Q' + id + '-' + st.stage);\n      tellOwner('Bank transfer announced: AED ' + money(st.due) + ' (' + st.stage + ') for quote #' + id + ', ' + q.client_name,\n        q.title + '\\nThe client will pay AED ' + money(st.due) + ' by bank transfer with reference Q' + id + '-' + st.stage +\n        '.\\nWhen the money is in your account, open Payments in the admin panel and set this payment to paid.');\n    }\n    return back(id, lang, 'done', 'done_transfer');\n  }\n  if (b.card_enabled !== 1) return back(id, lang, 'error', 'error_payment');\n  // One card row per stage: a failed or abandoned attempt is tried again on the same row.\n  const reference = 'quote-' + id + '-' + st.stage;\n  const row = db.query(\"SELECT id FROM quote_payments WHERE quote_id = ? AND stage = ? AND method = 'card' AND status IN ('pending', 'failed', 'expired') ORDER BY id DESC\",\n    id, st.stage)[0];\n  let rowId;\n  if (row) { rowId = row.id; db.exec(\"UPDATE quote_payments SET status = 'pending', amount = ? WHERE id = ?\", st.due, rowId); }\n  else rowId = db.exec(\"INSERT INTO quote_payments (quote_id, stage, amount, method, status, reference, notified) VALUES (?, ?, ?, 'card', 'pending', ?, 0)\",\n    id, st.stage, st.due, reference).lastInsertId;\n  try {\n    const pay = payments.checkout({items: [{name: t['stage_' + st.stage] + ': ' + q.title + ' (#' + id + ')', price: st.due, quantity: 1}],\n      reference: reference, customer_email: q.client_email || req.user.email || '',\n      success_path: '/quotes/' + id + '?done=done_paid' + (lang === 'ar' ? '&lang=ar' : ''), cancel_path: '/quotes/' + id + (lang === 'ar' ? '?lang=ar' : '')});\n    return {redirect: pay.url};\n  } catch (e) {\n    console.error('checkout failed for quote ' + id + ': ' + e);\n    db.exec(\"UPDATE quote_payments SET status = 'failed' WHERE id = ?\", rowId);\n    return back(id, lang, 'error', 'error_payment');\n  }\n}\n",
+    "message": "// POST /quotes/:id/message (signed in; own quotes)  A short message to the firm: at most 1000 characters, 20 a day per quote.\nfunction handle(req) {\n  const lang = langOf(req), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const text = String(req.form.text || '').trim();\n  if (!text || text.length > 1000) return back(id, lang, 'error', 'error_message');\n  const since = new Date(Date.now() - 86400000).toISOString().replace('T', ' ').slice(0, 19);\n  if (db.query(\"SELECT COUNT(*) AS n FROM messages WHERE quote_id = ? AND sender = 'client' AND created_at >= ?\", id, since)[0].n >= 20) {\n    return back(id, lang, 'error', 'error_many_messages');\n  }\n  db.exec(\"INSERT INTO messages (quote_id, user_id, sender, text, notified) VALUES (?, ?, 'client', ?, 1)\", id, req.user.id, text);\n  tellOwner('Message on quote #' + id + ' from ' + q.client_name + ': ' + text.replace(/\\s+/g, ' ').slice(0, 80),\n    text + '\\n\\n' + q.title + '\\nPhone: ' + (q.client_phone || '-') + '\\nTo reply, add a row in Messages in the admin panel with quote number ' + id + ' and From = firm.');\n  return back(id, lang, 'done', 'done_message');\n}\n",
+    "invoice": "// GET /quotes/:id/invoice/:payment (signed in; own quotes)  Printable receipt for one paid stage; a UAE tax invoice once the TRN is set.\n// The payment is split into net and VAT in the proportion of the accepted quote.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = biz(), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const p = db.query(\"SELECT * FROM quote_payments WHERE id = ? AND quote_id = ? AND status = 'paid'\", Number(req.params.payment), id)[0];\n  const st = quoteState(q, b);\n  if (!p || !st.ok || !st.accepted) return notFound(req);\n  const net = round2(p.amount * st.subtotal / st.total);\n  return {template: 'invoice', data: page(req, {inv: {title: b.trn ? t.tax_invoice : t.receipt, number: 'INV-' + id + '-' + p.id,\n    date: dubaiDate(new Date((p.paid_at || p.created_at).replace(' ', 'T') + 'Z').getTime()),\n    seller: b.legal_name || b.name, sellerAddress: b.address || '', trn: b.trn || '', licence: b.licence || '',\n    buyer: q.client_name, company: q.company || '', phone: q.client_phone || '', email: q.client_email || '',\n    description: (t['stage_' + p.stage] || p.stage) + ': ' + q.title + ' (' + t.quote + ' #' + id + ')',\n    method: t['method_' + p.method] || p.method, net: money(net), vat: money(p.amount - net), total: money(p.amount),\n    quoteTotal: money(st.total), paid: money(st.paid), balance: money(st.total - st.paid)}})};\n}\n",
+    "on_payment": "// Runs when a card payment is paid, fails, expires or is refunded. req.body: {event, reference, amount, refunded_amount, ...}\n// reference is quote-<quote id>-<stage>, the card row of that stage in the payments ledger.\nfunction handle(req) {\n  const m = /^quote-(\\d+)-(deposit|balance)$/.exec(String(req.body.reference));\n  if (!m) return {text: 'ignored'};\n  const id = Number(m[1]), stage = m[2], event = req.body.event;\n  const row = db.query(\"SELECT * FROM quote_payments WHERE quote_id = ? AND stage = ? AND method = 'card' ORDER BY id DESC\", id, stage)[0];\n  const q = db.query(`SELECT q.*, e.client_name AS client_name, e.email AS client_email, e.lang AS client_lang\n    FROM quotes q JOIN enquiries e ON e.id = q.enquiry_id WHERE q.id = ?`, id)[0];\n  if (!row || !q) return {text: 'ignored'};\n  if (event === 'paid') {\n    if (row.status === 'paid') return {text: 'ignored'};\n    db.exec(\"UPDATE quote_payments SET status = 'paid', amount = ?, paid_at = ?, notified = 1 WHERE id = ?\", req.body.amount, nowUTC(), row.id);\n    // A transfer announced for the same stage is no longer expected.\n    db.exec(\"UPDATE quote_payments SET status = 'expired' WHERE quote_id = ? AND stage = ? AND status = 'pending' AND id <> ?\", id, stage, row.id);\n    const lang = q.client_lang === 'ar' ? 'ar' : 'en';\n    mailClient(q.client_email || req.body.customer_email, lang, 'email_payment', {id: id, title: q.title, name: q.client_name,\n      amount: money(req.body.amount), stage: texts(lang)['stage_' + stage], link: req.origin + '/quotes/' + id + '/invoice/' + row.id + (lang === 'ar' ? '?lang=ar' : '')});\n  } else if (event === 'refunded' || event === 'partially_refunded') {\n    // Money went back (payments.refund on cancellation, the Payments page or Stripe): the row keeps the amount paid and\n    // records the total refunded, so the paid amount is what the business still holds. Refunded in full: status refunded.\n    const total = round2(req.body.refunded_amount), more = round2(total - (row.refunded_amount || 0));\n    db.exec('UPDATE quote_payments SET refunded_amount = ?, status = ? WHERE id = ?', total, event === 'refunded' ? 'refunded' : 'paid', row.id);\n    if (more > 0) {\n      const lang = q.client_lang === 'ar' ? 'ar' : 'en';\n      mailClient(q.client_email || req.body.customer_email, lang, 'email_refund', {id: id, title: q.title, name: q.client_name,\n        amount: money(more), stage: texts(lang)['stage_' + stage], link: quoteLink(req, id, lang)});\n    }\n  } else if (row.status === 'pending') {\n    // Failed or expired: the stage stays unpaid and the client can pay again from the quote page.\n    db.exec('UPDATE quote_payments SET status = ? WHERE id = ?', event === 'failed' ? 'failed' : 'expired', row.id);\n  }\n  const st = quoteState(q, biz());\n  if (st.accepted) syncQuote(q, st);\n  // A cancelled or declined quote keeps its status; its paid amount still follows the ledger (e.g. after a refund).\n  else if (Math.abs((q.paid_amount || 0) - paidOf(id)) >= 0.005) db.exec('UPDATE quotes SET paid_amount = ? WHERE id = ?', paidOf(id), id);\n  console.log('quote ' + id + ' ' + stage + ' payment ' + event);\n  return {text: 'ok'};\n}\n",
+    "notify_clients": "// Job, every hour: sends the client emails that could not go out right after the owner's change (too many emails to that\n// address today), so nothing is lost. The work is in notifyClients (lib notify).\nfunction handle(req) {\n  return {text: notifyClients(req) + ' emails sent'};\n}\n",
+    "daily_summary": "// Job, every morning: quotes past their valid-until date expire, and the owner gets a summary of what waits for them\n// (by email, and on WhatsApp if turned on).\nfunction handle(req) {\n  const b = biz(), today = dubaiDate(Date.now());\n  let expired = 0;\n  for (const q of db.query(\"SELECT * FROM quotes WHERE status = 'sent' ORDER BY id LIMIT 100\")) {\n    if (validUntil(q, b) < today) { db.exec(\"UPDATE quotes SET status = 'expired' WHERE id = ? AND status = 'sent'\", q.id); expired++; }\n  }\n  const one = (sql) => db.query(sql)[0];\n  const enquiries = one(\"SELECT COUNT(*) AS n FROM enquiries WHERE status = 'new'\").n;\n  const waiting = one(\"SELECT COUNT(*) AS n FROM quotes WHERE status = 'sent'\").n;\n  const drafts = one(\"SELECT COUNT(*) AS n FROM quotes WHERE status = 'draft'\").n;\n  const deposits = one(\"SELECT COUNT(*) AS n FROM quotes WHERE status = 'accepted'\").n;\n  const transfers = one(\"SELECT COUNT(*) AS n, coalesce(SUM(amount), 0) AS total FROM quote_payments WHERE status = 'pending' AND method = 'transfer'\");\n  if (enquiries + waiting + drafts + deposits + transfers.n + expired === 0) return {text: 'nothing to report'};\n  const list = db.query(\"SELECT id, client_name, phone FROM enquiries WHERE status = 'new' ORDER BY id DESC LIMIT 10\")\n    .map(e => '#' + e.id + ' ' + e.client_name + ', ' + (e.phone || '-')).join('\\n');\n  const pending = db.query(`SELECT p.quote_id, p.stage, p.amount, p.reference FROM quote_payments p WHERE p.status = 'pending' AND p.method = 'transfer'\n    ORDER BY p.id LIMIT 10`).map(p => 'Quote #' + p.quote_id + ' ' + p.stage + ': AED ' + money(p.amount) + ' (' + p.reference + ')').join('\\n');\n  tellOwner('Today: ' + enquiries + ' new enquir' + (enquiries === 1 ? 'y' : 'ies') + ', ' + waiting + ' quote' + (waiting === 1 ? '' : 's') +\n    ' waiting for the client, AED ' + money(transfers.total) + ' in transfers to confirm',\n    'New enquiries without a quote: ' + enquiries + (list ? '\\n' + list : '') + '\\nDraft quotes not sent yet: ' + drafts +\n    '\\nQuotes waiting for the client: ' + waiting + '\\nAccepted, deposit not paid yet: ' + deposits +\n    '\\nBank transfers to confirm: ' + transfers.n + ', AED ' + money(transfers.total) + (pending ? '\\n' + pending : '') +\n    '\\nQuotes expired today: ' + expired);\n  return {text: enquiries + ' new enquiries, ' + waiting + ' quotes waiting, ' + transfers.n + ' transfers pending, ' + expired + ' expired'};\n}\n",
+    "mcp_packages": "// MCP tool: the packages with their \"from\" prices.\nfunction handle(req) {\n  const lang = req.body.lang === 'ar' ? 'ar' : 'en', b = biz();\n  const want = String(req.body.category || '').trim().toLowerCase();\n  const list = db.query('SELECT * FROM packages WHERE active = 1 ORDER BY id')\n    .filter(p => !want || String(p.category).toLowerCase() === want || String(p.category_ar || '').toLowerCase() === want)\n    .map(p => { const v = packageView(p, lang); return {id: v.id, name: v.name, category: v.category, description: v.description,\n      price_from: v.priceNum, included: v.included, typical_duration: v.duration || null,\n      url: req.origin + '/packages/' + v.id + (lang === 'ar' ? '?lang=ar' : '')}; });\n  return {json: {currency: 'AED', prices_include_vat: b.prices_include_vat === 1,\n    note: 'Prices are starting prices. The final price is in a written quote after an enquiry.', packages: list}};\n}\n",
+    "mcp_business": "// MCP tool: who the business is and how to reach it.\nfunction handle(req) {\n  const lang = req.body.lang === 'ar' ? 'ar' : 'en', b = biz();\n  return {json: {name: loc(b, 'name', lang), tagline: loc(b, 'tagline', lang), url: req.origin, legal_name: b.legal_name || null, address: b.address || null,\n    licence: b.licence || null, vat_trn: b.trn || null, whatsapp: b.whatsapp || null, email: b.email || null, currency: 'AED',\n    prices_include_vat: b.prices_include_vat === 1, deposit_percent: b.deposit_percent, quote_valid_days: b.quote_valid_days,\n    payment_methods: [b.card_enabled === 1 ? 'card' : null, b.bank_details ? 'bank transfer' : null].filter(Boolean)}};\n}\n",
+    "mcp_how": "// MCP tool: the steps from enquiry to payment, with the pages to use.\nfunction handle(req) {\n  const lang = req.body.lang === 'ar' ? 'ar' : 'en', t = texts(lang), b = biz(), q = lang === 'ar' ? '?lang=ar' : '';\n  return {json: {steps: [1, 2, 3, 4].map(i => ({step: i, title: t['how_' + i + '_title'], text: t['how_' + i]})),\n    enquiry_url: req.origin + '/enquiry' + q, my_quotes_url: req.origin + '/portal' + q, sign_in_needed: true,\n    deposit_percent: b.deposit_percent, quote_valid_days: b.quote_valid_days,\n    payment_methods: [b.card_enabled === 1 ? 'card' : null, b.bank_details ? 'bank transfer' : null].filter(Boolean),\n    note: 'Enquiries, accepting a quote and paying are done by the client on the website, signed in. Quotes are prepared by the business, usually within one working day.'}};\n}\n",
+    "admin_change": "// on_admin_change: runs right after the owner or staff adds, changes or deletes a row in the admin panel, so clients\n// are emailed at once (quote sent, balance asked for, update posted, reply, transfer marked paid), and a cancelled quote's\n// card payments are refunded when the owner ticks \"Refund card payments when cancelled\".\nfunction handle(req) {\n  const b = req.body;\n  if (b.action === 'delete' || ['quotes', 'quote_payments', 'updates', 'messages'].indexOf(b.table) < 0) return {text: 'nothing to do'};\n  const refund = b.table === 'quotes' && b.row && b.row.status === 'cancelled' ? cancelled(req, b.row, b.before) : '';\n  return {text: notifyClients(req) + ' emails sent' + refund};\n}\n\n// A cancelled quote: the card payments it still holds are refunded in full only when refund_on_cancel is ticked (when\n// cancelling, or later); otherwise the money stays recorded as paid in the ledger and the owner can refund all or part of it\n// on the Payments page. Bank transfers are never refunded here. Each refund is recorded in the ledger and emailed to the client\n// right here; on_payment, which also gets the refund event, then finds it already recorded and changes nothing.\nfunction cancelled(req, q, before) {\n  const cards = db.query(\"SELECT * FROM quote_payments WHERE quote_id = ? AND method = 'card' AND status = 'paid' ORDER BY id\", q.id)\n    .filter(p => round2(p.amount - (p.refunded_amount || 0)) > 0);\n  const held = round2(cards.reduce((s, p) => s + p.amount - (p.refunded_amount || 0), 0));\n  if (!(held > 0)) return '';\n  if (q.refund_on_cancel !== 1) {\n    if (!before || before.status !== 'cancelled') console.log('quote ' + q.id + ' cancelled; AED ' + money(held) + ' paid by card is kept (refund_on_cancel is off)');\n    return ', AED ' + money(held) + ' paid by card not refunded';\n  }\n  const c = db.query('SELECT client_name, email, lang FROM enquiries WHERE id = ?', q.enquiry_id)[0] || {};\n  const lang = c.lang === 'ar' ? 'ar' : 'en';\n  let done = 0;\n  for (const p of cards) {\n    let r;\n    try {\n      r = payments.refund({reference: p.reference, reason: 'Quote #' + q.id + ' cancelled'});\n    } catch (e) {\n      console.warn('refund of ' + p.reference + ' not made: ' + e);\n      continue;\n    }\n    const more = round2(r.refunded_amount - (p.refunded_amount || 0));\n    done = round2(done + more);\n    db.exec('UPDATE quote_payments SET refunded_amount = ?, status = ? WHERE id = ?', round2(r.refunded_amount), r.status === 'refunded' ? 'refunded' : 'paid', p.id);\n    mailClient(c.email, lang, 'email_refund', {id: q.id, title: q.title, name: c.client_name || '', amount: money(more),\n      stage: texts(lang)['stage_' + p.stage], link: quoteLink(req, q.id, lang)});\n  }\n  db.exec('UPDATE quotes SET paid_amount = ? WHERE id = ?', paidOf(q.id), q.id);\n  if (done < held) tellOwner('Refund not made for cancelled quote #' + q.id + ': AED ' + money(held - done),\n    'Some card payments of quote #' + q.id + ' (' + q.title + ') could not be refunded; see the app log. Refund them on the Payments page.');\n  return ', AED ' + money(done) + ' refunded';\n}\n",
+    "document": "// POST /quotes/:id/documents (signed in; own quotes)  form: label (passport | emirates_id | trade_licence | other) and file, the id of\n// a private upload (/_rx/upload, sent by /_rx/upload.js). Only the client who uploaded a file can attach it; at most 20 per quote.\n// The owner and staff open the files from Client documents in the admin panel; nobody else can.\nfunction handle(req) {\n  const lang = langOf(req), id = Number(req.params.id);\n  const q = ownQuote(id, req.user.id);\n  if (!q) return notFound(req);\n  const label = DOC_LABELS.indexOf(req.form.label) >= 0 ? req.form.label : 'other';\n  // The id comes from the browser: accept only a file this visitor uploaded.\n  const f = req.form.file ? files.get(String(req.form.file)) : null;\n  if (!f || f.user_id !== req.user.id) return back(id, lang, 'error', 'error_document');\n  if (db.query('SELECT COUNT(*) AS n FROM documents WHERE quote_id = ? AND file = ?', id, f.id)[0].n > 0) return back(id, lang, 'done', 'done_document');\n  if (db.query('SELECT COUNT(*) AS n FROM documents WHERE quote_id = ?', id)[0].n >= MAX_DOCUMENTS) return back(id, lang, 'error', 'error_many_documents');\n  db.exec('INSERT INTO documents (quote_id, user_id, file, label) VALUES (?, ?, ?, ?)', id, req.user.id, f.id, label);\n  const what = texts('en')['doc_' + label] || label;\n  tellOwner('New document on quote #' + id + ' from ' + q.client_name + ': ' + what,\n    what + ': ' + f.name + ' (' + Math.ceil(f.size / 1024) + ' KB)\\n' + q.title + '\\nOpen it in the admin panel, Client documents (quote number ' + id + ').');\n  return back(id, lang, 'done', 'done_document');\n}\n"
+  },
+  "lib": {
+    "common": "// Helpers shared by every script of the portal (lib entries run before each script).\nfunction langOf(req) { return (req.query.lang || (req.form && req.form.lang)) === 'ar' ? 'ar' : 'en'; }\nconst textCache = {};\nfunction texts(lang) {\n  if (textCache[lang]) return textCache[lang];\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return textCache[lang] = t;\n}\nfunction biz() { return db.query('SELECT * FROM business ORDER BY id LIMIT 1')[0]; }\nfunction round2(n) { return Math.round(n * 100) / 100; }\nfunction money(n) { return round2(n).toFixed(2); }\nfunction loc(row, field, lang) { return (lang === 'ar' && row[field + '_ar'] ? row[field + '_ar'] : row[field]) || ''; }\nfunction fill(s, vars) { return String(s || '').replace(/\\{(\\w+)\\}/g, (m, k) => vars[k] === undefined ? m : String(vars[k])); }\nfunction clip(s, n) { return String(s || '').trim().slice(0, n); }\nfunction nowUTC() { return new Date().toISOString().replace('T', ' ').slice(0, 19); }\n// Dates are compared as YYYY-MM-DD in Dubai time (UTC+4).\nfunction dubaiDate(ms) { return new Date(ms + 4 * 3600 * 1000).toISOString().slice(0, 10); }\nfunction page(req, extra) {\n  const lang = langOf(req), b = biz();\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: texts(lang), user: req.user, biz: b,\n    bizName: loc(b, 'name', lang), tagline: loc(b, 'tagline', lang), path: req.path, lq: lang === 'ar' ? '?lang=ar' : '',\n    wa: (b.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// The enquiry form's fields, so templates never print a missing value.\nfunction formOf(v) {\n  const f = {package_id: '', name: '', company: '', phone: '', email: '', message: '', target_date: '', budget: ''};\n  for (const k in f) if (v[k]) f[k] = String(v[k]);\n  return f;\n}\n// Documents a client can attach to a quote (documents.label), and how many per quote.\nconst DOC_LABELS = ['passport', 'emirates_id', 'trade_licence', 'other'];\nconst MAX_DOCUMENTS = 20;\nfunction notFound(req) { return {template: 'not_found', data: page(req, {}), status: 404}; }\nfunction packageView(p, lang) {\n  return {id: p.id, name: loc(p, 'name', lang), description: loc(p, 'description', lang), category: loc(p, 'category', lang),\n    price: p.price_from > 0 ? money(p.price_from) : '', priceNum: p.price_from > 0 ? p.price_from : null,\n    included: loc(p, 'included', lang).split('\\n').map(s => s.trim()).filter(Boolean), duration: loc(p, 'duration', lang), image: p.image || ''};\n}\n// Quote lines are JSON written by the owner: [{\"name\": \"...\", \"qty\": 1, \"price\": 1500}]. Returns null when they cannot be used.\nfunction parseLines(raw) {\n  let a;\n  try { a = JSON.parse(raw || ''); } catch (e) { return null; }\n  if (!Array.isArray(a) || a.length === 0 || a.length > 50) return null;\n  const out = [];\n  for (const l of a) {\n    if (!l || typeof l.name !== 'string' || !l.name.trim()) return null;\n    if (l.price === null || l.price === undefined || l.price === '') return null;\n    const qty = l.qty === undefined || l.qty === null ? 1 : Number(l.qty), price = Number(l.price);\n    if (!isFinite(qty) || !isFinite(price) || !(qty > 0) || !(price >= 0)) return null;\n    out.push({name: l.name.trim(), qty: qty, price: price});\n  }\n  return out;\n}\n// 5% VAT: added on top of the lines, or taken out of them when the business quotes prices including VAT.\nfunction totalsOf(lines, includeVat) {\n  const sum = round2(lines.reduce((s, l) => s + l.qty * l.price, 0));\n  if (includeVat) { const vat = round2(sum * 5 / 105); return {subtotal: round2(sum - vat), vat: vat, total: sum}; }\n  const vat = round2(sum * 0.05);\n  return {subtotal: sum, vat: vat, total: round2(sum + vat)};\n}\nfunction validUntil(q, b) {\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(q.valid_until || '')) return q.valid_until.slice(0, 10);\n  const days = b.quote_valid_days > 0 ? b.quote_valid_days : 14;\n  return dubaiDate(new Date(q.created_at.replace(' ', 'T') + 'Z').getTime() + days * 86400000);\n}\n// What the business holds of a payment row: its amount less what was refunded (SQL, for the paid rows of the ledger).\nconst HELD = '(amount - coalesce(refunded_amount, 0))';\nfunction paidOf(quoteId) {\n  return round2(db.query(\"SELECT coalesce(SUM\" + HELD + \", 0) AS n FROM quote_payments WHERE quote_id = ? AND status = 'paid'\", quoteId)[0].n);\n}\n// Everything the pages need to know about a quote. Money paid always comes from the payments ledger (rows with status paid, less refunds),\n// because the owner marks bank transfers paid in the admin panel. paid may be passed to save a query.\nfunction quoteState(q, b, paid) {\n  const accepted = q.status === 'accepted' || q.status === 'deposit_paid' || q.status === 'paid';\n  const lines = parseLines(accepted && q.accepted_lines ? q.accepted_lines : q.lines);\n  let tot = null;\n  if (accepted && q.total > 0) tot = {subtotal: q.subtotal, vat: q.vat, total: q.total};\n  else if (lines) tot = totalsOf(lines, !!b.prices_include_vat);\n  if (!lines || !tot || !(tot.total > 0)) return {ok: false, accepted: accepted, status: q.status};\n  let pct = q.deposit_percent === null || q.deposit_percent === undefined ? b.deposit_percent : q.deposit_percent;\n  pct = Math.max(0, Math.min(100, Number(pct) || 0));\n  const deposit = accepted && q.deposit_amount !== null ? q.deposit_amount : round2(tot.total * pct / 100);\n  const until = validUntil(q, b);\n  let status = q.status, stage = '', due = 0;\n  if (!accepted) paid = 0; else if (paid === undefined) paid = paidOf(q.id);\n  if (accepted) {\n    status = paid >= tot.total - 0.005 ? 'paid' : paid > 0 ? 'deposit_paid' : 'accepted';\n    if (status !== 'paid') {\n      if (paid === 0 && deposit > 0 && deposit < tot.total) { stage = 'deposit'; due = deposit; }\n      else { stage = 'balance'; due = round2(tot.total - paid); }\n    }\n  } else if (status === 'sent' && until < dubaiDate(Date.now())) status = 'expired';\n  return {ok: true, accepted: accepted, status: status, lines: lines, subtotal: tot.subtotal, vat: tot.vat, total: tot.total, pct: pct,\n    deposit: deposit, paid: paid, stage: stage, due: due, until: until,\n    inclusive: Math.abs(round2(lines.reduce((s, l) => s + l.qty * l.price, 0)) - tot.total) < 0.005};\n}\n// Brings the stored quote status and paid amount in line with the ledger, so the admin panel shows the same as the client sees.\nfunction syncQuote(q, st) {\n  if (!st.ok || !st.accepted) return;\n  if (q.status === st.status && Math.abs((q.paid_amount || 0) - st.paid) < 0.005) return;\n  db.exec('UPDATE quotes SET status = ?, paid_amount = ? WHERE id = ?', st.status, st.paid, q.id);\n}\n// A quote with its client, only for the visitor who sent the enquiry, and never a draft.\nfunction ownQuote(id, userId) {\n  return db.query(`SELECT q.*, e.user_id AS user_id, e.client_name AS client_name, e.company AS company, e.email AS client_email,\n    e.phone AS client_phone, e.lang AS client_lang FROM quotes q JOIN enquiries e ON e.id = q.enquiry_id\n    WHERE q.id = ? AND e.user_id = ? AND q.status <> 'draft'`, id, userId)[0];\n}\nfunction quoteLink(req, id, lang) { return req.origin + '/quotes/' + id + (lang === 'ar' ? '?lang=ar' : ''); }\nfunction back(id, lang, kind, key) { return {redirect: '/quotes/' + id + '?' + kind + '=' + key + (lang === 'ar' ? '&lang=ar' : '')}; }\n// Emails a client in their language; quiet on failure. Returns sent, skipped (no address), limit (too many today) or failed.\nfunction mailClient(to, lang, key, vars) {\n  if (!to) return 'skipped';\n  lang = lang === 'ar' ? 'ar' : 'en';\n  const t = texts(lang);\n  vars.business = loc(biz(), 'name', lang);\n  try {\n    email.send({to: to, subject: fill(t[key + '_subject'], vars).slice(0, 150), text: fill(t[key + '_body'], vars)});\n    return 'sent';\n  } catch (e) {\n    console.warn('email to client not sent: ' + e);\n    return String(e).indexOf('too many') >= 0 ? 'limit' : 'failed';\n  }\n}\nfunction tellOwner(subject, text) {\n  try { notify.owner({subject: subject.slice(0, 150), text: text}); } catch (e) { console.warn('owner not notified: ' + e); }\n}\n",
+    "notify": "// Tells clients by email about what the owner did in the admin panel: a quote set to sent, the balance asked for, a new\n// progress update, a reply, a transfer marked paid; and brings quotes in line with the payments ledger. on_admin_change runs it\n// right after each change; the hourly notify_clients job runs it again for emails that hit the daily limit per address.\n// Each row has a notified flag that is set once the email is out. At most 10 rows of each kind per run. Returns the emails sent.\nfunction notifyClients(req) {\n  const b = biz();\n  let sent = 0;\n  // done: set the flag unless the address had too many emails today (then the next run tries again).\n  const mail = (row, key, vars) => {\n    const lang = row.client_lang === 'ar' ? 'ar' : 'en';\n    vars.name = row.client_name;\n    const r = mailClient(row.client_email, lang, key, vars);\n    if (r === 'sent') sent++;\n    return r !== 'limit';\n  };\n  const link = (id, lang) => quoteLink(req, id, lang === 'ar' ? 'ar' : 'en');\n  const client = 'e.client_name AS client_name, e.email AS client_email, e.lang AS client_lang';\n\n  // Quotes and their paid amounts follow the ledger (transfers marked paid in the admin panel).\n  for (const q of db.query(`SELECT q.*, coalesce((SELECT SUM(p.amount - coalesce(p.refunded_amount, 0)) FROM quote_payments p WHERE p.quote_id = q.id AND p.status = 'paid'), 0) AS ledger\n    FROM quotes q WHERE q.status IN ('accepted', 'deposit_paid', 'paid') ORDER BY q.id DESC LIMIT 200`)) {\n    const st = quoteState(q, b, round2(q.ledger));\n    if (st.ok && (q.status !== st.status || Math.abs((q.paid_amount || 0) - st.paid) >= 0.005)) syncQuote(q, st);\n  }\n\n  for (const q of db.query(`SELECT q.*, ${client} FROM quotes q JOIN enquiries e ON e.id = q.enquiry_id\n    WHERE q.status = 'sent' AND coalesce(q.notified, 0) = 0 ORDER BY q.id LIMIT 10`)) {\n    const st = quoteState(q, b);\n    if (!st.ok) { console.warn('quote ' + q.id + ' not announced: its lines cannot be read'); continue; }\n    if (st.status === 'expired') { db.exec('UPDATE quotes SET notified = 1 WHERE id = ?', q.id); continue; }\n    // The validity starts today when the owner gave no date.\n    const until = /^\\d{4}-\\d{2}-\\d{2}/.test(q.valid_until || '') ? q.valid_until.slice(0, 10)\n      : dubaiDate(Date.now() + (b.quote_valid_days > 0 ? b.quote_valid_days : 14) * 86400000);\n    if (mail(q, 'email_quote', {id: q.id, title: q.title, total: money(st.total), until: until, link: link(q.id, q.client_lang)})) {\n      db.exec('UPDATE quotes SET notified = 1, valid_until = ? WHERE id = ?', until, q.id);\n      db.exec(\"UPDATE enquiries SET status = 'quoted' WHERE id = ? AND status = 'new'\", q.enquiry_id);\n    }\n  }\n\n  for (const q of db.query(`SELECT q.*, ${client} FROM quotes q JOIN enquiries e ON e.id = q.enquiry_id\n    WHERE q.balance_due = 1 AND coalesce(q.balance_notified, 0) = 0 AND q.status IN ('accepted', 'deposit_paid') ORDER BY q.id LIMIT 10`)) {\n    const st = quoteState(q, b);\n    if (!st.ok || st.stage !== 'balance') continue;\n    if (mail(q, 'email_balance', {id: q.id, title: q.title, amount: money(st.due), link: link(q.id, q.client_lang)})) {\n      db.exec('UPDATE quotes SET balance_notified = 1 WHERE id = ?', q.id);\n    }\n  }\n\n  for (const u of db.query(`SELECT u.id, u.title, u.text, u.quote_id, q.title AS quote_title, ${client} FROM updates u JOIN quotes q ON q.id = u.quote_id\n    JOIN enquiries e ON e.id = q.enquiry_id WHERE u.visible = 1 AND coalesce(u.notified, 0) = 0 AND q.status <> 'draft' ORDER BY u.id LIMIT 10`)) {\n    if (mail(u, 'email_update', {id: u.quote_id, title: u.title, text: u.text || '', quote: u.quote_title, link: link(u.quote_id, u.client_lang)})) {\n      db.exec('UPDATE updates SET notified = 1 WHERE id = ?', u.id);\n    }\n  }\n\n  for (const m of db.query(`SELECT m.id, m.text, m.quote_id, q.title AS quote_title, ${client} FROM messages m JOIN quotes q ON q.id = m.quote_id\n    JOIN enquiries e ON e.id = q.enquiry_id WHERE m.sender = 'firm' AND coalesce(m.notified, 0) = 0 AND q.status <> 'draft' ORDER BY m.id LIMIT 10`)) {\n    if (mail(m, 'email_message', {id: m.quote_id, text: m.text, quote: m.quote_title, link: link(m.quote_id, m.client_lang)})) {\n      db.exec('UPDATE messages SET notified = 1 WHERE id = ?', m.id);\n    }\n  }\n\n  for (const p of db.query(`SELECT p.id, p.quote_id, p.stage, p.amount, p.paid_at, q.title AS quote_title, ${client} FROM quote_payments p\n    JOIN quotes q ON q.id = p.quote_id JOIN enquiries e ON e.id = q.enquiry_id\n    WHERE p.status = 'paid' AND coalesce(p.notified, 0) = 0 ORDER BY p.id LIMIT 10`)) {\n    const lang = p.client_lang === 'ar' ? 'ar' : 'en';\n    if (!p.paid_at) db.exec('UPDATE quote_payments SET paid_at = ? WHERE id = ?', nowUTC(), p.id);\n    if (mail(p, 'email_payment', {id: p.quote_id, title: p.quote_title, amount: money(p.amount), stage: texts(lang)['stage_' + p.stage],\n      link: req.origin + '/quotes/' + p.quote_id + '/invoice/' + p.id + (lang === 'ar' ? '?lang=ar' : '')})) {\n      db.exec('UPDATE quote_payments SET notified = 1 WHERE id = ?', p.id);\n    }\n  }\n  return sent;\n}\n"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "script": "home"
+    },
+    {
+      "method": "GET",
+      "path": "/packages/:id",
+      "script": "package"
+    },
+    {
+      "method": "GET",
+      "path": "/enquiry",
+      "script": "enquiry_form",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/enquiry",
+      "script": "enquiry",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/portal",
+      "script": "portal",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/quotes/:id",
+      "script": "quote",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/quotes/:id/accept",
+      "script": "accept",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/quotes/:id/decline",
+      "script": "decline",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/quotes/:id/pay",
+      "script": "pay",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/quotes/:id/message",
+      "script": "message",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/quotes/:id/documents",
+      "script": "document",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/quotes/:id/invoice/:payment",
+      "script": "invoice",
+      "auth": "user"
+    }
+  ],
+  "on_payment": "on_payment",
+  "on_admin_change": "admin_change",
+  "seed": {
+    "business": [
+      {
+        "name": "Bayan Business Setup",
+        "name_ar": "بيان لتأسيس الأعمال",
+        "tagline": "Company formation, visas and tax services in Dubai, with a clear quote before you pay",
+        "tagline_ar": "تأسيس الشركات والتأشيرات والخدمات الضريبية في دبي، بعرض سعر واضح قبل الدفع",
+        "whatsapp": "+971500000000",
+        "email": "hello@bayansetup.example",
+        "legal_name": "Bayan Corporate Services LLC",
+        "address": "Office 1404, Bay Square 3, Business Bay, Dubai",
+        "trn": "",
+        "licence": "DET trade licence 1234567",
+        "deposit_percent": 50,
+        "quote_valid_days": 14,
+        "card_enabled": 1,
+        "bank_details": "Bank: Emirates NBD\nAccount name: Bayan Corporate Services LLC\nIBAN: AE00 0000 0000 0000 0000 000\nSwift: EBILAEAD",
+        "prices_include_vat": 0
+      }
+    ],
+    "packages": [
+      {
+        "name": "Mainland LLC company setup",
+        "name_ar": "تأسيس شركة ذات مسؤولية محدودة في البر الرئيسي",
+        "description": "A Dubai mainland LLC with 100% foreign ownership for most activities, from trade name to licence.",
+        "description_ar": "شركة ذات مسؤولية محدودة في بر دبي بملكية أجنبية كاملة لمعظم الأنشطة، من الاسم التجاري إلى الرخصة.",
+        "category": "Company formation",
+        "category_ar": "تأسيس الشركات",
+        "price_from": 14500,
+        "included": "Trade name reservation and initial approval\nMemorandum of association drafting and notarisation\nDET trade licence\nEstablishment card and labour file\nHelp with opening a corporate bank account\nGovernment fees quoted separately at cost",
+        "included_ar": "حجز الاسم التجاري والموافقة المبدئية\nإعداد عقد التأسيس وتوثيقه\nالرخصة التجارية من دائرة الاقتصاد والسياحة\nبطاقة المنشأة وملف العمل\nالمساعدة في فتح حساب مصرفي للشركة\nالرسوم الحكومية تُحتسب بالتكلفة في عرض السعر",
+        "duration": "2 to 3 weeks",
+        "duration_ar": "من أسبوعين إلى ثلاثة أسابيع",
+        "image": "",
+        "active": 1
+      },
+      {
+        "name": "Free-zone company setup",
+        "name_ar": "تأسيس شركة في المنطقة الحرة",
+        "description": "A free-zone company in the zone that suits your activity and budget, with visa allocation.",
+        "description_ar": "شركة في المنطقة الحرة الأنسب لنشاطك وميزانيتك، مع حصة التأشيرات.",
+        "category": "Company formation",
+        "category_ar": "تأسيس الشركات",
+        "price_from": 12900,
+        "included": "Comparison of suitable free zones\nCompany registration and licence\nFlexi-desk or office lease agreement\nEstablishment card\nOne investor visa application",
+        "included_ar": "مقارنة بين المناطق الحرة المناسبة\nتسجيل الشركة وإصدار الرخصة\nعقد إيجار مكتب مرن أو مكتب\nبطاقة المنشأة\nطلب تأشيرة مستثمر واحدة",
+        "duration": "1 to 2 weeks",
+        "duration_ar": "من أسبوع إلى أسبوعين",
+        "image": "",
+        "active": 1
+      },
+      {
+        "name": "Golden Visa application",
+        "name_ar": "طلب الإقامة الذهبية",
+        "description": "The 10-year UAE Golden Visa for investors, entrepreneurs and skilled professionals, handled end to end.",
+        "description_ar": "الإقامة الذهبية لمدة 10 سنوات للمستثمرين ورواد الأعمال وأصحاب المهارات، ننجزها من البداية إلى النهاية.",
+        "category": "Visas and PRO services",
+        "category_ar": "التأشيرات وخدمات التعقيب",
+        "price_from": 4500,
+        "included": "Eligibility check before you pay\nNomination and application filing\nMedical test and Emirates ID appointments\nFamily members can be added to the quote",
+        "included_ar": "التحقق من الأهلية قبل الدفع\nالترشيح وتقديم الطلب\nمواعيد الفحص الطبي والهوية الإماراتية\nيمكن إضافة أفراد الأسرة إلى عرض السعر",
+        "duration": "3 to 5 weeks",
+        "duration_ar": "من ثلاثة إلى خمسة أسابيع",
+        "image": "",
+        "active": 1
+      },
+      {
+        "name": "Trade licence renewal",
+        "name_ar": "تجديد الرخصة التجارية",
+        "description": "Renewal of your mainland or free-zone licence before it expires, including the tenancy contract check.",
+        "description_ar": "تجديد رخصتك في البر الرئيسي أو المنطقة الحرة قبل انتهائها، مع مراجعة عقد الإيجار.",
+        "category": "Visas and PRO services",
+        "category_ar": "التأشيرات وخدمات التعقيب",
+        "price_from": 1200,
+        "included": "Review of licence, Ejari and partners' documents\nRenewal application and payment voucher\nRenewed licence delivered by email",
+        "included_ar": "مراجعة الرخصة وعقد إيجاري ومستندات الشركاء\nطلب التجديد وإذن الدفع\nإرسال الرخصة المجددة بالبريد الإلكتروني",
+        "duration": "3 to 5 working days",
+        "duration_ar": "من 3 إلى 5 أيام عمل",
+        "image": "",
+        "active": 1
+      },
+      {
+        "name": "VAT registration",
+        "name_ar": "التسجيل في ضريبة القيمة المضافة",
+        "description": "Registration with the Federal Tax Authority and your TRN certificate, with the right effective date.",
+        "description_ar": "التسجيل لدى الهيئة الاتحادية للضرائب والحصول على شهادة الرقم الضريبي بتاريخ السريان الصحيح.",
+        "category": "Tax and accounting",
+        "category_ar": "الضرائب والمحاسبة",
+        "price_from": 1500,
+        "included": "Turnover review and registration threshold check\nEmaraTax account and application\nAnswers to FTA queries\nTRN certificate",
+        "included_ar": "مراجعة الإيرادات والتحقق من حد التسجيل\nحساب إمارات تاكس وتقديم الطلب\nالرد على استفسارات الهيئة\nشهادة الرقم الضريبي",
+        "duration": "1 to 2 weeks",
+        "duration_ar": "من أسبوع إلى أسبوعين",
+        "image": "",
+        "active": 1
+      },
+      {
+        "name": "Monthly bookkeeping",
+        "name_ar": "مسك الدفاتر الشهري",
+        "description": "Books kept every month by a qualified accountant, ready for VAT returns and corporate tax. Price per month.",
+        "description_ar": "دفاتر محاسبية شهرية يعدّها محاسب مؤهل، جاهزة لإقرارات ضريبة القيمة المضافة وضريبة الشركات. السعر شهري.",
+        "category": "Tax and accounting",
+        "category_ar": "الضرائب والمحاسبة",
+        "price_from": 900,
+        "included": "Up to 100 transactions a month\nBank reconciliation\nMonthly profit and loss and balance sheet\nQuarterly VAT return filing",
+        "included_ar": "حتى 100 معاملة شهرياً\nتسوية الحسابات المصرفية\nقائمة الأرباح والخسائر والميزانية شهرياً\nتقديم إقرار ضريبة القيمة المضافة كل ثلاثة أشهر",
+        "duration": "Ongoing, billed monthly",
+        "duration_ar": "خدمة مستمرة بفاتورة شهرية",
+        "image": "",
+        "active": 1
+      }
+    ],
+    "texts": [
+      {
+        "key": "language",
+        "en": "العربية",
+        "ar": "English"
+      },
+      {
+        "key": "sign_in",
+        "en": "Sign in",
+        "ar": "تسجيل الدخول"
+      },
+      {
+        "key": "sign_out",
+        "en": "Sign out",
+        "ar": "تسجيل الخروج"
+      },
+      {
+        "key": "my_portal",
+        "en": "My portal",
+        "ar": "بوابتي"
+      },
+      {
+        "key": "contact_whatsapp",
+        "en": "Chat on WhatsApp",
+        "ar": "تواصل عبر واتساب"
+      },
+      {
+        "key": "not_found",
+        "en": "Not found.",
+        "ar": "غير موجود."
+      },
+      {
+        "key": "all_packages",
+        "en": "All services",
+        "ar": "جميع الخدمات"
+      },
+      {
+        "key": "from",
+        "en": "From",
+        "ar": "ابتداءً من"
+      },
+      {
+        "key": "on_request",
+        "en": "Price on request",
+        "ar": "السعر عند الطلب"
+      },
+      {
+        "key": "excl_vat",
+        "en": "plus 5% VAT",
+        "ar": "تضاف ضريبة القيمة المضافة 5%"
+      },
+      {
+        "key": "incl_vat",
+        "en": "including VAT",
+        "ar": "شامل ضريبة القيمة المضافة"
+      },
+      {
+        "key": "duration",
+        "en": "Typical duration",
+        "ar": "المدة المعتادة"
+      },
+      {
+        "key": "included",
+        "en": "What is included",
+        "ar": "ما تشمله الخدمة"
+      },
+      {
+        "key": "ask_quote",
+        "en": "Ask for a quote",
+        "ar": "اطلب عرض سعر"
+      },
+      {
+        "key": "how_title",
+        "en": "How it works",
+        "ar": "كيف نعمل"
+      },
+      {
+        "key": "how_1_title",
+        "en": "Tell us what you need",
+        "ar": "أخبرنا بما تحتاجه"
+      },
+      {
+        "key": "how_1",
+        "en": "Choose a service or describe your case. It takes two minutes.",
+        "ar": "اختر خدمة أو صف حالتك. لا يستغرق ذلك أكثر من دقيقتين."
+      },
+      {
+        "key": "how_2_title",
+        "en": "Get a written quote",
+        "ar": "استلم عرض سعر مكتوباً"
+      },
+      {
+        "key": "how_2",
+        "en": "We send a quote with every line and VAT, usually within one working day.",
+        "ar": "نرسل عرض سعر بكل البنود والضريبة، عادةً خلال يوم عمل واحد."
+      },
+      {
+        "key": "how_3_title",
+        "en": "Accept and pay the deposit",
+        "ar": "وافق وادفع الدفعة المقدمة"
+      },
+      {
+        "key": "how_3",
+        "en": "Accept online and pay the deposit by card or bank transfer.",
+        "ar": "وافق عبر الموقع وادفع الدفعة المقدمة بالبطاقة أو بالتحويل المصرفي."
+      },
+      {
+        "key": "how_4_title",
+        "en": "Follow the progress",
+        "ar": "تابع سير العمل"
+      },
+      {
+        "key": "how_4",
+        "en": "See each step in your portal and pay the balance when the work is done.",
+        "ar": "تابع كل خطوة في بوابتك وادفع المبلغ المتبقي عند إنجاز العمل."
+      },
+      {
+        "key": "custom_title",
+        "en": "Something else?",
+        "ar": "تحتاج شيئاً آخر؟"
+      },
+      {
+        "key": "custom_text",
+        "en": "Describe what you need and we will send you a quote.",
+        "ar": "صف لنا ما تحتاجه وسنرسل لك عرض سعر."
+      },
+      {
+        "key": "sign_in_to_ask",
+        "en": "Sign in to send your enquiry and follow your quote.",
+        "ar": "سجّل الدخول لإرسال طلبك ومتابعة عرض السعر."
+      },
+      {
+        "key": "package",
+        "en": "Service",
+        "ar": "الخدمة"
+      },
+      {
+        "key": "custom_enquiry",
+        "en": "Custom request",
+        "ar": "طلب خاص"
+      },
+      {
+        "key": "your_name",
+        "en": "Your name",
+        "ar": "اسمك"
+      },
+      {
+        "key": "company",
+        "en": "Company",
+        "ar": "الشركة"
+      },
+      {
+        "key": "phone",
+        "en": "Phone",
+        "ar": "الهاتف"
+      },
+      {
+        "key": "email",
+        "en": "Email",
+        "ar": "البريد الإلكتروني"
+      },
+      {
+        "key": "target_date",
+        "en": "Target date",
+        "ar": "التاريخ المستهدف"
+      },
+      {
+        "key": "budget",
+        "en": "Budget",
+        "ar": "الميزانية"
+      },
+      {
+        "key": "message",
+        "en": "Message",
+        "ar": "الرسالة"
+      },
+      {
+        "key": "message_hint",
+        "en": "Activity, number of partners and visas, anything we should know",
+        "ar": "النشاط وعدد الشركاء والتأشيرات وأي معلومات مهمة"
+      },
+      {
+        "key": "enquiry_note",
+        "en": "We reply with a written quote in your portal and by email.",
+        "ar": "سنرد بعرض سعر مكتوب في بوابتك وعبر البريد الإلكتروني."
+      },
+      {
+        "key": "send_enquiry",
+        "en": "Send enquiry",
+        "ar": "إرسال الطلب"
+      },
+      {
+        "key": "new_enquiry",
+        "en": "New enquiry",
+        "ar": "طلب جديد"
+      },
+      {
+        "key": "enquiry",
+        "en": "Enquiry",
+        "ar": "طلب"
+      },
+      {
+        "key": "quote",
+        "en": "Quote",
+        "ar": "عرض سعر"
+      },
+      {
+        "key": "no_enquiries",
+        "en": "You have no enquiries yet.",
+        "ar": "لا توجد طلبات بعد."
+      },
+      {
+        "key": "no_quote_yet",
+        "en": "We are preparing your quote.",
+        "ar": "نقوم بإعداد عرض السعر."
+      },
+      {
+        "key": "enquiry_new",
+        "en": "Received",
+        "ar": "تم الاستلام"
+      },
+      {
+        "key": "enquiry_quoted",
+        "en": "Quote sent",
+        "ar": "تم إرسال عرض السعر"
+      },
+      {
+        "key": "enquiry_won",
+        "en": "In progress",
+        "ar": "قيد التنفيذ"
+      },
+      {
+        "key": "enquiry_lost",
+        "en": "Closed",
+        "ar": "مغلق"
+      },
+      {
+        "key": "status_sent",
+        "en": "Waiting for your answer",
+        "ar": "بانتظار ردك"
+      },
+      {
+        "key": "status_accepted",
+        "en": "Accepted, payment due",
+        "ar": "تمت الموافقة، بانتظار الدفع"
+      },
+      {
+        "key": "status_deposit_paid",
+        "en": "Deposit paid",
+        "ar": "تم دفع الدفعة المقدمة"
+      },
+      {
+        "key": "status_paid",
+        "en": "Paid in full",
+        "ar": "مدفوع بالكامل"
+      },
+      {
+        "key": "status_declined",
+        "en": "Declined",
+        "ar": "مرفوض"
+      },
+      {
+        "key": "status_expired",
+        "en": "Expired",
+        "ar": "منتهي الصلاحية"
+      },
+      {
+        "key": "status_cancelled",
+        "en": "Cancelled",
+        "ar": "ملغي"
+      },
+      {
+        "key": "quote_updating",
+        "en": "This quote is being updated. Please check again shortly or send us a message.",
+        "ar": "يتم تحديث عرض السعر حالياً. يرجى المحاولة بعد قليل أو مراسلتنا."
+      },
+      {
+        "key": "subtotal",
+        "en": "Total before VAT",
+        "ar": "الإجمالي قبل الضريبة"
+      },
+      {
+        "key": "vat",
+        "en": "VAT 5%",
+        "ar": "ضريبة القيمة المضافة 5%"
+      },
+      {
+        "key": "total",
+        "en": "Total",
+        "ar": "الإجمالي"
+      },
+      {
+        "key": "lines_incl_vat",
+        "en": "The prices above include VAT.",
+        "ar": "الأسعار أعلاه شاملة ضريبة القيمة المضافة."
+      },
+      {
+        "key": "deposit_terms",
+        "en": "Deposit when you accept",
+        "ar": "الدفعة المقدمة عند الموافقة"
+      },
+      {
+        "key": "valid_until",
+        "en": "Valid until",
+        "ar": "صالح حتى"
+      },
+      {
+        "key": "accepted_by",
+        "en": "Accepted by",
+        "ar": "تمت الموافقة من"
+      },
+      {
+        "key": "accept_title",
+        "en": "Accept this quote",
+        "ar": "الموافقة على عرض السعر"
+      },
+      {
+        "key": "accept_agree",
+        "en": "I accept this quote and its terms on behalf of myself or my company.",
+        "ar": "أوافق على عرض السعر وشروطه بالأصالة عن نفسي أو نيابةً عن شركتي."
+      },
+      {
+        "key": "accept_quote",
+        "en": "Accept quote",
+        "ar": "أوافق على العرض"
+      },
+      {
+        "key": "decline_quote",
+        "en": "Decline quote",
+        "ar": "رفض العرض"
+      },
+      {
+        "key": "decline_reason",
+        "en": "Reason (optional)",
+        "ar": "السبب (اختياري)"
+      },
+      {
+        "key": "payment",
+        "en": "Payment",
+        "ar": "الدفع"
+      },
+      {
+        "key": "paid_so_far",
+        "en": "Paid so far",
+        "ar": "المدفوع حتى الآن"
+      },
+      {
+        "key": "balance_left",
+        "en": "Balance",
+        "ar": "المبلغ المتبقي"
+      },
+      {
+        "key": "due_now",
+        "en": "Due now",
+        "ar": "المستحق الآن"
+      },
+      {
+        "key": "stage_deposit",
+        "en": "Deposit",
+        "ar": "الدفعة المقدمة"
+      },
+      {
+        "key": "stage_balance",
+        "en": "Balance",
+        "ar": "المبلغ المتبقي"
+      },
+      {
+        "key": "balance_later",
+        "en": "We will ask for the balance when the work is done.",
+        "ar": "سنطلب المبلغ المتبقي عند إنجاز العمل."
+      },
+      {
+        "key": "pay_card",
+        "en": "Pay by card",
+        "ar": "ادفع بالبطاقة"
+      },
+      {
+        "key": "pay_transfer",
+        "en": "I will pay by bank transfer",
+        "ar": "سأدفع بالتحويل المصرفي"
+      },
+      {
+        "key": "pay_failed",
+        "en": "The card payment did not go through. You can try again.",
+        "ar": "لم تكتمل عملية الدفع بالبطاقة. يمكنك المحاولة مرة أخرى."
+      },
+      {
+        "key": "pay_processing",
+        "en": "Your payment is being confirmed. This page will show it in a moment.",
+        "ar": "جارٍ تأكيد الدفع. سيظهر في هذه الصفحة بعد لحظات."
+      },
+      {
+        "key": "transfer_title",
+        "en": "Bank transfer",
+        "ar": "التحويل المصرفي"
+      },
+      {
+        "key": "transfer_text",
+        "en": "Please transfer the amount below and write the reference on the transfer. We confirm it here once it arrives.",
+        "ar": "يرجى تحويل المبلغ أدناه وكتابة المرجع في التحويل. سنؤكد الاستلام هنا عند وصوله."
+      },
+      {
+        "key": "amount",
+        "en": "Amount",
+        "ar": "المبلغ"
+      },
+      {
+        "key": "reference",
+        "en": "Reference",
+        "ar": "المرجع"
+      },
+      {
+        "key": "method_card",
+        "en": "Card",
+        "ar": "بطاقة"
+      },
+      {
+        "key": "method_transfer",
+        "en": "Bank transfer",
+        "ar": "تحويل مصرفي"
+      },
+      {
+        "key": "payment_pending",
+        "en": "Waiting for the transfer",
+        "ar": "بانتظار التحويل"
+      },
+      {
+        "key": "payment_paid",
+        "en": "Paid",
+        "ar": "مدفوع"
+      },
+      {
+        "key": "payment_refunded",
+        "en": "Refunded",
+        "ar": "تم الاسترداد"
+      },
+      {
+        "key": "view_invoice",
+        "en": "Receipt",
+        "ar": "الإيصال"
+      },
+      {
+        "key": "updates",
+        "en": "Progress",
+        "ar": "سير العمل"
+      },
+      {
+        "key": "open_link",
+        "en": "Open link",
+        "ar": "فتح الرابط"
+      },
+      {
+        "key": "messages",
+        "en": "Messages",
+        "ar": "الرسائل"
+      },
+      {
+        "key": "no_messages",
+        "en": "No messages yet.",
+        "ar": "لا توجد رسائل بعد."
+      },
+      {
+        "key": "you",
+        "en": "You",
+        "ar": "أنت"
+      },
+      {
+        "key": "write_message",
+        "en": "Write a message",
+        "ar": "اكتب رسالة"
+      },
+      {
+        "key": "send_message",
+        "en": "Send message",
+        "ar": "إرسال الرسالة"
+      },
+      {
+        "key": "documents_note",
+        "en": "Documents such as a passport copy go in Documents above. You can also share a link here.",
+        "ar": "ضع المستندات مثل نسخة جواز السفر في قسم المستندات أعلاه. ويمكنك أيضاً مشاركة رابط هنا."
+      },
+      {
+        "key": "done_enquiry",
+        "en": "Thank you. We received your enquiry and will send your quote here.",
+        "ar": "شكراً لك. استلمنا طلبك وسنرسل عرض السعر هنا."
+      },
+      {
+        "key": "done_accepted",
+        "en": "Thank you. Your acceptance is recorded.",
+        "ar": "شكراً لك. تم تسجيل موافقتك."
+      },
+      {
+        "key": "done_declined",
+        "en": "The quote is declined. Tell us what to change and we will send a new one.",
+        "ar": "تم رفض العرض. أخبرنا بما تريد تغييره وسنرسل عرضاً جديداً."
+      },
+      {
+        "key": "done_transfer",
+        "en": "Thank you. The bank details are below.",
+        "ar": "شكراً لك. تفاصيل الحساب المصرفي أدناه."
+      },
+      {
+        "key": "done_paid",
+        "en": "Thank you. We received your payment.",
+        "ar": "شكراً لك. استلمنا دفعتك."
+      },
+      {
+        "key": "done_message",
+        "en": "Message sent.",
+        "ar": "تم إرسال الرسالة."
+      },
+      {
+        "key": "error_fields",
+        "en": "Please enter your name, your phone and a service or a message.",
+        "ar": "يرجى إدخال الاسم ورقم الهاتف واختيار خدمة أو كتابة رسالة."
+      },
+      {
+        "key": "error_email",
+        "en": "Please check the email address.",
+        "ar": "يرجى التحقق من البريد الإلكتروني."
+      },
+      {
+        "key": "error_many",
+        "en": "You sent several enquiries today. Please message us on WhatsApp.",
+        "ar": "أرسلت عدة طلبات اليوم. يرجى مراسلتنا عبر واتساب."
+      },
+      {
+        "key": "error_accept",
+        "en": "Please type your name and tick the box to accept.",
+        "ar": "يرجى كتابة اسمك ووضع علامة في المربع للموافقة."
+      },
+      {
+        "key": "error_expired",
+        "en": "This quote has expired. Send us a message and we will renew it.",
+        "ar": "انتهت صلاحية هذا العرض. راسلنا وسنجدده."
+      },
+      {
+        "key": "error_not_open",
+        "en": "This quote can no longer be answered.",
+        "ar": "لم يعد من الممكن الرد على هذا العرض."
+      },
+      {
+        "key": "error_unavailable",
+        "en": "This is not possible right now. Please send us a message.",
+        "ar": "هذا غير ممكن حالياً. يرجى مراسلتنا."
+      },
+      {
+        "key": "error_payment",
+        "en": "This payment method is not available right now. Please choose another or contact us.",
+        "ar": "طريقة الدفع هذه غير متاحة حالياً. يرجى اختيار طريقة أخرى أو التواصل معنا."
+      },
+      {
+        "key": "error_not_due",
+        "en": "The balance is not due yet. We will ask for it when the work is done.",
+        "ar": "المبلغ المتبقي غير مستحق بعد. سنطلبه عند إنجاز العمل."
+      },
+      {
+        "key": "error_message",
+        "en": "Please write a message of at most 1000 characters.",
+        "ar": "يرجى كتابة رسالة لا تتجاوز 1000 حرف."
+      },
+      {
+        "key": "error_many_messages",
+        "en": "You sent many messages today. Please call or message us on WhatsApp.",
+        "ar": "أرسلت رسائل كثيرة اليوم. يرجى الاتصال بنا أو مراسلتنا عبر واتساب."
+      },
+      {
+        "key": "tax_invoice",
+        "en": "Tax invoice",
+        "ar": "فاتورة ضريبية"
+      },
+      {
+        "key": "receipt",
+        "en": "Receipt",
+        "ar": "إيصال"
+      },
+      {
+        "key": "invoice_no",
+        "en": "Number",
+        "ar": "الرقم"
+      },
+      {
+        "key": "date",
+        "en": "Date",
+        "ar": "التاريخ"
+      },
+      {
+        "key": "trn",
+        "en": "TRN",
+        "ar": "الرقم الضريبي"
+      },
+      {
+        "key": "bill_to",
+        "en": "Bill to",
+        "ar": "العميل"
+      },
+      {
+        "key": "item",
+        "en": "Description",
+        "ar": "الوصف"
+      },
+      {
+        "key": "amount_excl",
+        "en": "Amount excl. VAT",
+        "ar": "المبلغ قبل الضريبة"
+      },
+      {
+        "key": "total_excl",
+        "en": "Total excl. VAT",
+        "ar": "الإجمالي قبل الضريبة"
+      },
+      {
+        "key": "amount_paid",
+        "en": "Amount paid",
+        "ar": "المبلغ المدفوع"
+      },
+      {
+        "key": "quote_total",
+        "en": "Quote total",
+        "ar": "إجمالي عرض السعر"
+      },
+      {
+        "key": "print",
+        "en": "Print",
+        "ar": "طباعة"
+      },
+      {
+        "key": "email_quote_subject",
+        "en": "Your quote #{id} from {business} is ready",
+        "ar": "عرض السعر رقم {id} من {business} جاهز"
+      },
+      {
+        "key": "email_quote_body",
+        "en": "Hello {name},\n\nYour quote is ready: {title}\nTotal: AED {total} including VAT\nValid until: {until}\n\nSee it, accept it and pay the deposit here:\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\nعرض السعر جاهز: {title}\nالإجمالي: {total} درهم شامل ضريبة القيمة المضافة\nصالح حتى: {until}\n\nيمكنك الاطلاع عليه والموافقة ودفع الدفعة المقدمة هنا:\n{link}\n\n{business}"
+      },
+      {
+        "key": "email_accepted_subject",
+        "en": "You accepted quote #{id} from {business}",
+        "ar": "تمت موافقتك على عرض السعر رقم {id} من {business}"
+      },
+      {
+        "key": "email_accepted_body",
+        "en": "Hello {name},\n\nThank you for accepting our quote: {title}\nTotal: AED {total} including VAT\nDeposit: AED {deposit}\n\nPay and follow the progress here:\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\nشكراً لموافقتك على عرض السعر: {title}\nالإجمالي: {total} درهم شامل ضريبة القيمة المضافة\nالدفعة المقدمة: {deposit} درهم\n\nيمكنك الدفع ومتابعة سير العمل هنا:\n{link}\n\n{business}"
+      },
+      {
+        "key": "email_payment_subject",
+        "en": "Payment received: AED {amount} for quote #{id}",
+        "ar": "تم استلام الدفعة: {amount} درهم لعرض السعر رقم {id}"
+      },
+      {
+        "key": "email_payment_body",
+        "en": "Hello {name},\n\nWe received your payment of AED {amount} ({stage}) for: {title}\n\nYour receipt:\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\nاستلمنا دفعتك بمبلغ {amount} درهم ({stage}) عن: {title}\n\nالإيصال:\n{link}\n\n{business}"
+      },
+      {
+        "key": "email_balance_subject",
+        "en": "Balance due: AED {amount} for quote #{id}",
+        "ar": "المبلغ المتبقي مستحق: {amount} درهم لعرض السعر رقم {id}"
+      },
+      {
+        "key": "email_balance_body",
+        "en": "Hello {name},\n\nThe balance of AED {amount} is now due for: {title}\n\nPay by card or bank transfer here:\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\nالمبلغ المتبقي وقدره {amount} درهم مستحق الآن عن: {title}\n\nيمكنك الدفع بالبطاقة أو بالتحويل المصرفي هنا:\n{link}\n\n{business}"
+      },
+      {
+        "key": "email_update_subject",
+        "en": "Update from {business}: {title}",
+        "ar": "تحديث من {business}: {title}"
+      },
+      {
+        "key": "email_update_body",
+        "en": "Hello {name},\n\n{title}\n{text}\n\n{quote}\nSee the progress here:\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\n{title}\n{text}\n\n{quote}\nتابع سير العمل هنا:\n{link}\n\n{business}"
+      },
+      {
+        "key": "email_message_subject",
+        "en": "New message from {business} about quote #{id}",
+        "ar": "رسالة جديدة من {business} بخصوص عرض السعر رقم {id}"
+      },
+      {
+        "key": "email_message_body",
+        "en": "Hello {name},\n\n{text}\n\n{quote}\nReply here:\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\n{text}\n\n{quote}\nيمكنك الرد هنا:\n{link}\n\n{business}"
+      },
+      {
+        "key": "documents",
+        "en": "Documents",
+        "ar": "المستندات"
+      },
+      {
+        "key": "no_documents",
+        "en": "No documents yet. Attach the copies we ask for, e.g. passport, Emirates ID or trade licence.",
+        "ar": "لا توجد مستندات بعد. أرفق النسخ التي نطلبها، مثل جواز السفر أو الهوية الإماراتية أو الرخصة التجارية."
+      },
+      {
+        "key": "doc_label",
+        "en": "Document",
+        "ar": "المستند"
+      },
+      {
+        "key": "doc_file",
+        "en": "File (photo or PDF, up to 10 MB)",
+        "ar": "الملف (صورة أو PDF، حتى 10 ميغابايت)"
+      },
+      {
+        "key": "doc_passport",
+        "en": "Passport copy",
+        "ar": "نسخة جواز السفر"
+      },
+      {
+        "key": "doc_emirates_id",
+        "en": "Emirates ID",
+        "ar": "الهوية الإماراتية"
+      },
+      {
+        "key": "doc_trade_licence",
+        "en": "Trade licence",
+        "ar": "الرخصة التجارية"
+      },
+      {
+        "key": "doc_other",
+        "en": "Other document",
+        "ar": "مستند آخر"
+      },
+      {
+        "key": "doc_missing",
+        "en": "File no longer available",
+        "ar": "الملف لم يعد متاحاً"
+      },
+      {
+        "key": "upload_document",
+        "en": "Attach document",
+        "ar": "إرفاق المستند"
+      },
+      {
+        "key": "documents_private",
+        "en": "Only you and our team can open these files.",
+        "ar": "لا يمكن فتح هذه الملفات إلا لك ولفريقنا."
+      },
+      {
+        "key": "documents_full",
+        "en": "This quote has the most documents it can hold. Send further files on WhatsApp.",
+        "ar": "وصل هذا العرض إلى الحد الأقصى للمستندات. أرسل الملفات الأخرى عبر واتساب."
+      },
+      {
+        "key": "done_document",
+        "en": "Thank you. Your document is attached.",
+        "ar": "شكراً لك. تم إرفاق المستند."
+      },
+      {
+        "key": "error_document",
+        "en": "Please choose the file again and wait until it says uploaded.",
+        "ar": "يرجى اختيار الملف مرة أخرى والانتظار حتى يظهر أنه تم رفعه."
+      },
+      {
+        "key": "error_many_documents",
+        "en": "This quote has the most documents it can hold. Send further files on WhatsApp.",
+        "ar": "وصل هذا العرض إلى الحد الأقصى للمستندات. أرسل الملفات الأخرى عبر واتساب."
+      },
+      {
+        "key": "payment_partially_refunded",
+        "en": "Partly refunded",
+        "ar": "مسترد جزئياً"
+      },
+      {
+        "key": "refunded",
+        "en": "Refunded",
+        "ar": "المبلغ المسترد"
+      },
+      {
+        "key": "refunded_total",
+        "en": "Refunded to you",
+        "ar": "المبلغ المسترد لك"
+      },
+      {
+        "key": "email_refund_subject",
+        "en": "Refund of AED {amount} for quote #{id}",
+        "ar": "استرداد {amount} درهم لعرض السعر رقم {id}"
+      },
+      {
+        "key": "email_refund_body",
+        "en": "Hello {name},\n\nWe refunded AED {amount} of your payment ({stage}) for: {title}\nIt goes back to the card you paid with; banks usually show it within 5 to 10 working days.\n\n{link}\n\n{business}",
+        "ar": "مرحباً {name}،\n\nأعدنا لك {amount} درهم من دفعتك ({stage}) عن: {title}\nيعود المبلغ إلى البطاقة التي دفعت بها، وتظهره البنوك عادةً خلال 5 إلى 10 أيام عمل.\n\n{link}\n\n{business}"
+      }
+    ]
+  },
+  "jobs": [
+    {
+      "name": "notify_clients",
+      "script": "notify_clients",
+      "every": "1h"
+    },
+    {
+      "name": "daily_summary",
+      "script": "daily_summary",
+      "daily_at": "08:00"
+    }
+  ],
+  "tools": [
+    {
+      "name": "list_packages",
+      "description": "The services this business offers as packages: name, description, what is included, typical duration, starting price in AED and the page where a client can ask for a quote. Final prices are given in a written quote.",
+      "script": "mcp_packages",
+      "read_only": true,
+      "params": [
+        {
+          "name": "category",
+          "type": "string",
+          "description": "only this category, e.g. Company formation; empty for all"
+        },
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic"
+        }
+      ]
+    },
+    {
+      "name": "business_info",
+      "description": "Who the business is: name, address, licence, VAT number, WhatsApp and email, payment methods (card, bank transfer), deposit percentage and how long quotes stay valid.",
+      "script": "mcp_business",
+      "read_only": true,
+      "params": [
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic"
+        }
+      ]
+    },
+    {
+      "name": "how_to_get_a_quote",
+      "description": "The steps from enquiry to payment (enquiry, written quote, accept and pay the deposit, progress updates and balance) with the links to send an enquiry and to see one's quotes.",
+      "script": "mcp_how",
+      "read_only": true,
+      "params": [
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic"
+        }
+      ]
+    }
+  ]
+}

@@ -239,12 +239,17 @@ type CheckoutParams struct {
 	// ApplicationFee is the platform's cut in the smallest unit, taken by
 	// Stripe from this direct charge into the platform account. 0 = none.
 	ApplicationFee int64
+	// Hold only authorises the card (capture_method manual, cards only);
+	// the money is taken later with CapturePaymentIntent.
+	Hold bool
 }
 
 // Session is the part of a Checkout Session Renoxium needs.
 type Session struct {
 	ID            string            `json:"id"`
 	URL           string            `json:"url"`
+	Mode          string            `json:"mode"`
+	Subscription  string            `json:"subscription"`
 	PaymentStatus string            `json:"payment_status"`
 	Status        string            `json:"status"`
 	AmountTotal   int64             `json:"amount_total"`
@@ -284,8 +289,255 @@ func (c *Client) CreateCheckout(ctx context.Context, account string, p CheckoutP
 	if p.ApplicationFee > 0 {
 		form.Set("payment_intent_data[application_fee_amount]", strconv.FormatInt(p.ApplicationFee, 10))
 	}
+	if p.Hold {
+		form.Set("payment_intent_data[capture_method]", "manual")
+		form.Set("payment_method_types[0]", "card")
+	}
 	var s Session
 	return s, c.do(ctx, http.MethodPost, "/v1/checkout/sessions", account, form, &s)
+}
+
+// SubscriptionParams describes a Checkout Session in subscription mode on a
+// merchant's account, with inline recurring prices.
+type SubscriptionParams struct {
+	Currency      string
+	Items         []LineItem // Amount is per interval
+	Interval      string     // week, month or year
+	IntervalCount int64
+	SuccessURL    string
+	CancelURL     string
+	CustomerEmail string
+	Reference     string
+	Metadata      map[string]string // copied to the session and the subscription
+	TrialDays     int64
+	// FeePercent is the platform's share of every invoice
+	// (subscription_data[application_fee_percent]). 0 = none.
+	FeePercent float64
+}
+
+// CreateSubscriptionCheckout creates a Checkout Session that starts a
+// subscription on the merchant's account (a direct charge per invoice).
+func (c *Client) CreateSubscriptionCheckout(ctx context.Context, account string, p SubscriptionParams) (Session, error) {
+	form := url.Values{
+		"mode":                {"subscription"},
+		"success_url":         {p.SuccessURL},
+		"cancel_url":          {p.CancelURL},
+		"client_reference_id": {p.Reference},
+	}
+	for i, it := range p.Items {
+		pre := fmt.Sprintf("line_items[%d]", i)
+		form.Set(pre+"[quantity]", strconv.FormatInt(it.Quantity, 10))
+		form.Set(pre+"[price_data][currency]", p.Currency)
+		form.Set(pre+"[price_data][unit_amount]", strconv.FormatInt(it.Amount, 10))
+		form.Set(pre+"[price_data][product_data][name]", it.Name)
+		form.Set(pre+"[price_data][recurring][interval]", p.Interval)
+		form.Set(pre+"[price_data][recurring][interval_count]", strconv.FormatInt(max(p.IntervalCount, 1), 10))
+	}
+	if p.CustomerEmail != "" {
+		form.Set("customer_email", p.CustomerEmail)
+	}
+	for k, v := range p.Metadata {
+		form.Set("metadata["+k+"]", v)
+		form.Set("subscription_data[metadata]["+k+"]", v)
+	}
+	if p.TrialDays > 0 {
+		form.Set("subscription_data[trial_period_days]", strconv.FormatInt(p.TrialDays, 10))
+	}
+	if p.FeePercent > 0 {
+		form.Set("subscription_data[application_fee_percent]", strconv.FormatFloat(p.FeePercent, 'f', -1, 64))
+	}
+	var s Session
+	return s, c.do(ctx, http.MethodPost, "/v1/checkout/sessions", account, form, &s)
+}
+
+// Refund is the part of a refund Renoxium needs.
+type Refund struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Amount int64  `json:"amount"`
+}
+
+// RefundReasons are the reasons Stripe accepts.
+var RefundReasons = map[string]bool{"duplicate": true, "fraudulent": true, "requested_by_customer": true}
+
+// CreateRefund refunds part or all of a payment on a merchant's account.
+// amount 0 refunds what is left. refundFee also returns the platform's
+// application fee, in proportion to the refunded amount.
+func (c *Client) CreateRefund(ctx context.Context, account, paymentIntent string, amount int64, reason string, refundFee bool, metadata map[string]string) (Refund, error) {
+	form := url.Values{"payment_intent": {paymentIntent}}
+	if amount > 0 {
+		form.Set("amount", strconv.FormatInt(amount, 10))
+	}
+	if RefundReasons[reason] {
+		form.Set("reason", reason)
+	}
+	if refundFee {
+		form.Set("refund_application_fee", "true")
+	}
+	for k, v := range metadata {
+		form.Set("metadata["+k+"]", v)
+	}
+	var r Refund
+	return r, c.do(ctx, http.MethodPost, "/v1/refunds", account, form, &r)
+}
+
+// PaymentIntent is the part of a PaymentIntent Renoxium needs.
+type PaymentIntent struct {
+	ID               string            `json:"id"`
+	Status           string            `json:"status"` // requires_capture, succeeded, canceled, ...
+	Amount           int64             `json:"amount"`
+	AmountCapturable int64             `json:"amount_capturable"`
+	AmountReceived   int64             `json:"amount_received"`
+	Metadata         map[string]string `json:"metadata"`
+	// LatestCharge is the charge id, or the charge when expanded.
+	LatestCharge json.RawMessage `json:"latest_charge"`
+}
+
+// CaptureBefore is when an authorisation expires (the expanded latest
+// charge's payment_method_details.card.capture_before), or zero.
+func (pi PaymentIntent) CaptureBefore() time.Time {
+	var ch struct {
+		PaymentMethodDetails struct {
+			Card struct {
+				CaptureBefore int64 `json:"capture_before"`
+			} `json:"card"`
+		} `json:"payment_method_details"`
+	}
+	if json.Unmarshal(pi.LatestCharge, &ch) != nil || ch.PaymentMethodDetails.Card.CaptureBefore == 0 {
+		return time.Time{}
+	}
+	return time.Unix(ch.PaymentMethodDetails.Card.CaptureBefore, 0)
+}
+
+// GetPaymentIntent reads a PaymentIntent on a merchant's account, with its
+// latest charge expanded.
+func (c *Client) GetPaymentIntent(ctx context.Context, account, id string) (PaymentIntent, error) {
+	var pi PaymentIntent
+	return pi, c.do(ctx, http.MethodGet, "/v1/payment_intents/"+url.PathEscape(id), account, url.Values{"expand[]": {"latest_charge"}}, &pi)
+}
+
+// CapturePaymentIntent takes amount (0 = all) of an authorised payment; the
+// rest of the hold is released. fee replaces the application fee (0 = keep
+// none set here).
+func (c *Client) CapturePaymentIntent(ctx context.Context, account, id string, amount, fee int64) (PaymentIntent, error) {
+	form := url.Values{}
+	if amount > 0 {
+		form.Set("amount_to_capture", strconv.FormatInt(amount, 10))
+	}
+	if fee > 0 {
+		form.Set("application_fee_amount", strconv.FormatInt(fee, 10))
+	}
+	var pi PaymentIntent
+	return pi, c.do(ctx, http.MethodPost, "/v1/payment_intents/"+url.PathEscape(id)+"/capture", account, form, &pi)
+}
+
+// CancelPaymentIntent releases an authorisation.
+func (c *Client) CancelPaymentIntent(ctx context.Context, account, id string) (PaymentIntent, error) {
+	var pi PaymentIntent
+	return pi, c.do(ctx, http.MethodPost, "/v1/payment_intents/"+url.PathEscape(id)+"/cancel", account, url.Values{}, &pi)
+}
+
+// GetConnectedSubscription reads a subscription on a merchant's account.
+func (c *Client) GetConnectedSubscription(ctx context.Context, account, id string) (Subscription, error) {
+	var s Subscription
+	return s, c.do(ctx, http.MethodGet, "/v1/subscriptions/"+url.PathEscape(id), account, nil, &s)
+}
+
+// SetCancelAtPeriodEnd ends a subscription on a merchant's account when the
+// current period ends (or undoes that).
+func (c *Client) SetCancelAtPeriodEnd(ctx context.Context, account, id string, cancel bool) (Subscription, error) {
+	var s Subscription
+	return s, c.do(ctx, http.MethodPost, "/v1/subscriptions/"+url.PathEscape(id), account,
+		url.Values{"cancel_at_period_end": {strconv.FormatBool(cancel)}}, &s)
+}
+
+// CancelConnectedSubscription ends a subscription on a merchant's account
+// at once.
+func (c *Client) CancelConnectedSubscription(ctx context.Context, account, id string) (Subscription, error) {
+	var s Subscription
+	return s, c.do(ctx, http.MethodDelete, "/v1/subscriptions/"+url.PathEscape(id), account, nil, &s)
+}
+
+// InvoicePaymentIntent finds the PaymentIntent that paid an invoice on a
+// merchant's account (GET /v1/invoice_payments), or "".
+func (c *Client) InvoicePaymentIntent(ctx context.Context, account, invoice string) (string, error) {
+	var out struct {
+		Data []struct {
+			Payment struct {
+				PaymentIntent string `json:"payment_intent"`
+			} `json:"payment"`
+		} `json:"data"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v1/invoice_payments", account, url.Values{"invoice": {invoice}, "status": {"paid"}}, &out); err != nil {
+		return "", err
+	}
+	for _, d := range out.Data {
+		if d.Payment.PaymentIntent != "" {
+			return d.Payment.PaymentIntent, nil
+		}
+	}
+	return "", nil
+}
+
+// Invoice is the part of an invoice Renoxium needs. Both the current shape
+// (parent.subscription_details) and the older top-level fields are read.
+type Invoice struct {
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	AmountPaid    int64  `json:"amount_paid"`
+	AmountDue     int64  `json:"amount_due"`
+	Currency      string `json:"currency"`
+	BillingReason string `json:"billing_reason"`
+	CustomerEmail string `json:"customer_email"`
+	CustomerName  string `json:"customer_name"`
+	PeriodStart   int64  `json:"period_start"`
+	PeriodEnd     int64  `json:"period_end"`
+	// Older API versions.
+	LegacySubscription        string `json:"subscription"`
+	LegacyPaymentIntent       string `json:"payment_intent"`
+	LegacySubscriptionDetails struct {
+		Metadata map[string]string `json:"metadata"`
+	} `json:"subscription_details"`
+	Parent struct {
+		SubscriptionDetails struct {
+			Subscription string            `json:"subscription"`
+			Metadata     map[string]string `json:"metadata"`
+		} `json:"subscription_details"`
+	} `json:"parent"`
+	Lines struct {
+		Data []struct {
+			Period struct {
+				Start int64 `json:"start"`
+				End   int64 `json:"end"`
+			} `json:"period"`
+		} `json:"data"`
+	} `json:"lines"`
+}
+
+// SubscriptionID is the subscription that created the invoice, or "".
+func (in Invoice) SubscriptionID() string {
+	if s := in.Parent.SubscriptionDetails.Subscription; s != "" {
+		return s
+	}
+	return in.LegacySubscription
+}
+
+// SubscriptionMetadata is the subscription's metadata when it was invoiced.
+func (in Invoice) SubscriptionMetadata() map[string]string {
+	if m := in.Parent.SubscriptionDetails.Metadata; len(m) > 0 {
+		return m
+	}
+	return in.LegacySubscriptionDetails.Metadata
+}
+
+// ServicePeriod is the period the invoice pays for: its first line's
+// period, else the invoice's own.
+func (in Invoice) ServicePeriod() (start, end time.Time) {
+	s, e := in.PeriodStart, in.PeriodEnd
+	if len(in.Lines.Data) > 0 && in.Lines.Data[0].Period.End > 0 {
+		s, e = in.Lines.Data[0].Period.Start, in.Lines.Data[0].Period.End
+	}
+	return time.Unix(s, 0), time.Unix(e, 0)
 }
 
 // --- Billing: the platform's own subscriptions (no Stripe-Account header) ---
@@ -328,7 +580,9 @@ type Subscription struct {
 	Status            string            `json:"status"`
 	CancelAtPeriodEnd bool              `json:"cancel_at_period_end"`
 	Metadata          map[string]string `json:"metadata"`
-	Items             struct {
+	// LegacyPeriodEnd is current_period_end of older API versions.
+	LegacyPeriodEnd int64 `json:"current_period_end"`
+	Items           struct {
 		Data []struct {
 			Price struct {
 				ID string `json:"id"`
@@ -349,6 +603,9 @@ func (s Subscription) PriceID() string {
 // PeriodEnd is when the current paid period ends, or zero.
 func (s Subscription) PeriodEnd() time.Time {
 	if len(s.Items.Data) == 0 || s.Items.Data[0].CurrentPeriodEnd == 0 {
+		if s.LegacyPeriodEnd > 0 {
+			return time.Unix(s.LegacyPeriodEnd, 0)
+		}
 		return time.Time{}
 	}
 	return time.Unix(s.Items.Data[0].CurrentPeriodEnd, 0)

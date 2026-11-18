@@ -52,9 +52,9 @@ func serveWorker(stdin *os.File, stdout *os.File, heapLimit int64, timeout time.
 		var reply message
 		switch m.Type {
 		case "check":
-			reply = finish(nil, g.Check(m.Src))
+			reply = finish(nil, g.CheckLib(m.Lib, m.Src))
 		case "run":
-			resp, err := g.Run(context.Background(), m.Src, *m.Req, &proxyHost{in: in, out: out})
+			resp, err := g.run(context.Background(), m.Lib, m.Src, *m.Req, &proxyHost{in: in, out: out})
 			reply = finish(&resp, err)
 		default:
 			reply = message{Type: "done", Error: "unknown request " + m.Type}

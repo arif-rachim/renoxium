@@ -229,6 +229,8 @@ func (p *Platform) runLiveJob(ctx context.Context, app string, j appdef.Job, now
 // runJob runs a job's script once on a stage and logs it.
 func (p *Platform) runJob(ctx context.Context, st *stage, j appdef.Job, scheduled time.Time, rid string) (string, error) {
 	start := time.Now()
+	host := &scriptHost{st: st, p: p, rid: rid}
+	defer host.runDeferred(ctx) // on_payment runs from money calls, after the slot is released
 	release, ok := p.acquireSlot(ctx, st.app)
 	if !ok {
 		err := errors.New("no script worker was free; the job runs again at its next time")
@@ -239,7 +241,7 @@ func (p *Platform) runJob(ctx context.Context, st *stage, j appdef.Job, schedule
 	req := sandbox.Request{Method: "JOB", Path: "/_rx/jobs/" + j.Name, Origin: p.URL(st.app, st.name),
 		Body:   map[string]any{"job": j.Name, "scheduled_at": scheduled.UTC().Format("2006-01-02 15:04:05")},
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}, FormAll: map[string][]string{}}
-	resp, err := p.sb.Run(ctx, st.def.Scripts[j.Script], req, &scriptHost{st: st, p: p, rid: rid})
+	resp, err := p.sb.Run(ctx, st.def.Scripts[j.Script], req, host)
 	took := time.Since(start).Round(time.Microsecond)
 	if err != nil {
 		var se *sandbox.ScriptError

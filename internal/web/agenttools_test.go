@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/arif-rachim/renoxium/examples"
 )
 
 // The agent builds the tasks example and tests every CRUD route on preview
@@ -15,7 +17,7 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
 
 	list, _ := call(t, s, "get_example", map[string]any{})
-	if names := list["examples"].([]any); len(names) != 4 {
+	if names := list["examples"].([]any); len(names) != len(examples.All()) {
 		t.Fatalf("examples = %v", list)
 	}
 	ex, errText := call(t, s, "get_example", map[string]any{"name": "tasks"})

@@ -27,6 +27,23 @@ type App struct {
 	Secrets   []Secret                    `json:"secrets,omitempty" jsonschema:"API keys the owner enters in the admin panel; http.fetch adds them to requests without scripts ever seeing them"`
 	Jobs      []Job                       `json:"jobs,omitempty" jsonschema:"scripts run on a schedule on the live app, e.g. cancel unpaid orders every 15 minutes or send a daily report"`
 	Tools     []Tool                      `json:"tools,omitempty" jsonschema:"public MCP tools served at /mcp on the app's address, so shoppers' AI assistants (ChatGPT, Claude) can use the app; anyone can call them, without signing in"`
+	// Lib and OnAdminChange: shared script code and the admin-change hook.
+	Lib           map[string]string `json:"lib,omitempty" jsonschema:"shared server JavaScript by name (helper functions and constants used by several scripts); evaluated in name order before every script, job, tool and hook; must not define handle"`
+	OnAdminChange string            `json:"on_admin_change,omitempty" jsonschema:"script run right after the owner or staff adds, changes or deletes a row in the admin panel; req.body holds {action, table, id, row, before, by}"`
+}
+
+// MaxLibs is how many lib entries an app may have.
+const MaxLibs = 20
+
+// LibNames returns the names of the app's lib entries in the order they
+// are evaluated.
+func (a *App) LibNames() []string {
+	names := make([]string, 0, len(a.Lib))
+	for n := range a.Lib {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // Tool is a public MCP tool backed by a script. The script gets req.method
@@ -101,13 +118,15 @@ type Table struct {
 	Name    string   `json:"name"`
 	Label   string   `json:"label,omitempty" jsonschema:"name shown to the owner in the admin panel, e.g. Orders; defaults to the table name"`
 	Columns []Column `json:"columns"`
+	// Calendar adds a day and week schedule of the table to the admin panel.
+	Calendar *Calendar `json:"calendar,omitempty" jsonschema:"show this table to the owner as a day and week schedule too, e.g. bookings by staff"`
 }
 
 // Column is a table column. Type is one of text, integer, real, boolean,
 // datetime, json or image; an image column holds the URL of an uploaded file.
 type Column struct {
 	Name     string `json:"name"`
-	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file)"`
+	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file), file (holds the id of a visitor's private upload from /_rx/upload)"`
 	Required bool   `json:"required,omitempty"`
 	Unique   bool   `json:"unique,omitempty"`
 	// Admin panel only; they do not change the database.
@@ -133,6 +152,7 @@ var toolNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 var ColumnTypes = map[string]string{
 	"text": "TEXT", "integer": "INTEGER", "real": "REAL",
 	"boolean": "INTEGER", "datetime": "TEXT", "json": "TEXT", "image": "TEXT",
+	"file": "TEXT", // the id of a visitor's private upload (/_rx/upload)
 }
 
 // ValidIdent reports whether s is usable as a table or column name.
@@ -182,7 +202,7 @@ func (a *App) Validate() []string {
 			}
 			cols[c.Name] = true
 			if _, ok := ColumnTypes[c.Type]; !ok {
-				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime, json or image)", t.Name, c.Name, c.Type)
+				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime, json, image or file)", t.Name, c.Name, c.Type)
 			}
 			if len(c.Options) > 0 && c.Type != "text" {
 				add("table %q: column %q: options are only for text columns", t.Name, c.Name)
@@ -192,6 +212,7 @@ func (a *App) Validate() []string {
 			}
 		}
 	}
+	p = append(p, a.validateCalendars()...)
 	for name, rows := range a.Seed {
 		if !tables[name] {
 			add("seed: table %q is not defined", name)
@@ -315,6 +336,19 @@ func (a *App) Validate() []string {
 	if a.OnPayment != "" {
 		if _, ok := a.Scripts[a.OnPayment]; !ok {
 			add("on_payment: script %q is not defined", a.OnPayment)
+		}
+	}
+	if a.OnAdminChange != "" {
+		if _, ok := a.Scripts[a.OnAdminChange]; !ok {
+			add("on_admin_change: script %q is not defined", a.OnAdminChange)
+		}
+	}
+	if len(a.Lib) > MaxLibs {
+		add("lib: at most %d entries; put related helpers together", MaxLibs)
+	}
+	for _, n := range a.LibNames() {
+		if !toolNameRE.MatchString(n) {
+			add("lib %q: name must match [a-z][a-z0-9_]{0,63}", n)
 		}
 	}
 	if len(a.Routes) == 0 {

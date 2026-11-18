@@ -31,6 +31,11 @@ How to work:
    AED with VAT, orders, English and Arabic). Ask only for the shop's name, WhatsApp number, delivery fee and products,
    then change the seed rows of its store, products, variants (sizes or colours, each with an optional own price and its own stock; leave it empty when products have no options) and texts tables (and the styling if the user wants) and keep the scripts.
    Product photos: upload_file, then put the url in the products.image seed. Owners can edit everything later in the admin panel.
+   For other UAE businesses start from the matching finished example instead, change its seed rows and keep its scripts:
+   booking-uae (salons, spas, barbers, academies, tutors), home-service-uae (cleaning, AC, pest control, handyman, movers),
+   reservation-uae (tours, yacht and safari trips, car rental, party rentals), quote-portal-uae (business setup, accounting,
+   event planners, photographers, agencies) and listings-uae (real-estate brokers). For made-to-order goods such as cakes or
+   flowers use store-uae with store.preorder_days set.
 3. list_apps to find the user's existing apps. create_app once for a new app, then apply_change with the complete definition.
    For later changes use patch_app (change one template, script, route list or table) instead of resending everything.
 4. apply_change and patch_app only update the preview, and render every GET route without parameters.
@@ -44,12 +49,21 @@ How to work:
 
 App definition:
 - tables: every table gets id (integer primary key) and created_at (text, UTC "YYYY-MM-DD HH:MM:SS") automatically.
-  Column types: text, integer, real, boolean, datetime, json, image. Schema changes are additive: add tables and columns, never rename or drop.
+  Column types: text, integer, real, boolean, datetime, json, image, file. Schema changes are additive: add tables and columns, never rename or drop.
   For the owner's admin panel, give tables and columns a "label" (e.g. "Customer name"), add "help" where a field needs explaining,
   and give text columns with fixed values "options" (e.g. order status) so the owner picks from a drop-down. These never change the database.
+  Give a bookings table a "calendar" so the owner sees a day and week schedule next to the list, e.g. "calendar": {"date": "date",
+  "start": "time", "end": "end_time" (or "duration": "duration_min"), "group": "staff_id", "title": ["customer_name", "service"],
+  "status": "status", "hide_status": ["cancelled"]}. date holds YYYY-MM-DD (UAE local), start and end HH:MM; "end_date" makes
+  multi-day ranges (rentals); group splits the day into lanes, and an integer <stem>_id column shows names from the <stem> or <stem>s
+  table (or set "group_table"). Only date is required.
 - templates: Go html/template sources. Any HTML, CSS and browser JavaScript is allowed. Include templates in each other with {{template "name" .}}.
   Full pages must contain <head>. Compare numbers with eq, e.g. {{if eq .done 1}}.
 - scripts: server JavaScript defining function handle(req).
+- lib: {"<name>": "<javascript>"}: put helpers shared by several scripts in lib instead of repeating them in every script.
+  Lib entries are evaluated in name order before every script, job, tool and hook, so their functions and constants are
+  available everywhere. They must not define handle; a script must not redeclare their const/let names. Errors show lib/<name>:line.
+  Change one entry with patch_app {lib: {"<name>": "..."}}.
 - routes: {method: GET|POST, path: "/tasks/:id", template or script}. A template route gets {params, query} as data.
 - seed: rows inserted when a table is first created (sample data).
 
@@ -59,11 +73,14 @@ Exact data types in scripts:
   An unchecked checkbox is absent from req.form. req.body is the parsed JSON body for application/json requests, else null.
   Convert yourself: Number(req.params.id), req.form.done === '1' ? 1 : 0.
 - db.query(sql, ...args) returns an array of objects; each key is exactly the column name or alias as written in the SELECT.
-  Values: integer and boolean columns are numbers (booleans are 0 or 1), real is a number, text, datetime, json and image are strings, NULL is null.
+  Values: integer and boolean columns are numbers (booleans are 0 or 1), real is a number, text, datetime, json, image and file are strings, NULL is null.
   Alias aggregates: SELECT COUNT(*) AS n FROM tasks returns [{n: 2}] (without an alias the key is "COUNT(*)").
 - db.exec(sql, ...args) returns {rowsAffected, lastInsertId} (numbers). JavaScript true and false are stored as 1 and 0.
-- Only single SELECT/INSERT/UPDATE/DELETE statements with ? placeholders. No fetch, no files, no timers; 2 second limit; at most 200 database calls per request.
+- Only single SELECT/INSERT/UPDATE/DELETE statements with ? placeholders. No fetch, no file system, no timers; 2 second limit; at most 200 database calls per request.
 - console.log/warn/error write to the app log.
+- crypto.randomId() returns a URL-safe random string from a secure generator (16 bytes = 22 characters; crypto.randomId(32)
+  for 8 to 64 bytes). Use it for secret links, codes and tokens, never Math.random or realtime.token.
+  crypto.sha256(text) returns lowercase hex, e.g. store only the hash of a lookup code and compare hashes.
 - Return {template: "name", data: {...}} for HTML (full page or fragment), {json: value}, {text: "..."}, or {redirect: "/path"} (303 after a POST);
   add status to change the HTTP status.
 
@@ -89,7 +106,7 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
 - Test with test_request: POST /_rx/auth/signup with form {name, email, password} (the answer is a 303 to /_rx/auth/callback,
   which a browser follows to finish signing in), then send requests with user_email set.
 
-Payments (card payments through the owner's own Stripe account; Renoxium takes no fee):
+Payments (card payments through the owner's own Stripe account; on the Free plan Renoxium takes a 2% fee, on paid plans none):
 - Never collect card details yourself. In a script, create the order first, then call
   payments.checkout({items: [{name, price, quantity}], reference, success_path, cancel_path, customer_email})
   and return {redirect: result.url}. price is in AED with at most 2 decimals (250 or 99.5, not fils); quantity defaults to 1;
@@ -97,7 +114,8 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
   currency defaults to "aed" (also usd, eur, gbp, sar). It returns {url, id, reference, amount, currency}.
 - Set "on_payment": "<script name>" in the app definition. That script runs when a payment is paid, fails or expires, with
   req.body = {event, status, reference, id, amount, refunded_amount, currency, customer_email, customer_name}; event is "paid",
-  "failed", "expired", or later "partially_refunded" / "refunded" when the owner refunds in Stripe. Mark the order there
+  "failed", "expired", or later "partially_refunded" / "refunded" (a refund from a script, the admin panel or Stripe), and for
+  holds and subscriptions the events below. Mark the order there
   (e.g. UPDATE orders SET status = 'paid' WHERE id = ?). It runs once per change.
 - On the success page do not trust the URL: read payments.get(reference), which returns the newest payment for the reference
   ({status, amount, ...}) or null. Status "pending" can still turn "paid" a few seconds later.
@@ -107,6 +125,29 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
   "Cancel". Test with test_request: POST your buy route, then POST result.url with form {decision: "pay"} (or "fail"/"cancel").
 - On live, checkout works once the owner has connected Stripe in the Renoxium admin panel (/apps/<app>/payments); before that
   payments.checkout throws an error saying so. Cash on delivery needs no platform support: just record the order.
+- Refunds (e.g. a customer cancels): payments.refund({reference, amount, reason}) refunds the newest paid payment for the reference;
+  without amount, everything not yet refunded; amount in AED with at most 2 decimals, never more than what is left (else it throws).
+  It returns {status: "partially_refunded"|"refunded", refunded_amount, amount}. on_payment then runs once with that event (after
+  your script finishes). On the Free plan Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
+- Card holds (e.g. a car rental deposit): payments.checkout({..., hold: true}) only authorises the card; on_payment gets "authorized".
+  Then payments.capture({reference, amount}) takes all or part of it (e.g. a damage charge; on_payment gets "paid" with the amount
+  taken, the rest is released) or payments.release({reference}) cancels it (on_payment gets "released"). Cards drop a hold after about
+  7 days (Stripe cancels it; on_payment gets "released"); payments.get shows hold and hold_expires_at. Use holds only for short rentals;
+  for longer ones take the deposit with a normal payment and refund it.
+- Recurring payments (weekly cleaning, monthly fees, school terms): payments.subscribe({items, interval: "week"|"month"|"year",
+  interval_count, reference, customer_email, success_path, cancel_path, trial_days, end_after}) returns {url, id}; redirect to url.
+  The customer's card is charged every interval_count intervals (default 1) until cancelled, or end_after payments (0 = no end).
+  on_payment gets "paid" for the first payment (amount 0 when trial_days is set), "renewed" for each later one, "renewal_failed"
+  when a charge fails (Stripe retries; a later success is "renewed") and "subscription_cancelled" when it ends; req.body also has
+  subscription {id, status, current_period_end, cancel_at_period_end, payments_made} and period {start, end}.
+  payments.subscription(reference) returns {status (trialing, active, past_due, canceled, or pending before checkout),
+  amount, interval, current_period_end (next payment date), cancel_at_period_end, payments_made} or null.
+  payments.cancel_subscription({reference, at_period_end}) stops it now, or at the end of the paid period with at_period_end: true.
+  Each payment can be refunded with payments.refund. Scripts cannot charge saved cards otherwise.
+- Refunds, captures, releases and cancellations are limited to 60 an hour per app.
+- Test on preview: POST the simulated page with {decision: "pay"} authorises a hold or starts a subscription; for a subscription,
+  POST the same /_rx/pay/<id> again with {decision: "renew"} or {decision: "renewal_failed"} to simulate the next invoice
+  (with cancel_at_period_end set, "renew" ends it). payments.refund, capture, release and cancel_subscription act at once on preview.
 
 Emails (plain text; live sends them, preview writes them with their links to get_logs):
 - email.send({to, subject, text}) emails one address from the app, e.g. an order confirmation to req.user.email.
@@ -149,6 +190,18 @@ Scheduled jobs:
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
 - Jobs never run on preview by themselves: test one with test_request {"job": "daily_report"}. The owner sees last and next runs on the app page.
 
+Admin changes (on_admin_change), e.g. email the client when the owner sets a quote to sent or assigns a crew:
+- Set "on_admin_change": "<script name>". It runs right after the owner or staff adds, changes or deletes a row in the admin panel,
+  with req.method "ADMIN", req.path "/_rx/admin/<table>", no visitor, and req.body = {action: "insert"|"update"|"delete", table, id,
+  row (after the change; null on delete), before (null on insert), by (the email of who made the change)}. Check table and compare
+  before with row, e.g. if (b.table === 'quotes' && b.row.status === 'sent' && (!b.before || b.before.status !== 'sent')).
+  db, email.send, notify.owner, realtime.publish and payments work as in any script. Use it instead of polling jobs for owner actions.
+- The change is already saved: if the script fails, the change stays, the error is in get_logs and the owner sees a short notice.
+  Changes the script makes itself do not run it again.
+- Test on preview with test_request {"admin": {"action": "update", "table": "quotes", "id": 3, "values": {"status": "sent"}}}:
+  it changes the preview row with the admin panel's checks (on update, columns left out keep their value; "by" sets req.body.by),
+  runs the script and returns its answer, the row after the change and the logs.
+
 Tools for shoppers' AI assistants (MCP):
 - "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
   about products. Anyone can call them without signing in (req.user is null), so return only public information, mark read-only
@@ -167,6 +220,24 @@ Images:
 - Add ?w=WIDTH to an uploaded JPEG, PNG or WebP url for a smaller copy, e.g. <img src="{{.image}}?w=480"> in product lists and ?w=960 on a product page.
   Widths round up to 160, 320, 480, 640, 960, 1280 or 1920 and are never larger than the original.
 - The owner can also upload images in the admin panel at the Renoxium site, /apps/<app>.
+
+Visitor uploads (private files, e.g. a driving licence, passport photo, PDF document, a photo of the problem):
+- Signed-in visitors upload one file per request to POST /_rx/upload (multipart/form-data, field "file"); it answers
+  {id, name, size, type} or {error} with status 401 (signed out), 413 (over 10 MB), 415 (wrong type) or 429 (20 a day per visitor).
+  Accepted: JPEG, PNG, WebP, HEIC photos and PDF, detected from the content. Never use upload_file or image columns for these.
+- Easiest in a template: <script src="/_rx/upload.js"></script> and, inside the form,
+  <input type="file" name="licence" data-rx-upload accept="image/*,application/pdf" required>.
+  The file is uploaded as soon as it is chosen and the form then sends licence=<id> in a hidden field (shown as "name uploaded");
+  keep the form's default encoding (no enctype). Without the helper: fetch("/_rx/upload", {method: "POST", body: formDataWithFile}).
+  On phones accept="image/*" offers the camera; add capture="environment" to open the camera directly.
+- Store the id in a column of type file. Files are private: /_rx/private/<id> opens only for the visitor who uploaded it
+  (others get 404); the owner and staff open them from the admin panel. Never put them in image columns or on public pages.
+- The id arrives from the form, so check it before saving: const f = files.get(req.form.licence);
+  if (!f || f.user_id !== req.user.id) return {status: 400, text: "upload the licence again"}.
+- files.get(id) returns {id, name, size, type, user_id, created_at, url} or null; files.delete(id) returns true or false;
+  files.url(id) returns "/_rx/private/<id>" or null. Scripts never see the bytes.
+- Preview uploads stay on preview and are dropped with the rest of preview data on the next change. Test with test_request:
+  POST /_rx/upload with user_email and files {"file": {name: "licence.jpg", type: "image/jpeg", base64: "..."}}.
 
 Security rules for what you write:
 - Render visitor-supplied text through templates (they escape automatically) or element.textContent. Never build HTML strings from visitor data in browser JavaScript.
@@ -330,7 +401,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.Patch
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "patch_app",
-		Description: "Change part of the newest app definition and apply it to preview: add or replace templates and scripts by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. Returns the same result as apply_change."},
+		Description: "Change part of the newest app definition and apply it to preview: add or replace templates, scripts and lib entries by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. Returns the same result as apply_change."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in patchIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.ApplyResult{}, err
@@ -344,7 +415,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.TestRequestInput
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "test_request",
-		Description: "Send a GET or POST request to the app's preview (or a GET to live) as a visitor would, and get the status, redirect, body and the server log of that request. Use it to test forms, routes with parameters and error cases. POST changes preview data only; preview data is a throwaway copy of live."},
+		Description: "Send a GET or POST request to the app's preview (or a GET to live) as a visitor would, and get the status, redirect, body and the server log of that request. Use it to test forms, routes with parameters and error cases. POST changes preview data only; preview data is a throwaway copy of live. With admin set, it changes a preview row as the owner would in the admin panel and runs on_admin_change."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in testIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.TestResponse{}, err

@@ -3,13 +3,17 @@ package platform
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -17,19 +21,31 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/applog"
+	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 // TestRequestInput is a request an agent sends to its own app.
 type TestRequestInput struct {
-	Stage  string            `json:"stage,omitempty" jsonschema:"preview (default) or live; live accepts only GET so tests never change live data"`
-	Method string            `json:"method,omitempty" jsonschema:"GET (default) or POST"`
-	Path   string            `json:"path,omitempty" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud; required unless job is set"`
-	Form   map[string]string `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
-	JSON   any               `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
+	Stage  string              `json:"stage,omitempty" jsonschema:"preview (default) or live; live accepts only GET so tests never change live data"`
+	Method string              `json:"method,omitempty" jsonschema:"GET (default) or POST"`
+	Path   string              `json:"path,omitempty" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud; required unless job or admin is set"`
+	Form   map[string]string   `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
+	JSON   any                 `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
+	Files  map[string]TestFile `json:"files,omitempty" jsonschema:"files for a POST by field name, sent as multipart/form-data together with form; e.g. {\"file\": {...}} for POST /_rx/upload with user_email"`
 	// UserEmail sends the request as a signed-in visitor (preview only).
 	Job       string `json:"job,omitempty" jsonschema:"run this scheduled job once on preview instead of sending a request (path is then ignored); jobs never run on preview by themselves"`
 	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as the visitor with this email or WhatsApp number; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup or /_rx/auth/phone first, or it may come from live data)"`
+
+	// Admin makes an admin panel change on preview (see TestAdminInput).
+	Admin *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
+}
+
+// TestFile is a file sent with a test request.
+type TestFile struct {
+	Name   string `json:"name" jsonschema:"file name, e.g. licence.jpg"`
+	Type   string `json:"type,omitempty" jsonschema:"Content-Type of the part; the platform ignores it and detects the type from the content"`
+	Base64 string `json:"base64" jsonschema:"file content, base64-encoded; at most 10 MB"`
 }
 
 // TestResponse is what the app answered, with the log of that request.
@@ -41,6 +57,8 @@ type TestResponse struct {
 	Truncated   bool           `json:"truncated,omitempty"`
 	RequestID   string         `json:"request_id"`
 	Logs        []applog.Event `json:"logs" jsonschema:"server log events of this request, including script console output and errors"`
+	// Admin is set for test_request {admin}: the row after the change.
+	Admin *TestAdminResult `json:"admin,omitempty"`
 }
 
 const maxTestBody = 20000
@@ -56,6 +74,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	}
 	if in.Job != "" {
 		return p.testJob(ctx, app, stage, in.Job)
+	}
+	if in.Admin != nil {
+		return p.testAdmin(ctx, app, stage, *in.Admin)
 	}
 	method := strings.ToUpper(in.Method)
 	if method == "" {
@@ -75,6 +96,36 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	var body *bytes.Reader
 	ctype := ""
 	switch {
+	case len(in.Files) > 0:
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		for k, v := range in.Form {
+			mw.WriteField(k, v)
+		}
+		for field, f := range in.Files {
+			data := strings.TrimRight(strings.Join(strings.Fields(f.Base64), ""), "=")
+			if base64.RawStdEncoding.DecodedLen(len(data)) > files.MaxSize+1 {
+				return TestResponse{}, fmt.Errorf("files.%s: %w", field, files.ErrTooLarge)
+			}
+			raw, err := base64.RawStdEncoding.DecodeString(data)
+			if err != nil {
+				return TestResponse{}, fmt.Errorf("files.%s: base64 is not valid", field)
+			}
+			h := textproto.MIMEHeader{}
+			h.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": field, "filename": f.Name}))
+			if f.Type != "" {
+				h.Set("Content-Type", f.Type)
+			} else {
+				h.Set("Content-Type", "application/octet-stream")
+			}
+			part, err := mw.CreatePart(h)
+			if err != nil {
+				return TestResponse{}, err
+			}
+			part.Write(raw)
+		}
+		mw.Close()
+		body, ctype = bytes.NewReader(buf.Bytes()), mw.FormDataContentType()
 	case in.JSON != nil:
 		raw, err := json.Marshal(in.JSON)
 		if err != nil {
@@ -134,7 +185,7 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	}
 	// Test requests carry a valid CSRF pair, so platform forms such as
 	// /_rx/auth/signup can be exercised too.
-	if method == http.MethodPost && (strings.HasPrefix(in.Path, AuthPrefix) || strings.HasPrefix(in.Path, PayPrefix)) {
+	if method == http.MethodPost && len(in.Files) == 0 && (strings.HasPrefix(in.Path, AuthPrefix) || strings.HasPrefix(in.Path, PayPrefix)) {
 		token := secretToken()
 		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorCSRFCookie), Value: token})
 		if len(in.Form) > 0 {
@@ -189,8 +240,11 @@ type Patch struct {
 	Jobs            []appdef.Job                `json:"jobs,omitempty" jsonschema:"if set, replaces the whole job list"`
 	Hosts           []appdef.Host               `json:"hosts,omitempty" jsonschema:"if set, replaces the whole host list"`
 	Secrets         []appdef.Secret             `json:"secrets,omitempty" jsonschema:"if set, replaces the whole secret list"`
-	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept"`
+	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept, and a calendar given here replaces the table's calendar"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
+	Lib             map[string]string           `json:"lib,omitempty" jsonschema:"lib entries (shared script code) to add or replace, by name"`
+	DeleteLib       []string                    `json:"delete_lib,omitempty"`
+	OnAdminChange   *string                     `json:"on_admin_change,omitempty" jsonschema:"if set, replaces on_admin_change; empty turns it off"`
 }
 
 // ApplyPatch merges a patch into the newest version and applies the result
@@ -220,6 +274,15 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	for k, v := range patch.Scripts {
 		def.Scripts[k] = v
 	}
+	if len(patch.Lib) > 0 && def.Lib == nil {
+		def.Lib = map[string]string{}
+	}
+	for k, v := range patch.Lib {
+		def.Lib[k] = v
+	}
+	if patch.OnAdminChange != nil {
+		def.OnAdminChange = *patch.OnAdminChange
+	}
 	var problems []string
 	for _, k := range patch.DeleteTemplates {
 		if _, ok := def.Templates[k]; !ok {
@@ -232,6 +295,12 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 			problems = append(problems, fmt.Sprintf("delete_scripts: %q does not exist", k))
 		}
 		delete(def.Scripts, k)
+	}
+	for _, k := range patch.DeleteLib {
+		if _, ok := def.Lib[k]; !ok {
+			problems = append(problems, fmt.Sprintf("delete_lib: %q does not exist", k))
+		}
+		delete(def.Lib, k)
 	}
 	if len(problems) > 0 {
 		return ApplyResult{Problems: problems}, nil
@@ -258,6 +327,9 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 				continue
 			}
 			merged = true
+			if t.Calendar != nil {
+				def.Tables[i].Calendar = t.Calendar
+			}
 			for _, c := range t.Columns {
 				exists := false
 				for _, old := range def.Tables[i].Columns {

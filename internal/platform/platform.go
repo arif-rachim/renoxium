@@ -128,6 +128,8 @@ type Platform struct {
 
 	suspendedAt time.Time       // when suspended was last read
 	suspended   map[string]bool // apps taken offline
+
+	adminNotices sync.Map // app + "\x00" + email -> failed on_admin_change notice
 }
 
 type stage struct {
@@ -311,6 +313,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	if err := pl.ensurePaymentTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := pl.ensurePrivateFileTable(); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -498,12 +504,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	if _, err := p.Info(name); err != nil {
 		return ApplyResult{}, err
 	}
-	problems := def.Validate()
-	for sname, src := range def.Scripts {
-		if err := p.sb.Check(src); err != nil {
-			problems = append(problems, fmt.Sprintf("script %q: %v", sname, err))
-		}
-	}
+	problems := append(def.Validate(), p.checkScripts(def)...)
 	raw, err := json.Marshal(def)
 	if err != nil {
 		return ApplyResult{}, err
@@ -520,6 +521,11 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 
 	// Build the preview database first; a failed migration leaves no new version.
 	p.dropStage(name, Preview)
+	// Preview uploads belong to the throwaway preview data; they are never
+	// copied to or from live.
+	if err := p.dropPrivateFiles(name, Preview); err != nil {
+		return ApplyResult{}, err
+	}
 	prev := p.dbPath(name, Preview)
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		os.Remove(prev + suffix)

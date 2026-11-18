@@ -82,6 +82,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.serveAuthApp(w, r, st)
 		return true
 	}
+	if r.URL.Path == UploadPath || r.URL.Path == UploadJSPath || strings.HasPrefix(r.URL.Path, PrivatePrefix) {
+		p.servePrivateRoutes(w, r, st)
+		return true
+	}
 	if strings.HasPrefix(r.URL.Path, PayPrefix) {
 		p.servePay(w, r, st)
 		return true
@@ -200,12 +204,13 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		}
 	}
 
+	host := &scriptHost{st: st, p: p, rid: rid}
+	defer host.runDeferred(r.Context()) // after release: on_payment needs a slot of its own
 	release, ok := p.acquireSlot(r.Context(), st.app)
 	if !ok {
 		return failure(http.StatusServiceUnavailable, "too many requests running at once for this app; the request waited 3s and gave up")
 	}
 	defer release()
-	host := &scriptHost{st: st, p: p, rid: rid}
 	resp, err := p.sb.Run(r.Context(), st.def.Scripts[route.Script], req, host)
 	if err != nil {
 		var se *sandbox.ScriptError
@@ -429,6 +434,9 @@ type scriptHost struct {
 	// http.fetch calls and time spent waiting on them in this run.
 	fetches   int
 	fetchWait time.Duration
+	// on_payment runs started by this run's money calls (payments.refund,
+	// capture, release, cancel_subscription), run once it has finished.
+	hooks hookQueue
 }
 
 // mayRedirect reports whether a script may send the visitor to target.
@@ -513,6 +521,29 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return out, err
 	case "payments.get":
 		return h.p.paymentStatus(ctx, h.st, arg)
+	case "payments.subscribe":
+		out, err := h.p.subscribe(ctx, h.st, arg)
+		if m, ok := out.(map[string]any); ok && err == nil {
+			if u, ok := m["url"].(string); ok && !strings.HasPrefix(u, "/") {
+				h.mu.Lock()
+				h.checkouts = append(h.checkouts, u)
+				h.mu.Unlock()
+			}
+		}
+		return out, err
+	case "payments.subscription":
+		return h.p.subscriptionStatus(ctx, h.st, arg)
+	case "payments.refund", "payments.capture", "payments.release", "payments.cancel_subscription":
+		ctx = context.WithValue(ctx, hookQueueKey{}, &h.hooks)
+		switch fn {
+		case "payments.refund":
+			return h.p.scriptRefund(ctx, h.st, arg)
+		case "payments.capture":
+			return h.p.scriptCapture(ctx, h.st, arg)
+		case "payments.release":
+			return h.p.scriptRelease(ctx, h.st, arg)
+		}
+		return h.p.scriptCancelSubscription(ctx, h.st, arg)
 	case "email.send":
 		return h.p.emailSend(ctx, h.st, arg)
 	case "notify.owner":
@@ -523,6 +554,8 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.realtimePublish(h.st, arg)
 	case "realtime.token":
 		return h.p.realtimeToken(h.st, arg)
+	case "files.get", "files.delete", "files.url":
+		return h.p.filesCall(ctx, h.st, fn, arg)
 	}
 	return nil, fmt.Errorf("unknown platform function %s", fn)
 }

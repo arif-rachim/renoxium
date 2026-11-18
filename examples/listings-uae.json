@@ -1,0 +1,1553 @@
+{
+  "tables": [
+    {
+      "name": "agency",
+      "label": "Agency settings",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "label": "Agency name"
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Agency name (Arabic)"
+        },
+        {
+          "name": "tagline",
+          "type": "text"
+        },
+        {
+          "name": "tagline_ar",
+          "type": "text",
+          "label": "Tagline (Arabic)"
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "label": "WhatsApp number",
+          "help": "International format, e.g. +971501234567. Visitors tap a button that opens WhatsApp with this number."
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "label": "Phone"
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "label": "Email (shown on the contact page)"
+        },
+        {
+          "name": "address",
+          "type": "text"
+        },
+        {
+          "name": "legal_name",
+          "type": "text",
+          "label": "Legal name",
+          "help": "The company name on your trade licence."
+        },
+        {
+          "name": "office_reg_label",
+          "type": "text",
+          "label": "Office registration label",
+          "help": "What your office number is called, e.g. ORN (Dubai, RERA) or ADREC licence (Abu Dhabi)."
+        },
+        {
+          "name": "office_reg_value",
+          "type": "text",
+          "label": "Office registration number",
+          "help": "Shown in the footer and on every listing page. Check the current rules of your emirate for what adverts must show."
+        },
+        {
+          "name": "emirate",
+          "type": "text",
+          "label": "Emirate",
+          "options": [
+            "Dubai",
+            "Abu Dhabi",
+            "Sharjah",
+            "Ajman",
+            "Ras Al Khaimah",
+            "Fujairah",
+            "Umm Al Quwain"
+          ]
+        },
+        {
+          "name": "logo",
+          "type": "image",
+          "label": "Logo"
+        },
+        {
+          "name": "about",
+          "type": "text",
+          "label": "About us"
+        },
+        {
+          "name": "about_ar",
+          "type": "text",
+          "label": "About us (Arabic)"
+        },
+        {
+          "name": "hide_without_permit",
+          "type": "boolean",
+          "label": "Hide listings without a permit number",
+          "help": "On: a listing with an empty permit number is never shown to visitors. Dubai adverts need a permit number; check the current rules of your emirate before turning this off."
+        }
+      ]
+    },
+    {
+      "name": "agents",
+      "label": "Agents",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Name (Arabic)"
+        },
+        {
+          "name": "photo",
+          "type": "image"
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "help": "International format, e.g. +971501234567."
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "label": "WhatsApp number",
+          "help": "Leave empty to use the agency's WhatsApp number."
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "brn",
+          "type": "text",
+          "label": "Broker number (BRN)",
+          "help": "The agent's broker registration number, shown on their listings. Check the current rules of your emirate."
+        },
+        {
+          "name": "languages",
+          "type": "text",
+          "label": "Languages",
+          "help": "For example: English, Arabic, Hindi."
+        },
+        {
+          "name": "bio",
+          "type": "text",
+          "label": "About"
+        },
+        {
+          "name": "bio_ar",
+          "type": "text",
+          "label": "About (Arabic)"
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "label": "Show on the site"
+        }
+      ]
+    },
+    {
+      "name": "listings",
+      "label": "Listings",
+      "columns": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "title_ar",
+          "type": "text",
+          "label": "Title (Arabic)"
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "description_ar",
+          "type": "text",
+          "label": "Description (Arabic)"
+        },
+        {
+          "name": "purpose",
+          "type": "text",
+          "required": true,
+          "label": "For",
+          "options": [
+            "sale",
+            "rent"
+          ]
+        },
+        {
+          "name": "property_type",
+          "type": "text",
+          "required": true,
+          "label": "Property type",
+          "options": [
+            "apartment",
+            "villa",
+            "townhouse",
+            "penthouse",
+            "office",
+            "shop",
+            "land"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "label": "Status",
+          "help": "Visitors see only available and reserved listings. Use hidden for a draft.",
+          "options": [
+            "available",
+            "reserved",
+            "sold",
+            "rented",
+            "hidden"
+          ]
+        },
+        {
+          "name": "offplan",
+          "type": "boolean",
+          "label": "Off-plan"
+        },
+        {
+          "name": "developer",
+          "type": "text",
+          "label": "Developer (off-plan)"
+        },
+        {
+          "name": "handover",
+          "type": "text",
+          "label": "Handover (off-plan)",
+          "help": "For example: Q4 2028."
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "required": true,
+          "label": "Price (AED)",
+          "help": "Sale price, or the rent for the period below."
+        },
+        {
+          "name": "rent_period",
+          "type": "text",
+          "label": "Rent period",
+          "help": "Only for rentals.",
+          "options": [
+            "yearly",
+            "monthly"
+          ]
+        },
+        {
+          "name": "bedrooms",
+          "type": "integer",
+          "label": "Bedrooms",
+          "help": "0 for a studio. Leave empty for offices, shops and land."
+        },
+        {
+          "name": "bathrooms",
+          "type": "integer"
+        },
+        {
+          "name": "area_sqft",
+          "type": "integer",
+          "label": "Area (sq ft)"
+        },
+        {
+          "name": "community",
+          "type": "text",
+          "label": "Community",
+          "help": "For example Dubai Marina. Write it the same way on every listing: visitors filter by it."
+        },
+        {
+          "name": "building",
+          "type": "text",
+          "label": "Building or project"
+        },
+        {
+          "name": "emirate",
+          "type": "text",
+          "label": "Emirate",
+          "options": [
+            "Dubai",
+            "Abu Dhabi",
+            "Sharjah",
+            "Ajman",
+            "Ras Al Khaimah",
+            "Fujairah",
+            "Umm Al Quwain"
+          ]
+        },
+        {
+          "name": "furnished",
+          "type": "text",
+          "label": "Furnishing",
+          "options": [
+            "furnished",
+            "unfurnished",
+            "partly"
+          ]
+        },
+        {
+          "name": "amenities",
+          "type": "text",
+          "label": "Amenities",
+          "help": "Separated by commas, e.g. Pool, Gym, Covered parking."
+        },
+        {
+          "name": "permit_number",
+          "type": "text",
+          "label": "Permit number",
+          "help": "The advertising permit number of this advert (Trakheesi in Dubai, ADREC in Abu Dhabi). Dubai adverts need a permit number; check the current rules of your emirate. Without it the listing is not shown on the site while \"Hide listings without a permit number\" is on."
+        },
+        {
+          "name": "permit_qr",
+          "type": "image",
+          "label": "Permit QR code",
+          "help": "Upload the QR code image issued with the permit; it is shown next to the permit number."
+        },
+        {
+          "name": "reference",
+          "type": "text",
+          "unique": true,
+          "label": "Reference",
+          "help": "Your own code, e.g. MH-1001. Visitors quote it on WhatsApp."
+        },
+        {
+          "name": "agent_id",
+          "type": "integer",
+          "label": "Agent",
+          "help": "The # of the agent in Agents."
+        },
+        {
+          "name": "image1",
+          "type": "image",
+          "label": "Photo 1 (cover)"
+        },
+        {
+          "name": "image2",
+          "type": "image",
+          "label": "Photo 2"
+        },
+        {
+          "name": "image3",
+          "type": "image",
+          "label": "Photo 3"
+        },
+        {
+          "name": "image4",
+          "type": "image",
+          "label": "Photo 4"
+        },
+        {
+          "name": "image5",
+          "type": "image",
+          "label": "Photo 5"
+        },
+        {
+          "name": "image6",
+          "type": "image",
+          "label": "Photo 6"
+        },
+        {
+          "name": "map_url",
+          "type": "text",
+          "label": "Map link",
+          "help": "A link to the location on Google Maps, starting with https://."
+        },
+        {
+          "name": "featured",
+          "type": "boolean",
+          "label": "Featured on the home page"
+        },
+        {
+          "name": "published",
+          "type": "datetime",
+          "label": "Published",
+          "help": "Used for \"newest first\" and for the reminder about listings older than 60 days."
+        }
+      ]
+    },
+    {
+      "name": "leads",
+      "label": "Leads",
+      "calendar": {
+        "date": "preferred_date",
+        "start": "preferred_time",
+        "group": "agent_id",
+        "title": [
+          "name",
+          "listing_ref"
+        ],
+        "status": "status",
+        "hide_status": [
+          "spam",
+          "closed_lost"
+        ]
+      },
+      "columns": [
+        {
+          "name": "listing_id",
+          "type": "integer",
+          "label": "Listing",
+          "help": "The # of the listing in Listings; empty for a general enquiry."
+        },
+        {
+          "name": "listing_ref",
+          "type": "text",
+          "label": "Listing reference",
+          "help": "Filled in from the listing when the lead is saved; shown in the viewings calendar."
+        },
+        {
+          "name": "agent_id",
+          "type": "integer",
+          "label": "Agent",
+          "help": "The # of the agent in Agents."
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "required": true,
+          "label": "Type",
+          "options": [
+            "enquiry",
+            "viewing",
+            "callback",
+            "valuation"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "message",
+          "type": "text"
+        },
+        {
+          "name": "preferred_date",
+          "type": "text",
+          "label": "Preferred viewing date",
+          "help": "YYYY-MM-DD. To book a viewing, set the date and time and the status Viewing booked: the visitor is emailed a confirmation with the listing and the agent's contact (if they gave an email), and again if you move it."
+        },
+        {
+          "name": "preferred_time",
+          "type": "text",
+          "label": "Preferred viewing time",
+          "help": "HH:MM, e.g. 17:30."
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "label": "Page",
+          "help": "The page the form was sent from."
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "label": "Status",
+          "help": "Change it as you follow up. Leads still new after 24 hours are listed in the daily email.",
+          "options": [
+            "new",
+            "contacted",
+            "viewing_booked",
+            "negotiating",
+            "closed_won",
+            "closed_lost",
+            "spam"
+          ]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "label": "Notes",
+          "help": "Only you see these."
+        },
+        {
+          "name": "lang",
+          "type": "text",
+          "label": "Language",
+          "options": [
+            "en",
+            "ar"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "texts",
+      "label": "Site texts",
+      "columns": [
+        {
+          "name": "key",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "en",
+          "type": "text",
+          "label": "English"
+        },
+        {
+          "name": "ar",
+          "type": "text",
+          "label": "Arabic"
+        }
+      ]
+    }
+  ],
+  "seed": {
+    "agency": [
+      {
+        "name": "Marsa Homes",
+        "name_ar": "مرسى هومز",
+        "tagline": "Homes to buy and rent across Dubai",
+        "tagline_ar": "منازل للبيع والإيجار في أنحاء دبي",
+        "whatsapp": "+971500000000",
+        "phone": "+97140000000",
+        "email": "hello@marsahomes.example",
+        "address": "Office 1204, Sample Tower, Business Bay, Dubai",
+        "legal_name": "Marsa Homes Real Estate Brokers LLC",
+        "office_reg_label": "ORN",
+        "office_reg_value": "SAMPLE-12345",
+        "emirate": "Dubai",
+        "about": "A small Dubai brokerage. We help families and investors buy, sell and rent homes in the communities we know street by street.",
+        "about_ar": "شركة وساطة عقارية صغيرة في دبي. نساعد العائلات والمستثمرين على شراء وبيع وتأجير المنازل في المناطق التي نعرفها جيداً.",
+        "hide_without_permit": 1
+      }
+    ],
+    "agents": [
+      {
+        "name": "Omar Al Hashimi",
+        "name_ar": "عمر الهاشمي",
+        "phone": "+971500000001",
+        "whatsapp": "+971500000001",
+        "email": "omar@marsahomes.example",
+        "brn": "SAMPLE-50101",
+        "languages": "English, Arabic",
+        "bio": "Villas and townhouses in Arabian Ranches and the waterfront towers of Dubai Marina. Twelve years in Dubai property.",
+        "bio_ar": "متخصص في الفلل والتاون هاوس في المرابع العربية وأبراج دبي مارينا. اثنا عشر عاماً في عقارات دبي.",
+        "active": 1
+      },
+      {
+        "name": "Priya Nair",
+        "name_ar": "بريا ناير",
+        "phone": "+971500000002",
+        "whatsapp": "+971500000002",
+        "email": "priya@marsahomes.example",
+        "brn": "SAMPLE-50102",
+        "languages": "English, Hindi, Malayalam",
+        "bio": "Rentals in JVC and Business Bay, from studios to family apartments. Quick viewings, clear paperwork.",
+        "bio_ar": "متخصصة في الإيجارات في قرية جميرا الدائرية والخليج التجاري، من الاستوديو إلى شقق العائلات.",
+        "active": 1
+      },
+      {
+        "name": "Sara Haddad",
+        "name_ar": "سارة حداد",
+        "phone": "+971500000003",
+        "whatsapp": "+971500000003",
+        "email": "sara@marsahomes.example",
+        "brn": "SAMPLE-50103",
+        "languages": "English, Arabic, French",
+        "bio": "Downtown Dubai apartments, off-plan launches and offices for growing companies.",
+        "bio_ar": "شقق وسط مدينة دبي ومشاريع على الخارطة ومكاتب للشركات الناشئة.",
+        "active": 1
+      }
+    ],
+    "listings": [
+      {
+        "title": "Two-bedroom apartment with full marina view",
+        "title_ar": "شقة بغرفتي نوم بإطلالة كاملة على المارينا",
+        "description": "High floor, both bedrooms en suite, a wide balcony over the water and a closed kitchen. Five minutes on foot to the tram. Vacant on transfer.",
+        "description_ar": "طابق مرتفع، غرفتا نوم بحمامين خاصين، شرفة واسعة على الماء ومطبخ مغلق. خمس دقائق سيراً إلى الترام. شاغرة عند نقل الملكية.",
+        "purpose": "sale",
+        "property_type": "apartment",
+        "status": "available",
+        "offplan": 0,
+        "price": 2350000,
+        "bedrooms": 2,
+        "bathrooms": 3,
+        "area_sqft": 1310,
+        "community": "Dubai Marina",
+        "building": "Marina Crest Tower",
+        "emirate": "Dubai",
+        "furnished": "unfurnished",
+        "amenities": "Marina view, Balcony, Pool, Gym, Covered parking, 24-hour security",
+        "permit_number": "SAMPLE-7100000001",
+        "reference": "MH-1001",
+        "agent_id": 1,
+        "map_url": "https://maps.google.com/?q=Dubai+Marina",
+        "featured": 1,
+        "published": "2026-11-02 08:00:00"
+      },
+      {
+        "title": "Bright one-bedroom near Circle Mall",
+        "title_ar": "شقة مشرقة بغرفة نوم قرب سيركل مول",
+        "description": "Well-kept one-bedroom with a large balcony, built-in wardrobes and one parking space. Payable in up to four cheques.",
+        "description_ar": "شقة بغرفة نوم بحالة ممتازة مع شرفة كبيرة وخزائن مدمجة وموقف سيارة. الدفع حتى أربعة شيكات.",
+        "purpose": "rent",
+        "property_type": "apartment",
+        "status": "available",
+        "offplan": 0,
+        "price": 78000,
+        "rent_period": "yearly",
+        "bedrooms": 1,
+        "bathrooms": 2,
+        "area_sqft": 780,
+        "community": "JVC",
+        "building": "Orchid Residence",
+        "emirate": "Dubai",
+        "furnished": "unfurnished",
+        "amenities": "Balcony, Pool, Gym, Covered parking, Children's play area",
+        "permit_number": "SAMPLE-7100000002",
+        "reference": "MH-1002",
+        "agent_id": 2,
+        "featured": 0,
+        "published": "2026-10-21 08:00:00"
+      },
+      {
+        "title": "Furnished studio with canal view",
+        "title_ar": "استوديو مفروش بإطلالة على القناة",
+        "description": "Fully furnished studio, bills included, ready to move in. Monthly contract, minimum three months.",
+        "description_ar": "استوديو مفروش بالكامل شامل الفواتير وجاهز للسكن. عقد شهري لمدة ثلاثة أشهر على الأقل.",
+        "purpose": "rent",
+        "property_type": "apartment",
+        "status": "available",
+        "offplan": 0,
+        "price": 6500,
+        "rent_period": "monthly",
+        "bedrooms": 0,
+        "bathrooms": 1,
+        "area_sqft": 430,
+        "community": "Business Bay",
+        "building": "Canal Heights",
+        "emirate": "Dubai",
+        "furnished": "furnished",
+        "amenities": "Canal view, Pool, Gym, Bills included",
+        "permit_number": "SAMPLE-7100000003",
+        "reference": "MH-1003",
+        "agent_id": 2,
+        "featured": 0,
+        "published": "2026-07-20 08:00:00"
+      },
+      {
+        "title": "Four-bedroom villa backing onto the park",
+        "title_ar": "فيلا بأربع غرف نوم مطلة على الحديقة",
+        "description": "Upgraded kitchen, landscaped garden with space for a pool, maid's room and a double garage. A quiet street close to the school.",
+        "description_ar": "مطبخ مجدد، حديقة منسقة مع مساحة لمسبح، غرفة خادمة وكراج لسيارتين. شارع هادئ قريب من المدرسة.",
+        "purpose": "sale",
+        "property_type": "villa",
+        "status": "available",
+        "offplan": 0,
+        "price": 6900000,
+        "bedrooms": 4,
+        "bathrooms": 5,
+        "area_sqft": 3900,
+        "community": "Arabian Ranches",
+        "building": "Palmera",
+        "emirate": "Dubai",
+        "furnished": "unfurnished",
+        "amenities": "Private garden, Maid's room, Double garage, Community pool, Park view",
+        "permit_number": "SAMPLE-7100000004",
+        "reference": "MH-1004",
+        "agent_id": 1,
+        "featured": 1,
+        "published": "2026-10-28 08:00:00"
+      },
+      {
+        "title": "One-bedroom with Burj Khalifa view",
+        "title_ar": "شقة بغرفة نوم بإطلالة على برج خليفة",
+        "description": "Corner unit with floor-to-ceiling windows, currently rented until March; a good fit for an investor or an end user.",
+        "description_ar": "وحدة زاوية بنوافذ من الأرض إلى السقف، مؤجرة حالياً حتى مارس؛ مناسبة للمستثمر أو للسكن.",
+        "purpose": "sale",
+        "property_type": "apartment",
+        "status": "available",
+        "offplan": 0,
+        "price": 1950000,
+        "bedrooms": 1,
+        "bathrooms": 2,
+        "area_sqft": 860,
+        "community": "Downtown Dubai",
+        "building": "Boulevard Point",
+        "emirate": "Dubai",
+        "furnished": "furnished",
+        "amenities": "Burj Khalifa view, Balcony, Pool, Gym, Concierge",
+        "permit_number": "SAMPLE-7100000005",
+        "reference": "MH-1005",
+        "agent_id": 3,
+        "featured": 1,
+        "published": "2026-11-05 08:00:00"
+      },
+      {
+        "title": "Off-plan three-bedroom townhouse",
+        "title_ar": "تاون هاوس على الخارطة بثلاث غرف نوم",
+        "description": "New launch with a payment plan during construction. Three bedrooms plus a study, private garden and roof terrace.",
+        "description_ar": "مشروع جديد مع خطة دفع خلال الإنشاء. ثلاث غرف نوم مع مكتب، حديقة خاصة وتراس على السطح.",
+        "purpose": "sale",
+        "property_type": "townhouse",
+        "status": "available",
+        "offplan": 1,
+        "developer": "Sample Developments",
+        "handover": "Q4 2028",
+        "price": 2150000,
+        "bedrooms": 3,
+        "bathrooms": 4,
+        "area_sqft": 2100,
+        "community": "JVC",
+        "building": "Verdana Townhouses",
+        "emirate": "Dubai",
+        "amenities": "Private garden, Roof terrace, Community pool, Payment plan",
+        "permit_number": "SAMPLE-7100000006",
+        "reference": "MH-1006",
+        "agent_id": 3,
+        "featured": 1,
+        "published": "2026-11-10 08:00:00"
+      },
+      {
+        "title": "Three-bedroom family villa, single row",
+        "title_ar": "فيلا عائلية بثلاث غرف نوم، صف واحد",
+        "description": "Single-row villa with a mature garden, study and maid's room. Available from next month, one or two cheques.",
+        "description_ar": "فيلا صف واحد مع حديقة مكتملة ومكتب وغرفة خادمة. متاحة من الشهر القادم، شيك أو شيكان.",
+        "purpose": "rent",
+        "property_type": "villa",
+        "status": "available",
+        "offplan": 0,
+        "price": 285000,
+        "rent_period": "yearly",
+        "bedrooms": 3,
+        "bathrooms": 4,
+        "area_sqft": 2900,
+        "community": "Arabian Ranches",
+        "building": "Saheel",
+        "emirate": "Dubai",
+        "furnished": "unfurnished",
+        "amenities": "Private garden, Maid's room, Study, Community pool",
+        "permit_number": "SAMPLE-7100000007",
+        "reference": "MH-1007",
+        "agent_id": 1,
+        "featured": 0,
+        "published": "2026-10-15 08:00:00"
+      },
+      {
+        "title": "Fitted office with partitions",
+        "title_ar": "مكتب مجهز مع قواطع",
+        "description": "Fitted office with a reception, three glass rooms and a pantry. Two parking spaces, close to the metro.",
+        "description_ar": "مكتب مجهز مع استقبال وثلاث غرف زجاجية وركن للمطبخ. موقفان للسيارات وقريب من المترو.",
+        "purpose": "rent",
+        "property_type": "office",
+        "status": "available",
+        "offplan": 0,
+        "price": 160000,
+        "rent_period": "yearly",
+        "bathrooms": 1,
+        "area_sqft": 1250,
+        "community": "Business Bay",
+        "building": "Bay Square Tower",
+        "emirate": "Dubai",
+        "amenities": "Fitted, Pantry, 2 parking spaces, Near metro",
+        "permit_number": "SAMPLE-7100000008",
+        "reference": "MH-1008",
+        "agent_id": 3,
+        "featured": 0,
+        "published": "2026-10-08 08:00:00"
+      },
+      {
+        "title": "Full-floor penthouse (waiting for permit)",
+        "title_ar": "بنتهاوس طابق كامل (بانتظار التصريح)",
+        "description": "Example of a listing that has no permit number yet: it stays in this list but visitors do not see it until the permit number is filled in.",
+        "description_ar": "مثال على إعلان بدون رقم تصريح: يبقى في هذه القائمة ولا يراه الزوار حتى إضافة رقم التصريح.",
+        "purpose": "sale",
+        "property_type": "penthouse",
+        "status": "available",
+        "offplan": 0,
+        "price": 12500000,
+        "bedrooms": 4,
+        "bathrooms": 5,
+        "area_sqft": 5200,
+        "community": "Dubai Marina",
+        "building": "Marina Crest Tower",
+        "emirate": "Dubai",
+        "furnished": "furnished",
+        "amenities": "Private pool, Marina view, Private lift",
+        "permit_number": "",
+        "reference": "MH-1009",
+        "agent_id": 1,
+        "featured": 1,
+        "published": "2026-11-12 08:00:00"
+      },
+      {
+        "title": "Two-bedroom on the boulevard",
+        "title_ar": "شقة بغرفتي نوم على البوليفارد",
+        "description": "Sold. Kept here as an example: sold and rented listings are not shown to visitors.",
+        "description_ar": "تم البيع. مثال على أن الإعلانات المباعة والمؤجرة لا تظهر للزوار.",
+        "purpose": "sale",
+        "property_type": "apartment",
+        "status": "sold",
+        "offplan": 0,
+        "price": 3100000,
+        "bedrooms": 2,
+        "bathrooms": 3,
+        "area_sqft": 1400,
+        "community": "Downtown Dubai",
+        "building": "Boulevard Point",
+        "emirate": "Dubai",
+        "furnished": "unfurnished",
+        "amenities": "Balcony, Pool, Gym",
+        "permit_number": "SAMPLE-7100000010",
+        "reference": "MH-1010",
+        "agent_id": 3,
+        "featured": 0,
+        "published": "2026-08-18 08:00:00"
+      },
+      {
+        "title": "Two-bedroom with sea view, chiller free",
+        "title_ar": "شقة بغرفتي نوم بإطلالة على البحر، التكييف مجاناً",
+        "description": "Reserved. Two bedrooms plus a maid's room, sea and Palm view from the balcony, chiller included in the rent.",
+        "description_ar": "محجوزة. غرفتا نوم مع غرفة خادمة، إطلالة على البحر والنخلة من الشرفة، التكييف ضمن الإيجار.",
+        "purpose": "rent",
+        "property_type": "apartment",
+        "status": "reserved",
+        "offplan": 0,
+        "price": 165000,
+        "rent_period": "yearly",
+        "bedrooms": 2,
+        "bathrooms": 3,
+        "area_sqft": 1380,
+        "community": "Dubai Marina",
+        "building": "Shoreline Residence",
+        "emirate": "Dubai",
+        "furnished": "unfurnished",
+        "amenities": "Sea view, Balcony, Maid's room, Chiller free, Pool, Gym",
+        "permit_number": "SAMPLE-7100000011",
+        "reference": "MH-1011",
+        "agent_id": 2,
+        "featured": 0,
+        "published": "2026-10-30 08:00:00"
+      },
+      {
+        "title": "Retail shop on the ground floor",
+        "title_ar": "محل تجاري في الطابق الأرضي",
+        "description": "Draft: hidden until the photos are ready.",
+        "description_ar": "مسودة: مخفي حتى تجهز الصور.",
+        "purpose": "rent",
+        "property_type": "shop",
+        "status": "hidden",
+        "offplan": 0,
+        "price": 120000,
+        "rent_period": "yearly",
+        "bathrooms": 1,
+        "area_sqft": 900,
+        "community": "JVC",
+        "building": "Orchid Residence",
+        "emirate": "Dubai",
+        "amenities": "Shell and core, Street facing",
+        "permit_number": "SAMPLE-7100000012",
+        "reference": "MH-1012",
+        "agent_id": 2,
+        "featured": 0,
+        "published": "2026-11-14 08:00:00"
+      }
+    ],
+    "texts": [
+      {
+        "key": "buy",
+        "en": "Buy",
+        "ar": "شراء"
+      },
+      {
+        "key": "rent",
+        "en": "Rent",
+        "ar": "إيجار"
+      },
+      {
+        "key": "for_sale",
+        "en": "For sale",
+        "ar": "للبيع"
+      },
+      {
+        "key": "for_rent",
+        "en": "For rent",
+        "ar": "للإيجار"
+      },
+      {
+        "key": "properties",
+        "en": "Properties",
+        "ar": "العقارات"
+      },
+      {
+        "key": "contact",
+        "en": "Contact us",
+        "ar": "اتصل بنا"
+      },
+      {
+        "key": "list_property",
+        "en": "List your property",
+        "ar": "اعرض عقارك"
+      },
+      {
+        "key": "list_property_intro",
+        "en": "Selling or renting out your property? Tell us about it and we will call you with a free valuation.",
+        "ar": "تريد بيع أو تأجير عقارك؟ أخبرنا عنه وسنتصل بك لتقييم مجاني."
+      },
+      {
+        "key": "request_valuation",
+        "en": "Request a valuation",
+        "ar": "اطلب تقييماً"
+      },
+      {
+        "key": "language",
+        "en": "العربية",
+        "ar": "English"
+      },
+      {
+        "key": "contact_whatsapp",
+        "en": "WhatsApp us",
+        "ar": "راسلنا على واتساب"
+      },
+      {
+        "key": "whatsapp",
+        "en": "WhatsApp",
+        "ar": "واتساب"
+      },
+      {
+        "key": "call",
+        "en": "Call",
+        "ar": "اتصال"
+      },
+      {
+        "key": "email",
+        "en": "Email",
+        "ar": "البريد الإلكتروني"
+      },
+      {
+        "key": "purpose",
+        "en": "Buy or rent",
+        "ar": "شراء أو إيجار"
+      },
+      {
+        "key": "property_type",
+        "en": "Property type",
+        "ar": "نوع العقار"
+      },
+      {
+        "key": "community",
+        "en": "Community",
+        "ar": "المنطقة"
+      },
+      {
+        "key": "bedrooms",
+        "en": "Bedrooms",
+        "ar": "غرف النوم"
+      },
+      {
+        "key": "bathrooms",
+        "en": "Bathrooms",
+        "ar": "الحمامات"
+      },
+      {
+        "key": "area",
+        "en": "Area",
+        "ar": "المساحة"
+      },
+      {
+        "key": "min_price",
+        "en": "Min price (AED)",
+        "ar": "أقل سعر (درهم)"
+      },
+      {
+        "key": "max_price",
+        "en": "Max price (AED)",
+        "ar": "أعلى سعر (درهم)"
+      },
+      {
+        "key": "any",
+        "en": "Any",
+        "ar": "الكل"
+      },
+      {
+        "key": "search",
+        "en": "Search",
+        "ar": "بحث"
+      },
+      {
+        "key": "featured",
+        "en": "Featured properties",
+        "ar": "عقارات مميزة"
+      },
+      {
+        "key": "view_all",
+        "en": "View all properties",
+        "ar": "عرض كل العقارات"
+      },
+      {
+        "key": "our_agents",
+        "en": "Our agents",
+        "ar": "وكلاؤنا"
+      },
+      {
+        "key": "about",
+        "en": "About us",
+        "ar": "من نحن"
+      },
+      {
+        "key": "results",
+        "en": "properties found",
+        "ar": "عقار"
+      },
+      {
+        "key": "no_results",
+        "en": "No properties match your search right now. Tell us what you are looking for and we will find it.",
+        "ar": "لا توجد عقارات مطابقة لبحثك حالياً. أخبرنا بما تبحث عنه وسنجده لك."
+      },
+      {
+        "key": "sort_newest",
+        "en": "Newest",
+        "ar": "الأحدث"
+      },
+      {
+        "key": "sort_price_asc",
+        "en": "Price: low to high",
+        "ar": "السعر: من الأقل"
+      },
+      {
+        "key": "sort_price_desc",
+        "en": "Price: high to low",
+        "ar": "السعر: من الأعلى"
+      },
+      {
+        "key": "previous",
+        "en": "Previous",
+        "ar": "السابق"
+      },
+      {
+        "key": "next",
+        "en": "Next",
+        "ar": "التالي"
+      },
+      {
+        "key": "page",
+        "en": "Page",
+        "ar": "صفحة"
+      },
+      {
+        "key": "type_apartment",
+        "en": "Apartment",
+        "ar": "شقة"
+      },
+      {
+        "key": "type_villa",
+        "en": "Villa",
+        "ar": "فيلا"
+      },
+      {
+        "key": "type_townhouse",
+        "en": "Townhouse",
+        "ar": "تاون هاوس"
+      },
+      {
+        "key": "type_penthouse",
+        "en": "Penthouse",
+        "ar": "بنتهاوس"
+      },
+      {
+        "key": "type_office",
+        "en": "Office",
+        "ar": "مكتب"
+      },
+      {
+        "key": "type_shop",
+        "en": "Shop",
+        "ar": "محل تجاري"
+      },
+      {
+        "key": "type_land",
+        "en": "Land",
+        "ar": "أرض"
+      },
+      {
+        "key": "studio",
+        "en": "Studio",
+        "ar": "استوديو"
+      },
+      {
+        "key": "bed",
+        "en": "bedroom",
+        "ar": "غرفة نوم"
+      },
+      {
+        "key": "beds",
+        "en": "bedrooms",
+        "ar": "غرف نوم"
+      },
+      {
+        "key": "bath",
+        "en": "bathroom",
+        "ar": "حمام"
+      },
+      {
+        "key": "baths",
+        "en": "bathrooms",
+        "ar": "حمامات"
+      },
+      {
+        "key": "sqft",
+        "en": "sq ft",
+        "ar": "قدم مربع"
+      },
+      {
+        "key": "per_year",
+        "en": "per year",
+        "ar": "سنوياً"
+      },
+      {
+        "key": "per_month",
+        "en": "per month",
+        "ar": "شهرياً"
+      },
+      {
+        "key": "offplan",
+        "en": "Off-plan",
+        "ar": "على الخارطة"
+      },
+      {
+        "key": "reserved",
+        "en": "Reserved",
+        "ar": "محجوز"
+      },
+      {
+        "key": "ref",
+        "en": "Ref",
+        "ar": "المرجع"
+      },
+      {
+        "key": "furnishing",
+        "en": "Furnishing",
+        "ar": "التأثيث"
+      },
+      {
+        "key": "furnished_furnished",
+        "en": "Furnished",
+        "ar": "مفروش"
+      },
+      {
+        "key": "furnished_unfurnished",
+        "en": "Unfurnished",
+        "ar": "غير مفروش"
+      },
+      {
+        "key": "furnished_partly",
+        "en": "Partly furnished",
+        "ar": "مفروش جزئياً"
+      },
+      {
+        "key": "developer",
+        "en": "Developer",
+        "ar": "المطور"
+      },
+      {
+        "key": "handover",
+        "en": "Handover",
+        "ar": "التسليم"
+      },
+      {
+        "key": "description",
+        "en": "Description",
+        "ar": "الوصف"
+      },
+      {
+        "key": "amenities",
+        "en": "Amenities",
+        "ar": "المرافق"
+      },
+      {
+        "key": "view_map",
+        "en": "View on map",
+        "ar": "عرض على الخريطة"
+      },
+      {
+        "key": "photo",
+        "en": "Photo",
+        "ar": "صورة"
+      },
+      {
+        "key": "regulatory",
+        "en": "Permit and registration",
+        "ar": "التصريح والتسجيل"
+      },
+      {
+        "key": "permit_number",
+        "en": "Permit number",
+        "ar": "رقم التصريح"
+      },
+      {
+        "key": "permit_qr",
+        "en": "Permit QR code",
+        "ar": "رمز QR للتصريح"
+      },
+      {
+        "key": "brn",
+        "en": "BRN",
+        "ar": "رقم الوسيط (BRN)"
+      },
+      {
+        "key": "languages",
+        "en": "Languages",
+        "ar": "اللغات"
+      },
+      {
+        "key": "agent_listings",
+        "en": "Properties with this agent",
+        "ar": "عقارات هذا الوكيل"
+      },
+      {
+        "key": "legal_name",
+        "en": "Company",
+        "ar": "الشركة"
+      },
+      {
+        "key": "address",
+        "en": "Address",
+        "ar": "العنوان"
+      },
+      {
+        "key": "lead_title",
+        "en": "Contact us about this",
+        "ar": "تواصل معنا"
+      },
+      {
+        "key": "kind_viewing",
+        "en": "Request a viewing",
+        "ar": "طلب معاينة"
+      },
+      {
+        "key": "kind_enquiry",
+        "en": "Ask a question",
+        "ar": "اطرح سؤالاً"
+      },
+      {
+        "key": "kind_callback",
+        "en": "Call me back",
+        "ar": "اتصلوا بي"
+      },
+      {
+        "key": "kind_valuation",
+        "en": "Value my property",
+        "ar": "قيّم عقاري"
+      },
+      {
+        "key": "preferred_date",
+        "en": "Preferred date",
+        "ar": "التاريخ المفضل"
+      },
+      {
+        "key": "preferred_time",
+        "en": "Preferred time",
+        "ar": "الوقت المفضل"
+      },
+      {
+        "key": "name",
+        "en": "Full name",
+        "ar": "الاسم الكامل"
+      },
+      {
+        "key": "phone",
+        "en": "Mobile number",
+        "ar": "رقم الجوال"
+      },
+      {
+        "key": "email_optional",
+        "en": "Email (optional)",
+        "ar": "البريد الإلكتروني (اختياري)"
+      },
+      {
+        "key": "message",
+        "en": "Message",
+        "ar": "الرسالة"
+      },
+      {
+        "key": "send",
+        "en": "Send",
+        "ar": "إرسال"
+      },
+      {
+        "key": "lead_note",
+        "en": "We use your details only to answer this request.",
+        "ar": "نستخدم بياناتك فقط للرد على هذا الطلب."
+      },
+      {
+        "key": "error_fields",
+        "en": "Please fill in your name, a valid mobile number and your message.",
+        "ar": "يرجى إدخال الاسم ورقم جوال صحيح والرسالة."
+      },
+      {
+        "key": "error_email",
+        "en": "Please check the email address.",
+        "ar": "يرجى التحقق من البريد الإلكتروني."
+      },
+      {
+        "key": "error_date",
+        "en": "Please choose a viewing date from today onwards.",
+        "ar": "يرجى اختيار تاريخ للمعاينة من اليوم فصاعداً."
+      },
+      {
+        "key": "thanks",
+        "en": "Thank you",
+        "ar": "شكراً لك"
+      },
+      {
+        "key": "thanks_viewing",
+        "en": "We received your viewing request. An agent will call you to confirm the time.",
+        "ar": "استلمنا طلب المعاينة. سيتصل بك أحد وكلائنا لتأكيد الموعد."
+      },
+      {
+        "key": "thanks_enquiry",
+        "en": "We received your message and will get back to you shortly.",
+        "ar": "استلمنا رسالتك وسنرد عليك قريباً."
+      },
+      {
+        "key": "thanks_callback",
+        "en": "We received your request and will call you shortly.",
+        "ar": "استلمنا طلبك وسنتصل بك قريباً."
+      },
+      {
+        "key": "thanks_valuation",
+        "en": "We received your request. An agent will call you about the valuation.",
+        "ar": "استلمنا طلبك. سيتصل بك أحد وكلائنا بخصوص التقييم."
+      },
+      {
+        "key": "limit_title",
+        "en": "We already have your requests",
+        "ar": "لقد استلمنا طلباتك"
+      },
+      {
+        "key": "limit_text",
+        "en": "We could not take another request right now. Please contact us on WhatsApp or call us and we will help you straight away.",
+        "ar": "لا يمكننا استلام طلب آخر الآن. يرجى التواصل معنا على واتساب أو الاتصال بنا وسنساعدك فوراً."
+      },
+      {
+        "key": "not_found",
+        "en": "This property is no longer available.",
+        "ar": "هذا العقار لم يعد متاحاً."
+      },
+      {
+        "key": "wa_prefill",
+        "en": "Hello, I am interested in {ref}: {title}",
+        "ar": "مرحباً، أنا مهتم بالعقار {ref}: {title}"
+      },
+      {
+        "key": "wa_general",
+        "en": "Hello, I found you on the {agency} website.",
+        "ar": "مرحباً، وجدتكم عبر موقع {agency}."
+      },
+      {
+        "key": "email_subject",
+        "en": "We received your request – {agency}",
+        "ar": "استلمنا طلبك – {agency}"
+      },
+      {
+        "key": "email_body",
+        "en": "Hello {name},\n\nThank you for contacting {agency}. We received your request ({kind}, reference {ref}) and will call you on {phone} shortly.\n\n{agency}\n{agency_phone}",
+        "ar": "مرحباً {name}،\n\nشكراً لتواصلك مع {agency}. استلمنا طلبك ({kind}، المرجع {ref}) وسنتصل بك على {phone} قريباً.\n\n{agency}\n{agency_phone}"
+      },
+      {
+        "key": "email_viewing_subject",
+        "en": "Viewing confirmed: {ref} on {date} at {time} – {agency}",
+        "ar": "تأكيد المعاينة: {ref} في {date} الساعة {time} – {agency}"
+      },
+      {
+        "key": "email_viewing_body",
+        "en": "Hello {name},\n\nYour viewing is booked.\n\nProperty: {ref} {title}\n{place}\nDate: {date}\nTime: {time}\n{link}\n\nYour agent:\n{agent_contact}\n\nTo change the time, reply to this email or call {agent_phone}.\n\n{agency}",
+        "ar": "مرحباً {name}،\n\nتم حجز موعد المعاينة.\n\nالعقار: {ref} {title}\n{place}\nالتاريخ: {date}\nالوقت: {time}\n{link}\n\nوكيلك:\n{agent_contact}\n\nلتغيير الموعد، رد على هذه الرسالة أو اتصل على {agent_phone}.\n\n{agency}"
+      },
+      {
+        "key": "viewing_time_tbc",
+        "en": "to be confirmed",
+        "ar": "سيتم تأكيده"
+      }
+    ]
+  },
+  "templates": {
+    "top": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{with .title}}{{.}} · {{end}}{{.agencyName}}</title><style>\n:root{--bg:#f7f8f8;--fg:#17202a;--muted:#5d6975;--card:#fff;--line:#dfe4e8;--accent:#0f5c63;--accent-fg:#fff;--soft:#e6f1f1}\n@media (prefers-color-scheme:dark){:root{--bg:#11161a;--fg:#eef2f4;--muted:#9aa6b1;--card:#1a2127;--line:#2c363e;--accent:#6fd0c8;--accent-fg:#10201f;--soft:#1d2d2e}}\n*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,\"Segoe UI\",Tahoma,sans-serif;background:var(--bg);color:var(--fg)}\na{color:inherit}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2;flex-wrap:wrap}\n.brand{font-weight:700;font-size:18px;text-decoration:none;display:flex;align-items:center;gap:8px}.brand img{height:32px;width:auto;border-radius:6px}\nnav{display:flex;gap:14px;align-items:center;font-size:14px;flex-wrap:wrap}nav a{text-decoration:none}\nmain{max-width:1040px;margin:0 auto;padding:16px 16px 80px}h1{font-size:26px;line-height:1.25;margin:8px 0}h2{font-size:19px;margin:24px 0 10px}\n.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}\n.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;display:block}\n.card .img{aspect-ratio:4/3;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;position:relative}\n.card img,.photo img{width:100%;height:100%;object-fit:cover;display:block}.card .body{padding:12px}.price{font-weight:700;font-size:18px}.price small{font-weight:400;font-size:13px;color:var(--muted)}\n.tags{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:6px}.tag{background:var(--accent);color:var(--accent-fg);border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600}.tag.alt{background:var(--card);color:var(--fg)}\n.muted{color:var(--muted);font-size:14px}.ref{color:var(--muted);font-size:12px;margin-top:6px}\n.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}.chip{padding:4px 12px;border:1px solid var(--line);border-radius:99px;text-decoration:none;font-size:14px;background:var(--card)}.chip.on{background:var(--fg);color:var(--bg)}\nbutton,.btn{display:inline-block;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:inherit;font-weight:600;cursor:pointer;text-decoration:none;text-align:center}\n.btn.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}.btn.wabtn{background:#25d366;color:#fff}\ninput,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}\nlabel{display:block;margin:12px 0 4px;font-size:14px}.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}.panel h2{margin-top:0}\n.error{color:#c62828}.ok{color:#2e7d32}.hero{background:var(--soft);border-radius:16px;padding:20px;margin-bottom:8px}\n.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}.filters label{margin-top:0}\n.two{display:grid;grid-template-columns:1fr;gap:16px}@media(min-width:800px){.two{grid-template-columns:3fr 2fr}}\n.photo{aspect-ratio:16/10;background:var(--soft);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}\n.thumbs{display:flex;gap:8px;margin:8px 0;overflow-x:auto}.thumbs button{padding:0;border:2px solid transparent;border-radius:8px;background:none;flex:0 0 84px;height:60px;overflow:hidden}.thumbs img{width:100%;height:100%;object-fit:cover}\n.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0}.facts div{background:var(--soft);border-radius:10px;padding:8px 12px}.facts dt{font-size:12px;color:var(--muted)}.facts dd{margin:0;font-weight:600}\n.reg dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0}.reg dt{color:var(--muted);font-size:14px}.reg dd{margin:0;font-weight:600;overflow-wrap:anywhere}.qr{width:140px;height:140px;margin-top:12px;background:#fff;border-radius:8px;display:block}\n.person{display:flex;gap:12px;align-items:center}.avatar{width:64px;height:64px;border-radius:50%;background:var(--soft);overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--muted);flex:0 0 64px}.avatar img{width:100%;height:100%;object-fit:cover}\n.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.radios{display:flex;gap:16px;flex-wrap:wrap}.radios label{display:flex;gap:6px;align-items:center;margin:0}.radios input{width:auto}\n.pager{display:flex;gap:12px;align-items:center;justify-content:center;margin:20px 0}.hp{position:absolute;inset-inline-start:-9999px;width:1px;height:1px;overflow:hidden}\n.pre{white-space:pre-line}.wa{position:fixed;bottom:16px;inset-inline-end:16px;background:#25d366;color:#fff;border-radius:99px;padding:10px 16px;text-decoration:none;font-weight:600;z-index:2}\nfooter{max-width:1040px;margin:0 auto;padding:16px 16px 90px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}\n</style></head><body>\n<header><a class=\"brand\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{if .a.logo}}<img src=\"{{.a.logo}}?w=160\" alt=\"\">{{end}}{{.agencyName}}</a>\n<nav><a href=\"/search?purpose=sale{{if eq .lang \"ar\"}}&lang=ar{{end}}\">{{.t.buy}}</a><a href=\"/search?purpose=rent{{if eq .lang \"ar\"}}&lang=ar{{end}}\">{{.t.rent}}</a>\n<a href=\"/list-your-property{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.list_property}}</a><a href=\"/contact{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.contact}}</a>\n<a href=\"{{.path}}?lang={{.other}}\">{{.t.language}}</a></nav></header><main>",
+    "bottom": "</main><footer>{{.agencyName}}{{with .a.legal_name}} · {{.}}{{end}}{{if .a.office_reg_value}} · {{.a.office_reg_label}} {{.a.office_reg_value}}{{end}}{{with .a.address}} · {{.}}{{end}}</footer>\n{{if .wa}}<a class=\"wa\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}</body></html>",
+    "card": "<a class=\"card\" href=\"{{.url}}\"><div class=\"img\">{{if .image}}<img src=\"{{.image}}?w=480\" alt=\"{{.title}}\" loading=\"lazy\">{{else}}<span>{{.typeLabel}}</span>{{end}}\n<div class=\"tags\"><span class=\"tag\">{{.purposeLabel}}</span>{{with .offplanLabel}}<span class=\"tag alt\">{{.}}</span>{{end}}{{with .reservedLabel}}<span class=\"tag alt\">{{.}}</span>{{end}}</div></div>\n<div class=\"body\"><div class=\"price\">AED {{.price}}{{with .period}} <small>{{.}}</small>{{end}}</div><div>{{.title}}</div>\n<div class=\"muted\">{{.place}}</div>{{with .summary}}<div class=\"muted\">{{.}}</div>{{end}}<div class=\"ref\">{{.refLabel}} {{.ref}}</div></div></a>",
+    "searchform": "<form class=\"filters\" method=\"get\" action=\"/search\">{{if eq .lang \"ar\"}}<input type=\"hidden\" name=\"lang\" value=\"ar\">{{end}}\n<div><label for=\"f-purpose\">{{.t.purpose}}</label><select id=\"f-purpose\" name=\"purpose\"><option value=\"\">{{.t.any}}</option>{{range .form.purposes}}<option value=\"{{.value}}\"{{if .on}} selected{{end}}>{{.label}}</option>{{end}}</select></div>\n<div><label for=\"f-type\">{{.t.property_type}}</label><select id=\"f-type\" name=\"type\"><option value=\"\">{{.t.any}}</option>{{range .form.types}}<option value=\"{{.value}}\"{{if .on}} selected{{end}}>{{.label}}</option>{{end}}</select></div>\n<div><label for=\"f-community\">{{.t.community}}</label><select id=\"f-community\" name=\"community\"><option value=\"\">{{.t.any}}</option>{{range .form.communities}}<option value=\"{{.value}}\"{{if .on}} selected{{end}}>{{.label}}</option>{{end}}</select></div>\n<div><label for=\"f-beds\">{{.t.bedrooms}}</label><select id=\"f-beds\" name=\"beds\"><option value=\"\">{{.t.any}}</option>{{range .form.bedsOptions}}<option value=\"{{.value}}\"{{if .on}} selected{{end}}>{{.label}}</option>{{end}}</select></div>\n<div><label for=\"f-min\">{{.t.min_price}}</label><input id=\"f-min\" name=\"min\" type=\"number\" min=\"0\" step=\"1000\" inputmode=\"numeric\" value=\"{{.form.min}}\"></div>\n<div><label for=\"f-max\">{{.t.max_price}}</label><input id=\"f-max\" name=\"max\" type=\"number\" min=\"0\" step=\"1000\" inputmode=\"numeric\" value=\"{{.form.max}}\"></div>\n<div><button type=\"submit\" style=\"width:100%\">{{.t.search}}</button></div></form>",
+    "leadform": "<form class=\"panel\" id=\"lead\" method=\"post\" action=\"/lead\"><h2>{{.t.lead_title}}</h2>{{with .error}}<p class=\"error\">{{.}}</p>{{end}}\n<input type=\"hidden\" name=\"lang\" value=\"{{.lang}}\"><input type=\"hidden\" name=\"source\" value=\"{{.source}}\">{{with .listing}}<input type=\"hidden\" name=\"listing_id\" value=\"{{.id}}\">{{end}}\n<div class=\"radios\">{{range .kinds}}<label><input type=\"radio\" name=\"kind\" value=\"{{.value}}\"{{if .on}} checked{{end}}> {{.label}}</label>{{end}}</div>\n<div id=\"when\" data-kind=\"viewing\"><label for=\"lead-date\">{{.t.preferred_date}}</label><input id=\"lead-date\" name=\"date\" type=\"date\" min=\"{{.minDate}}\">\n<label for=\"lead-time\">{{.t.preferred_time}}</label><input id=\"lead-time\" name=\"time\" type=\"time\"></div>\n<label for=\"lead-name\">{{.t.name}}</label><input id=\"lead-name\" name=\"name\" autocomplete=\"name\" required maxlength=\"100\">\n<label for=\"lead-phone\">{{.t.phone}}</label><input id=\"lead-phone\" name=\"phone\" type=\"tel\" autocomplete=\"tel\" required maxlength=\"20\" placeholder=\"+971 50 000 0000\" dir=\"ltr\">\n<label for=\"lead-email\">{{.t.email_optional}}</label><input id=\"lead-email\" name=\"email\" type=\"email\" autocomplete=\"email\" maxlength=\"200\" dir=\"ltr\">\n<label for=\"lead-message\">{{.t.message}}</label><textarea id=\"lead-message\" name=\"message\" rows=\"3\" maxlength=\"2000\"></textarea>\n<div class=\"hp\" aria-hidden=\"true\"><label for=\"lead-website\">Website</label><input id=\"lead-website\" name=\"website\" tabindex=\"-1\" autocomplete=\"off\"></div>\n<p><button type=\"submit\">{{.t.send}}</button></p><p class=\"muted\">{{.t.lead_note}}</p></form>\n<script>\n(function(){var f=document.getElementById('lead'),w=document.getElementById('when');if(!f||!w)return;\nfunction show(){var k=f.querySelector('input[name=kind]:checked');var on=!!k&&k.value===w.dataset.kind;w.hidden=!on;document.getElementById('lead-date').required=on}\nf.addEventListener('change',show);show()})();\n</script>",
+    "home": "{{template \"top\" .}}<div class=\"hero\"><h1>{{.agencyName}}</h1>{{with .tagline}}<p class=\"muted\">{{.}}</p>{{end}}{{template \"searchform\" .}}</div>\n<h2>{{.t.featured}}</h2>{{if .featured}}<div class=\"grid\">{{range .featured}}{{template \"card\" .}}{{end}}</div>{{else}}<p class=\"muted\">{{.t.no_results}}</p>{{end}}\n<p><a class=\"btn secondary\" href=\"/search{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.view_all}}</a></p>\n{{if .agents}}<h2>{{.t.our_agents}}</h2><div class=\"grid\">{{range .agents}}<a class=\"card\" href=\"{{.url}}\"><div class=\"body person\"><div class=\"avatar\">{{if .photo}}<img src=\"{{.photo}}?w=160\" alt=\"{{.name}}\" loading=\"lazy\">{{else}}{{.initial}}{{end}}</div>\n<div><div><strong>{{.name}}</strong></div>{{with .brn}}<div class=\"muted\">{{$.t.brn}} {{.}}</div>{{end}}{{with .languages}}<div class=\"muted\">{{.}}</div>{{end}}</div></div></a>{{end}}</div>{{end}}\n{{with .about}}<h2>{{$.t.about}}</h2><p class=\"pre\">{{.}}</p>{{end}}\n<div class=\"panel\"><h2>{{.t.list_property}}</h2><p class=\"muted\">{{.t.list_property_intro}}</p><a class=\"btn\" href=\"/list-your-property{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.request_valuation}}</a></div>\n{{template \"bottom\" .}}",
+    "search": "{{template \"top\" .}}<h1>{{.title}}</h1><div class=\"panel\">{{template \"searchform\" .}}</div>\n<p class=\"muted\">{{.total}} {{.t.results}}</p><div class=\"chips\">{{range .sorts}}<a class=\"chip{{if .on}} on{{end}}\" href=\"{{.url}}\">{{.label}}</a>{{end}}</div>\n{{if .listings}}<div class=\"grid\">{{range .listings}}{{template \"card\" .}}{{end}}</div>\n<div class=\"pager\">{{if .prev}}<a class=\"btn secondary\" rel=\"prev\" href=\"{{.prev}}\">{{.t.previous}}</a>{{end}}<span class=\"muted\">{{.t.page}} {{.pageNo}} / {{.pages}}</span>{{if .next}}<a class=\"btn secondary\" rel=\"next\" href=\"{{.next}}\">{{.t.next}}</a>{{end}}</div>\n{{else}}<div class=\"panel\"><p>{{.t.no_results}}</p><a class=\"btn\" href=\"/contact{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.contact}}</a></div>{{end}}\n{{template \"bottom\" .}}",
+    "listing": "{{template \"top\" .}}{{with .listing}}<div class=\"two\"><div>\n<div class=\"photo\">{{if .image}}<img id=\"main-photo\" src=\"{{.image}}?w=960\" alt=\"{{.title}}\">{{else}}{{.typeLabel}}{{end}}</div>\n{{with .thumbs}}<div class=\"thumbs\">{{range .}}<button type=\"button\" data-src=\"{{.}}?w=960\" aria-label=\"{{$.t.photo}}\"><img src=\"{{.}}?w=160\" alt=\"\" loading=\"lazy\"></button>{{end}}</div>{{end}}\n<p class=\"muted\">{{.purposeLabel}}{{with .offplanLabel}} · {{.}}{{end}}{{with .reservedLabel}} · {{.}}{{end}} · {{.refLabel}} {{.ref}}</p>\n<h1>{{.title}}</h1><p class=\"muted\">{{.place}}</p><p class=\"price\" style=\"font-size:24px\">AED {{.price}}{{with .period}} <small>{{.}}</small>{{end}}</p>\n<dl class=\"facts\"><div><dt>{{$.t.property_type}}</dt><dd>{{.typeLabel}}</dd></div>{{with .beds}}<div><dt>{{$.t.bedrooms}}</dt><dd>{{.}}</dd></div>{{end}}\n{{with .baths}}<div><dt>{{$.t.bathrooms}}</dt><dd>{{.}}</dd></div>{{end}}{{with .area}}<div><dt>{{$.t.area}}</dt><dd>{{.}}</dd></div>{{end}}\n{{with .furnished}}<div><dt>{{$.t.furnishing}}</dt><dd>{{.}}</dd></div>{{end}}{{with .developer}}<div><dt>{{$.t.developer}}</dt><dd>{{.}}</dd></div>{{end}}\n{{with .handover}}<div><dt>{{$.t.handover}}</dt><dd>{{.}}</dd></div>{{end}}</dl>\n{{with .description}}<h2>{{$.t.description}}</h2><p class=\"pre\">{{.}}</p>{{end}}\n{{with .amenities}}<h2>{{$.t.amenities}}</h2><div class=\"chips\">{{range .}}<span class=\"chip\">{{.}}</span>{{end}}</div>{{end}}\n{{with .map_url}}<p><a class=\"btn secondary\" href=\"{{.}}\" target=\"_blank\" rel=\"noopener\">{{$.t.view_map}}</a></p>{{end}}\n<div class=\"panel reg\"><h2>{{$.t.regulatory}}</h2><dl>{{with .permit}}<dt>{{$.t.permit_number}}</dt><dd>{{.}}</dd>{{end}}\n{{if $.a.office_reg_value}}<dt>{{$.a.office_reg_label}}</dt><dd>{{$.a.office_reg_value}}</dd>{{end}}\n{{with $.agent}}{{with .brn}}<dt>{{$.t.brn}}</dt><dd>{{.}}</dd>{{end}}{{end}}</dl>\n{{with .permit_qr}}<img class=\"qr\" src=\"{{.}}?w=320\" alt=\"{{$.t.permit_qr}}\">{{end}}</div>\n</div><div>\n<div class=\"panel\">{{with $.agent}}<a class=\"person\" href=\"{{.url}}\" style=\"text-decoration:none\"><div class=\"avatar\">{{if .photo}}<img src=\"{{.photo}}?w=160\" alt=\"{{.name}}\">{{else}}{{.initial}}{{end}}</div>\n<div><div><strong>{{.name}}</strong></div>{{with .brn}}<div class=\"muted\">{{$.t.brn}} {{.}}</div>{{end}}{{with .languages}}<div class=\"muted\">{{.}}</div>{{end}}</div></a>{{else}}<strong>{{$.agencyName}}</strong>{{end}}\n<div class=\"actions\">{{with $.contactPhone}}<a class=\"btn secondary\" href=\"tel:{{.}}\">{{$.t.call}}</a>{{end}}\n{{if $.contactWa}}<a class=\"btn wabtn\" href=\"https://wa.me/{{$.contactWa}}?text={{$.waText}}\" target=\"_blank\" rel=\"noopener\">{{$.t.whatsapp}}</a>{{end}}</div></div>\n{{template \"leadform\" $}}</div></div>{{end}}\n<script>\n(function(){var m=document.getElementById('main-photo');if(!m)return;var b=document.querySelectorAll('.thumbs button');\nfor(var i=0;i<b.length;i++){b[i].addEventListener('click',function(){m.src=this.dataset.src})}})();\n</script>{{template \"bottom\" .}}",
+    "agent": "{{template \"top\" .}}{{with .agent}}<div class=\"panel\"><div class=\"person\"><div class=\"avatar\">{{if .photo}}<img src=\"{{.photo}}?w=160\" alt=\"{{.name}}\">{{else}}{{.initial}}{{end}}</div>\n<div><h1 style=\"margin:0\">{{.name}}</h1>{{with .brn}}<div class=\"muted\">{{$.t.brn}} {{.}}</div>{{end}}{{with .languages}}<div class=\"muted\">{{$.t.languages}}: {{.}}</div>{{end}}</div></div>\n{{with .bio}}<p class=\"pre\">{{.}}</p>{{end}}\n<div class=\"actions\">{{with .phone}}<a class=\"btn secondary\" href=\"tel:{{.}}\">{{$.t.call}}</a>{{end}}\n{{if .wa}}<a class=\"btn wabtn\" href=\"https://wa.me/{{.wa}}?text={{$.waText}}\" target=\"_blank\" rel=\"noopener\">{{$.t.whatsapp}}</a>{{end}}\n{{with .email}}<a class=\"btn secondary\" href=\"mailto:{{.}}\">{{$.t.email}}</a>{{end}}</div></div>{{end}}\n<h2>{{.t.agent_listings}}</h2>{{if .listings}}<div class=\"grid\">{{range .listings}}{{template \"card\" .}}{{end}}</div>{{else}}<p class=\"muted\">{{.t.no_results}}</p>{{end}}\n{{template \"bottom\" .}}",
+    "contact": "{{template \"top\" .}}<h1>{{.title}}</h1><div class=\"two\"><div>\n{{if .selling}}<p>{{.t.list_property_intro}}</p>{{else}}{{with .about}}<p class=\"pre\">{{.}}</p>{{end}}{{end}}\n<div class=\"panel reg\"><h2>{{.agencyName}}</h2><dl>{{with .a.legal_name}}<dt>{{$.t.legal_name}}</dt><dd>{{.}}</dd>{{end}}\n{{if .a.office_reg_value}}<dt>{{.a.office_reg_label}}</dt><dd>{{.a.office_reg_value}}</dd>{{end}}\n{{with .a.address}}<dt>{{$.t.address}}</dt><dd>{{.}}</dd>{{end}}{{with .a.phone}}<dt>{{$.t.phone}}</dt><dd dir=\"ltr\"><a href=\"tel:{{.}}\">{{.}}</a></dd>{{end}}\n{{with .a.email}}<dt>{{$.t.email}}</dt><dd><a href=\"mailto:{{.}}\">{{.}}</a></dd>{{end}}</dl></div></div>\n<div>{{template \"leadform\" .}}</div></div>{{template \"bottom\" .}}",
+    "thanks": "{{template \"top\" .}}<div class=\"panel\"><h1 class=\"ok\">{{.t.thanks}}</h1><p>{{.message}}</p>\n<div class=\"actions\"><a class=\"btn\" href=\"/search{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.view_all}}</a>\n{{if .wa}}<a class=\"btn wabtn\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}</div></div>{{template \"bottom\" .}}",
+    "limit": "{{template \"top\" .}}<div class=\"panel\"><h1>{{.t.limit_title}}</h1><p>{{.t.limit_text}}</p>\n<div class=\"actions\">{{if .wa}}<a class=\"btn wabtn\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}\n{{with .a.phone}}<a class=\"btn secondary\" href=\"tel:{{.}}\">{{$.t.call}}</a>{{end}}</div></div>{{template \"bottom\" .}}",
+    "not_found": "{{template \"top\" .}}<div class=\"panel\"><p>{{.t.not_found}}</p><a class=\"btn\" href=\"/search{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.view_all}}</a></div>{{template \"bottom\" .}}"
+  },
+  "scripts": {
+    "home": "// GET /?lang=ar  hero search, featured listings, agents\nfunction handle(req) {\n  const p = page(req, {});\n  const w = publicWhere(p.a);\n  let rows = db.query('SELECT * FROM listings WHERE ' + w + ' AND featured = 1 ORDER BY coalesce(published, created_at) DESC, id DESC LIMIT 6');\n  if (rows.length === 0) rows = db.query('SELECT * FROM listings WHERE ' + w + ' ORDER BY coalesce(published, created_at) DESC, id DESC LIMIT 6');\n  p.featured = rows.map(l => card(l, p.lang, p.t));\n  p.agents = db.query('SELECT * FROM agents WHERE active = 1 ORDER BY id LIMIT 12').map(x => agentCard(x, p.lang));\n  p.form = searchForm(p.a, p.t, {purpose: '', type: '', community: '', beds: -1, min: 0, max: 0});\n  p.about = pick(p.a, 'about', p.lang);\n  return {template: 'home', data: p};\n}\n",
+    "search": "// GET /search?purpose=rent&type=apartment&community=Dubai+Marina&beds=2&min=50000&max=150000&sort=price_asc&page=2\n// beds: 0 is a studio, 4 means four or more. Filters are fixed SQL with ? placeholders; only the sort order is chosen from a list.\nfunction handle(req) {\n  const p = page(req, {}), qy = req.query, t = p.t;\n  const num = (v) => { const n = Math.floor(Number(v)); return n > 0 && n < 1e12 ? n : 0; };\n  const f = {purpose: qy.purpose === 'sale' || qy.purpose === 'rent' ? qy.purpose : '', type: TYPES.indexOf(qy.type) >= 0 ? qy.type : '',\n    community: String(qy.community || '').trim().slice(0, 80), beds: /^[0-9]$/.test(qy.beds || '') ? Number(qy.beds) : -1,\n    min: num(qy.min), max: num(qy.max)};\n  const orders = {newest: 'coalesce(published, created_at) DESC, id DESC', price_asc: 'price ASC, id', price_desc: 'price DESC, id'};\n  const sort = orders[qy.sort] ? qy.sort : 'newest';\n  const where = publicWhere(p.a) + ` AND (? = '' OR purpose = ?) AND (? = '' OR property_type = ?) AND (? = '' OR community = ? COLLATE NOCASE)\n    AND (? < 0 OR (? >= 4 AND bedrooms >= 4) OR bedrooms = ?) AND (? = 0 OR price >= ?) AND (? = 0 OR price <= ?)`;\n  const args = [f.purpose, f.purpose, f.type, f.type, f.community, f.community, f.beds, f.beds, f.beds, f.min, f.min, f.max, f.max];\n  const total = db.query('SELECT COUNT(*) AS n FROM listings WHERE ' + where, ...args)[0].n;\n  const size = 6, pages = Math.max(1, Math.ceil(total / size));\n  const n = Math.min(pages, Math.max(1, Math.floor(Number(qy.page)) || 1));\n  const rows = db.query('SELECT * FROM listings WHERE ' + where + ' ORDER BY ' + orders[sort] + ' LIMIT ? OFFSET ?', ...args, size, (n - 1) * size);\n  // Links keep the filters; only sort or page changes.\n  const link = (s, pg) => {\n    const parts = [];\n    if (f.purpose) parts.push('purpose=' + f.purpose);\n    if (f.type) parts.push('type=' + f.type);\n    if (f.community) parts.push('community=' + encodeURIComponent(f.community));\n    if (f.beds >= 0) parts.push('beds=' + f.beds);\n    if (f.min) parts.push('min=' + f.min);\n    if (f.max) parts.push('max=' + f.max);\n    if (s !== 'newest') parts.push('sort=' + s);\n    if (pg > 1) parts.push('page=' + pg);\n    if (p.lang === 'ar') parts.push('lang=ar');\n    return '/search' + (parts.length ? '?' + parts.join('&') : '');\n  };\n  p.listings = rows.map(l => card(l, p.lang, t));\n  p.total = total;\n  p.form = searchForm(p.a, t, f);\n  p.sort = sort;\n  p.sorts = [{label: t.sort_newest, url: link('newest', 1), on: sort === 'newest'}, {label: t.sort_price_asc, url: link('price_asc', 1), on: sort === 'price_asc'},\n    {label: t.sort_price_desc, url: link('price_desc', 1), on: sort === 'price_desc'}];\n  p.pageNo = n;\n  p.pages = pages;\n  p.prev = n > 1 ? link(sort, n - 1) : '';\n  p.next = n < pages ? link(sort, n + 1) : '';\n  p.title = f.purpose === 'rent' ? t.for_rent : f.purpose === 'sale' ? t.for_sale : t.properties;\n  return {template: 'search', data: p};\n}\n",
+    "listing": "// GET /l/:id  one listing with its permit number, the office number and the agent's broker number, and the lead form.\n// Listings that visitors may not see (sold, hidden, or without a permit number) answer 404.\nfunction handle(req) {\n  const p = page(req, {}), t = p.t;\n  const id = Math.floor(Number(req.params.id)) || 0;\n  const l = db.query('SELECT * FROM listings WHERE id = ? AND ' + publicWhere(p.a), id)[0];\n  if (!l) return {template: 'not_found', data: p, status: 404};\n  const c = card(l, p.lang, t);\n  c.description = pick(l, 'description', p.lang);\n  c.amenities = String(l.amenities || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 30);\n  c.map_url = /^https:\\/\\//.test(l.map_url || '') ? l.map_url : '';\n  c.permit_qr = l.permit_qr;\n  c.thumbs = c.images.length > 1 ? c.images : [];\n  c.furnished = l.furnished ? (t['furnished_' + l.furnished] || l.furnished) : '';\n  c.developer = l.offplan ? l.developer : '';\n  c.handover = l.offplan ? l.handover : '';\n  c.emirate = l.emirate;\n  const agent = l.agent_id ? db.query('SELECT * FROM agents WHERE id = ? AND active = 1', l.agent_id)[0] : null;\n  p.listing = c;\n  p.agent = agent ? agentCard(agent, p.lang) : null;\n  // The visitor taps this link; WhatsApp opens with the reference already typed.\n  p.contactWa = p.agent && p.agent.wa ? p.agent.wa : p.wa;\n  p.contactPhone = p.agent && p.agent.phone ? p.agent.phone : p.a.phone;\n  p.waText = t.wa_prefill.replace(/\\{ref\\}/g, c.ref).replace(/\\{title\\}/g, c.title);\n  p.kinds = leadKinds(t, ['viewing', 'enquiry'], req.query.kind);\n  p.source = '/l/' + l.id;\n  p.title = c.title;\n  return {template: 'listing', data: p};\n}\n",
+    "agent": "// GET /agents/:id  an agent and their public listings\nfunction handle(req) {\n  const p = page(req, {});\n  const x = db.query('SELECT * FROM agents WHERE id = ? AND active = 1', Math.floor(Number(req.params.id)) || 0)[0];\n  if (!x) return {template: 'not_found', data: p, status: 404};\n  p.agent = agentCard(x, p.lang);\n  p.listings = db.query('SELECT * FROM listings WHERE agent_id = ? AND ' + publicWhere(p.a) + ' ORDER BY coalesce(published, created_at) DESC, id DESC LIMIT 60', x.id)\n    .map(l => card(l, p.lang, p.t));\n  p.waText = p.t.wa_general.replace(/\\{agency\\}/g, p.agencyName);\n  p.title = p.agent.name;\n  return {template: 'agent', data: p};\n}\n",
+    "contact": "// GET /contact (enquiry or callback) and GET /list-your-property (a valuation request from an owner)\nfunction handle(req) {\n  const p = page(req, {});\n  const selling = req.path === '/list-your-property';\n  p.selling = selling;\n  p.kinds = leadKinds(p.t, selling ? ['valuation'] : ['enquiry', 'callback', 'valuation'], req.query.kind);\n  p.source = req.path;\n  p.about = pick(p.a, 'about', p.lang);\n  p.title = selling ? p.t.list_property : p.t.contact;\n  return {template: 'contact', data: p};\n}\n",
+    "lead": "// POST /lead  form: kind (enquiry|viewing|callback|valuation), listing_id, name, phone, email, message, date, time, source, lang, website\n// Anyone can post here without signing in, so: required fields and length limits, a hidden \"website\" field that only\n// robots fill in, at most 5 leads per phone or email in 24 hours and 30 leads in all per hour.\nfunction handle(req) {\n  const f = req.form || {};\n  const lang = f.lang === 'ar' ? 'ar' : 'en', qa = lang === 'ar' ? '&lang=ar' : '';\n  let source = String(f.source || '');\n  if (!/^\\/[A-Za-z0-9\\/_-]{0,80}$/.test(source) || source.indexOf('//') >= 0) source = '/contact';\n  const back = (code) => ({redirect: source + '?error=' + code + qa + '#lead'});\n  const kind = KINDS.indexOf(f.kind) >= 0 ? f.kind : 'enquiry';\n  if (String(f.website || '').trim() !== '') {\n    console.warn('lead ignored: the hidden field was filled in');\n    return {redirect: '/thanks?kind=' + kind + qa};\n  }\n  const name = String(f.name || '').trim(), mail = String(f.email || '').trim().toLowerCase(), message = String(f.message || '').trim();\n  const date = String(f.date || '').trim(), time = String(f.time || '').trim();\n  // +971 50 123 4567, 00971501234567 and 0501234567 are the same number.\n  let phone = digits(f.phone);\n  if (phone.indexOf('00') === 0) phone = phone.slice(2);\n  else if (phone.length === 10 && phone.indexOf('05') === 0) phone = '971' + phone.slice(1);\n  if (name.length < 2 || name.length > 100 || phone.length < 7 || phone.length > 15 || message.length > 2000) return back('error_fields');\n  phone = '+' + phone;\n  if (mail && (mail.length > 200 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(mail))) return back('error_email');\n  if ((kind === 'enquiry' || kind === 'valuation') && message.length < 2) return back('error_fields');\n  if (kind === 'viewing' && (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || date < dubaiToday())) return back('error_date');\n  if (time && !/^\\d{2}:\\d{2}$/.test(time)) return back('error_date');\n  const a = agency();\n  let listing = null;\n  if (f.listing_id) {\n    listing = db.query('SELECT * FROM listings WHERE id = ? AND ' + publicWhere(a), Math.floor(Number(f.listing_id)) || 0)[0];\n    if (!listing) return back('error_fields');\n  }\n  if (kind === 'viewing' && !listing) return back('error_fields');\n  const day = utc(-24 * 3600 * 1000), hour = utc(-3600 * 1000);\n  const mine = db.query(\"SELECT COUNT(*) AS n FROM leads WHERE created_at >= ? AND (phone = ? OR (? != '' AND email = ?))\", day, phone, mail, mail)[0].n;\n  const all = db.query('SELECT COUNT(*) AS n FROM leads WHERE created_at >= ?', hour)[0].n;\n  if (mine >= 5 || all >= 30) {\n    console.warn('lead refused: ' + (mine >= 5 ? 'too many from ' + phone : 'too many this hour'));\n    return {template: 'limit', data: page(req, {}), status: 429};\n  }\n  const ref = listing ? (listing.reference || '#' + listing.id) : '';\n  const r = db.exec(`INSERT INTO leads (listing_id, listing_ref, agent_id, kind, name, phone, email, message, preferred_date, preferred_time, source, status, lang)\n    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`,\n    listing ? listing.id : null, ref, listing ? listing.agent_id : null, kind, name, phone, mail, message, kind === 'viewing' ? date : '', kind === 'viewing' ? time : '', source, lang);\n  const labels = {enquiry: 'enquiry', viewing: 'viewing request', callback: 'callback request', valuation: 'valuation request'};\n  try {\n    notify.owner({subject: ('New ' + labels[kind] + ': ' + (ref ? ref + ', ' : '') + name.slice(0, 40) + ', ' + phone).slice(0, 150),\n      text: 'Lead #' + r.lastInsertId + '\\nName: ' + name + '\\nPhone: ' + phone + (mail ? '\\nEmail: ' + mail : '') +\n        (listing ? '\\nListing: ' + ref + ' ' + listing.title + '\\n' + req.origin + '/l/' + listing.id : '') +\n        (kind === 'viewing' ? '\\nPreferred: ' + date + (time ? ' ' + time : '') : '') + (message ? '\\n\\n' + message : '')});\n  } catch (e) { console.warn('owner not notified: ' + e); }\n  if (mail) {\n    const t = texts(lang);\n    const fill = (s) => s.replace(/\\{name\\}/g, name).replace(/\\{agency\\}/g, pick(a, 'name', lang)).replace(/\\{kind\\}/g, t['kind_' + kind])\n      .replace(/\\{ref\\}/g, ref || '-').replace(/\\{phone\\}/g, phone).replace(/\\{agency_phone\\}/g, a.phone || a.whatsapp || '');\n    try { email.send({to: mail, subject: fill(t.email_subject), text: fill(t.email_body)}); } catch (e) { console.warn('confirmation not sent: ' + e); }\n  }\n  return {redirect: '/thanks?kind=' + kind + qa};\n}\n",
+    "thanks": "// GET /thanks?kind=viewing\nfunction handle(req) {\n  const p = page(req, {});\n  const kind = KINDS.indexOf(req.query.kind) >= 0 ? req.query.kind : 'enquiry';\n  p.message = p.t['thanks_' + kind];\n  p.title = p.t.thanks;\n  return {template: 'thanks', data: p};\n}\n",
+    "mcp_search": "// MCP tool: buyers' and tenants' AI assistants search the listings. req.body: {purpose, type, community, bedrooms, max_price, lang}\nfunction handle(req) {\n  const b = req.body || {}, lang = b.lang === 'ar' ? 'ar' : 'en', t = texts(lang), a = agency();\n  const purpose = b.purpose === 'sale' || b.purpose === 'rent' ? b.purpose : '', type = TYPES.indexOf(b.type) >= 0 ? b.type : '';\n  const community = '%' + String(b.community || '').trim().slice(0, 80) + '%';\n  const beds = b.bedrooms === undefined || b.bedrooms === null || !(Number(b.bedrooms) >= 0) ? -1 : Math.floor(Number(b.bedrooms));\n  const max = Number(b.max_price) > 0 ? Number(b.max_price) : 0;\n  const rows = db.query('SELECT * FROM listings WHERE ' + publicWhere(a) + ` AND (? = '' OR purpose = ?) AND (? = '' OR property_type = ?)\n    AND coalesce(community, '') LIKE ? AND (? < 0 OR bedrooms = ?) AND (? = 0 OR price <= ?) ORDER BY coalesce(published, created_at) DESC, id DESC LIMIT 20`,\n    purpose, purpose, type, type, community, beds, beds, max, max);\n  return {json: {currency: 'AED', listings: rows.map(l => {\n    const c = card(l, lang, t);\n    return {id: c.id, reference: c.ref, title: c.title, purpose: l.purpose, type: l.property_type, price: l.price,\n      rent_period: l.purpose === 'rent' ? (l.rent_period || 'yearly') : null, bedrooms: l.bedrooms, bathrooms: l.bathrooms, area_sqft: l.area_sqft,\n      community: l.community, building: l.building, emirate: l.emirate, status: l.status, offplan: !!l.offplan,\n      permit_number: c.permit || null, url: req.origin + c.url, image: c.image ? req.origin + c.image + '?w=480' : null};\n  }), communities: db.query('SELECT DISTINCT community FROM listings WHERE ' + publicWhere(a) + \" AND coalesce(community, '') != '' ORDER BY community\").map(r => r.community)}};\n}\n",
+    "mcp_listing": "// MCP tool: one listing in full. req.body: {id, lang}\nfunction handle(req) {\n  const b = req.body || {}, lang = b.lang === 'ar' ? 'ar' : 'en', t = texts(lang), a = agency();\n  const l = db.query('SELECT * FROM listings WHERE id = ? AND ' + publicWhere(a), Math.floor(Number(b.id)) || 0)[0];\n  if (!l) return {text: 'No such listing; it may have been sold, rented or withdrawn.', status: 404};\n  const c = card(l, lang, t);\n  const x = l.agent_id ? db.query('SELECT * FROM agents WHERE id = ? AND active = 1', l.agent_id)[0] : null;\n  return {json: {id: c.id, reference: c.ref, title: c.title, description: pick(l, 'description', lang), purpose: l.purpose, type: l.property_type,\n    status: l.status, currency: 'AED', price: l.price, rent_period: l.purpose === 'rent' ? (l.rent_period || 'yearly') : null,\n    bedrooms: l.bedrooms, bathrooms: l.bathrooms, area_sqft: l.area_sqft, furnished: l.furnished || null,\n    community: l.community, building: l.building, emirate: l.emirate, map: l.map_url || null,\n    amenities: String(l.amenities || '').split(',').map(s => s.trim()).filter(Boolean),\n    offplan: !!l.offplan, developer: l.offplan ? l.developer : null, handover: l.offplan ? l.handover : null,\n    permit_number: c.permit || null, office_registration: a.office_reg_value ? {label: a.office_reg_label, number: a.office_reg_value} : null,\n    agent: x ? {name: pick(x, 'name', lang), broker_number: x.brn, phone: x.phone, languages: x.languages, url: req.origin + '/agents/' + x.id} : null,\n    url: req.origin + c.url, how_to_enquire: 'Open the url: the page has a form to request a viewing or ask a question, and call and WhatsApp buttons.',\n    images: c.images.map(u => req.origin + u + '?w=960')}};\n}\n",
+    "mcp_agency": "// MCP tool: who the brokerage is and how to reach it. req.body: {lang}\nfunction handle(req) {\n  const b = req.body || {}, lang = b.lang === 'ar' ? 'ar' : 'en', a = agency();\n  return {json: {name: pick(a, 'name', lang), tagline: pick(a, 'tagline', lang), about: pick(a, 'about', lang), url: req.origin,\n    legal_name: a.legal_name, emirate: a.emirate, address: a.address, phone: a.phone, whatsapp: a.whatsapp || null, email: a.email || null,\n    office_registration: a.office_reg_value ? {label: a.office_reg_label, number: a.office_reg_value} : null,\n    agents: db.query('SELECT * FROM agents WHERE active = 1 ORDER BY id LIMIT 30').map(x => ({name: pick(x, 'name', lang), broker_number: x.brn,\n      languages: x.languages, phone: x.phone, url: req.origin + '/agents/' + x.id})),\n    search_page: req.origin + '/search', contact_page: req.origin + '/contact', list_your_property_page: req.origin + '/list-your-property',\n    currency: 'AED', online_payments: false}};\n}\n",
+    "daily_report": "// Job: every morning, email (and WhatsApp, if turned on) the owner what needs attention.\n// It runs once a day, so \"new\" means the last 24 hours.\nfunction handle(req) {\n  const since = utc(-24 * 3600 * 1000);\n  const kinds = db.query(\"SELECT kind, COUNT(*) AS n FROM leads WHERE created_at >= ? AND status != 'spam' GROUP BY kind ORDER BY kind\", since);\n  let fresh = 0;\n  for (const k of kinds) fresh += k.n;\n  const waiting = db.query(\"SELECT id, kind, name, phone FROM leads WHERE status = 'new' AND created_at < ? ORDER BY id LIMIT 20\", since);\n  const waitingAll = db.query(\"SELECT COUNT(*) AS n FROM leads WHERE status = 'new' AND created_at < ?\", since)[0].n;\n  const noPermit = db.query(\"SELECT reference, title FROM listings WHERE status IN ('available', 'reserved') AND trim(coalesce(permit_number, '')) = '' ORDER BY id LIMIT 20\");\n  const stale = db.query(\"SELECT reference, title FROM listings WHERE status = 'available' AND coalesce(published, created_at) < ? ORDER BY id LIMIT 20\", utc(-60 * 24 * 3600 * 1000));\n  if (fresh === 0 && waitingAll === 0 && noPermit.length === 0 && stale.length === 0) return {text: 'nothing to report'};\n  const hidden = agency().hide_without_permit !== 0;\n  const s = (n, one, many) => n + ' ' + (n === 1 ? one : many);\n  const summary = s(fresh, 'new lead', 'new leads') + ' in the last 24 hours, ' + waitingAll + ' waiting over 24 hours, ' + s(noPermit.length, 'listing', 'listings') + ' without a permit number';\n  let text = 'New leads in the last 24 hours: ' + fresh + '\\n' + kinds.map(k => '  ' + k.kind + ': ' + k.n).join('\\n');\n  text += '\\n\\nLeads still \"new\" after 24 hours: ' + waitingAll + '\\n' + waiting.map(l => '  #' + l.id + ' ' + l.kind + ', ' + l.name + ', ' + l.phone).join('\\n');\n  text += '\\n\\nListings without a permit number' + (hidden ? ' (not shown on the site)' : '') + ': ' + noPermit.length + '\\n' + noPermit.map(l => '  ' + l.reference + ' ' + l.title).join('\\n');\n  text += '\\n\\nListings available for more than 60 days: ' + stale.length + '\\n' + stale.map(l => '  ' + l.reference + ' ' + l.title).join('\\n');\n  try { notify.owner({subject: 'Leads: ' + summary, text: text}); } catch (e) { console.warn('owner not notified: ' + e); }\n  return {text: summary + ', ' + s(stale.length, 'listing', 'listings') + ' older than 60 days'};\n}\n",
+    "admin_change": "// on_admin_change: runs right after the owner or staff adds, changes or deletes a row in the admin panel.\n// Leads: keeps the listing reference (shown in the viewings calendar) and the agent in line with the listing, and emails the\n// visitor a confirmation when the owner sets a lead to viewing booked with a date, or moves a booked viewing to another date or time.\n// Listings need nothing here: sold, rented and hidden listings already disappear from every public page.\nfunction handle(req) {\n  const b = req.body;\n  if (b.table !== 'leads' || b.action === 'delete' || !b.row) return {text: 'nothing to do'};\n  const lead = b.row, before = b.before;\n  const listing = lead.listing_id ? db.query('SELECT * FROM listings WHERE id = ?', lead.listing_id)[0] || null : null;\n  const ref = listing ? (listing.reference || '#' + listing.id) : '';\n  const agentId = lead.agent_id || (listing ? listing.agent_id : null) || null;\n  if ((lead.listing_ref || '') !== ref || agentId !== lead.agent_id) {\n    db.exec('UPDATE leads SET listing_ref = ?, agent_id = ? WHERE id = ?', ref, agentId, lead.id);\n  }\n  if (lead.status !== 'viewing_booked') return {text: 'saved'};\n  const date = String(lead.preferred_date || '').trim(), time = String(lead.preferred_time || '').trim();\n  // was: the visitor already had a confirmation for the viewing as it was before this change.\n  const bDate = before ? String(before.preferred_date || '').trim() : '', bTime = before ? String(before.preferred_time || '').trim() : '';\n  const was = !!before && before.status === 'viewing_booked' && /^\\d{4}-\\d{2}-\\d{2}$/.test(bDate) && (!bTime || /^\\d{2}:\\d{2}$/.test(bTime));\n  if (was && bDate === date && bTime === time) return {text: 'viewing unchanged'};\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || (time && !/^\\d{2}:\\d{2}$/.test(time))) {\n    console.warn('lead ' + lead.id + ': viewing booked without a date (YYYY-MM-DD) or with a time not written HH:MM, so the visitor was not emailed');\n    return {text: 'no date: visitor not emailed'};\n  }\n  const to = String(lead.email || '').trim();\n  if (!to) return {text: 'no email address: call the visitor on ' + lead.phone};\n  const lang = lead.lang === 'ar' ? 'ar' : 'en', t = texts(lang), a = agency();\n  if (!t.email_viewing_subject || !t.email_viewing_body) {\n    console.warn('add the texts email_viewing_subject and email_viewing_body to email viewing confirmations');\n    return {text: 'texts missing: visitor not emailed'};\n  }\n  const agent = agentId ? db.query('SELECT * FROM agents WHERE id = ?', agentId)[0] : null;\n  const phone = (agent && (agent.phone || agent.whatsapp)) || a.phone || a.whatsapp || '';\n  const who = agent || a;\n  // Link to the listing only while visitors can still open it.\n  const open = !!listing && db.query('SELECT id FROM listings WHERE id = ? AND ' + publicWhere(a), listing.id).length > 0;\n  const vars = {name: lead.name, agency: pick(a, 'name', lang), ref: ref || '-', title: listing ? pick(listing, 'title', lang) : '',\n    place: listing ? [listing.building, listing.community, listing.emirate].filter(Boolean).join(', ') : '', date: date,\n    time: time || t.viewing_time_tbc || '-', agent_contact: [pick(who, 'name', lang), phone, who.email].filter(Boolean).join('\\n'),\n    agent_phone: phone, link: open ? req.origin + '/l/' + listing.id + (lang === 'ar' ? '?lang=ar' : '') : ''};\n  const fill = (s) => s.replace(/\\{(\\w+)\\}/g, (m, k) => vars[k] === undefined ? m : String(vars[k])).replace(/\\n{3,}/g, '\\n\\n');\n  try {\n    email.send({to: to, subject: fill(t.email_viewing_subject).slice(0, 150), text: fill(t.email_viewing_body)});\n  } catch (e) {\n    console.warn('viewing confirmation not sent: ' + e);\n    return {text: 'viewing confirmation not sent'};\n  }\n  return {text: (was ? 'new viewing time' : 'viewing confirmation') + ' emailed to ' + to};\n}\n"
+  },
+  "lib": {
+    "common": "// Helpers shared by every script, job and tool of the site (lib entries run before each of them).\nconst TYPES = ['apartment', 'villa', 'townhouse', 'penthouse', 'office', 'shop', 'land'];\nconst HOMES = ['apartment', 'villa', 'townhouse', 'penthouse'];\nconst KINDS = ['enquiry', 'viewing', 'callback', 'valuation'];\nfunction langOf(req) {\n  const l = (req.query && req.query.lang) || (req.form && req.form.lang) || (req.body && req.body.lang);\n  return l === 'ar' ? 'ar' : 'en';\n}\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction agency() { return db.query('SELECT * FROM agency ORDER BY id LIMIT 1')[0]; }\nfunction digits(s) { return String(s || '').replace(/[^0-9]/g, ''); }\n// 1850000 -> \"1,850,000\"\nfunction aed(n) {\n  const s = String(Math.round(Number(n) || 0));\n  let out = '';\n  for (let i = 0; i < s.length; i++) out += (i > 0 && (s.length - i) % 3 === 0 ? ',' : '') + s[i];\n  return out;\n}\nfunction pick(row, col, lang) { return lang === 'ar' && row[col + '_ar'] ? row[col + '_ar'] : row[col]; }\n// UTC \"YYYY-MM-DD HH:MM:SS\", as in created_at, shifted by ms.\nfunction utc(ms) { return new Date(Date.now() + (ms || 0)).toISOString().replace('T', ' ').slice(0, 19); }\n// Today's date in Dubai (UTC+4), \"YYYY-MM-DD\".\nfunction dubaiToday() { return new Date(Date.now() + 4 * 3600 * 1000).toISOString().slice(0, 10); }\n// The rule for what visitors may see: available or reserved, and with a permit number\n// unless the owner turned \"hide without permit\" off. Constant SQL, no visitor data.\nfunction publicWhere(a) {\n  return \"status IN ('available', 'reserved')\" + (a.hide_without_permit === 0 ? '' : \" AND trim(coalesce(permit_number, '')) != ''\");\n}\nfunction page(req, extra) {\n  const lang = langOf(req), a = agency(), t = texts(lang);\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', other: lang === 'ar' ? 'en' : 'ar', t: t, a: a,\n    agencyName: pick(a, 'name', lang), tagline: pick(a, 'tagline', lang), path: req.path,\n    wa: digits(a.whatsapp), title: '', minDate: dubaiToday()};\n  const e = req.query && req.query.error;\n  if (e && /^error_[a-z_]+$/.test(e) && t[e]) base.error = t[e];\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n// A listing as shown on cards and returned by the tools, with every label in the visitor's language.\nfunction card(l, lang, t) {\n  const home = HOMES.indexOf(l.property_type) >= 0 && l.bedrooms !== null;\n  const beds = !home ? '' : l.bedrooms === 0 ? t.studio : l.bedrooms + ' ' + (l.bedrooms === 1 ? t.bed : t.beds);\n  const baths = l.bathrooms ? l.bathrooms + ' ' + (l.bathrooms === 1 ? t.bath : t.baths) : '';\n  const area = l.area_sqft ? aed(l.area_sqft) + ' ' + t.sqft : '';\n  const images = [];\n  for (let i = 1; i <= 6; i++) if (l['image' + i]) images.push(l['image' + i]);\n  return {id: l.id, ref: l.reference || ('#' + l.id), refLabel: t.ref, title: pick(l, 'title', lang), purpose: l.purpose,\n    purposeLabel: l.purpose === 'rent' ? t.for_rent : t.for_sale, type: l.property_type, typeLabel: t['type_' + l.property_type] || l.property_type,\n    price: aed(l.price), priceNum: l.price, period: l.purpose !== 'rent' ? '' : l.rent_period === 'monthly' ? t.per_month : t.per_year,\n    beds: beds, baths: baths, area: area, summary: [beds, baths, area].filter(Boolean).join(' · '),\n    place: [l.building, l.community, l.emirate].filter(Boolean).join(', '), community: l.community,\n    offplanLabel: l.offplan ? t.offplan : '', reservedLabel: l.status === 'reserved' ? t.reserved : '',\n    image: images.length ? images[0] : '', images: images, permit: (l.permit_number || '').trim(),\n    url: '/l/' + l.id + (lang === 'ar' ? '?lang=ar' : '')};\n}\nfunction agentCard(x, lang) {\n  const name = pick(x, 'name', lang) || '';\n  return {id: x.id, name: name, initial: Array.from(name)[0] || '', photo: x.photo, phone: x.phone, phoneDigits: digits(x.phone), wa: digits(x.whatsapp),\n    email: x.email, brn: x.brn, languages: x.languages, bio: pick(x, 'bio', lang), url: '/agents/' + x.id + (lang === 'ar' ? '?lang=ar' : '')};\n}\n// [{value, label, on}] for a <select> or a radio group.\nfunction opts(values, label, current) { return values.map(v => ({value: v, label: label(v), on: String(v) === String(current)})); }\n// Everything the search form needs; f is the current filter {purpose, type, community, beds, min, max}.\nfunction searchForm(a, t, f) {\n  const communities = db.query('SELECT DISTINCT community FROM listings WHERE ' + publicWhere(a) + \" AND coalesce(community, '') != '' ORDER BY community\").map(r => r.community);\n  return {purposes: opts(['sale', 'rent'], v => v === 'rent' ? t.rent : t.buy, f.purpose), types: opts(TYPES, v => t['type_' + v] || v, f.type),\n    communities: opts(communities, v => v, f.community),\n    bedsOptions: opts([0, 1, 2, 3, 4], v => v === 0 ? t.studio : v === 4 ? '4+' : String(v), f.beds < 0 ? '' : f.beds),\n    min: f.min > 0 ? String(f.min) : '', max: f.max > 0 ? String(f.max) : ''};\n}\n// The kinds a lead form offers, the chosen one first selected.\nfunction leadKinds(t, kinds, chosen) { return opts(kinds, v => t['kind_' + v], kinds.indexOf(chosen) >= 0 ? chosen : kinds[0]); }\n"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "script": "home"
+    },
+    {
+      "method": "GET",
+      "path": "/search",
+      "script": "search"
+    },
+    {
+      "method": "GET",
+      "path": "/l/:id",
+      "script": "listing"
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id",
+      "script": "agent"
+    },
+    {
+      "method": "GET",
+      "path": "/contact",
+      "script": "contact"
+    },
+    {
+      "method": "GET",
+      "path": "/list-your-property",
+      "script": "contact"
+    },
+    {
+      "method": "POST",
+      "path": "/lead",
+      "script": "lead"
+    },
+    {
+      "method": "GET",
+      "path": "/thanks",
+      "script": "thanks"
+    }
+  ],
+  "on_admin_change": "admin_change",
+  "tools": [
+    {
+      "name": "search_listings",
+      "description": "Search this brokerage's properties for sale and for rent. Returns price in AED (rent per year unless rent_period says monthly), reference, advertising permit number and the listing page url, where the visitor can request a viewing or ask a question. Call without arguments to list the newest.",
+      "script": "mcp_search",
+      "read_only": true,
+      "params": [
+        {
+          "name": "purpose",
+          "type": "string",
+          "description": "sale or rent"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "description": "apartment, villa, townhouse, penthouse, office, shop or land"
+        },
+        {
+          "name": "community",
+          "type": "string",
+          "description": "area name or part of it, e.g. Dubai Marina"
+        },
+        {
+          "name": "bedrooms",
+          "type": "integer",
+          "description": "exact number of bedrooms; 0 for a studio"
+        },
+        {
+          "name": "max_price",
+          "type": "number",
+          "description": "highest price in AED"
+        },
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic titles"
+        }
+      ]
+    },
+    {
+      "name": "get_listing",
+      "description": "Everything about one property: description, size, amenities, permit number, the agent with their broker number, and the page url for viewing requests.",
+      "script": "mcp_listing",
+      "read_only": true,
+      "params": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "listing id from search_listings",
+          "required": true
+        },
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic titles"
+        }
+      ]
+    },
+    {
+      "name": "agency_info",
+      "description": "The brokerage: name, office registration number, address, phone, WhatsApp, its agents and the pages for contact and for owners who want to list a property.",
+      "script": "mcp_agency",
+      "read_only": true,
+      "params": [
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic titles"
+        }
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "name": "daily_report",
+      "script": "daily_report",
+      "daily_at": "08:00"
+    }
+  ]
+}

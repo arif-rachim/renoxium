@@ -123,7 +123,9 @@ negative balances, and charges shoppers directly on the merchant's account. Reno
    - Listen to: **Events on Connected accounts**
    - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
      `checkout.session.async_payment_failed`, `checkout.session.expired`, `account.updated`, `charge.refunded`
-     (the last one marks orders refunded when an owner refunds in their Stripe Dashboard)
+     (marks orders refunded when an owner refunds in their Stripe Dashboard), `payment_intent.succeeded`,
+     `payment_intent.canceled` (card holds captured or expired), `invoice.paid`, `invoice.payment_failed`,
+     `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` (recurring payments)
    Copy its signing secret (`whsec_...`).
 3. Add both to `/etc/renoxium/env` and restart:
 

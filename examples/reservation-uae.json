@@ -1,0 +1,1823 @@
+{
+  "tables": [
+    {
+      "name": "business",
+      "label": "Business settings",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "label": "Business name"
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Business name (Arabic)"
+        },
+        {
+          "name": "tagline",
+          "type": "text"
+        },
+        {
+          "name": "tagline_ar",
+          "type": "text",
+          "label": "Tagline (Arabic)"
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "label": "WhatsApp number",
+          "help": "International format, e.g. +971501234567."
+        },
+        {
+          "name": "legal_name",
+          "type": "text",
+          "label": "Legal name (on vouchers and invoices)"
+        },
+        {
+          "name": "address",
+          "type": "text"
+        },
+        {
+          "name": "trn",
+          "type": "text",
+          "label": "VAT TRN",
+          "help": "Your 15-digit Tax Registration Number. Once set, vouchers are titled Tax invoice."
+        },
+        {
+          "name": "licence",
+          "type": "text",
+          "label": "Licence to display",
+          "help": "For example DET tourism licence 1234567 or RTA car rental licence 7654321. Shown in the footer and on vouchers."
+        },
+        {
+          "name": "deposit_percent",
+          "type": "integer",
+          "required": true,
+          "label": "Paid online by card (%)",
+          "help": "Share of the price paid by card to secure a reservation: 100 = pay in full, 20 = 20% now and the balance on the day, 0 = nothing online."
+        },
+        {
+          "name": "card_enabled",
+          "type": "boolean",
+          "label": "Card payments"
+        },
+        {
+          "name": "pay_later_enabled",
+          "type": "boolean",
+          "label": "Reserve now, pay on the day",
+          "help": "Lets customers reserve without paying online."
+        },
+        {
+          "name": "deposit_hold_enabled",
+          "type": "boolean",
+          "label": "Security deposit as a card hold",
+          "help": "Rentals: the customer authorises the item's security deposit on their card from 6 days before the start (card holds last about 7 days). Nothing is charged: at the return you release it, or capture a damage charge, with Deposit at return on the reservation. Off: collected at handover."
+        },
+        {
+          "name": "free_cancel_hours",
+          "type": "integer",
+          "required": true,
+          "label": "Free cancellation until (hours before)",
+          "help": "Customers can cancel on the website until this many hours before the start. Refund what they paid in Stripe."
+        },
+        {
+          "name": "days_ahead",
+          "type": "integer",
+          "required": true,
+          "label": "Bookable days ahead",
+          "help": "How far in the future customers can reserve, e.g. 60."
+        }
+      ]
+    },
+    {
+      "name": "items",
+      "label": "Tours and rentals",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Name (Arabic)"
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "description_ar",
+          "type": "text",
+          "label": "Description (Arabic)"
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "help": "Items with the same category are listed together, e.g. Tours, Cars, Party rental."
+        },
+        {
+          "name": "category_ar",
+          "type": "text",
+          "label": "Category (Arabic)"
+        },
+        {
+          "name": "mode",
+          "type": "text",
+          "required": true,
+          "label": "Sold as",
+          "help": "departure: seats on dated departures (tours, cruises). range: rented from a start date to an end date (cars, equipment).",
+          "options": [
+            "departure",
+            "range"
+          ]
+        },
+        {
+          "name": "price_adult",
+          "type": "real",
+          "label": "Price per adult (AED, incl. VAT)",
+          "help": "Tours only."
+        },
+        {
+          "name": "price_child",
+          "type": "real",
+          "label": "Price per child (AED, incl. VAT)",
+          "help": "Tours only. Leave empty to charge the adult price."
+        },
+        {
+          "name": "price_day",
+          "type": "real",
+          "label": "Price per day (AED, incl. VAT)",
+          "help": "Rentals only."
+        },
+        {
+          "name": "price_week",
+          "type": "real",
+          "label": "Price per week (AED, incl. VAT)",
+          "help": "Rentals only, optional: used for every full 7 days."
+        },
+        {
+          "name": "stock",
+          "type": "integer",
+          "label": "Quantity owned",
+          "help": "Rentals only: how many you have. Reservations for more on the same days are refused."
+        },
+        {
+          "name": "min_days",
+          "type": "integer",
+          "label": "Minimum days",
+          "help": "Rentals only."
+        },
+        {
+          "name": "security_deposit",
+          "type": "real",
+          "label": "Security deposit (AED)",
+          "help": "Rentals only: refundable, shown to the customer. Held on their card when Security deposit as a card hold is on in Business settings, else collected at handover."
+        },
+        {
+          "name": "needs_documents",
+          "type": "boolean",
+          "label": "Ask for driving licence and passport",
+          "help": "Rentals: the customer uploads a driving licence and a passport or Emirates ID (private files) at checkout or before handover. Always asked for items in the category Cars."
+        },
+        {
+          "name": "duration",
+          "type": "text",
+          "label": "Duration",
+          "help": "For example 6 hours."
+        },
+        {
+          "name": "duration_ar",
+          "type": "text",
+          "label": "Duration (Arabic)"
+        },
+        {
+          "name": "included",
+          "type": "text",
+          "label": "What's included"
+        },
+        {
+          "name": "included_ar",
+          "type": "text",
+          "label": "What's included (Arabic)"
+        },
+        {
+          "name": "image",
+          "type": "image",
+          "label": "Photo"
+        },
+        {
+          "name": "image2",
+          "type": "image",
+          "label": "Photo 2"
+        },
+        {
+          "name": "image3",
+          "type": "image",
+          "label": "Photo 3"
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "label": "Show on the site"
+        }
+      ]
+    },
+    {
+      "name": "departures",
+      "label": "Departures",
+      "columns": [
+        {
+          "name": "item_id",
+          "type": "integer",
+          "required": true,
+          "label": "Tour",
+          "help": "The # of the tour in Tours and rentals."
+        },
+        {
+          "name": "date",
+          "type": "text",
+          "label": "Date",
+          "help": "YYYY-MM-DD for a single departure. Leave empty for a departure that repeats on the weekdays below."
+        },
+        {
+          "name": "weekdays",
+          "type": "text",
+          "label": "Repeats on",
+          "help": "Used when Date is empty: daily, or weekdays separated by commas, e.g. fri,sat (mon tue wed thu fri sat sun)."
+        },
+        {
+          "name": "time",
+          "type": "text",
+          "required": true,
+          "label": "Time",
+          "help": "HH:MM in UAE time, e.g. 15:30."
+        },
+        {
+          "name": "capacity",
+          "type": "integer",
+          "required": true,
+          "label": "Seats",
+          "help": "Seats on each departure; reservations beyond this are refused."
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "label": "Price per adult (AED, incl. VAT)",
+          "help": "Optional: replaces the tour's adult price for this departure, e.g. a weekend price."
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "label": "Open for booking"
+        }
+      ]
+    },
+    {
+      "name": "extras",
+      "label": "Extras",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "name_ar",
+          "type": "text",
+          "label": "Name (Arabic)"
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "label": "Only for item",
+          "help": "The # of one tour or rental. Leave empty to use the category below."
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "label": "Only for category",
+          "help": "Offered on every item of this category. Leave both empty to offer it on everything."
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "required": true,
+          "label": "Price (AED, incl. VAT)"
+        },
+        {
+          "name": "per",
+          "type": "text",
+          "required": true,
+          "label": "Charged per",
+          "help": "booking: once. person: per guest on a tour, per unit on a rental. day: per rental day.",
+          "options": [
+            "booking",
+            "person",
+            "day"
+          ]
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "label": "Offered"
+        }
+      ]
+    },
+    {
+      "name": "reservations",
+      "label": "Reservations",
+      "calendar": {
+        "date": "start_date",
+        "end_date": "end_date",
+        "start": "time",
+        "group": "item_id",
+        "title": [
+          "customer_name",
+          "item_name"
+        ],
+        "status": "status",
+        "hide_status": [
+          "cancelled",
+          "failed",
+          "expired"
+        ]
+      },
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "integer",
+          "required": true,
+          "label": "Customer account"
+        },
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "label": "Customer name"
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "required": true,
+          "label": "Item"
+        },
+        {
+          "name": "item_name",
+          "type": "text",
+          "label": "Item name"
+        },
+        {
+          "name": "mode",
+          "type": "text",
+          "required": true,
+          "label": "Sold as",
+          "options": [
+            "departure",
+            "range"
+          ]
+        },
+        {
+          "name": "departure_id",
+          "type": "integer",
+          "label": "Departure",
+          "help": "Tours: the # of the departure."
+        },
+        {
+          "name": "start_date",
+          "type": "text",
+          "required": true,
+          "label": "Date / start date",
+          "help": "YYYY-MM-DD."
+        },
+        {
+          "name": "end_date",
+          "type": "text",
+          "label": "End date",
+          "help": "Rentals: the return date, YYYY-MM-DD."
+        },
+        {
+          "name": "time",
+          "type": "text",
+          "label": "Time",
+          "help": "Tours: departure time, HH:MM."
+        },
+        {
+          "name": "days",
+          "type": "integer",
+          "label": "Days charged"
+        },
+        {
+          "name": "adults",
+          "type": "integer"
+        },
+        {
+          "name": "children",
+          "type": "integer"
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "label": "Quantity",
+          "help": "Rentals: how many units."
+        },
+        {
+          "name": "extras",
+          "type": "json",
+          "label": "Extras"
+        },
+        {
+          "name": "lines",
+          "type": "json",
+          "label": "Price lines"
+        },
+        {
+          "name": "subtotal",
+          "type": "real",
+          "required": true,
+          "label": "Total excl. VAT (AED)"
+        },
+        {
+          "name": "vat",
+          "type": "real",
+          "required": true,
+          "label": "VAT (AED)"
+        },
+        {
+          "name": "total",
+          "type": "real",
+          "required": true,
+          "label": "Total (AED)"
+        },
+        {
+          "name": "due_online",
+          "type": "real",
+          "label": "Due online (AED)",
+          "help": "The share to pay by card to secure the reservation."
+        },
+        {
+          "name": "paid_amount",
+          "type": "real",
+          "label": "Paid online (AED)"
+        },
+        {
+          "name": "balance_due",
+          "type": "real",
+          "label": "Balance due on the day (AED)"
+        },
+        {
+          "name": "security_deposit",
+          "type": "real",
+          "label": "Security deposit (AED)"
+        },
+        {
+          "name": "deposit_status",
+          "type": "text",
+          "label": "Deposit hold",
+          "help": "Empty: the deposit is collected at handover. due: the customer still has to authorise it (from 6 days before the start). authorized: held on the card. Set by the app; use Deposit at return to release or capture it.",
+          "options": [
+            "due",
+            "authorized",
+            "released",
+            "captured",
+            "expired"
+          ]
+        },
+        {
+          "name": "deposit_expires_at",
+          "type": "text",
+          "label": "Hold ends (UTC)",
+          "help": "Cards drop a hold after about 7 days."
+        },
+        {
+          "name": "deposit_action",
+          "type": "text",
+          "label": "Deposit at return",
+          "help": "When the item is back: release cancels the card hold; capture takes the damage charge below and releases the rest. The customer is emailed.",
+          "options": [
+            "release",
+            "capture"
+          ]
+        },
+        {
+          "name": "damage_amount",
+          "type": "real",
+          "label": "Damage charge (AED)",
+          "help": "With Deposit at return = capture; at most the deposit."
+        },
+        {
+          "name": "deposit_captured",
+          "type": "real",
+          "label": "Deposit taken (AED)"
+        },
+        {
+          "name": "deposit_link_sent",
+          "type": "boolean",
+          "label": "Deposit link emailed"
+        },
+        {
+          "name": "payment_method",
+          "type": "text",
+          "required": true,
+          "label": "Payment",
+          "options": [
+            "card",
+            "later"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "label": "Status",
+          "help": "Pending, confirmed, completed and no_show hold the seats or stock; the others release them.",
+          "options": [
+            "pending",
+            "confirmed",
+            "cancelled",
+            "completed",
+            "no_show",
+            "failed",
+            "expired",
+            "refunded"
+          ]
+        },
+        {
+          "name": "lang",
+          "type": "text",
+          "label": "Language",
+          "options": [
+            "en",
+            "ar"
+          ]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "label": "Notes",
+          "help": "From the customer: pickup hotel, delivery address or any request."
+        },
+        {
+          "name": "documents_required",
+          "type": "boolean",
+          "label": "Documents required",
+          "help": "Driving licence and passport or Emirates ID before handover."
+        },
+        {
+          "name": "licence_file",
+          "type": "file",
+          "label": "Driving licence",
+          "help": "Uploaded by the customer; private, open it here."
+        },
+        {
+          "name": "id_file",
+          "type": "file",
+          "label": "Passport or Emirates ID",
+          "help": "Uploaded by the customer; private, open it here."
+        },
+        {
+          "name": "pending_since",
+          "type": "text",
+          "label": "Waiting for payment since",
+          "help": "UTC. The daily job expires reservations still unpaid two hours later."
+        },
+        {
+          "name": "reminded",
+          "type": "boolean",
+          "label": "Reminder sent"
+        }
+      ]
+    },
+    {
+      "name": "texts",
+      "label": "Site texts",
+      "columns": [
+        {
+          "name": "key",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "en",
+          "type": "text",
+          "label": "English"
+        },
+        {
+          "name": "ar",
+          "type": "text",
+          "label": "Arabic"
+        }
+      ]
+    }
+  ],
+  "seed": {
+    "business": [
+      {
+        "name": "Sahara Bay Tours & Rentals",
+        "name_ar": "سهارى باي للرحلات والتأجير",
+        "tagline": "Desert safaris, cruises, car hire and party rentals in Dubai",
+        "tagline_ar": "رحلات سفاري وجولات بحرية وتأجير سيارات ومستلزمات حفلات في دبي",
+        "whatsapp": "+971500000000",
+        "legal_name": "Sahara Bay Tourism & Rentals LLC",
+        "address": "Office 804, Bay Square 3, Business Bay, Dubai",
+        "trn": "",
+        "licence": "DET tourism licence 1234567 · RTA car rental licence 7654321",
+        "deposit_percent": 20,
+        "card_enabled": 1,
+        "pay_later_enabled": 1,
+        "free_cancel_hours": 24,
+        "days_ahead": 60,
+        "deposit_hold_enabled": 1
+      }
+    ],
+    "items": [
+      {
+        "name": "Evening Desert Safari with BBQ Dinner",
+        "name_ar": "سفاري صحراوي مسائي مع عشاء مشويات",
+        "description": "Dune bashing in a 4x4 across the Lahbab red dunes, sunset photo stop, camel ride, and a BBQ dinner with live shows at our desert camp.",
+        "description_ar": "قيادة مثيرة على الكثبان الحمراء في لهباب بسيارات الدفع الرباعي، وتوقف لالتقاط الصور عند الغروب، وركوب الجمال، وعشاء مشويات مع عروض حية في مخيمنا الصحراوي.",
+        "category": "Tours",
+        "category_ar": "الرحلات",
+        "mode": "departure",
+        "price_adult": 150,
+        "price_child": 100,
+        "duration": "6 hours",
+        "duration_ar": "6 ساعات",
+        "included": "4x4 dune drive, camel ride, sandboarding, BBQ dinner, soft drinks, live shows",
+        "included_ar": "جولة الكثبان بسيارة دفع رباعي، ركوب الجمال، التزلج على الرمال، عشاء مشويات، مشروبات غازية، عروض حية",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 0
+      },
+      {
+        "name": "Marina Dhow Dinner Cruise",
+        "name_ar": "رحلة عشاء على متن سفينة الداو في المارينا",
+        "description": "Two hours on a traditional wooden dhow through Dubai Marina with an international buffet dinner and views of the skyline.",
+        "description_ar": "ساعتان على متن سفينة داو خشبية تقليدية في مرسى دبي مع بوفيه عشاء عالمي وإطلالات على أفق المدينة.",
+        "category": "Tours",
+        "category_ar": "الرحلات",
+        "mode": "departure",
+        "price_adult": 120,
+        "price_child": 80,
+        "duration": "2 hours",
+        "duration_ar": "ساعتان",
+        "included": "Welcome drink, buffet dinner, soft drinks, live music",
+        "included_ar": "مشروب ترحيبي، بوفيه عشاء، مشروبات غازية، موسيقى حية",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 0
+      },
+      {
+        "name": "Sunset Yacht Trip",
+        "name_ar": "رحلة يخت عند الغروب",
+        "description": "A shared 50 ft yacht from Dubai Harbour past Ain Dubai, JBR and Atlantis, with a swim stop when the sea allows.",
+        "description_ar": "رحلة مشتركة على يخت بطول 50 قدماً من دبي هاربر مروراً بعين دبي وجي بي آر وأتلانتس، مع توقف للسباحة عندما يسمح البحر.",
+        "category": "Tours",
+        "category_ar": "الرحلات",
+        "mode": "departure",
+        "price_adult": 250,
+        "price_child": 150,
+        "duration": "2 hours",
+        "duration_ar": "ساعتان",
+        "included": "Captain and crew, water and soft drinks, snacks, life jackets",
+        "included_ar": "القبطان والطاقم، مياه ومشروبات غازية، وجبات خفيفة، سترات نجاة",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 0
+      },
+      {
+        "name": "Nissan Sunny",
+        "name_ar": "نيسان صني",
+        "description": "Economical automatic saloon for the city. Comprehensive insurance and 250 km a day included. Bring your driving licence and Emirates ID or passport at handover.",
+        "description_ar": "سيارة صالون اقتصادية بناقل حركة أوتوماتيكي للمدينة. تشمل تأميناً شاملاً و250 كم يومياً. أحضر رخصة القيادة والهوية الإماراتية أو جواز السفر عند الاستلام.",
+        "category": "Cars",
+        "category_ar": "السيارات",
+        "mode": "range",
+        "price_day": 90,
+        "price_week": 560,
+        "stock": 3,
+        "min_days": 1,
+        "security_deposit": 1000,
+        "included": "Comprehensive insurance, 250 km per day, 24-hour roadside assistance",
+        "included_ar": "تأمين شامل، 250 كم يومياً، مساعدة على الطريق على مدار الساعة",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 1
+      },
+      {
+        "name": "Nissan Patrol",
+        "name_ar": "نيسان باترول",
+        "description": "Seven-seat 4x4 for families and road trips. Comprehensive insurance and 250 km a day included. Minimum age 25.",
+        "description_ar": "سيارة دفع رباعي بسبعة مقاعد للعائلات والرحلات. تشمل تأميناً شاملاً و250 كم يومياً. الحد الأدنى للعمر 25 سنة.",
+        "category": "Cars",
+        "category_ar": "السيارات",
+        "mode": "range",
+        "price_day": 450,
+        "price_week": 2800,
+        "stock": 1,
+        "min_days": 2,
+        "security_deposit": 3000,
+        "included": "Comprehensive insurance, 250 km per day, 24-hour roadside assistance",
+        "included_ar": "تأمين شامل، 250 كم يومياً، مساعدة على الطريق على مدار الساعة",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 1
+      },
+      {
+        "name": "Gold Chiavari Chair",
+        "name_ar": "كرسي شيافاري ذهبي",
+        "description": "Gold chiavari chair with a white seat pad, for weddings and dinners. Price per chair per day.",
+        "description_ar": "كرسي شيافاري ذهبي مع وسادة بيضاء لحفلات الزفاف والعشاء. السعر للكرسي الواحد في اليوم.",
+        "category": "Party rental",
+        "category_ar": "تأجير مستلزمات الحفلات",
+        "mode": "range",
+        "price_day": 8,
+        "stock": 200,
+        "min_days": 1,
+        "security_deposit": 0,
+        "included": "Seat pad",
+        "included_ar": "وسادة المقعد",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 0
+      },
+      {
+        "name": "Arabic Majlis Tent 5 x 5 m",
+        "name_ar": "خيمة مجلس عربية 5 × 5 م",
+        "description": "Traditional tent with carpet, floor seating for 20 guests and lighting, set up in your garden or venue.",
+        "description_ar": "خيمة تقليدية مع سجاد وجلسة أرضية تتسع لـ 20 ضيفاً وإضاءة، نجهزها في حديقتك أو قاعتك.",
+        "category": "Party rental",
+        "category_ar": "تأجير مستلزمات الحفلات",
+        "mode": "range",
+        "price_day": 600,
+        "price_week": 3000,
+        "stock": 2,
+        "min_days": 1,
+        "security_deposit": 500,
+        "included": "Carpet, cushions for 20 guests, lighting",
+        "included_ar": "سجاد، وسائد لعشرين ضيفاً، إضاءة",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 0
+      },
+      {
+        "name": "Bouncy Castle 4 x 4 m",
+        "name_ar": "قلعة مطاطية 4 × 4 م",
+        "description": "Inflatable castle for children up to 10 years, with blower and safety mats. Needs a power socket within 20 m.",
+        "description_ar": "قلعة قابلة للنفخ للأطفال حتى عمر 10 سنوات، مع منفاخ وأرضيات أمان. تحتاج إلى مقبس كهرباء على بعد 20 متراً.",
+        "category": "Party rental",
+        "category_ar": "تأجير مستلزمات الحفلات",
+        "mode": "range",
+        "price_day": 350,
+        "stock": 1,
+        "min_days": 1,
+        "security_deposit": 300,
+        "included": "Blower, safety mats, extension cable",
+        "included_ar": "منفاخ، أرضيات أمان، سلك تمديد",
+        "image": "",
+        "image2": "",
+        "image3": "",
+        "active": 1,
+        "needs_documents": 0
+      }
+    ],
+    "departures": [
+      {
+        "item_id": 1,
+        "date": "",
+        "weekdays": "sun,mon,tue,wed,thu",
+        "time": "15:00",
+        "capacity": 40,
+        "active": 1
+      },
+      {
+        "item_id": 1,
+        "date": "",
+        "weekdays": "fri,sat",
+        "time": "15:00",
+        "capacity": 40,
+        "price": 175,
+        "active": 1
+      },
+      {
+        "item_id": 2,
+        "date": "",
+        "weekdays": "daily",
+        "time": "20:30",
+        "capacity": 60,
+        "active": 1
+      },
+      {
+        "item_id": 3,
+        "date": "",
+        "weekdays": "daily",
+        "time": "17:00",
+        "capacity": 12,
+        "active": 1
+      },
+      {
+        "item_id": 3,
+        "date": "",
+        "weekdays": "sat,sun",
+        "time": "10:00",
+        "capacity": 12,
+        "price": 220,
+        "active": 1
+      }
+    ],
+    "extras": [
+      {
+        "name": "Hotel pickup and drop-off",
+        "name_ar": "التوصيل من الفندق وإليه",
+        "category": "Tours",
+        "price": 30,
+        "per": "person",
+        "active": 1
+      },
+      {
+        "name": "Quad bike, 20 minutes",
+        "name_ar": "دراجة رباعية، 20 دقيقة",
+        "item_id": 1,
+        "price": 120,
+        "per": "person",
+        "active": 1
+      },
+      {
+        "name": "Child seat",
+        "name_ar": "مقعد أطفال",
+        "category": "Cars",
+        "price": 15,
+        "per": "day",
+        "active": 1
+      },
+      {
+        "name": "Delivery and collection at your address",
+        "name_ar": "التسليم والاستلام في عنوانك",
+        "category": "Cars",
+        "price": 50,
+        "per": "booking",
+        "active": 1
+      },
+      {
+        "name": "Delivery, setup and collection",
+        "name_ar": "التوصيل والتركيب والاستلام",
+        "category": "Party rental",
+        "price": 150,
+        "per": "booking",
+        "active": 1
+      }
+    ],
+    "texts": [
+      {
+        "key": "home",
+        "en": "Home",
+        "ar": "الرئيسية"
+      },
+      {
+        "key": "all",
+        "en": "All",
+        "ar": "الكل"
+      },
+      {
+        "key": "from",
+        "en": "From",
+        "ar": "ابتداءً من"
+      },
+      {
+        "key": "per_person",
+        "en": "per person",
+        "ar": "للشخص"
+      },
+      {
+        "key": "per_day",
+        "en": "per day",
+        "ar": "في اليوم"
+      },
+      {
+        "key": "per_week",
+        "en": "per week",
+        "ar": "في الأسبوع"
+      },
+      {
+        "key": "per_booking",
+        "en": "per booking",
+        "ar": "للحجز"
+      },
+      {
+        "key": "per_unit",
+        "en": "each",
+        "ar": "للقطعة"
+      },
+      {
+        "key": "adult",
+        "en": "Adult",
+        "ar": "بالغ"
+      },
+      {
+        "key": "child",
+        "en": "Child",
+        "ar": "طفل"
+      },
+      {
+        "key": "adults",
+        "en": "Adults",
+        "ar": "البالغون"
+      },
+      {
+        "key": "children",
+        "en": "Children",
+        "ar": "الأطفال"
+      },
+      {
+        "key": "quantity",
+        "en": "Quantity",
+        "ar": "الكمية"
+      },
+      {
+        "key": "day",
+        "en": "day",
+        "ar": "يوم"
+      },
+      {
+        "key": "days",
+        "en": "days",
+        "ar": "أيام"
+      },
+      {
+        "key": "duration",
+        "en": "Duration",
+        "ar": "المدة"
+      },
+      {
+        "key": "included",
+        "en": "What's included",
+        "ar": "ما يشمله السعر"
+      },
+      {
+        "key": "choose_departure",
+        "en": "Choose a departure",
+        "ar": "اختر موعد الرحلة"
+      },
+      {
+        "key": "seats_left",
+        "en": "seats left",
+        "ar": "مقاعد متاحة"
+      },
+      {
+        "key": "sold_out",
+        "en": "Sold out",
+        "ar": "اكتملت الحجوزات"
+      },
+      {
+        "key": "no_departures",
+        "en": "No departures are open for booking right now. Message us on WhatsApp.",
+        "ar": "لا توجد رحلات متاحة للحجز حالياً. راسلنا عبر واتساب."
+      },
+      {
+        "key": "start_date",
+        "en": "From",
+        "ar": "من تاريخ"
+      },
+      {
+        "key": "end_date",
+        "en": "Until (return)",
+        "ar": "إلى تاريخ (الإرجاع)"
+      },
+      {
+        "key": "available",
+        "en": "available for these dates",
+        "ar": "متاحة في هذه التواريخ"
+      },
+      {
+        "key": "min_days",
+        "en": "Minimum rental",
+        "ar": "أقل مدة للإيجار"
+      },
+      {
+        "key": "extras",
+        "en": "Extras",
+        "ar": "الإضافات"
+      },
+      {
+        "key": "vat_included",
+        "en": "Prices include VAT (5%)",
+        "ar": "الأسعار تشمل ضريبة القيمة المضافة (5%)"
+      },
+      {
+        "key": "vat_in_total",
+        "en": "Includes VAT (5%)",
+        "ar": "يشمل ضريبة القيمة المضافة (5%)"
+      },
+      {
+        "key": "vat",
+        "en": "VAT (5%)",
+        "ar": "ضريبة القيمة المضافة (5%)"
+      },
+      {
+        "key": "total",
+        "en": "Total",
+        "ar": "الإجمالي"
+      },
+      {
+        "key": "total_excl",
+        "en": "Total excluding VAT",
+        "ar": "الإجمالي قبل الضريبة"
+      },
+      {
+        "key": "pay_now",
+        "en": "To pay now by card",
+        "ar": "يُدفع الآن بالبطاقة"
+      },
+      {
+        "key": "balance",
+        "en": "Balance due on the day",
+        "ar": "المبلغ المتبقي يوم الخدمة"
+      },
+      {
+        "key": "paid",
+        "en": "Paid online",
+        "ar": "المدفوع عبر الإنترنت"
+      },
+      {
+        "key": "security_deposit",
+        "en": "Refundable security deposit, at handover",
+        "ar": "تأمين مسترد يُدفع عند الاستلام"
+      },
+      {
+        "key": "reserve",
+        "en": "Reserve",
+        "ar": "احجز"
+      },
+      {
+        "key": "checkout",
+        "en": "Your reservation",
+        "ar": "حجزك"
+      },
+      {
+        "key": "your_details",
+        "en": "Your details",
+        "ar": "بياناتك"
+      },
+      {
+        "key": "name",
+        "en": "Full name",
+        "ar": "الاسم الكامل"
+      },
+      {
+        "key": "phone",
+        "en": "Mobile number",
+        "ar": "رقم الجوال"
+      },
+      {
+        "key": "notes",
+        "en": "Notes",
+        "ar": "ملاحظات"
+      },
+      {
+        "key": "notes_departure",
+        "en": "Pickup hotel or any request",
+        "ar": "فندق الاستقبال أو أي طلب"
+      },
+      {
+        "key": "notes_range",
+        "en": "Delivery address or any request",
+        "ar": "عنوان التوصيل أو أي طلب"
+      },
+      {
+        "key": "payment",
+        "en": "Payment",
+        "ar": "الدفع"
+      },
+      {
+        "key": "pay_card",
+        "en": "Pay by card now",
+        "ar": "ادفع بالبطاقة الآن"
+      },
+      {
+        "key": "pay_later",
+        "en": "Reserve now, pay on the day",
+        "ar": "احجز الآن وادفع يوم الخدمة"
+      },
+      {
+        "key": "confirm",
+        "en": "Confirm reservation",
+        "ar": "تأكيد الحجز"
+      },
+      {
+        "key": "sign_in_to_reserve",
+        "en": "Sign in to reserve",
+        "ar": "سجّل الدخول للحجز"
+      },
+      {
+        "key": "change",
+        "en": "Change",
+        "ar": "تعديل"
+      },
+      {
+        "key": "my_reservations",
+        "en": "My reservations",
+        "ar": "حجوزاتي"
+      },
+      {
+        "key": "reservation",
+        "en": "Reservation",
+        "ar": "حجز"
+      },
+      {
+        "key": "no_reservations",
+        "en": "You have no reservations yet.",
+        "ar": "لا توجد حجوزات بعد."
+      },
+      {
+        "key": "status",
+        "en": "Status",
+        "ar": "الحالة"
+      },
+      {
+        "key": "status_pending",
+        "en": "Waiting for payment",
+        "ar": "بانتظار الدفع"
+      },
+      {
+        "key": "status_confirmed",
+        "en": "Confirmed",
+        "ar": "مؤكد"
+      },
+      {
+        "key": "status_cancelled",
+        "en": "Cancelled",
+        "ar": "ملغى"
+      },
+      {
+        "key": "status_completed",
+        "en": "Completed",
+        "ar": "مكتمل"
+      },
+      {
+        "key": "status_no_show",
+        "en": "No show",
+        "ar": "لم يحضر"
+      },
+      {
+        "key": "status_failed",
+        "en": "Payment failed",
+        "ar": "فشل الدفع"
+      },
+      {
+        "key": "status_expired",
+        "en": "Payment not completed",
+        "ar": "لم يكتمل الدفع"
+      },
+      {
+        "key": "status_refunded",
+        "en": "Refunded",
+        "ar": "تم الاسترداد"
+      },
+      {
+        "key": "thank_you",
+        "en": "Thank you! Your reservation is recorded.",
+        "ar": "شكراً لك! تم تسجيل حجزك."
+      },
+      {
+        "key": "payment_processing",
+        "en": "Your payment was received; the confirmation follows in a moment.",
+        "ar": "تم استلام دفعتك، وسيصلك التأكيد خلال لحظات."
+      },
+      {
+        "key": "pay_again",
+        "en": "Pay by card",
+        "ar": "ادفع بالبطاقة"
+      },
+      {
+        "key": "cancel",
+        "en": "Cancel reservation",
+        "ar": "إلغاء الحجز"
+      },
+      {
+        "key": "cancel_confirm",
+        "en": "Cancel this reservation?",
+        "ar": "هل تريد إلغاء هذا الحجز؟"
+      },
+      {
+        "key": "cancel_until",
+        "en": "Free cancellation until",
+        "ar": "إلغاء مجاني حتى"
+      },
+      {
+        "key": "cancel_closed",
+        "en": "Online cancellation is closed for this reservation. Message us on WhatsApp.",
+        "ar": "انتهت مهلة الإلغاء عبر الموقع لهذا الحجز. راسلنا عبر واتساب."
+      },
+      {
+        "key": "cancelled_note",
+        "en": "Your reservation is cancelled. Anything you paid online is refunded to your card within a few working days.",
+        "ar": "تم إلغاء حجزك. يُعاد أي مبلغ دفعته عبر الإنترنت إلى بطاقتك خلال أيام عمل قليلة."
+      },
+      {
+        "key": "voucher",
+        "en": "Booking voucher",
+        "ar": "قسيمة الحجز"
+      },
+      {
+        "key": "tax_invoice",
+        "en": "Tax invoice",
+        "ar": "فاتورة ضريبية"
+      },
+      {
+        "key": "view_voucher",
+        "en": "Voucher / invoice",
+        "ar": "القسيمة / الفاتورة"
+      },
+      {
+        "key": "voucher_no",
+        "en": "Reservation no.",
+        "ar": "رقم الحجز"
+      },
+      {
+        "key": "date",
+        "en": "Date",
+        "ar": "التاريخ"
+      },
+      {
+        "key": "when",
+        "en": "When",
+        "ar": "الموعد"
+      },
+      {
+        "key": "guests",
+        "en": "Guests",
+        "ar": "الضيوف"
+      },
+      {
+        "key": "customer",
+        "en": "Customer",
+        "ar": "العميل"
+      },
+      {
+        "key": "description",
+        "en": "Description",
+        "ar": "البيان"
+      },
+      {
+        "key": "amount",
+        "en": "Amount (AED, incl. VAT)",
+        "ar": "المبلغ (درهم، شامل الضريبة)"
+      },
+      {
+        "key": "trn",
+        "en": "TRN",
+        "ar": "الرقم الضريبي"
+      },
+      {
+        "key": "print",
+        "en": "Print",
+        "ar": "طباعة"
+      },
+      {
+        "key": "voucher_note",
+        "en": "Show this voucher on arrival or at handover.",
+        "ar": "أبرز هذه القسيمة عند الوصول أو الاستلام."
+      },
+      {
+        "key": "sign_in",
+        "en": "Sign in",
+        "ar": "تسجيل الدخول"
+      },
+      {
+        "key": "sign_out",
+        "en": "Sign out",
+        "ar": "تسجيل الخروج"
+      },
+      {
+        "key": "language",
+        "en": "العربية",
+        "ar": "English"
+      },
+      {
+        "key": "contact_whatsapp",
+        "en": "Chat on WhatsApp",
+        "ar": "تواصل عبر واتساب"
+      },
+      {
+        "key": "not_found",
+        "en": "Not found.",
+        "ar": "غير موجود."
+      },
+      {
+        "key": "error_choose_departure",
+        "en": "Choose a departure.",
+        "ar": "اختر موعد الرحلة."
+      },
+      {
+        "key": "error_departure",
+        "en": "This departure is not open for booking. Choose another one.",
+        "ar": "هذا الموعد غير متاح للحجز. اختر موعداً آخر."
+      },
+      {
+        "key": "error_people",
+        "en": "Check the number of adults and children.",
+        "ar": "تحقق من عدد البالغين والأطفال."
+      },
+      {
+        "key": "error_seats",
+        "en": "Not enough seats on this departure ({n} left).",
+        "ar": "لا توجد مقاعد كافية في هذا الموعد (المتاح {n})."
+      },
+      {
+        "key": "error_dates",
+        "en": "Choose a start date and a return date within the booking period.",
+        "ar": "اختر تاريخ البداية وتاريخ الإرجاع ضمن فترة الحجز المتاحة."
+      },
+      {
+        "key": "error_min_days",
+        "en": "The minimum rental is {n} days.",
+        "ar": "أقل مدة للإيجار {n} أيام."
+      },
+      {
+        "key": "error_quantity",
+        "en": "Check the quantity.",
+        "ar": "تحقق من الكمية."
+      },
+      {
+        "key": "error_stock",
+        "en": "Not enough available for these dates ({n} left).",
+        "ar": "الكمية غير متوفرة في هذه التواريخ (المتاح {n})."
+      },
+      {
+        "key": "error_fields",
+        "en": "Please enter your name and mobile number.",
+        "ar": "يرجى إدخال الاسم ورقم الجوال."
+      },
+      {
+        "key": "error_payment",
+        "en": "The payment could not be started. Please try again.",
+        "ar": "تعذر بدء عملية الدفع. يرجى المحاولة مرة أخرى."
+      },
+      {
+        "key": "email_subject",
+        "en": "Your reservation #{id} at {business}",
+        "ar": "حجزك رقم {id} لدى {business}"
+      },
+      {
+        "key": "email_body",
+        "en": "Thank you, {name}. Your reservation #{id} is confirmed.\n\n{item}\n{when}\n{guests}\n\nTotal: AED {total} (VAT included)\nPaid online: AED {paid}\nBalance due on the day: AED {balance}\n{deposit}{documents}\nYour voucher: {link}\n\n{cancel}\n{business}\n{whatsapp}",
+        "ar": "شكراً لك {name}. تم تأكيد حجزك رقم {id}.\n\n{item}\n{when}\n{guests}\n\nالإجمالي: {total} درهم (شامل الضريبة)\nالمدفوع عبر الإنترنت: {paid} درهم\nالمبلغ المتبقي يوم الخدمة: {balance} درهم\n{deposit}{documents}\nقسيمة الحجز: {link}\n\n{cancel}\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "email_deposit",
+        "en": "Refundable security deposit at handover: AED {amount}",
+        "ar": "تأمين مسترد عند الاستلام: {amount} درهم"
+      },
+      {
+        "key": "email_cancel",
+        "en": "Free cancellation on the website until {until}.",
+        "ar": "الإلغاء المجاني عبر الموقع متاح حتى {until}."
+      },
+      {
+        "key": "remind_subject",
+        "en": "Reminder: {item} tomorrow (reservation #{id})",
+        "ar": "تذكير: {item} غداً (الحجز رقم {id})"
+      },
+      {
+        "key": "remind_body",
+        "en": "Hello {name}, this is a reminder of your reservation #{id} tomorrow.\n\n{item}\n{when}\n{guests}\n\nBalance due on the day: AED {balance}\n{deposit}{documents}\nYour voucher: {link}\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، نذكّرك بحجزك رقم {id} غداً.\n\n{item}\n{when}\n{guests}\n\nالمبلغ المتبقي يوم الخدمة: {balance} درهم\n{deposit}{documents}\nقسيمة الحجز: {link}\n\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "cancel_subject",
+        "en": "Reservation #{id} cancelled",
+        "ar": "تم إلغاء الحجز رقم {id}"
+      },
+      {
+        "key": "cancel_body",
+        "en": "Hello {name}, your reservation #{id} ({item}, {when}) is cancelled.\n\nPaid online: AED {paid}. Anything you paid is refunded to your card within a few working days.\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، تم إلغاء حجزك رقم {id} ({item}، {when}).\n\nالمدفوع عبر الإنترنت: {paid} درهم. يُعاد أي مبلغ دفعته إلى بطاقتك خلال أيام عمل قليلة.\n\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "security_deposit_hold",
+        "en": "Refundable security deposit, held on your card (not charged)",
+        "ar": "تأمين مسترد، يُحجز على بطاقتك (دون خصم)"
+      },
+      {
+        "key": "deposit_title",
+        "en": "Security deposit",
+        "ar": "مبلغ التأمين"
+      },
+      {
+        "key": "deposit_authorise",
+        "en": "Authorise the deposit on my card",
+        "ar": "تفويض مبلغ التأمين على بطاقتي"
+      },
+      {
+        "key": "deposit_later",
+        "en": "The deposit will be requested closer to the date: from 6 days before the start you can authorise it here, and we email you a link.",
+        "ar": "سيُطلب مبلغ التأمين قبل الموعد بفترة قصيرة: يمكنك تفويضه هنا قبل البدء بستة أيام، وسنرسل لك رابطاً بالبريد الإلكتروني."
+      },
+      {
+        "key": "deposit_hold_note",
+        "en": "The refundable security deposit is held on your card from 6 days before the start, not charged, and released at the return. We email you the link.",
+        "ar": "يُحجز مبلغ التأمين المسترد على بطاقتك قبل البدء بستة أيام دون خصمه، ويُفرج عنه عند الإرجاع. سنرسل لك الرابط بالبريد الإلكتروني."
+      },
+      {
+        "key": "deposit_status_due",
+        "en": "Not authorised yet.",
+        "ar": "لم يتم التفويض بعد."
+      },
+      {
+        "key": "deposit_status_authorized",
+        "en": "Held on your card until {until}. Nothing is charged; it is released at the return.",
+        "ar": "محجوز على بطاقتك حتى {until}. لا يتم خصم أي مبلغ، ويُفرج عنه عند الإرجاع."
+      },
+      {
+        "key": "deposit_status_released",
+        "en": "Released. Nothing was charged.",
+        "ar": "تم الإفراج عنه. لم يتم خصم أي مبلغ."
+      },
+      {
+        "key": "deposit_status_captured",
+        "en": "AED {damage} charged for damage; the rest of the hold is released.",
+        "ar": "تم خصم {damage} درهم مقابل الأضرار، وأُفرج عن باقي المبلغ المحجوز."
+      },
+      {
+        "key": "deposit_status_expired",
+        "en": "The card hold has ended. Authorise it again before the handover.",
+        "ar": "انتهى الحجز على البطاقة. يرجى تفويضه مرة أخرى قبل الاستلام."
+      },
+      {
+        "key": "deposit_thanks",
+        "en": "Thank you: the security deposit is held on your card.",
+        "ar": "شكراً لك: تم حجز مبلغ التأمين على بطاقتك."
+      },
+      {
+        "key": "documents_title",
+        "en": "Driving licence and passport",
+        "ar": "رخصة القيادة وجواز السفر"
+      },
+      {
+        "key": "documents_checkout",
+        "en": "Upload them now or later from your reservation page; we need both before the handover. Only we can see them.",
+        "ar": "ارفعها الآن أو لاحقاً من صفحة حجزك؛ نحتاج إلى الاثنين قبل الاستلام. لا يراها أحد غيرنا."
+      },
+      {
+        "key": "documents_needed",
+        "en": "Please upload your driving licence and your passport or Emirates ID before the handover. Only we can see them.",
+        "ar": "يرجى رفع رخصة القيادة وجواز السفر أو الهوية الإماراتية قبل الاستلام. لا يراها أحد غيرنا."
+      },
+      {
+        "key": "documents_item",
+        "en": "Driving licence and passport or Emirates ID needed: upload them at checkout or before the handover.",
+        "ar": "مطلوب رخصة القيادة وجواز السفر أو الهوية الإماراتية: ارفعها عند تأكيد الحجز أو قبل الاستلام."
+      },
+      {
+        "key": "documents_received",
+        "en": "Documents received",
+        "ar": "تم استلام المستندات"
+      },
+      {
+        "key": "documents_missing",
+        "en": "Documents still needed: upload them on your reservation page",
+        "ar": "المستندات مطلوبة: ارفعها من صفحة حجزك"
+      },
+      {
+        "key": "documents_send",
+        "en": "Send documents",
+        "ar": "إرسال المستندات"
+      },
+      {
+        "key": "documents_replace",
+        "en": "Replace documents",
+        "ar": "استبدال المستندات"
+      },
+      {
+        "key": "documents_saved",
+        "en": "Thank you: your documents are saved.",
+        "ar": "شكراً لك: تم حفظ مستنداتك."
+      },
+      {
+        "key": "licence_file",
+        "en": "Driving licence (photo or PDF)",
+        "ar": "رخصة القيادة (صورة أو PDF)"
+      },
+      {
+        "key": "id_file",
+        "en": "Passport or Emirates ID (photo or PDF)",
+        "ar": "جواز السفر أو الهوية الإماراتية (صورة أو PDF)"
+      },
+      {
+        "key": "error_document",
+        "en": "That document could not be used. Please upload it again.",
+        "ar": "تعذّر استخدام هذا المستند. يرجى رفعه مرة أخرى."
+      },
+      {
+        "key": "email_deposit_now",
+        "en": "Refundable security deposit: AED {amount}, held on your card and not charged. Authorise it here: {page}",
+        "ar": "تأمين مسترد: {amount} درهم، يُحجز على بطاقتك دون خصمه. قم بتفويضه من هنا: {page}"
+      },
+      {
+        "key": "email_deposit_later",
+        "en": "Refundable security deposit: AED {amount}, held on your card and not charged. We will email you a link closer to the date.",
+        "ar": "تأمين مسترد: {amount} درهم، يُحجز على بطاقتك دون خصمه. سنرسل لك رابطاً قبل الموعد بفترة قصيرة."
+      },
+      {
+        "key": "email_deposit_held",
+        "en": "Refundable security deposit: AED {amount}, held on your card (not charged).",
+        "ar": "تأمين مسترد: {amount} درهم، محجوز على بطاقتك (دون خصم)."
+      },
+      {
+        "key": "email_documents",
+        "en": "Please upload your driving licence and passport before the handover: {page}",
+        "ar": "يرجى رفع رخصة القيادة وجواز السفر قبل الاستلام: {page}"
+      },
+      {
+        "key": "deposit_subject",
+        "en": "Authorise your security deposit for reservation #{id}",
+        "ar": "قم بتفويض مبلغ التأمين للحجز رقم {id}"
+      },
+      {
+        "key": "deposit_body",
+        "en": "Hello {name}, your rental starts soon.\n\n{item}\n{when}\n\nPlease authorise the refundable security deposit of AED {security} on your card. It is only held, not charged, and released at the return:\n{page}\n\n{documents}{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، يقترب موعد بدء الإيجار.\n\n{item}\n{when}\n\nيرجى تفويض مبلغ التأمين المسترد وقدره {security} درهم على بطاقتك. يُحجز المبلغ فقط دون خصمه، ويُفرج عنه عند الإرجاع:\n{page}\n\n{documents}{business}\n{whatsapp}"
+      },
+      {
+        "key": "deposit_held_subject",
+        "en": "Security deposit held for reservation #{id}",
+        "ar": "تم حجز مبلغ التأمين للحجز رقم {id}"
+      },
+      {
+        "key": "deposit_held_body",
+        "en": "Hello {name}, AED {security} is now held on your card as the refundable security deposit for {item} ({when}). Nothing is charged; we release it at the return.\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، تم حجز {security} درهم على بطاقتك كتأمين مسترد لـ {item} ({when}). لا يتم خصم أي مبلغ، وسنفرج عنه عند الإرجاع.\n\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "deposit_released_subject",
+        "en": "Security deposit released for reservation #{id}",
+        "ar": "تم الإفراج عن مبلغ التأمين للحجز رقم {id}"
+      },
+      {
+        "key": "deposit_released_body",
+        "en": "Hello {name}, thank you for returning {item}. The hold of AED {security} on your card is released and nothing was charged. Your bank may take a few days to show it.\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، شكراً لإرجاعك {item}. تم الإفراج عن مبلغ {security} درهم المحجوز على بطاقتك دون خصم أي مبلغ. قد يستغرق ظهور ذلك لدى البنك بضعة أيام.\n\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "deposit_captured_subject",
+        "en": "Damage charge for reservation #{id}",
+        "ar": "رسوم أضرار للحجز رقم {id}"
+      },
+      {
+        "key": "deposit_captured_body",
+        "en": "Hello {name}, after the return of {item} we charged AED {damage} of your security deposit of AED {security} for damage. The rest of the hold is released. If you have questions, reply to this email.\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، بعد إرجاع {item} خصمنا {damage} درهم من مبلغ التأمين البالغ {security} درهم مقابل الأضرار. وأُفرج عن باقي المبلغ المحجوز. إذا كانت لديك أسئلة، يمكنك الرد على هذه الرسالة.\n\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "changed_subject",
+        "en": "Reservation #{id} updated",
+        "ar": "تم تعديل الحجز رقم {id}"
+      },
+      {
+        "key": "changed_body",
+        "en": "Hello {name}, we updated your reservation #{id}.\n\n{item}\n{when}\n{guests}\n\nBalance due on the day: AED {balance}\n{deposit}Your voucher: {link}\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، قمنا بتعديل حجزك رقم {id}.\n\n{item}\n{when}\n{guests}\n\nالمبلغ المتبقي يوم الخدمة: {balance} درهم\n{deposit}قسيمة الحجز: {link}\n\n{business}\n{whatsapp}"
+      },
+      {
+        "key": "no_show_subject",
+        "en": "Reservation #{id}: marked as no-show",
+        "ar": "الحجز رقم {id}: تم تسجيل عدم الحضور"
+      },
+      {
+        "key": "no_show_body",
+        "en": "Hello {name}, we did not see you for your reservation #{id} ({item}, {when}), so it is marked as a no-show. If this is a mistake, please message us.\n\n{business}\n{whatsapp}",
+        "ar": "مرحباً {name}، لم تحضر لحجزك رقم {id} ({item}، {when})، لذا تم تسجيله كعدم حضور. إذا كان هذا خطأ، يرجى مراسلتنا.\n\n{business}\n{whatsapp}"
+      }
+    ]
+  },
+  "templates": {
+    "top": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.businessName}}</title><style>\n:root{--bg:#f7f9fa;--fg:#14212b;--muted:#5d6b76;--card:#fff;--line:#dfe6ea;--accent:#0b6e75;--accent-fg:#fff}\n@media (prefers-color-scheme:dark){:root{--bg:#10161a;--fg:#eef3f5;--muted:#9aa8b1;--card:#192127;--line:#2b363d;--accent:#4fc3c9;--accent-fg:#0d1417}}\n*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,\"Segoe UI\",Tahoma,sans-serif;background:var(--bg);color:var(--fg)}\na{color:inherit}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:1}\n.brand{font-weight:700;font-size:18px;text-decoration:none}nav{display:flex;gap:14px;align-items:center;font-size:14px;flex-wrap:wrap}\nmain{max-width:1000px;margin:0 auto;padding:16px 16px 80px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}\n.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;display:block}\n.card .img{aspect-ratio:4/3;background:var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;padding:8px;text-align:center}\n.card img,.photo img{width:100%;height:100%;object-fit:cover;display:block}.card .body{padding:10px 12px}.price{font-weight:700}\n.muted{color:var(--muted);font-size:14px}.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}.chip{padding:4px 12px;border:1px solid var(--line);border-radius:99px;text-decoration:none;font-size:14px}\n.chip.on{background:var(--fg);color:var(--bg)}button,.btn{display:inline-block;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}\nbutton.secondary,.btn.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}\ninput[type=radio],input[type=checkbox]{width:auto}label{display:block;margin:12px 0 4px;font-size:14px}.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0}.row.total{font-weight:700;border-top:1px solid var(--line);padding-top:10px}\n.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px 0}.error{color:#c62828}.ok{color:#2e7d32}\n@media (prefers-color-scheme:dark){.error{color:#ff8a80}.ok{color:#81c784}}\n.photo{aspect-ratio:4/3;background:var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}\n.thumbs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.two{display:grid;grid-template-columns:1fr;gap:16px}@media(min-width:760px){.two{grid-template-columns:1fr 1fr}}\n.slots{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}.slot{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:15px;cursor:pointer}\n.slot:last-child{border-bottom:0}.slot.off{opacity:.5;cursor:default}.slot span:first-of-type{flex:1}.pick{display:flex;gap:10px;align-items:center;margin:8px 0;font-size:15px}\n.count{display:flex;gap:8px;align-items:center}.count input{width:72px;text-align:center}.count button{padding:8px 14px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}\nh1{margin:8px 0 0}h2{margin:24px 0 10px;font-size:20px}h3{margin:20px 0 8px;font-size:16px}footer{color:var(--muted);font-size:13px;text-align:center;padding:24px 16px 0}\n.wa{position:fixed;bottom:16px;inset-inline-end:16px;background:#25d366;color:#fff;border-radius:99px;padding:10px 16px;text-decoration:none;font-weight:600}\n</style>{{if .uploads}}<script src=\"/_rx/upload.js\"></script>{{end}}</head><body>\n<header><a class=\"brand\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.businessName}}</a>\n<nav>{{if .user}}<a href=\"/reservations{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.my_reservations}}</a><form method=\"post\" action=\"/_rx/auth/logout\" style=\"display:inline\"><button class=\"secondary\" style=\"padding:4px 10px\">{{.t.sign_out}}</button></form>\n{{else}}<a href=\"/_rx/auth/login?next={{.here}}\">{{.t.sign_in}}</a>{{end}}\n<a href=\"{{.langUrl}}\">{{.t.language}}</a></nav></header><main>\n",
+    "bottom": "<footer>{{.businessName}}{{with .licence}} · {{.}}{{end}} · {{.t.vat_included}}</footer>\n</main>{{if .wa}}<a class=\"wa\" href=\"https://wa.me/{{.wa}}\" target=\"_blank\" rel=\"noopener\">{{.t.contact_whatsapp}}</a>{{end}}</body></html>",
+    "home": "{{template \"top\" .}}<h1>{{.businessName}}</h1>{{with .tagline}}<p class=\"muted\">{{.}}</p>{{end}}\n<div class=\"chips\"><a class=\"chip{{if not .category}} on{{end}}\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.all}}</a>{{range .categories}}<a class=\"chip{{if .on}} on{{end}}\" href=\"/?c={{.key}}{{if eq $.lang \"ar\"}}&lang=ar{{end}}\">{{.name}}</a>{{end}}</div>\n{{range .groups}}{{if .name}}<h2>{{.name}}</h2>{{end}}\n<div class=\"grid\">{{range .items}}<a class=\"card\" href=\"/item/{{.id}}{{if eq $.lang \"ar\"}}?lang=ar{{end}}\"><div class=\"img\">{{if .image}}<img src=\"{{.image}}?w=480\" alt=\"{{.name}}\" loading=\"lazy\">{{else}}{{.name}}{{end}}</div>\n<div class=\"body\"><div>{{.name}}</div>{{with .duration}}<div class=\"muted\">{{.}}</div>{{end}}<div class=\"price\">{{$.t.from}} AED {{.price}} <span class=\"muted\">{{.unit}}</span></div></div></a>{{end}}</div>{{end}}\n{{template \"bottom\" .}}",
+    "item": "{{template \"top\" .}}<div class=\"two\"><div>\n<div class=\"photo\">{{if .item.image}}<img src=\"{{.item.image}}?w=960\" alt=\"{{.item.name}}\">{{else}}{{.item.name}}{{end}}</div>\n{{if .item.moreImages}}<div class=\"thumbs\">{{range .item.moreImages}}<div class=\"photo\"><img src=\"{{.}}?w=480\" alt=\"{{$.item.name}}\" loading=\"lazy\"></div>{{end}}</div>{{end}}\n<h1>{{.item.name}}</h1><p class=\"muted\">{{.item.category}}{{with .item.duration}} · {{$.t.duration}}: {{.}}{{end}}</p>\n<p>{{.item.description}}</p>{{with .item.included}}<p><strong>{{$.t.included}}:</strong> {{.}}</p>{{end}}\n{{if .item.isDeparture}}<p class=\"price\">{{.t.adult}} AED {{.item.priceAdult}}{{with .item.priceChild}} · {{$.t.child}} AED {{.}}{{end}}</p>\n{{else}}<p class=\"price\">AED {{.item.priceDay}} {{.t.per_day}}{{with .item.priceWeek}} · AED {{.}} {{$.t.per_week}}{{end}}</p>\n{{with .item.minDays}}<p class=\"muted\">{{$.t.min_days}}: {{.}} {{$.t.days}}</p>{{end}}{{with .item.security}}<p class=\"muted\">{{$.item.securityLabel}}: AED {{.}}</p>{{end}}{{if .item.documents}}<p class=\"muted\">{{$.t.documents_item}}</p>{{end}}{{end}}\n<p class=\"muted\">{{.t.vat_included}}</p></div>\n<form id=\"reserve\" method=\"get\" action=\"/checkout\" class=\"panel\" style=\"margin-top:0\">\n<input type=\"hidden\" name=\"item\" value=\"{{.item.id}}\">{{if eq .lang \"ar\"}}<input type=\"hidden\" name=\"lang\" value=\"ar\">{{end}}\n{{with .error}}<p class=\"error\">{{.}}</p>{{end}}\n{{if .item.isDeparture}}<h3 style=\"margin-top:0\">{{.t.choose_departure}}</h3>\n{{if .occurrences}}<div class=\"slots\">{{range .occurrences}}<label class=\"slot{{if .full}} off{{end}}\"><input type=\"radio\" name=\"when\" value=\"{{.key}}\" required{{if .full}} disabled{{end}}>\n<span>{{.label}}</span><span class=\"muted\">{{if .full}}{{$.t.sold_out}}{{else}}{{.left}} {{$.t.seats_left}} · AED {{.price}}{{end}}</span></label>{{end}}</div>\n{{else}}<p class=\"muted\">{{.t.no_departures}}</p>{{end}}\n<div class=\"pair\"><div><label for=\"adults\">{{.t.adults}}</label><div class=\"count\"><button type=\"button\" class=\"secondary\" data-step=\"-1\">−</button><input id=\"adults\" name=\"adults\" type=\"number\" min=\"1\" max=\"99\" value=\"2\" required><button type=\"button\" class=\"secondary\" data-step=\"1\">+</button></div></div>\n<div><label for=\"children\">{{.t.children}}</label><div class=\"count\"><button type=\"button\" class=\"secondary\" data-step=\"-1\">−</button><input id=\"children\" name=\"children\" type=\"number\" min=\"0\" max=\"99\" value=\"0\"><button type=\"button\" class=\"secondary\" data-step=\"1\">+</button></div></div></div>\n{{else}}<div class=\"pair\"><div><label for=\"start\">{{.t.start_date}}</label><input id=\"start\" name=\"start\" type=\"date\" min=\"{{.today}}\" max=\"{{.last}}\" required></div>\n<div><label for=\"end\">{{.t.end_date}}</label><input id=\"end\" name=\"end\" type=\"date\" min=\"{{.today}}\" required></div></div>\n<label for=\"qty\">{{.t.quantity}}</label><div class=\"count\"><button type=\"button\" class=\"secondary\" data-step=\"-1\">−</button><input id=\"qty\" name=\"qty\" type=\"number\" min=\"1\" max=\"{{.item.stock}}\" value=\"1\" required><button type=\"button\" class=\"secondary\" data-step=\"1\">+</button></div>\n{{end}}\n{{if .extras}}<h3>{{.t.extras}}</h3>{{range .extras}}<label class=\"pick\"><input type=\"checkbox\" name=\"x{{.id}}\" value=\"1\"><span>{{.name}} <span class=\"muted\">+ AED {{.price}} {{.per}}</span></span></label>{{end}}{{end}}\n<div id=\"summary\" hidden style=\"margin:16px 0\"></div>\n<button>{{.t.reserve}}</button></form></div>\n<script>\n(function(){\n  var form=document.getElementById('reserve'),box=document.getElementById('summary'),timer=null,turn=0;\n  function line(label,value,cls){var d=document.createElement('div');d.className='row '+(cls||'');var a=document.createElement('span'),b=document.createElement('span');a.textContent=label;b.textContent=value;d.appendChild(a);d.appendChild(b);return d}\n  // The summary is for display only; the server works the price out again when the reservation is made.\n  function update(){var mine=++turn;fetch('/api/availability?'+new URLSearchParams(new FormData(form)).toString()).then(function(r){return r.json()}).then(function(j){\n    if(mine!==turn)return;box.textContent='';box.hidden=!j.complete;if(!j.complete)return;\n    var p=document.createElement('p');p.className=j.available?'ok':'error';p.textContent=j.message;box.appendChild(p);\n    (j.rows||[]).forEach(function(r){box.appendChild(line(r.label,r.value,r.cls))});}).catch(function(){box.hidden=true})}\n  function soon(){clearTimeout(timer);timer=setTimeout(update,250)}\n  form.addEventListener('input',soon);form.addEventListener('change',soon);\n  form.querySelectorAll('button[data-step]').forEach(function(b){b.addEventListener('click',function(){var i=b.parentNode.querySelector('input');\n    var v=(parseInt(i.value,10)||0)+parseInt(b.getAttribute('data-step'),10),lo=parseInt(i.min,10)||0,hi=parseInt(i.max,10)||999;i.value=Math.max(lo,Math.min(hi,v));soon()})});\n  var s=document.getElementById('start'),e=document.getElementById('end');\n  if(s&&e)s.addEventListener('change',function(){e.min=s.value;if(e.value&&e.value<s.value)e.value=s.value});\n})();\n</script>\n{{template \"bottom\" .}}",
+    "checkout": "{{template \"top\" .}}<h1>{{.t.checkout}}</h1>\n<div class=\"two\"><div class=\"panel\"><strong>{{.itemName}}</strong><div>{{.when}}</div><div class=\"muted\">{{.guests}}</div>\n<div style=\"margin-top:10px\">{{range .rows}}<div class=\"row {{.cls}}\"><span>{{.label}}</span><span>{{.value}}</span></div>{{end}}</div>\n<p><a href=\"/item/{{.itemId}}{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.change}}</a></p></div>\n<div class=\"panel\">{{if .user}}<form method=\"post\" action=\"/book\">{{range .fields}}<input type=\"hidden\" name=\"{{.name}}\" value=\"{{.value}}\">{{end}}\n<h3 style=\"margin-top:0\">{{.t.your_details}}</h3>\n<label for=\"name\">{{.t.name}}</label><input id=\"name\" name=\"name\" value=\"{{.customerName}}\" required autocomplete=\"name\">\n<label for=\"phone\">{{.t.phone}}</label><input id=\"phone\" name=\"phone\" type=\"tel\" value=\"{{.customerPhone}}\" placeholder=\"+971 5x xxx xxxx\" required autocomplete=\"tel\">\n<label for=\"notes\">{{.t.notes}}</label><textarea id=\"notes\" name=\"notes\" rows=\"3\" maxlength=\"1000\" placeholder=\"{{if .isDeparture}}{{.t.notes_departure}}{{else}}{{.t.notes_range}}{{end}}\"></textarea>\n{{if .documents}}<h3>{{.t.documents_title}}</h3><p class=\"muted\">{{.t.documents_checkout}}</p>\n<label for=\"licence_file\">{{.t.licence_file}}</label><input id=\"licence_file\" type=\"file\" name=\"licence_file\" data-rx-upload accept=\"image/*,application/pdf\">\n<label for=\"id_file\">{{.t.id_file}}</label><input id=\"id_file\" type=\"file\" name=\"id_file\" data-rx-upload accept=\"image/*,application/pdf\">{{end}}\n{{if .depositHold}}<p class=\"muted\">{{.t.deposit_hold_note}}</p>{{end}}\n<h3>{{.t.payment}}</h3>\n{{if .card}}<label class=\"pick\"><input type=\"radio\" name=\"payment\" value=\"card\" checked required><span>{{.t.pay_card}}: AED {{.payNow}}{{if not .full}} <span class=\"muted\">· {{.t.balance}}: AED {{.balance}}</span>{{end}}</span></label>{{end}}\n{{if .later}}<label class=\"pick\"><input type=\"radio\" name=\"payment\" value=\"later\"{{if not .card}} checked{{end}} required><span>{{.t.pay_later}}: AED {{.total}}</span></label>{{end}}\n<p><button>{{.t.confirm}}</button></p></form>\n{{else}}<p><a class=\"btn\" href=\"/_rx/auth/login?next={{.here}}\">{{.t.sign_in_to_reserve}}</a></p>{{end}}</div></div>\n{{template \"bottom\" .}}",
+    "reservations": "{{template \"top\" .}}<h1>{{.t.my_reservations}}</h1>\n{{if .reservations}}{{range .reservations}}<a class=\"card\" style=\"margin:12px 0\" href=\"/reservations/{{.id}}{{if eq $.lang \"ar\"}}?lang=ar{{end}}\"><div class=\"body\">\n<div class=\"row\"><strong>{{$.t.reservation}} #{{.id}}</strong><span>{{.status}}</span></div><div>{{.item}}</div>\n<div class=\"row muted\"><span>{{.when}}</span><span>AED {{.total}}</span></div></div></a>{{end}}\n{{else}}<p class=\"muted\">{{.t.no_reservations}}</p><p><a class=\"btn\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.home}}</a></p>{{end}}\n{{template \"bottom\" .}}",
+    "reservation": "{{template \"top\" .}}<h1>{{.t.reservation}} #{{.r.id}}</h1>\n{{if .placed}}<p class=\"ok\">{{.t.thank_you}}</p>{{end}}{{if .processing}}<p class=\"muted\">{{.t.payment_processing}}</p>{{end}}{{if .cancelled}}<p class=\"ok\">{{.t.cancelled_note}}</p>{{end}}{{if .depositDone}}<p class=\"ok\">{{.t.deposit_thanks}}</p>{{end}}{{if .docsSaved}}<p class=\"ok\">{{.t.documents_saved}}</p>{{end}}{{with .error}}<p class=\"error\">{{.}}</p>{{end}}\n<div class=\"panel\"><div class=\"row\"><span>{{.t.status}}</span><strong>{{.r.statusText}}</strong></div>\n<div><strong>{{.r.item}}</strong></div><div>{{.r.when}}</div><div class=\"muted\">{{.r.guests}}</div>\n<div style=\"margin-top:10px\">{{range .r.lines}}<div class=\"row\"><span>{{.label}}</span><span>AED {{.amount}}</span></div>{{end}}\n<div class=\"row total\"><span>{{.t.total}}</span><span>AED {{.r.total}}</span></div>\n<div class=\"row muted\"><span>{{.t.vat_in_total}}</span><span>AED {{.r.vat}}</span></div>\n<div class=\"row\"><span>{{.t.paid}}</span><span>AED {{.r.paid}}</span></div>\n<div class=\"row\"><span>{{.t.balance}}</span><span>AED {{.r.balance}}</span></div>\n{{with .r.security}}<div class=\"row muted\"><span>{{$.r.securityLabel}}</span><span>AED {{.}}</span></div>{{end}}</div>\n<p class=\"muted\">{{.r.name}} · {{.r.phone}}{{with .r.notes}}<br>{{$.t.notes}}: {{.}}{{end}}</p></div>\n{{if .r.depositHold}}<div class=\"panel\"><h3 style=\"margin-top:0\">{{.t.deposit_title}}</h3>\n<div class=\"row\"><span>{{.t.security_deposit_hold}}</span><strong>AED {{.r.security}}</strong></div><p>{{.r.depositText}}</p>\n{{if .r.depositOpen}}<form method=\"post\" action=\"/reservations/{{.r.id}}/deposit\"><button>{{.t.deposit_authorise}}: AED {{.r.security}}</button></form>\n{{else if .r.depositLater}}<p class=\"muted\">{{.t.deposit_later}}</p>{{end}}</div>{{end}}\n{{if .r.docsRequired}}<div class=\"panel\"><h3 style=\"margin-top:0\">{{.t.documents_title}}</h3>\n{{if .r.docsReceived}}<p class=\"ok\">{{.t.documents_received}}</p>{{else}}<p class=\"muted\">{{.t.documents_needed}}</p>{{end}}\n{{with .r.licenceUrl}}<p><a href=\"{{.}}\" target=\"_blank\" rel=\"noopener\">{{$.t.licence_file}}</a> ✓</p>{{end}}{{with .r.idUrl}}<p><a href=\"{{.}}\" target=\"_blank\" rel=\"noopener\">{{$.t.id_file}}</a> ✓</p>{{end}}\n{{if .r.canUpload}}<form method=\"post\" action=\"/reservations/{{.r.id}}/documents\">{{if eq .lang \"ar\"}}<input type=\"hidden\" name=\"lang\" value=\"ar\">{{end}}\n<label for=\"licence_file\">{{.t.licence_file}}</label><input id=\"licence_file\" type=\"file\" name=\"licence_file\" data-rx-upload accept=\"image/*,application/pdf\"{{if not .r.licenceUrl}} required{{end}}>\n<label for=\"id_file\">{{.t.id_file}}</label><input id=\"id_file\" type=\"file\" name=\"id_file\" data-rx-upload accept=\"image/*,application/pdf\"{{if not .r.idUrl}} required{{end}}>\n<p><button class=\"secondary\">{{if .r.docsReceived}}{{.t.documents_replace}}{{else}}{{.t.documents_send}}{{end}}</button></p></form>{{end}}</div>{{end}}\n<p><a class=\"btn secondary\" href=\"/reservations/{{.r.id}}/voucher{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.view_voucher}}</a></p>\n{{if .r.canPay}}<form method=\"post\" action=\"/reservations/{{.r.id}}/pay\" style=\"margin:12px 0\"><button>{{.t.pay_again}}</button></form>{{end}}\n{{if .r.canCancel}}<form method=\"post\" action=\"/reservations/{{.r.id}}/cancel\" style=\"margin:12px 0\" onsubmit=\"return confirm(this.getAttribute('data-ask'))\" data-ask=\"{{.t.cancel_confirm}}\">\n<button class=\"secondary\">{{.t.cancel}}</button> <span class=\"muted\">{{.t.cancel_until}} {{.r.cancelUntil}}</span></form>\n{{else if .r.open}}<p class=\"muted\">{{.t.cancel_closed}}</p>{{end}}\n<p><a href=\"/reservations{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.my_reservations}}</a></p>\n{{template \"bottom\" .}}",
+    "voucher": "<!doctype html><html lang=\"{{.lang}}\" dir=\"{{.dir}}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{.title}} #{{.r.id}}</title><style>body{font:14px/1.5 system-ui,Tahoma,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#111;background:#fff}\nh1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{padding:8px 6px;border-bottom:1px solid #ddd;text-align:start}td.n,th.n{text-align:end}\n.head{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}.muted{color:#555}.tot td{font-weight:700}.box{border:1px solid #ddd;border-radius:8px;padding:12px;margin:16px 0}@media print{.noprint{display:none}}</style></head><body>\n<div class=\"head\"><div><h1>{{.title}}</h1><div>{{.t.voucher_no}}: {{.r.id}}</div><div>{{.t.date}}: {{.r.date}}</div><div>{{.t.status}}: <strong>{{.r.statusText}}</strong></div></div>\n<div><strong>{{.seller}}</strong><div class=\"muted\">{{.sellerAddress}}</div>{{if .trn}}<div>{{.t.trn}}: {{.trn}}</div>{{end}}{{with .licence}}<div class=\"muted\">{{.}}</div>{{end}}</div></div>\n<div class=\"box\"><strong>{{.r.item}}</strong><div>{{.t.when}}: {{.r.when}}</div><div>{{.t.guests}}: {{.r.guests}}</div>\n<div>{{.t.customer}}: {{.r.name}} · {{.r.phone}}</div>{{if .r.depositHold}}<div>{{.t.security_deposit_hold}}: AED {{.r.security}} · {{.r.depositText}}</div>{{end}}\n{{if .r.docsRequired}}<div>{{.t.documents_title}}: {{if .r.docsReceived}}{{.t.documents_received}}{{else}}{{.t.documents_missing}}{{end}}</div>{{end}}{{with .r.notes}}<div>{{$.t.notes}}: {{.}}</div>{{end}}</div>\n<table><thead><tr><th>{{.t.description}}</th><th class=\"n\">{{.t.amount}}</th></tr></thead><tbody>\n{{range .r.lines}}<tr><td>{{.label}}</td><td class=\"n\">{{.amount}}</td></tr>{{end}}\n<tr><td>{{.t.total_excl}}</td><td class=\"n\">AED {{.r.net}}</td></tr><tr><td>{{.t.vat}}</td><td class=\"n\">AED {{.r.vat}}</td></tr>\n<tr class=\"tot\"><td>{{.t.total}}</td><td class=\"n\">AED {{.r.total}}</td></tr>\n<tr><td>{{.t.paid}}</td><td class=\"n\">AED {{.r.paid}}</td></tr><tr class=\"tot\"><td>{{.t.balance}}</td><td class=\"n\">AED {{.r.balance}}</td></tr>\n{{with .r.security}}<tr><td>{{$.r.securityLabel}}</td><td class=\"n\">AED {{.}}</td></tr>{{end}}</tbody></table>\n<p class=\"muted\">{{.t.voucher_note}}</p>\n<p class=\"noprint\"><button onclick=\"window.print()\">{{.t.print}}</button></p></body></html>",
+    "not_found": "{{template \"top\" .}}<p>{{.t.not_found}}</p><p><a class=\"btn\" href=\"/{{if eq .lang \"ar\"}}?lang=ar{{end}}\">{{.t.home}}</a></p>{{template \"bottom\" .}}"
+  },
+  "scripts": {
+    "home": "// GET /  ?c=<category>  Items by category with \"from\" prices.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), cat = req.query.c || '';\n  const lowest = {};\n  for (const r of db.query('SELECT item_id, MIN(price) AS p FROM departures WHERE active = 1 AND price IS NOT NULL GROUP BY item_id')) lowest[r.item_id] = r.p;\n  const categories = [], groups = [], seen = {};\n  for (const i of db.query('SELECT * FROM items WHERE active = 1 ORDER BY id')) {\n    const key = i.category || '';\n    if (!seen[key]) {\n      seen[key] = {key: key, name: loc(i, 'category', lang) || key, on: key === cat, items: []};\n      if (key) categories.push(seen[key]);\n      if (!cat || cat === key) groups.push(seen[key]);\n    }\n    let price = i.mode === 'departure' ? (i.price_adult || 0) : (i.price_day || 0);\n    if (i.mode === 'departure' && lowest[i.id] !== undefined && lowest[i.id] < price) price = lowest[i.id];\n    seen[key].items.push({id: i.id, name: loc(i, 'name', lang), image: i.image, price: money(price), unit: i.mode === 'departure' ? t.per_person : t.per_day,\n      duration: loc(i, 'duration', lang) || ''});\n  }\n  return {template: 'home', data: page(req, {categories: categories, groups: groups, category: cat})};\n}\n",
+    "item": "// GET /item/:id  A tour with its upcoming departures, or a rental with date pickers. ?error=<texts key>&n=<number> shows a message.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = business();\n  const i = db.query('SELECT * FROM items WHERE id = ? AND active = 1', Number(req.params.id))[0];\n  if (!i) return {template: 'not_found', data: page(req, {}), status: 404};\n  const now = nowDubai(), ahead = b.days_ahead > 0 ? b.days_ahead : 60;\n  const per = {booking: t.per_booking, person: i.mode === 'departure' ? t.per_person : t.per_unit, day: t.per_day};\n  const item = {id: i.id, name: loc(i, 'name', lang), description: loc(i, 'description', lang), category: loc(i, 'category', lang), isDeparture: i.mode === 'departure',\n    duration: loc(i, 'duration', lang) || '', included: loc(i, 'included', lang) || '', image: i.image || '', moreImages: [i.image2, i.image3].filter(Boolean),\n    priceAdult: money(i.price_adult), priceChild: i.price_child === null ? '' : money(i.price_child), priceDay: money(i.price_day),\n    priceWeek: i.price_week ? money(i.price_week) : '', minDays: i.min_days > 1 ? i.min_days : 0, stock: i.stock || 0,\n    security: i.security_deposit > 0 ? money(i.security_deposit) : '', securityLabel: b.deposit_hold_enabled ? t.security_deposit_hold : t.security_deposit,\n    documents: needsDocuments(i)};\n  const error = /^error_\\w+$/.test(req.query.error || '') ? errorText(t, req.query.error, whole(req.query.n, 0)) : '';\n  return {template: 'item', data: page(req, {item: item, error: error, today: now.date, last: addDays(now.date, ahead),\n    occurrences: i.mode === 'departure' ? occurrences(i, b, lang, 40) : [],\n    extras: extrasFor(i).map(x => ({id: x.id, name: loc(x, 'name', lang), price: money(x.price), per: per[x.per] || ''}))})};\n}\n",
+    "api_availability": "// GET /api/availability?item=&when=|start=&end=&qty=&adults=&children=&x<id>=1&lang=\n// JSON for the live price summary on the item page: {complete, available, left, total, message, rows: [{label, value, cls}]}.\n// For display only: POST /book prices and checks the reservation again.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = business();\n  const i = db.query('SELECT * FROM items WHERE id = ? AND active = 1', Number(req.query.item))[0];\n  if (!i) return {json: {complete: false, available: false, left: 0, message: t.not_found, rows: []}};\n  const q = quote(i, req.query, b, 0);\n  if (!q.ok) return {json: {complete: q.complete, available: false, left: q.n, message: errorText(t, q.error, q.n), rows: []}};\n  return {json: {complete: true, available: true, left: q.left, days: q.days, total: q.total, vat: q.vat, pay_now: q.online,\n    message: q.left + ' ' + (i.mode === 'departure' ? t.seats_left : t.available), rows: quoteRows(q, t, lang, true)}};\n}\n",
+    "checkout": "// GET /checkout?item=&when=|start=&end=&qty=&adults=&children=&x<id>=1\n// Shows the price worked out by the server and asks for the customer's details. Signed-out visitors are asked to sign in and come back here.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = business(), ql = lang === 'ar' ? '&lang=ar' : '';\n  const i = db.query('SELECT * FROM items WHERE id = ? AND active = 1', Number(req.query.item))[0];\n  if (!i) return {redirect: '/' + (lang === 'ar' ? '?lang=ar' : '')};\n  const q = quote(i, req.query, b, 0);\n  if (!q.ok) return {redirect: '/item/' + i.id + '?error=' + q.error + '&n=' + q.n + ql};\n  const fields = [{name: 'item', value: String(i.id)}, {name: 'lang', value: lang}];\n  for (const k of ['when', 'adults', 'children', 'start', 'end', 'qty']) if (req.query[k]) fields.push({name: k, value: req.query[k]});\n  for (const id of q.extras) fields.push({name: 'x' + id, value: '1'});\n  const r = {mode: q.mode, start_date: q.start, end_date: q.end, time: q.time, days: q.days, adults: q.adults, children: q.children, quantity: q.qty};\n  return {template: 'checkout', data: page(req, {itemId: i.id, itemName: loc(i, 'name', lang), isDeparture: i.mode === 'departure',\n    when: whenText(r, lang, t), guests: guestsText(r, t), rows: quoteRows(q, t, lang, false), fields: fields,\n    card: q.online > 0, later: !!b.pay_later_enabled, payNow: money(q.online), balance: money(q.total - q.online), full: q.online >= q.total, total: money(q.total),\n    customerName: req.user ? req.user.name : '', customerPhone: req.user ? req.user.phone : '',\n    documents: q.documents, uploads: q.documents && !!req.user, depositHold: q.depositHold, security: money(q.security)})};\n}\n",
+    "book": "// POST /book  form: item, when | start, end, qty, adults, children, x<extra id>, name, phone, notes, payment (card|later), lang,\n// and for rentals that need documents licence_file, id_file (private upload ids from /_rx/upload.js; optional here, required before handover)\n// Checks availability and prices again from the database, records the reservation, then either sends the customer to pay\n// the online share by card (status pending until on_payment confirms it) or confirms it at once as pay-later.\nfunction handle(req) {\n  const f = req.form, lang = f.lang === 'ar' ? 'ar' : 'en', ql = lang === 'ar' ? '&lang=ar' : '', b = business();\n  const i = db.query('SELECT * FROM items WHERE id = ? AND active = 1', Number(f.item))[0];\n  if (!i) return {redirect: '/' + (lang === 'ar' ? '?lang=ar' : '')};\n  const back = '/item/' + i.id + '?error=';\n  if (!req.user) return {redirect: '/_rx/auth/login?next=' + encodeURIComponent('/item/' + i.id + (lang === 'ar' ? '?lang=ar' : ''))};\n  const name = (f.name || '').trim(), phone = (f.phone || '').trim(), notes = (f.notes || '').trim().slice(0, 1000);\n  if (!name || !phone) return {redirect: back + 'error_fields' + ql};\n  const q = quote(i, f, b, 0);\n  if (!q.ok) return {redirect: back + q.error + '&n=' + q.n + ql};\n  let method = f.payment === 'card' && q.online > 0 ? 'card' : 'later';\n  if (method === 'later' && !b.pay_later_enabled) {\n    if (!(q.online > 0)) return {redirect: back + 'error_payment' + ql};\n    method = 'card';\n  }\n  // Documents uploaded at checkout must be the visitor's own files; they can also be added later on the reservation page.\n  let licence = null, idFile = null;\n  if (q.documents) {\n    licence = ownFile(f.licence_file, req.user); idFile = ownFile(f.id_file, req.user);\n    if (licence === '' || idFile === '') return {redirect: back + 'error_document' + ql};\n  }\n  const due = method === 'card' ? q.online : 0;\n  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);\n  const id = db.exec(`INSERT INTO reservations (user_id, customer_name, phone, email, item_id, item_name, mode, departure_id, start_date, end_date, time, days,\n    adults, children, quantity, extras, lines, subtotal, vat, total, due_online, paid_amount, balance_due, security_deposit, payment_method, status, lang, notes,\n    pending_since, reminded, deposit_status, deposit_link_sent, documents_required, licence_file, id_file)\n    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?)`,\n    req.user.id, name, phone, req.user.email || '', i.id, i.name, i.mode, q.departure_id, q.start, q.end, q.time, q.days,\n    q.adults, q.children, q.qty, JSON.stringify(q.extras), JSON.stringify(q.lines), q.net, q.vat, q.total, due, 0, round2(q.total - due), q.security,\n    method, method === 'card' ? 'pending' : 'confirmed', lang, notes, now, q.depositHold ? 'due' : null, q.documents ? 1 : 0, licence, idFile).lastInsertId;\n  const path = '/reservations/' + id;\n  if (method === 'later') {\n    const r = db.query('SELECT * FROM reservations WHERE id = ?', id)[0];\n    mailCustomer(r, 'email', req.origin);\n    tellOwner(r, 'New reservation');\n    return {redirect: path + '?placed=1' + ql};\n  }\n  try {\n    const pay = payments.checkout({items: [{name: i.name + ' – reservation #' + id + (due < q.total ? ' (deposit)' : ''), price: due, quantity: 1}],\n      reference: 'res-' + id, customer_email: req.user.email || '', success_path: path + '?placed=1' + ql, cancel_path: path + (lang === 'ar' ? '?lang=ar' : '')});\n    return {redirect: pay.url};\n  } catch (e) {\n    console.error('checkout failed for reservation ' + id + ': ' + e);\n    db.exec(\"UPDATE reservations SET status = 'failed' WHERE id = ?\", id); // frees the seats or stock\n    return {redirect: back + 'error_payment' + ql};\n  }\n}\n",
+    "reservations": "// GET /reservations (signed in): the visitor's own reservations.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang);\n  const names = {};\n  for (const i of db.query('SELECT id, name, name_ar FROM items')) names[i.id] = loc(i, 'name', lang);\n  const rows = db.query('SELECT * FROM reservations WHERE user_id = ? ORDER BY id DESC LIMIT 100', req.user.id);\n  return {template: 'reservations', data: page(req, {reservations: rows.map(r => ({id: r.id, item: names[r.item_id] || r.item_name, when: whenText(r, lang, t),\n    total: money(r.total), status: t['status_' + r.status] || r.status}))})};\n}\n",
+    "reservation": "// GET /reservations/:id (signed in; only the visitor's own reservation)\n// ?placed=1 after booking, ?cancelled=1, ?deposit=1 after authorising the deposit hold, ?docs=1 after uploading documents, ?error=<texts key>.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = business();\n  const r = db.query('SELECT * FROM reservations WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!r) return {template: 'not_found', data: page(req, {}), status: 404};\n  // Do not trust ?placed=1: while the reservation is pending, ask the platform whether the payment has arrived.\n  let processing = false;\n  if (r.status === 'pending') {\n    const p = payments.get('res-' + r.id);\n    processing = !!p && p.status === 'paid';\n  }\n  const v = view(r, lang, t, b);\n  const error = /^error_\\w+$/.test(req.query.error || '') ? errorText(t, req.query.error, 0) : '';\n  return {template: 'reservation', data: page(req, {r: v, placed: req.query.placed === '1' && (r.status === 'confirmed' || processing),\n    processing: processing, cancelled: req.query.cancelled === '1' && (r.status === 'cancelled' || r.status === 'refunded'),\n    depositDone: req.query.deposit === '1' && r.deposit_status === 'authorized', docsSaved: req.query.docs === '1', error: error, uploads: v.canUpload})};\n}\n",
+    "voucher": "// GET /reservations/:id/voucher (signed in; own reservation): printable voucher, titled Tax invoice once the business has a TRN.\nfunction handle(req) {\n  const lang = langOf(req), t = texts(lang), b = business();\n  const r = db.query('SELECT * FROM reservations WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id)[0];\n  if (!r) return {template: 'not_found', data: page(req, {}), status: 404};\n  return {template: 'voucher', data: page(req, {r: view(r, lang, t, b), title: b.trn ? t.tax_invoice : t.voucher,\n    seller: b.legal_name || b.name, sellerAddress: b.address || '', trn: b.trn || ''})};\n}\n",
+    "pay_again": "// POST /reservations/:id/pay (signed in): pay the online share of a reservation whose payment was not completed.\n// A failed or expired reservation no longer holds its seats or stock, so availability is checked again first.\nfunction handle(req) {\n  const id = Number(req.params.id), b = business();\n  const r = db.query('SELECT * FROM reservations WHERE id = ? AND user_id = ?', id, req.user.id)[0];\n  if (!r) return {text: 'Not found', status: 404};\n  const lang = r.lang === 'ar' ? 'ar' : 'en', path = '/reservations/' + id, ql = lang === 'ar' ? '?lang=ar' : '';\n  if (r.payment_method !== 'card' || !(r.due_online > 0) || ['pending', 'failed', 'expired'].indexOf(r.status) < 0 || r.start_date < nowDubai().date) return {redirect: path + ql};\n  const item = db.query('SELECT * FROM items WHERE id = ?', r.item_id)[0];\n  const left = r.mode === 'departure'\n    ? (db.query('SELECT capacity FROM departures WHERE id = ?', r.departure_id)[0] || {capacity: 0}).capacity - seatsTaken(r.departure_id, r.start_date, id)\n    : rangeLeft(item || {id: r.item_id, stock: 0}, r.start_date, r.end_date, id);\n  const need = r.mode === 'departure' ? r.adults + r.children : r.quantity;\n  if (left < need) return {redirect: '/item/' + r.item_id + '?error=' + (r.mode === 'departure' ? 'error_seats' : 'error_stock') + '&n=' + Math.max(0, left) + (lang === 'ar' ? '&lang=ar' : '')};\n  db.exec(\"UPDATE reservations SET status = 'pending', pending_since = ? WHERE id = ?\", new Date().toISOString().replace('T', ' ').slice(0, 19), id);\n  try {\n    const pay = payments.checkout({items: [{name: r.item_name + ' – reservation #' + id + (r.due_online < r.total ? ' (deposit)' : ''), price: r.due_online, quantity: 1}],\n      reference: 'res-' + id, customer_email: req.user.email || '', success_path: path + '?placed=1' + (lang === 'ar' ? '&lang=ar' : ''), cancel_path: path + ql});\n    return {redirect: pay.url};\n  } catch (e) {\n    console.error('checkout failed for reservation ' + id + ': ' + e);\n    db.exec(\"UPDATE reservations SET status = 'failed' WHERE id = ?\", id);\n    return {redirect: path + ql};\n  }\n}\n",
+    "cancel": "// POST /reservations/:id/cancel (signed in): the customer cancels inside the free-cancellation window.\n// What was paid online is refunded with payments.refund and a deposit hold is released; if the refund fails, the owner is told to make it.\nfunction handle(req) {\n  const id = Number(req.params.id), b = business();\n  const r = db.query('SELECT * FROM reservations WHERE id = ? AND user_id = ?', id, req.user.id)[0];\n  if (!r) return {text: 'Not found', status: 404};\n  const ql = r.lang === 'ar' ? '&lang=ar' : '';\n  if (!canCancel(r, b)) return {redirect: '/reservations/' + id + (r.lang === 'ar' ? '?lang=ar' : '')};\n  db.exec(\"UPDATE reservations SET status = 'cancelled' WHERE id = ? AND user_id = ?\", id, req.user.id); // frees the seats or stock\n  r.status = 'cancelled';\n  const m = settleCancelled(r, 'requested_by_customer');\n  mailCustomer(r, 'cancel', req.origin);\n  const what = m.refunded > 0 ? ', refunded AED ' + money(m.refunded) : r.paid_amount > 0 ? ', refund AED ' + money(r.paid_amount) : ', nothing paid';\n  try {\n    notify.owner({subject: ('Cancelled by customer #' + id + ': ' + r.item_name + ', ' + r.start_date + what).slice(0, 149),\n      text: 'Customer: ' + r.customer_name + ', ' + r.phone + '\\n' + moneyNote(r, m)});\n  } catch (e) { console.warn('owner not notified: ' + e); }\n  return {redirect: '/reservations/' + id + '?cancelled=1' + ql};\n}\n",
+    "on_payment": "// Runs when a card payment is paid, fails or expires, when it is refunded (from a script, the admin panel or Stripe), and for the\n// deposit hold. req.body: {event, reference, amount, refunded_amount, hold_expires_at, ...}.\n// Reference res-<id> is the reservation's own payment; res-<id>-deposit its security deposit hold.\nfunction handle(req) {\n  const m = /^res-(\\d+)(-deposit)?$/.exec(String(req.body.reference || ''));\n  if (!m) return {text: 'ignored'};\n  const id = Number(m[1]);\n  const r = db.query('SELECT * FROM reservations WHERE id = ?', id)[0];\n  if (!r) return {text: 'ignored'};\n  if (m[2]) return depositEvent(r, req.body, req.origin);\n  const event = req.body.event;\n  if (event === 'refunded' || event === 'partially_refunded') {\n    // Record what is left of the payment. A full refund also marks the reservation refunded, which frees its seats or stock,\n    // and releases a deposit hold still in place.\n    const kept = Math.max(0, round2(req.body.amount - req.body.refunded_amount));\n    if (event === 'refunded') {\n      db.exec(\"UPDATE reservations SET status = 'refunded', paid_amount = 0, balance_due = 0 WHERE id = ?\", id);\n      if (r.deposit_status === 'authorized') releaseDeposit(r);\n    } else db.exec('UPDATE reservations SET paid_amount = ?, balance_due = ? WHERE id = ?', kept, r.status === 'cancelled' ? 0 : round2(r.total - kept), id);\n    console.log('reservation ' + id + ' ' + event + ' ' + req.body.refunded_amount);\n    return {text: 'ok'};\n  }\n  if (event === 'paid') {\n    if (r.status === 'confirmed' || r.status === 'completed') return {text: 'ignored'};\n    const paid = round2(req.body.amount);\n    if (r.status === 'cancelled' || r.status === 'refunded' || r.status === 'no_show') {\n      // Money arrived for a reservation that is no longer wanted: keep the record and let the owner refund it.\n      db.exec('UPDATE reservations SET paid_amount = ? WHERE id = ?', paid, id);\n      try { notify.owner({subject: 'Payment of AED ' + money(paid) + ' for ' + r.status + ' reservation #' + id + ': refund it on the Payments page', text: r.customer_name + ', ' + r.phone}); } catch (e) { console.warn('owner not notified: ' + e); }\n      return {text: 'ok'};\n    }\n    // pending, or failed/expired and paid late after all: the customer has paid, so confirm.\n    db.exec(\"UPDATE reservations SET status = 'confirmed', paid_amount = ?, balance_due = ? WHERE id = ?\", paid, Math.max(0, round2(r.total - paid)), id);\n    const now = db.query('SELECT * FROM reservations WHERE id = ?', id)[0];\n    mailCustomer(now, 'email', req.origin);\n    tellOwner(now, r.status === 'pending' ? 'New reservation' : 'Paid late, check availability');\n  } else if (r.status === 'pending') {\n    // failed or expired: the reservation no longer holds its seats or stock. The customer can pay again from the reservation page.\n    db.exec('UPDATE reservations SET status = ? WHERE id = ?', event === 'failed' ? 'failed' : 'expired', id);\n  }\n  console.log('reservation ' + id + ' payment ' + event);\n  return {text: 'ok'};\n}\n\n// The deposit hold: authorized (held on the card), paid (the owner captured a damage charge), released (by the owner, by a\n// cancellation, or by the card after about 7 days), refunded (a damage charge given back). Failed or expired checkouts leave it due.\nfunction depositEvent(r, p, origin) {\n  const event = p.event;\n  if (event === 'authorized') {\n    if (['cancelled', 'refunded', 'failed', 'expired'].indexOf(r.status) >= 0) {\n      releaseDeposit(r); // authorised after the reservation ended: nothing to hold\n    } else {\n      db.exec(\"UPDATE reservations SET deposit_status = 'authorized', deposit_expires_at = ? WHERE id = ?\", p.hold_expires_at || '', r.id);\n      mailCustomer(db.query('SELECT * FROM reservations WHERE id = ?', r.id)[0], 'deposit_held', origin);\n    }\n  } else if (event === 'paid') {\n    db.exec(\"UPDATE reservations SET deposit_status = 'captured', deposit_captured = ? WHERE id = ?\", round2(p.amount), r.id);\n  } else if (event === 'refunded' || event === 'partially_refunded') {\n    db.exec('UPDATE reservations SET deposit_captured = ? WHERE id = ?', Math.max(0, round2(p.amount - p.refunded_amount)), r.id);\n  } else if (event === 'released' && r.deposit_status === 'authorized') {\n    // Not released by the app, so the card dropped the hold. The customer can authorise it again from the reservation page.\n    db.exec(\"UPDATE reservations SET deposit_status = 'expired', deposit_link_sent = 0 WHERE id = ?\", r.id);\n    try {\n      notify.owner({subject: ('Deposit hold expired for #' + r.id + ': ' + r.item_name + ', ' + r.start_date + ' to ' + r.end_date + ', AED ' + money(r.security_deposit)).slice(0, 149),\n        text: 'The card hold for the security deposit has ended. The customer can authorise it again from the reservation page, or collect the deposit at handover.\\n\\nCustomer: ' + r.customer_name + ', ' + r.phone});\n    } catch (e) { console.warn('owner not notified: ' + e); }\n  }\n  console.log('reservation ' + r.id + ' deposit ' + event);\n  return {text: 'ok'};\n}\n",
+    "mcp_search": "// MCP tool search_items: {query, category, lang}\nfunction handle(req) {\n  const a = req.body || {}, lang = a.lang === 'ar' ? 'ar' : 'en';\n  const words = String(a.query || '').toLowerCase().split(/\\s+/).filter(Boolean), cat = String(a.category || '').toLowerCase();\n  const out = [];\n  for (const i of db.query('SELECT * FROM items WHERE active = 1 ORDER BY id')) {\n    if (cat && (i.category || '').toLowerCase() !== cat && (i.category_ar || '') !== a.category) continue;\n    const hay = [i.name, i.name_ar, i.description, i.description_ar, i.category, i.category_ar, i.included].join(' ').toLowerCase();\n    if (!words.every(w => hay.indexOf(w) >= 0)) continue;\n    const row = {id: i.id, name: loc(i, 'name', lang), category: loc(i, 'category', lang), description: loc(i, 'description', lang),\n      kind: i.mode === 'departure' ? 'tour with dated departures' : 'rental by the day', url: req.origin + '/item/' + i.id + (lang === 'ar' ? '?lang=ar' : '')};\n    if (i.mode === 'departure') {\n      row.price_per_adult = i.price_adult; row.price_per_child = i.price_child === null ? i.price_adult : i.price_child;\n      row.duration = loc(i, 'duration', lang) || null;\n    } else {\n      row.price_per_day = i.price_day; row.price_per_week = i.price_week || null; row.minimum_days = i.min_days || 1;\n      row.quantity_owned = i.stock || 0; row.security_deposit_at_handover = i.security_deposit || 0;\n    }\n    row.included = loc(i, 'included', lang) || null;\n    out.push(row);\n    if (out.length >= 30) break;\n  }\n  return {json: {currency: 'AED', prices_include_vat: true, items: out}};\n}\n",
+    "mcp_availability": "// MCP tool check_availability: {item, date, start, end, people, children, quantity, lang}\n// Tours: the departures on date (or the next ones) with seats left and the price for the party.\n// Rentals: units free from start to end and the price for that many days.\nfunction handle(req) {\n  const a = req.body || {}, lang = a.lang === 'ar' ? 'ar' : 'en', t = texts(lang), b = business();\n  const i = db.query('SELECT * FROM items WHERE id = ? AND active = 1', Number(a.item))[0];\n  if (!i) return {text: 'No such item; use search_items to find item ids.', status: 404};\n  const url = req.origin + '/item/' + i.id + (lang === 'ar' ? '?lang=ar' : '');\n  if (i.mode === 'departure') {\n    const adults = whole(a.people, 1), children = whole(a.children, 0);\n    let list = occurrences(i, b, lang, 400);\n    if (a.date) list = list.filter(o => o.date === String(a.date));\n    const departures = list.slice(0, 10).map(o => {\n      const q = quote(i, {when: o.key, adults: String(adults), children: String(children)}, b, 0);\n      return {date: o.date, time: o.time, seats_left: o.left, available: q.ok, price_per_adult: o.priceNum, total_price: q.ok ? q.total : null,\n        pay_online_now: q.ok ? q.online : null};\n    });\n    return {json: {item: loc(i, 'name', lang), kind: 'tour', adults: adults, children: children, available: departures.some(d => d.available), departures: departures,\n      currency: 'AED', prices_include_vat: true, note: departures.length ? 'Extras such as hotel pickup are chosen on the booking page.' : 'No departure on that date within the bookable period.',\n      book_at: url}};\n  }\n  if (!a.start || !a.end) return {text: 'For a rental give start and end as YYYY-MM-DD.', status: 400};\n  const q = quote(i, {start: String(a.start), end: String(a.end), qty: String(whole(a.quantity, 1))}, b, 0);\n  const out = {item: loc(i, 'name', lang), kind: 'rental', start: String(a.start), end: String(a.end), quantity: whole(a.quantity, 1), available: q.ok,\n    stock_left: q.ok ? q.left : q.n, currency: 'AED', prices_include_vat: true, book_at: url};\n  if (q.ok) {\n    out.days = q.days; out.total_price = q.total; out.pay_online_now = q.online; out.security_deposit_at_handover = q.depositHold ? 0 : q.security;\n    out.security_deposit_card_hold = q.depositHold ? q.security : 0; out.documents_required = q.documents;\n  } else {\n    out.reason = errorText(t, q.error, q.n);\n  }\n  return {json: out};\n}\n",
+    "mcp_business": "// MCP tool business_info: who we are, how payment and cancellation work, contact.\nfunction handle(req) {\n  const b = business(), lang = (req.body || {}).lang === 'ar' ? 'ar' : 'en';\n  const percent = b.card_enabled ? Math.max(0, Math.min(100, b.deposit_percent || 0)) : 0;\n  return {json: {name: loc(b, 'name', lang), tagline: loc(b, 'tagline', lang), url: req.origin, address: b.address || null, licence: b.licence || null,\n    currency: 'AED', prices_include_vat: true, timezone: 'Asia/Dubai (UTC+4)',\n    payment_methods: [percent > 0 ? 'card online' : null, b.pay_later_enabled ? 'pay on the day' : null].filter(Boolean),\n    paid_online_percent: percent, balance: percent < 100 ? 'paid on the day' : null,\n    free_cancellation_hours_before_start: b.free_cancel_hours || 0, bookable_days_ahead: b.days_ahead || 60,\n    rental_security_deposit: b.deposit_hold_enabled ? 'refundable, held on the customer\\'s card (authorised on the reservation page from ' + HOLD_DAYS +\n      ' days before the start, not charged) and released at the return' : 'refundable, paid at handover, not online', whatsapp: b.whatsapp || null, reservations_page: req.origin + '/reservations'}};\n}\n",
+    "daily": "// Job, every evening: expire reservations left unpaid, email the owner tomorrow's departures (with passenger counts),\n// handovers (deposit and documents) and returns, remind tomorrow's customers by email, and email the link to authorise the\n// deposit hold to customers whose rental starts within HOLD_DAYS.\nfunction handle(req) {\n  const tomorrow = addDays(nowDubai().date, 1);\n  // 1. A card reservation still waiting for payment after two hours stops holding its seats or stock.\n  const cutoff = new Date(Date.now() - 2 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);\n  const expired = db.exec(\"UPDATE reservations SET status = 'expired' WHERE status = 'pending' AND COALESCE(pending_since, created_at) < ?\", cutoff).rowsAffected;\n\n  // 2. Tomorrow for the owner.\n  const who = (r) => '  #' + r.id + ' ' + r.customer_name + ', ' + r.phone + (r.balance_due > 0 ? ', balance AED ' + money(r.balance_due) : ', paid') + (r.notes ? ' (' + r.notes + ')' : '');\n  const out = db.query(`SELECT * FROM reservations WHERE start_date = ? AND status = 'confirmed' ORDER BY mode, time, item_name, id LIMIT 300`, tomorrow);\n  const back = db.query(`SELECT * FROM reservations WHERE mode = 'range' AND end_date = ? AND status = 'confirmed' ORDER BY item_name, id LIMIT 300`, tomorrow);\n  const trips = {}, order = [];\n  let passengers = 0, handovers = 0;\n  const handoverLines = [];\n  for (const r of out) {\n    if (r.mode === 'departure') {\n      const key = r.time + ' ' + r.item_name;\n      if (!trips[key]) { trips[key] = {pax: 0, lines: []}; order.push(key); }\n      trips[key].pax += r.adults + r.children;\n      trips[key].lines.push(who(r) + ': ' + r.adults + ' adults' + (r.children ? ', ' + r.children + ' children' : ''));\n      passengers += r.adults + r.children;\n    } else {\n      handovers++;\n      handoverLines.push(r.quantity + ' x ' + r.item_name + ' until ' + r.end_date + depositNote(r) +\n        (r.documents_required ? (documentsReceived(r) ? ', documents received' : ', documents NOT uploaded: check licence and passport') : '') + '\\n' + who(r));\n    }\n  }\n  const summary = order.length + ' departure' + (order.length === 1 ? '' : 's') + ' (' + passengers + ' passenger' + (passengers === 1 ? '' : 's') + '), ' +\n    handovers + ' handover' + (handovers === 1 ? '' : 's') + ', ' + back.length + ' return' + (back.length === 1 ? '' : 's');\n  if (out.length || back.length) {\n    let text = '';\n    if (order.length) text += 'DEPARTURES\\n' + order.map(k => k + ': ' + trips[k].pax + ' passengers\\n' + trips[k].lines.join('\\n')).join('\\n\\n') + '\\n\\n';\n    if (handovers) text += 'HANDOVERS\\n' + handoverLines.join('\\n') + '\\n\\n';\n    if (back.length) text += 'RETURNS\\n' + back.map(r => r.quantity + ' x ' + r.item_name + ' since ' + r.start_date +\n      (r.deposit_status === 'authorized' ? ', deposit AED ' + money(r.security_deposit) + ' held: set Deposit at return to release or capture' : '') + '\\n' + who(r)).join('\\n') + '\\n';\n    try { notify.owner({subject: 'Tomorrow ' + tomorrow + ': ' + summary, text: text}); } catch (e) { console.warn('owner not notified: ' + e); }\n  }\n\n  // 3. Remind tomorrow's customers once. At most 40 a run, to stay inside the limits of one script.\n  let reminded = 0;\n  for (const r of out) {\n    if (r.reminded || !r.email || reminded >= 40) continue;\n    if (mailCustomer(r, 'remind', req.origin)) reminded++;\n    db.exec('UPDATE reservations SET reminded = 1 WHERE id = ?', r.id);\n  }\n\n  // 4. The deposit hold link, once, when a rental comes within HOLD_DAYS of its start (holds last about 7 days).\n  const today = nowDubai().date;\n  let links = 0;\n  for (const r of db.query(`SELECT * FROM reservations WHERE status = 'confirmed' AND deposit_status IN ('due', 'expired') AND COALESCE(deposit_link_sent, 0) = 0\n    AND start_date >= ? AND start_date <= ? ORDER BY start_date, id LIMIT 40`, today, addDays(today, HOLD_DAYS))) {\n    if (r.email && mailCustomer(r, 'deposit', req.origin)) links++;\n    else db.exec('UPDATE reservations SET deposit_link_sent = 1 WHERE id = ?', r.id);\n  }\n  return {text: 'tomorrow ' + tomorrow + ': ' + summary + '; ' + reminded + ' reminded; ' + expired + ' expired; ' + links + ' deposit link' + (links === 1 ? '' : 's')};\n}\nfunction depositNote(r) {\n  if (!(r.security_deposit > 0)) return '';\n  if (!r.deposit_status) return ', collect deposit AED ' + money(r.security_deposit);\n  if (r.deposit_status === 'authorized') return ', deposit AED ' + money(r.security_deposit) + ' held on the card';\n  return ', deposit AED ' + money(r.security_deposit) + ' NOT authorised: collect it at handover';\n}\n",
+    "admin_change": "// on_admin_change: runs right after the owner or staff changes a reservation in the admin panel.\n// - status set to cancelled: refunds what was paid online, releases the deposit hold and emails the customer;\n// - status set to confirmed (e.g. a reservation taken by phone), or no_show: emails the customer;\n// - dates, time or departure changed: emails the customer, and the reminder and the deposit link go out again;\n// - deposit_action set to release, or to capture with damage_amount, while the deposit is held: releases the hold or takes the\n//   damage charge (the rest is released), and emails the customer.\nfunction handle(req) {\n  const b = req.body;\n  if (b.table !== 'reservations' || b.action === 'delete' || !b.row) return {text: 'nothing to do'};\n  const r = b.row, was = b.before || {}, done = [];\n  const s = (v) => v === null || v === undefined ? '' : String(v);\n  const became = (status) => r.status === status && s(was.status) !== status;\n\n  if (became('cancelled') && s(was.status) !== 'refunded') {\n    const m = settleCancelled(r, 'cancelled by the business');\n    mailCustomer(r, 'cancel', req.origin);\n    if (m.refundFailed || m.releaseFailed) notifyOwner('Reservation #' + r.id + ' cancelled: refund or deposit release not made', moneyNote(r, m));\n    return {text: 'cancelled' + (m.refunded > 0 ? ', refunded ' + money(m.refunded) : '') + (m.released ? ', deposit released' : '') + ', customer emailed'};\n  }\n  if (became('confirmed') && mailCustomer(r, 'email', req.origin)) done.push('confirmation emailed');\n  if (became('no_show') && mailCustomer(r, 'no_show', req.origin)) done.push('no-show emailed');\n  if (b.action === 'update' && (r.status === 'pending' || r.status === 'confirmed') && !became('confirmed') &&\n    ['start_date', 'end_date', 'time', 'departure_id'].some(k => s(was[k]) !== s(r[k]))) {\n    db.exec('UPDATE reservations SET reminded = 0, deposit_link_sent = 0 WHERE id = ?', r.id);\n    r.reminded = 0;\n    r.deposit_link_sent = 0;\n    if (mailCustomer(r, 'changed', req.origin)) done.push('change emailed');\n  }\n\n  if (r.deposit_status === 'authorized' && (r.deposit_action === 'release' || r.deposit_action === 'capture')) {\n    const damage = round2(Number(r.damage_amount) || 0);\n    if (r.deposit_action === 'capture' && damage > 0) {\n      if (damage > r.security_deposit) {\n        notifyOwner('Damage charge for #' + r.id + ' not taken: AED ' + money(damage) + ' is more than the deposit of AED ' + money(r.security_deposit),\n          'Change the damage charge and save again.');\n        done.push('damage charge is more than the deposit');\n      } else {\n        try {\n          const res = payments.capture({reference: depositRef(r), amount: damage});\n          db.exec(\"UPDATE reservations SET deposit_status = 'captured', deposit_captured = ? WHERE id = ?\", round2(res.amount), r.id);\n          r.deposit_status = 'captured';\n          r.deposit_captured = round2(res.amount);\n          mailCustomer(r, 'deposit_captured', req.origin);\n          done.push('captured ' + money(res.amount) + ' of the deposit');\n        } catch (e) {\n          console.warn('deposit of reservation ' + r.id + ' not captured: ' + e);\n          notifyOwner('Damage charge for #' + r.id + ' not taken', String(e));\n          done.push('capture failed');\n        }\n      }\n    } else if (releaseDeposit(r)) {\n      r.deposit_status = 'released';\n      mailCustomer(r, 'deposit_released', req.origin);\n      done.push('deposit released');\n    } else {\n      notifyOwner('Deposit hold for #' + r.id + ' not released', 'Release it on the Payments page of the admin panel.');\n      done.push('release failed');\n    }\n  }\n  return {text: done.join('; ') || 'nothing to do'};\n}\nfunction notifyOwner(subject, text) {\n  try { notify.owner({subject: subject.slice(0, 149), text: text}); } catch (e) { console.warn('owner not notified: ' + e); }\n}\n",
+    "deposit": "// POST /reservations/:id/deposit (signed in): the customer authorises the refundable security deposit as a card hold, from\n// HOLD_DAYS before the start. Nothing is charged; on_payment records the hold, and the owner releases or captures it at the return.\nfunction handle(req) {\n  const id = Number(req.params.id);\n  const r = db.query('SELECT * FROM reservations WHERE id = ? AND user_id = ?', id, req.user.id)[0];\n  if (!r) return {text: 'Not found', status: 404};\n  const lang = r.lang === 'ar' ? 'ar' : 'en', path = '/reservations/' + id, ql = lang === 'ar' ? '?lang=ar' : '';\n  if (!depositOpen(r)) return {redirect: path + ql};\n  try {\n    const pay = payments.checkout({items: [{name: r.item_name + ' – security deposit, reservation #' + id, price: r.security_deposit, quantity: 1}], hold: true,\n      reference: depositRef(r), customer_email: req.user.email || r.email || '', success_path: path + '?deposit=1' + (lang === 'ar' ? '&lang=ar' : ''), cancel_path: path + ql});\n    return {redirect: pay.url};\n  } catch (e) {\n    console.error('deposit hold not started for reservation ' + id + ': ' + e);\n    return {redirect: path + '?error=error_payment' + (lang === 'ar' ? '&lang=ar' : '')};\n  }\n}\n",
+    "documents": "// POST /reservations/:id/documents (signed in)  form: licence_file, id_file (private upload ids from /_rx/upload.js; one or both)\n// The customer's driving licence and passport or Emirates ID before handover. Each id must be a file this visitor uploaded.\nfunction handle(req) {\n  const id = Number(req.params.id);\n  const r = db.query('SELECT * FROM reservations WHERE id = ? AND user_id = ?', id, req.user.id)[0];\n  if (!r) return {text: 'Not found', status: 404};\n  const path = '/reservations/' + id, ql = r.lang === 'ar' ? '&lang=ar' : '';\n  if (!canUpload(r)) return {redirect: path + (r.lang === 'ar' ? '?lang=ar' : '')};\n  const licence = ownFile(req.form.licence_file, req.user), idFile = ownFile(req.form.id_file, req.user);\n  if (licence === '' || idFile === '' || (!licence && !idFile)) return {redirect: path + '?error=error_document' + ql};\n  db.exec('UPDATE reservations SET licence_file = COALESCE(?, licence_file), id_file = COALESCE(?, id_file) WHERE id = ? AND user_id = ?', licence, idFile, id, req.user.id);\n  const now = db.query('SELECT * FROM reservations WHERE id = ?', id)[0];\n  if (documentsReceived(now) && !documentsReceived(r)) {\n    try {\n      notify.owner({subject: ('Documents received for #' + id + ': ' + r.item_name + ', ' + r.start_date + ', ' + r.customer_name).slice(0, 149),\n        text: 'The driving licence and the passport or Emirates ID are uploaded. Open them from the reservation in the admin panel.'});\n    } catch (e) { console.warn('owner not notified: ' + e); }\n  }\n  return {redirect: path + '?docs=1' + ql};\n}\n"
+  },
+  "lib": {
+    "a_common": "// Helpers shared by every script (lib entries run in name order before each script, job, tool and hook): texts, settings, money, UAE dates, page data.\nfunction langOf(req) { return req.query.lang === 'ar' ? 'ar' : 'en'; }\nfunction texts(lang) {\n  const t = {};\n  for (const r of db.query('SELECT key, en, ar FROM texts')) t[r.key] = (lang === 'ar' ? r.ar : r.en) || r.en;\n  return t;\n}\nfunction business() { return db.query('SELECT * FROM business ORDER BY id LIMIT 1')[0]; }\nfunction round2(n) { return Math.round(n * 100) / 100; }\nfunction money(n) { return round2(n || 0).toFixed(2); }\nfunction loc(row, field, lang) { return lang === 'ar' && row[field + '_ar'] ? row[field + '_ar'] : row[field]; }\n\n// Dates are local UAE dates as text, 'YYYY-MM-DD', and times 'HH:MM'; they compare correctly as strings.\n// The UAE is UTC+4 all year, so \"now\" in Dubai is UTC plus four hours.\nfunction nowDubai() {\n  const iso = new Date(Date.now() + 4 * 3600 * 1000).toISOString();\n  return {date: iso.slice(0, 10), time: iso.slice(11, 16)};\n}\n// Milliseconds (UTC midnight) of a 'YYYY-MM-DD' date, or null when it is not a real date.\nfunction parts(s) {\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(s || '');\n  if (!m) return null;\n  const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));\n  return new Date(ms).toISOString().slice(0, 10) === s ? ms : null;\n}\nfunction addDays(s, n) { return new Date(parts(s) + n * 86400000).toISOString().slice(0, 10); }\nfunction dayDiff(a, b) { return Math.round((parts(b) - parts(a)) / 86400000); }\nconst WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];\nconst DAY_NAMES = {en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], ar: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']};\nconst MONTH_NAMES = {en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],\n  ar: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']};\nfunction showDate(s, lang) {\n  const ms = parts(s);\n  if (ms === null) return s || '';\n  const d = new Date(ms), l = lang === 'ar' ? 'ar' : 'en';\n  return DAY_NAMES[l][d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MONTH_NAMES[l][d.getUTCMonth()] + ' ' + d.getUTCFullYear();\n}\n// A whole number from a form or query value; def when it is missing, -1 when it is not a whole number.\nfunction whole(v, def) {\n  if (v === undefined || v === null || v === '') return def;\n  const n = Number(v);\n  return Number.isInteger(n) ? n : -1;\n}\nfunction errorText(t, key, n) { return (t[key] || t.error_departure).replace(/\\{n\\}/g, String(n || 0)); }\nfunction lineLabel(l, lang) { return (lang === 'ar' && l.name_ar ? l.name_ar : l.name) + (l.qty > 1 ? ' × ' + l.qty : ''); }\n\nfunction page(req, extra) {\n  const lang = langOf(req), b = business(), qs = [];\n  for (const k in req.query) if (k !== 'lang' && k !== 'error' && k !== 'n') qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(req.query[k]));\n  const mine = qs.concat(lang === 'ar' ? ['lang=ar'] : []);\n  const base = {lang: lang, dir: lang === 'ar' ? 'rtl' : 'ltr', t: texts(lang), user: req.user, business: b,\n    businessName: loc(b, 'name', lang), tagline: loc(b, 'tagline', lang), licence: b.licence || '',\n    here: req.path + (mine.length ? '?' + mine.join('&') : ''),\n    langUrl: req.path + '?' + qs.concat(['lang=' + (lang === 'ar' ? 'en' : 'ar')]).join('&'),\n    wa: (b.whatsapp || '').replace(/[^0-9]/g, '')};\n  for (const k in extra) base[k] = extra[k];\n  return base;\n}\n",
+    "b_inventory": "// Inventory and prices: departures, seats and stock added up from the reservations, rental prices, extras, quotes.\n// A departure row runs on its own date, or, when date is empty, on its weekdays ('daily' or e.g. 'fri,sat').\nfunction runsOn(dep, date) {\n  if (dep.date) return dep.date === date;\n  const w = (dep.weekdays || 'daily').toLowerCase();\n  return w.indexOf('daily') >= 0 || w.indexOf(WEEKDAYS[new Date(parts(date)).getUTCDay()]) >= 0;\n}\n// Nothing is counted down: seats and stock in use are added up from the reservations that hold them\n// (pending, confirmed, completed, no_show), so a cancelled, failed, expired or refunded reservation frees them by itself.\nfunction seatsTaken(depId, date, exceptId) {\n  return db.query(`SELECT COALESCE(SUM(adults + children), 0) AS n FROM reservations WHERE departure_id = ? AND start_date = ? AND id <> ?\n    AND status IN ('pending', 'confirmed', 'completed', 'no_show')`, depId, date, exceptId || 0)[0].n;\n}\n// Units of a rental item free on every day from start to end: stock minus the busiest day in that range.\n// The return day counts as taken.\nfunction rangeLeft(item, start, end, exceptId) {\n  const rows = db.query(`SELECT start_date, end_date, quantity FROM reservations WHERE item_id = ? AND mode = 'range' AND id <> ?\n    AND start_date <= ? AND end_date >= ? AND status IN ('pending', 'confirmed', 'completed', 'no_show')`, item.id, exceptId || 0, end, start);\n  let busiest = 0;\n  for (let d = start; d <= end; d = addDays(d, 1)) {\n    let n = 0;\n    for (const r of rows) if (r.start_date <= d && r.end_date >= d) n += r.quantity;\n    if (n > busiest) busiest = n;\n  }\n  return (item.stock || 0) - busiest;\n}\n// Price of one unit for a number of days: full weeks at the weekly price when there is one, never more than one more full week.\nfunction rentalPrice(item, days) {\n  const day = item.price_day || 0;\n  if (!item.price_week) return day * days;\n  const weeks = Math.floor(days / 7);\n  return Math.min(weeks * item.price_week + (days % 7) * day, (weeks + 1) * item.price_week);\n}\n// Rentals of cars (category Cars) or of items with needs_documents ask for a driving licence and a passport, uploaded privately.\nfunction needsDocuments(item) { return !!item.needs_documents || (item.mode === 'range' && /^cars?$/i.test((item.category || '').trim())); }\nfunction extrasFor(item) {\n  return db.query(`SELECT * FROM extras WHERE active = 1 AND (item_id = ? OR (item_id IS NULL AND (category = ? OR category IS NULL OR category = ''))) ORDER BY id`,\n    item.id, item.category || '');\n}\n// Upcoming departures of a tour within the bookable period, with seats left.\nfunction occurrences(item, b, lang, limit) {\n  const now = nowDubai(), ahead = b.days_ahead > 0 ? b.days_ahead : 60;\n  const deps = db.query('SELECT * FROM departures WHERE item_id = ? AND active = 1 ORDER BY time, id', item.id);\n  const taken = {};\n  for (const r of db.query(`SELECT departure_id, start_date, SUM(adults + children) AS n FROM reservations WHERE item_id = ? AND mode = 'departure'\n    AND start_date >= ? AND status IN ('pending', 'confirmed', 'completed', 'no_show') GROUP BY departure_id, start_date`, item.id, now.date)) {\n    taken[r.departure_id + '_' + r.start_date] = r.n;\n  }\n  const out = [];\n  for (let i = 0; i <= ahead && out.length < limit; i++) {\n    const date = addDays(now.date, i);\n    for (const d of deps) {\n      if (!runsOn(d, date) || (i === 0 && d.time <= now.time)) continue;\n      const key = d.id + '_' + date, left = d.capacity - (taken[key] || 0);\n      out.push({key: key, departure_id: d.id, date: date, time: d.time, label: showDate(date, lang) + ' · ' + d.time, left: left, full: left <= 0,\n        priceNum: d.price === null ? item.price_adult : d.price, price: money(d.price === null ? item.price_adult : d.price)});\n    }\n  }\n  return out;\n}\n\n// Checks one request against the database and prices it. f holds strings as sent by the browser:\n// tours: when ('<departure id>_<date>'), adults, children; rentals: start, end, qty; extras: x<extra id> = '1'.\n// Returns {ok: true, lines, total, vat, online, ...} or {ok: false, error: '<texts key>', n}. Prices never come from the browser.\nfunction quote(item, f, b, exceptId) {\n  const now = nowDubai(), ahead = b.days_ahead > 0 ? b.days_ahead : 60, last = addDays(now.date, ahead);\n  const en = texts('en'), ar = texts('ar');\n  const q = {ok: false, complete: true, error: '', n: 0, mode: item.mode, left: 0, departure_id: null, start: '', end: '', time: '', days: 1,\n    adults: 0, children: 0, qty: 1, lines: [], extras: []};\n  const fail = (key, n) => { q.error = key; q.n = n || 0; return q; };\n  let people = 0;\n  if (item.mode === 'departure') {\n    const m = /^(\\d+)_(\\d{4}-\\d{2}-\\d{2})$/.exec(f.when || '');\n    if (!m) { q.complete = false; return fail('error_choose_departure'); }\n    const dep = db.query('SELECT * FROM departures WHERE id = ? AND item_id = ? AND active = 1', Number(m[1]), item.id)[0];\n    const date = m[2];\n    if (!dep || parts(date) === null || !runsOn(dep, date) || date < now.date || date > last || (date === now.date && dep.time <= now.time)) return fail('error_departure');\n    q.adults = whole(f.adults, 1); q.children = whole(f.children, 0);\n    if (!(q.adults >= 1 && q.adults <= 99 && q.children >= 0 && q.children <= 99)) return fail('error_people');\n    people = q.adults + q.children;\n    q.departure_id = dep.id; q.start = date; q.end = date; q.time = dep.time;\n    q.left = dep.capacity - seatsTaken(dep.id, date, exceptId);\n    if (q.left < people) return fail('error_seats', Math.max(0, q.left));\n    const adult = dep.price === null ? (item.price_adult || 0) : dep.price;\n    const child = item.price_child === null ? adult : Math.min(item.price_child, adult);\n    q.lines.push({name: item.name + ' – ' + en.adult, name_ar: (item.name_ar || item.name) + ' – ' + ar.adult, qty: q.adults, unit: adult, amount: round2(adult * q.adults)});\n    if (q.children > 0) q.lines.push({name: item.name + ' – ' + en.child, name_ar: (item.name_ar || item.name) + ' – ' + ar.child, qty: q.children, unit: child, amount: round2(child * q.children)});\n  } else {\n    q.start = f.start || ''; q.end = f.end || '';\n    if (!q.start || !q.end) { q.complete = false; return fail('error_dates'); }\n    if (parts(q.start) === null || parts(q.end) === null || q.start < now.date || q.start > last || q.end < q.start) return fail('error_dates');\n    q.days = Math.max(1, dayDiff(q.start, q.end)); // same-day return counts as one day\n    if (q.days > 90) return fail('error_dates');\n    if (q.days < (item.min_days || 1)) return fail('error_min_days', item.min_days);\n    q.qty = whole(f.qty, 1);\n    if (!(q.qty >= 1 && q.qty <= 999)) return fail('error_quantity');\n    q.left = rangeLeft(item, q.start, q.end, exceptId);\n    if (q.left < q.qty) return fail('error_stock', Math.max(0, q.left));\n    const unit = rentalPrice(item, q.days);\n    const d = ' – ' + q.days + ' ';\n    q.lines.push({name: item.name + d + (q.days === 1 ? en.day : en.days), name_ar: (item.name_ar || item.name) + d + (q.days === 1 ? ar.day : ar.days),\n      qty: q.qty, unit: unit, amount: round2(unit * q.qty)});\n  }\n  for (const x of extrasFor(item)) {\n    if (f['x' + x.id] !== '1') continue;\n    const times = x.per === 'person' ? (item.mode === 'departure' ? people : q.qty) : x.per === 'day' ? q.days : 1;\n    q.extras.push(x.id);\n    q.lines.push({name: x.name, name_ar: x.name_ar || x.name, qty: times, unit: x.price, amount: round2(x.price * times)});\n  }\n  let total = 0;\n  for (const l of q.lines) total += l.amount;\n  q.total = round2(total);\n  q.vat = round2(q.total * 5 / 105); // prices include 5% VAT\n  q.net = round2(q.total - q.vat);\n  const percent = Math.max(0, Math.min(100, b.deposit_percent || 0));\n  q.online = b.card_enabled && percent > 0 ? round2(q.total * percent / 100) : 0; // the share paid by card to secure the reservation\n  // Refundable, never paid online: a card hold the customer authorises before the start when business.deposit_hold_enabled,\n  // else collected at handover.\n  q.security = item.mode === 'range' ? round2((item.security_deposit || 0) * q.qty) : 0;\n  q.depositHold = q.security > 0 && !!b.deposit_hold_enabled;\n  q.documents = needsDocuments(item);\n  q.ok = true;\n  return q;\n}\n// Rows of a price summary for the item page (live, through /api/availability) and the checkout page.\nfunction quoteRows(q, t, lang, pay) {\n  const rows = q.lines.map(l => ({label: lineLabel(l, lang), value: 'AED ' + money(l.amount), cls: ''}));\n  rows.push({label: t.total, value: 'AED ' + money(q.total), cls: 'total'});\n  rows.push({label: t.vat_in_total, value: 'AED ' + money(q.vat), cls: 'muted'});\n  if (pay && q.online > 0) {\n    rows.push({label: t.pay_now, value: 'AED ' + money(q.online), cls: ''});\n    rows.push({label: t.balance, value: 'AED ' + money(q.total - q.online), cls: ''});\n  }\n  if (q.security > 0) rows.push({label: q.depositHold ? t.security_deposit_hold : t.security_deposit, value: 'AED ' + money(q.security), cls: 'muted'});\n  return rows;\n}\n",
+    "c_reservations": "// A reservation as the customer sees it: when, who, the free-cancellation deadline and the page and voucher data.\nfunction whenText(r, lang, t) {\n  if (r.mode === 'departure') return showDate(r.start_date, lang) + ', ' + r.time;\n  return showDate(r.start_date, lang) + ' – ' + showDate(r.end_date, lang) + ' (' + r.days + ' ' + (r.days === 1 ? t.day : t.days) + ')';\n}\nfunction guestsText(r, t) {\n  if (r.mode === 'departure') return t.adults + ': ' + r.adults + (r.children > 0 ? ', ' + t.children + ': ' + r.children : '');\n  return t.quantity + ': ' + r.quantity;\n}\n// The last moment a customer may cancel on the site, as UTC milliseconds: the start (UAE time) minus the free-cancellation hours.\nfunction cancelDeadline(r, b) {\n  const hm = r.mode === 'departure' && /^\\d{2}:\\d{2}$/.test(r.time || '') ? r.time.split(':') : ['00', '00'];\n  return parts(r.start_date) + (Number(hm[0]) * 60 + Number(hm[1])) * 60000 - 4 * 3600 * 1000 - (b.free_cancel_hours || 0) * 3600 * 1000;\n}\nfunction canCancel(r, b) { return (r.status === 'pending' || r.status === 'confirmed') && Date.now() < cancelDeadline(r, b); }\nfunction deadlineText(r, b, lang) {\n  const iso = new Date(cancelDeadline(r, b) + 4 * 3600 * 1000).toISOString();\n  return showDate(iso.slice(0, 10), lang) + ', ' + iso.slice(11, 16);\n}\n// The security deposit of a rental as a card hold (deposit_status: due, authorized, released, captured or expired; empty when it is\n// collected at handover). Cards drop a hold after about 7 days, so the customer authorises it only from HOLD_DAYS before the start;\n// the daily job emails the link when that day comes.\nconst HOLD_DAYS = 6;\nfunction depositRef(r) { return 'res-' + r.id + '-deposit'; }\nfunction depositOpen(r) {\n  const today = nowDubai().date;\n  return (r.deposit_status === 'due' || r.deposit_status === 'expired') && r.status === 'confirmed' && r.security_deposit > 0 &&\n    (r.end_date || r.start_date) >= today && dayDiff(today, r.start_date) <= HOLD_DAYS;\n}\nfunction depositLater(r) {\n  return r.deposit_status === 'due' && (r.status === 'pending' || r.status === 'confirmed') && dayDiff(nowDubai().date, r.start_date) > HOLD_DAYS;\n}\nfunction depositText(r, t, lang) {\n  if (!r.deposit_status) return '';\n  const until = r.deposit_expires_at ? showDate(r.deposit_expires_at.slice(0, 10), lang) : '';\n  return (t['deposit_status_' + r.deposit_status] || r.deposit_status).replace(/\\{damage\\}/g, money(r.deposit_captured)).replace(/\\{until\\}/g, until);\n}\n// Driving licence and passport: private uploads (file columns), required on rentals that need documents.\nfunction documentsReceived(r) { return !!(r.licence_file && r.id_file); }\nfunction canUpload(r) { return !!r.documents_required && (r.status === 'pending' || r.status === 'confirmed') && (r.end_date || r.start_date) >= nowDubai().date; }\n// A private upload id sent by a form, checked against the visitor: null when none was sent, '' when it is not the visitor's own file.\nfunction ownFile(id, user) {\n  if (!id) return null;\n  const f = files.get(String(id));\n  return f && user && f.user_id === user.id ? f.id : '';\n}\n\n// What the reservation page and the voucher show.\nfunction view(r, lang, t, b) {\n  const item = db.query('SELECT name, name_ar FROM items WHERE id = ?', r.item_id)[0] || {name: r.item_name};\n  return {id: r.id, item: loc(item, 'name', lang), itemId: r.item_id, when: whenText(r, lang, t), guests: guestsText(r, t), date: r.created_at.slice(0, 10),\n    status: r.status, statusText: t['status_' + r.status] || r.status, name: r.customer_name, phone: r.phone, email: r.email, notes: r.notes,\n    lines: JSON.parse(r.lines || '[]').map(l => ({label: lineLabel(l, lang), amount: money(l.amount)})),\n    net: money(r.subtotal), vat: money(r.vat), total: money(r.total), paid: money(r.paid_amount), balance: money(r.balance_due),\n    security: r.security_deposit > 0 ? money(r.security_deposit) : '', card: r.payment_method === 'card',\n    securityLabel: r.deposit_status ? t.security_deposit_hold : t.security_deposit,\n    depositHold: !!r.deposit_status && r.security_deposit > 0, depositStatus: r.deposit_status || '', depositText: depositText(r, t, lang),\n    depositOpen: depositOpen(r), depositLater: depositLater(r),\n    docsRequired: !!r.documents_required, docsReceived: documentsReceived(r), canUpload: canUpload(r),\n    licenceUrl: r.licence_file ? files.url(r.licence_file) || '' : '', idUrl: r.id_file ? files.url(r.id_file) || '' : '',\n    canCancel: canCancel(r, b), cancelUntil: deadlineText(r, b, lang), open: r.status === 'pending' || r.status === 'confirmed',\n    canPay: r.payment_method === 'card' && (r.status === 'pending' || r.status === 'failed' || r.status === 'expired') && r.due_online > 0 && r.start_date >= nowDubai().date};\n}\n",
+    "d_notify": "// Emails to the customer and notices to the owner.\n// The deposit line of the confirmation and reminder emails: collected at handover, or a card hold to authorise now or later.\nfunction depositLine(r, t, page) {\n  if (!(r.security_deposit > 0)) return '';\n  const amount = money(r.security_deposit);\n  if (!r.deposit_status) return t.email_deposit.replace(/\\{amount\\}/g, amount) + '\\n';\n  if (r.deposit_status === 'authorized') return t.email_deposit_held.replace(/\\{amount\\}/g, amount) + '\\n';\n  if (depositOpen(r)) return t.email_deposit_now.replace(/\\{amount\\}/g, amount).replace(/\\{page\\}/g, page) + '\\n';\n  if (depositLater(r)) return t.email_deposit_later.replace(/\\{amount\\}/g, amount) + '\\n';\n  return '';\n}\n// Emails the customer in the reservation's language. kind picks the <kind>_subject and <kind>_body texts: 'email' (confirmation\n// and voucher), 'remind', 'cancel', 'changed', 'no_show', 'deposit' (link to authorise the deposit hold), 'deposit_held',\n// 'deposit_released' or 'deposit_captured'. A confirmation or reminder that carries the deposit link marks it sent. Quiet on failure.\nfunction mailCustomer(r, kind, origin) {\n  if (!r.email) return false;\n  const lang = r.lang === 'ar' ? 'ar' : 'en', t = texts(lang), b = business();\n  const item = db.query('SELECT name, name_ar FROM items WHERE id = ?', r.item_id)[0] || {name: r.item_name};\n  const page = origin + '/reservations/' + r.id + (lang === 'ar' ? '?lang=ar' : '');\n  const v = {id: r.id, name: r.customer_name, business: loc(b, 'name', lang), item: loc(item, 'name', lang), when: whenText(r, lang, t), guests: guestsText(r, t),\n    total: money(r.total), paid: money(r.paid_amount), balance: money(r.balance_due), whatsapp: b.whatsapp ? 'WhatsApp: ' + b.whatsapp : '',\n    link: origin + '/reservations/' + r.id + '/voucher' + (lang === 'ar' ? '?lang=ar' : ''), page: page,\n    security: money(r.security_deposit), damage: money(r.deposit_captured),\n    deposit: depositLine(r, t, page),\n    documents: r.documents_required && !documentsReceived(r) && canUpload(r) ? t.email_documents.replace(/\\{page\\}/g, page) + '\\n' : '',\n    cancel: canCancel(r, b) ? t.email_cancel.replace(/\\{until\\}/g, deadlineText(r, b, lang)) + '\\n' : ''};\n  const fill = (s) => (s || '').replace(/\\{(\\w+)\\}/g, (m, k) => v[k] === undefined ? m : String(v[k]));\n  try {\n    email.send({to: r.email, subject: fill(t[kind + '_subject']), text: fill(t[kind + '_body'])});\n  } catch (e) { console.warn(kind + ' email not sent: ' + e); return false; }\n  if (kind === 'deposit' || ((kind === 'email' || kind === 'remind') && depositOpen(r))) db.exec('UPDATE reservations SET deposit_link_sent = 1 WHERE id = ?', r.id);\n  return true;\n}\n// Tells the owner about a reservation; the subject carries the essentials because it may also go to WhatsApp.\nfunction tellOwner(r, what) {\n  const en = texts('en');\n  const size = r.mode === 'departure' ? (r.adults + r.children) + ' pax' : r.quantity + ' x ' + r.days + 'd';\n  const when = r.mode === 'departure' ? r.start_date + ' ' + r.time : r.start_date + ' to ' + r.end_date;\n  const pay = r.payment_method === 'card' ? 'card, AED ' + money(r.paid_amount) + ' paid' : 'pay later';\n  try {\n    notify.owner({subject: (what + ' #' + r.id + ': ' + r.item_name + ', ' + when + ', ' + size + ', AED ' + money(r.total) + ' (' + pay + ')').slice(0, 149),\n      text: JSON.parse(r.lines || '[]').map(l => lineLabel(l, 'en') + ': AED ' + money(l.amount)).join('\\n') +\n        '\\n\\nTotal: AED ' + money(r.total) + '\\nPaid online: AED ' + money(r.paid_amount) + '\\nBalance due on the day: AED ' + money(r.balance_due) +\n        (r.security_deposit > 0 ? '\\nSecurity deposit: AED ' + money(r.security_deposit) + (r.deposit_status ? ' (card hold, ' + r.deposit_status + ')' : ' at handover') : '') +\n        (r.documents_required ? '\\nDriving licence and passport: ' + (documentsReceived(r) ? 'received' : 'not uploaded yet') : '') +\n        '\\n\\nCustomer: ' + r.customer_name + ', ' + r.phone + (r.email ? ', ' + r.email : '') + '\\n' + guestsText(r, en) + (r.notes ? '\\nNotes: ' + r.notes : '')});\n  } catch (e) { console.warn('owner not notified: ' + e); }\n}\n",
+    "e_money": "// Money after a cancellation: refund what was paid online and release the deposit hold. Both are recorded here at once;\n// on_payment then records the same again, which changes nothing.\n// Returns {refunded (AED), refundFailed, released, releaseFailed}. reason goes to Stripe with the refund.\nfunction settleCancelled(r, reason) {\n  const out = {refunded: 0, refundFailed: false, released: false, releaseFailed: false};\n  if (r.paid_amount > 0) {\n    try {\n      const res = payments.refund({reference: 'res-' + r.id, reason: reason});\n      const kept = Math.max(0, round2(res.amount - res.refunded_amount));\n      out.refunded = round2(r.paid_amount - kept);\n      if (res.status === 'refunded') db.exec(\"UPDATE reservations SET status = 'refunded', paid_amount = 0, balance_due = 0 WHERE id = ?\", r.id);\n      else db.exec('UPDATE reservations SET paid_amount = ?, balance_due = 0 WHERE id = ?', kept, r.id);\n    } catch (e) {\n      console.warn('reservation ' + r.id + ' not refunded: ' + e);\n      out.refundFailed = true;\n    }\n  }\n  if (r.deposit_status === 'authorized') out[releaseDeposit(r) ? 'released' : 'releaseFailed'] = true;\n  return out;\n}\n// Cancels the deposit hold of a reservation; nothing is charged. Returns true when it is released.\nfunction releaseDeposit(r) {\n  try {\n    payments.release({reference: depositRef(r)});\n  } catch (e) {\n    console.warn('deposit hold of reservation ' + r.id + ' not released: ' + e);\n    return false;\n  }\n  db.exec(\"UPDATE reservations SET deposit_status = 'released' WHERE id = ?\", r.id);\n  return true;\n}\n// Tells the owner what a cancellation did with the money, and what is left for them to do.\nfunction moneyNote(r, m) {\n  const lines = [];\n  if (m.refunded > 0) lines.push('Refunded AED ' + money(m.refunded) + ' to the card.');\n  if (m.refundFailed) lines.push('The refund of AED ' + money(r.paid_amount) + ' could not be made: refund it on the Payments page of the admin panel or in Stripe.');\n  if (!(r.paid_amount > 0)) lines.push('Nothing was paid online.');\n  if (m.released) lines.push('The deposit hold of AED ' + money(r.security_deposit) + ' is released.');\n  if (m.releaseFailed) lines.push('The deposit hold could not be released: release it on the Payments page.');\n  return lines.join('\\n');\n}\n"
+  },
+  "on_payment": "on_payment",
+  "on_admin_change": "admin_change",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "script": "home"
+    },
+    {
+      "method": "GET",
+      "path": "/item/:id",
+      "script": "item"
+    },
+    {
+      "method": "GET",
+      "path": "/api/availability",
+      "script": "api_availability"
+    },
+    {
+      "method": "GET",
+      "path": "/checkout",
+      "script": "checkout"
+    },
+    {
+      "method": "POST",
+      "path": "/book",
+      "script": "book"
+    },
+    {
+      "method": "GET",
+      "path": "/reservations",
+      "script": "reservations",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/reservations/:id",
+      "script": "reservation",
+      "auth": "user"
+    },
+    {
+      "method": "GET",
+      "path": "/reservations/:id/voucher",
+      "script": "voucher",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/reservations/:id/pay",
+      "script": "pay_again",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/reservations/:id/cancel",
+      "script": "cancel",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/reservations/:id/deposit",
+      "script": "deposit",
+      "auth": "user"
+    },
+    {
+      "method": "POST",
+      "path": "/reservations/:id/documents",
+      "script": "documents",
+      "auth": "user"
+    }
+  ],
+  "tools": [
+    {
+      "name": "search_items",
+      "description": "Search this business's tours, experiences and rentals (cars, party equipment) by name, description or category. Returns prices in AED (VAT included) and the page url where the customer reserves. Call with an empty query to list everything.",
+      "script": "mcp_search",
+      "read_only": true,
+      "params": [
+        {
+          "name": "query",
+          "type": "string",
+          "description": "words to look for, e.g. safari or tent; empty for all"
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "description": "only this category, e.g. Tours, Cars, Party rental"
+        },
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic names"
+        }
+      ]
+    },
+    {
+      "name": "check_availability",
+      "description": "Check one item from search_items. For a tour: the departures on a date (or the next departures when no date is given) with seats left and the price for the party. For a rental: how many units are free from start to end and the price for those days. Dates are UAE local dates, YYYY-MM-DD. Reserving and paying happen on the returned book_at page.",
+      "script": "mcp_availability",
+      "read_only": true,
+      "params": [
+        {
+          "name": "item",
+          "type": "integer",
+          "description": "item id from search_items",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "string",
+          "description": "tours: the day wanted, YYYY-MM-DD; leave out for the next departures"
+        },
+        {
+          "name": "people",
+          "type": "integer",
+          "description": "tours: number of adults (default 1)"
+        },
+        {
+          "name": "children",
+          "type": "integer",
+          "description": "tours: number of children (default 0)"
+        },
+        {
+          "name": "start",
+          "type": "string",
+          "description": "rentals: first day, YYYY-MM-DD"
+        },
+        {
+          "name": "end",
+          "type": "string",
+          "description": "rentals: return day, YYYY-MM-DD"
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "description": "rentals: units wanted (default 1)"
+        },
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic names"
+        }
+      ]
+    },
+    {
+      "name": "business_info",
+      "description": "The business's name, address, licence, payment methods (share paid online by card, balance on the day), free-cancellation period, how far ahead it can be booked, and WhatsApp contact.",
+      "script": "mcp_business",
+      "read_only": true,
+      "params": [
+        {
+          "name": "lang",
+          "type": "string",
+          "description": "en (default) or ar for Arabic names"
+        }
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "name": "daily",
+      "script": "daily",
+      "daily_at": "18:00"
+    }
+  ]
+}
