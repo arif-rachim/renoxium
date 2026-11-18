@@ -112,6 +112,7 @@ type Platform struct {
 	// liveHosts maps an app to its active custom domain.
 	liveHosts sync.Map
 	errors    errorCounter
+	jobs      jobCache
 	intake    map[string]*window
 	slots     map[string]chan struct{} // per-app script concurrency
 	limits    map[string]*window       // visitor sign-in rate limits
@@ -270,6 +271,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	if err := pl.ensureAlertTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := pl.ensureJobTable(); err != nil {
 		db.Close()
 		return nil, err
 	}

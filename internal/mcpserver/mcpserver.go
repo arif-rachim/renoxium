@@ -119,6 +119,13 @@ Emails (plain text; live sends them, preview writes them with their links to get
   (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
+Scheduled jobs:
+- "jobs": [{name, script, every: "15m"} or {name, script, daily_at: "21:00", timezone: "Asia/Dubai" (default)}] run scripts on the live
+  app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.
+  every is at least 1m (5m on the Free plan). A new job first runs after its interval or at its next daily time.
+- The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
+- Jobs never run on preview by themselves: test one with test_request {"job": "daily_report"}. The owner sees last and next runs on the app page.
+
 Tools for shoppers' AI assistants (MCP):
 - "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
   about products. Anyone can call them without signing in (req.user is null), so return only public information, mark read-only

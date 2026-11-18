@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // MaxSize is the largest accepted definition, in bytes of JSON.
@@ -22,6 +23,7 @@ type App struct {
 	Routes    []Route                     `json:"routes" jsonschema:"HTTP routes served by the app"`
 	OnPayment string                      `json:"on_payment,omitempty" jsonschema:"script run when a payment started with payments.checkout is paid, fails or expires; req.body holds the payment"`
 	Seed      map[string][]map[string]any `json:"seed,omitempty" jsonschema:"rows inserted into a table when that table is first created, keyed by table name"`
+	Jobs      []Job                       `json:"jobs,omitempty" jsonschema:"scripts run on a schedule on the live app, e.g. cancel unpaid orders every 15 minutes or send a daily report"`
 	Tools     []Tool                      `json:"tools,omitempty" jsonschema:"public MCP tools served at /mcp on the app's address, so shoppers' AI assistants (ChatGPT, Claude) can use the app; anyone can call them, without signing in"`
 }
 
@@ -43,6 +45,23 @@ type ToolParam struct {
 	Description string `json:"description,omitempty"`
 	Required    bool   `json:"required,omitempty"`
 }
+
+// Job is a script run on a schedule on the live app, with no visitor. The
+// script gets req.method "JOB", req.path "/_rx/jobs/<name>" and req.body
+// {job, scheduled_at}. Set Every or DailyAt, not both.
+type Job struct {
+	Name     string `json:"name" jsonschema:"lowercase name, e.g. cancel_unpaid"`
+	Script   string `json:"script"`
+	Every    string `json:"every,omitempty" jsonschema:"run repeatedly, e.g. 15m, 1h or 6h (Go duration; at least 1m, 5m on the Free plan)"`
+	DailyAt  string `json:"daily_at,omitempty" jsonschema:"run once a day at this local time, HH:MM, e.g. 08:00"`
+	Timezone string `json:"timezone,omitempty" jsonschema:"IANA time zone for daily_at; default Asia/Dubai"`
+}
+
+// MaxJobs is how many jobs an app may have.
+const MaxJobs = 10
+
+// JobInterval returns how often an Every job runs.
+func (j Job) JobInterval() (time.Duration, error) { return time.ParseDuration(j.Every) }
 
 // ToolParamTypes are the accepted ToolParam types.
 var ToolParamTypes = map[string]bool{"string": true, "number": true, "integer": true, "boolean": true}
@@ -161,6 +180,40 @@ func (a *App) Validate() []string {
 
 	if _, err := a.ParseTemplates(); err != nil {
 		add("templates: %v", err)
+	}
+
+	jobNames := map[string]bool{}
+	if len(a.Jobs) > MaxJobs {
+		add("jobs: at most %d jobs", MaxJobs)
+	}
+	for _, j := range a.Jobs {
+		switch {
+		case !toolNameRE.MatchString(j.Name):
+			add("job %q: name must match [a-z][a-z0-9_]{0,63}", j.Name)
+		case jobNames[j.Name]:
+			add("job %q is defined twice", j.Name)
+		}
+		jobNames[j.Name] = true
+		if _, ok := a.Scripts[j.Script]; !ok {
+			add("job %q: script %q is not defined", j.Name, j.Script)
+		}
+		switch {
+		case (j.Every == "") == (j.DailyAt == ""):
+			add("job %q: set either every (e.g. 15m) or daily_at (e.g. 08:00)", j.Name)
+		case j.Every != "":
+			if d, err := j.JobInterval(); err != nil || d < time.Minute || d > 7*24*time.Hour {
+				add("job %q: every must be a duration from 1m to 168h, e.g. 15m or 2h", j.Name)
+			}
+		default:
+			if _, err := time.Parse("15:04", j.DailyAt); err != nil || len(j.DailyAt) != 5 {
+				add("job %q: daily_at must be HH:MM, e.g. 08:00", j.Name)
+			}
+		}
+		if j.Timezone != "" {
+			if _, err := time.LoadLocation(j.Timezone); err != nil {
+				add("job %q: unknown timezone %q (use an IANA name such as Asia/Dubai)", j.Name, j.Timezone)
+			}
+		}
 	}
 
 	toolNames := map[string]bool{}

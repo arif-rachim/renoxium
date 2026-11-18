@@ -742,6 +742,9 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p>{{end}}
 {{if .IsOwner}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
 <h1 style="margin-top:24px">Staff</h1><p><a href="/apps/{{.Info.App}}/staff">People who help you run this app</a></p>
+{{with .Jobs}}<h1 style="margin-top:24px">Scheduled jobs</h1><div class="scroll"><table><thead><tr><th>Job</th><th>Runs</th><th>Last run</th><th>Next run</th></tr></thead><tbody>
+{{range .}}<tr><td>{{.Name}}</td><td>{{.Schedule}}</td><td>{{if .Status}}{{.LastRun.UTC.Format "2 Jan 15:04"}} UTC · {{if eq .Status "ok"}}<span class="ok">ok</span>{{else}}<span class="error">{{.Message}}</span>{{end}}{{else}}not yet{{end}}</td><td>{{if not .NextRun.IsZero}}{{.NextRun.UTC.Format "2 Jan 15:04"}} UTC{{end}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
 {{with .MCPURL}}<h1 style="margin-top:24px">AI assistants</h1><p>Shoppers can add your shop to ChatGPT or Claude as a connector with this address, then ask about your products: <code>{{.}}</code></p>{{end}}
 <h1 style="margin-top:24px">Notifications</h1><p><a href="/apps/{{.Info.App}}/notifications">Get new orders on WhatsApp</a> <span class="muted">as well as by email</span></p>
 <h1 style="margin-top:24px">Domain</h1><p><a href="/apps/{{.Info.App}}/domain">Use your own domain</a> <span class="muted">such as www.yourshop.com</span></p>{{else}}<p class="muted" style="margin-top:24px">You have staff access to this app.</p>{{end}}

@@ -156,6 +156,14 @@ func TestStoreUAEExample(t *testing.T) {
 		}
 	}
 
+	// The evening report counts today's orders and is sent to the owner (logged on preview).
+	if r, _ := p.TestRequest(ctx, "noor", platform.TestRequestInput{Job: "daily_report"}); r.Status != 200 || r.Body != "4 orders reported" {
+		t.Fatalf("daily report: %+v", r)
+	}
+	if logs, _ := p.Logs("noor", logFilterAll()); !anyLog(logs, `not sent from preview: to the owner, "Today: 4 orders, AED `) {
+		t.Fatal("daily report not sent to the owner")
+	}
+
 	// Bad carts and missing fields go back to the cart with a message.
 	if r := as(platform.TestRequestInput{Method: "POST", Path: "/checkout", Form: form("cod", `[{"id":4,"qty":11}]`)}); r.Location != "/cart?error=error_cart" {
 		t.Fatalf("more than in stock: %+v", r)
@@ -255,5 +263,8 @@ func TestStoreUAETools(t *testing.T) {
 	}
 	if out := call("store_info", nil); !strings.Contains(out, `"payment_methods":["card","cash on delivery"]`) {
 		t.Errorf("store info: %s", out)
+	}
+	if r, err := p.TestRequest(ctx, "noor", platform.TestRequestInput{Job: "daily_report"}); err != nil || r.Status != 200 || r.Body != "no orders today" {
+		t.Errorf("daily report without orders: %v %+v", err, r)
 	}
 }

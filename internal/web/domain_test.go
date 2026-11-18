@@ -37,3 +37,16 @@ func TestNotificationsPage(t *testing.T) {
 		t.Fatalf("notifications page: %d %s", r.StatusCode, page)
 	}
 }
+
+func TestJobsOnAppPage(t *testing.T) {
+	e := newEnv(t)
+	owner := e.browser()
+	e.signup(owner, "jana@shop.ae")
+	e.publishDef(owner, "jana-shop", &appdef.App{Templates: map[string]string{"t": "shop"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}},
+		Scripts: map[string]string{"r": `function handle(req) { return {text: 'ok'} }`},
+		Jobs:    []appdef.Job{{Name: "nightly", Script: "r", DailyAt: "21:00"}}})
+	r, _ := owner.Get(e.base + "/apps/jana-shop")
+	if page := read(t, r); !strings.Contains(page, "Scheduled jobs") || !strings.Contains(page, "daily at 21:00 (Asia/Dubai)") {
+		t.Fatalf("app page: %s", page)
+	}
+}

@@ -28,6 +28,7 @@ type TestRequestInput struct {
 	Form   map[string]string `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
 	JSON   any               `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
 	// UserEmail sends the request as a signed-in visitor (preview only).
+	Job       string `json:"job,omitempty" jsonschema:"run this scheduled job once on preview instead of sending a request (path is then ignored); jobs never run on preview by themselves"`
 	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as the visitor with this email or WhatsApp number; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup or /_rx/auth/phone first, or it may come from live data)"`
 }
 
@@ -52,6 +53,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	stage := in.Stage
 	if stage == "" {
 		stage = Preview
+	}
+	if in.Job != "" {
+		return p.testJob(ctx, app, stage, in.Job)
 	}
 	method := strings.ToUpper(in.Method)
 	if method == "" {
@@ -171,6 +175,7 @@ type Patch struct {
 	DeleteScripts   []string                    `json:"delete_scripts,omitempty"`
 	Routes          []appdef.Route              `json:"routes,omitempty" jsonschema:"if set, replaces the whole route list"`
 	Tools           []appdef.Tool               `json:"tools,omitempty" jsonschema:"if set, replaces the whole MCP tool list"`
+	Jobs            []appdef.Job                `json:"jobs,omitempty" jsonschema:"if set, replaces the whole job list"`
 	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
 }
@@ -224,6 +229,9 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	if patch.Tools != nil {
 		def.Tools = patch.Tools
 	}
+	if patch.Jobs != nil {
+		def.Jobs = patch.Jobs
+	}
 	for _, t := range patch.Tables {
 		merged := false
 		for i := range def.Tables {
@@ -252,4 +260,35 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 		def.Seed[k] = v
 	}
 	return p.ApplyChange(ctx, app, def)
+}
+
+// testJob runs one job on preview, as the scheduler would on live.
+func (p *Platform) testJob(ctx context.Context, app, stage, name string) (TestResponse, error) {
+	if stage != Preview {
+		return TestResponse{}, errors.New("jobs can only be run by hand on preview; live runs them on their schedule")
+	}
+	st, err := p.loadStage(app, Preview)
+	if err != nil || st == nil {
+		return TestResponse{}, errors.New("preview has no version yet: call apply_change first")
+	}
+	for _, j := range st.def.Jobs {
+		if j.Name != name {
+			continue
+		}
+		rid := newRequestID()
+		out := TestResponse{Status: http.StatusOK, ContentType: "text/plain; charset=utf-8", RequestID: rid}
+		text, err := p.runJob(ctx, st, j, time.Now(), rid)
+		if err != nil {
+			out.Status, text = http.StatusInternalServerError, err.Error()
+		}
+		out.Body = text
+		out.Logs = []applog.Event{}
+		if l, err := p.log(app); err == nil {
+			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
+				out.Logs = events
+			}
+		}
+		return out, nil
+	}
+	return TestResponse{}, fmt.Errorf("preview has no job %q", name)
 }

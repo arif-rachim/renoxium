@@ -168,6 +168,7 @@ func main() {
 		Backups: cronErr == nil || stampErr == nil}
 	site.Monitor = mon
 	go mon.Run(context.Background())
+	go p.RunJobs(context.Background())
 	go func() {
 		for range time.Tick(time.Hour) {
 			acc.Cleanup()
