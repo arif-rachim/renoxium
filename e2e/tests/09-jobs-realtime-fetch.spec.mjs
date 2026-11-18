@@ -142,6 +142,18 @@ test('external API: only after the owner allows the host and enters the key; the
   expect(calls.length).toBe(before + 1);
   expect(calls.at(-1)).toMatchObject({ path: '/rates', method: 'GET', authorization: 'Bearer ' + API_KEY, query: { emirate: 'Sharjah' } });
 
+  // Preview holds a copy of live data and the agent changes it unasked, so it
+  // makes real calls only while the owner has turned test calls on.
+  const tryPreview = async () => (await agent.call('test_request', { app, path: '/quote?emirate=Ajman' })).body;
+  expect(await tryPreview()).toContain('until the owner turns on test calls');
+  expect((await fake.apiCalls(API_HOST)).length).toBe(before + 1);
+  await page.goto(`/apps/${app}/connections`);
+  await page.getByRole('button', { name: 'Turn on for 2 hours' }).click();
+  await expect(page.locator('body')).toContainText('On until');
+  expect(JSON.parse(await tryPreview())).toMatchObject({ price: 25, emirate: 'Ajman' });
+  await page.getByRole('button', { name: 'Turn off now' }).click();
+  expect(await tryPreview()).toContain('until the owner turns on test calls');
+
   // An API that repeats the key does not hand it to the script, and the log has no key.
   const echoed = await text(visitor.page, live + '/echo');
   expect(echoed).toContain('you sent: Bearer [secret]');
