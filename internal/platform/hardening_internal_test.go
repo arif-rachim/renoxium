@@ -152,8 +152,14 @@ func TestSlowJobsDoNotBlockTheScheduler(t *testing.T) {
 	if n := p.runDueJobs(ctx, now, false); n != 0 {
 		t.Fatalf("a check during a running queue started %d jobs", n)
 	}
-	if runs("fast-shop") != 2 {
-		t.Fatalf("the fast account ran %d of 2 jobs while the slow one was busy", runs("fast-shop"))
+	// The fast account must finish while the slow one is still busy (its two
+	// jobs take 1.4 s at least). Wait for it rather than for a fixed time, as
+	// writing the runs can be slow on a busy disk.
+	for wait := time.Now().Add(10 * time.Second); runs("fast-shop") != 2; {
+		if runs("slow-shop") == 2 || time.Now().After(wait) {
+			t.Fatalf("the fast account ran %d of 2 jobs before the slow one finished", runs("fast-shop"))
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	deadline := time.Now().Add(10 * time.Second)
 	for runs("slow-shop") < 2 && time.Now().Before(deadline) {
