@@ -94,3 +94,29 @@ sudo cloudflared service install
 - `preview.key` in the data directory signs preview links. It is created on first start; keep it with the backups.
 - Data lives in `/var/lib/renoxium`: `platform.db`, `accounts.db` and one folder per app. Back up that
   directory; backups are not automated yet.
+
+## Automatic deploys from CI
+
+`.github/workflows/ci.yml` runs `gofmt`, `go vet`, the Go tests and the
+end-to-end suite on every push and pull request. On `main`, when they pass, it
+builds the linux/amd64 binary and publishes it as the pre-release
+`build-<first 12 characters of the commit>`, with a SHA-256 checksum and a
+signed build provenance (`gh attestation verify renoxium-linux-amd64 -R arif-rachim/renoxium`).
+The 30 newest builds are kept.
+
+On the server, `renoxium-deploy.timer` runs `deploy.sh` (installed as
+`/opt/renoxium-deploy/deploy.sh`) every minute. When `main` has moved, it:
+
+1. waits until CI has published that commit's binary;
+2. downloads it as the unprivileged `renoxium-build` user;
+3. checks the checksum, and that the binary was built from exactly that
+   commit with no local changes (`go version -m`);
+4. backs up, installs the service unit from the repository with the host's
+   settings, installs the binary and restarts;
+5. rolls back if `/healthz` does not answer within 30 s.
+
+Nothing is compiled or tested on the server. A commit whose tests fail never
+gets a binary, so it is never deployed. A binary that fails a check or the
+health check is not retried: the next commit is.
+
+`journalctl -u renoxium-deploy` shows what happened.
