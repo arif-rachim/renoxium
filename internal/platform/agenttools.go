@@ -176,6 +176,8 @@ type Patch struct {
 	Routes          []appdef.Route              `json:"routes,omitempty" jsonschema:"if set, replaces the whole route list"`
 	Tools           []appdef.Tool               `json:"tools,omitempty" jsonschema:"if set, replaces the whole MCP tool list"`
 	Jobs            []appdef.Job                `json:"jobs,omitempty" jsonschema:"if set, replaces the whole job list"`
+	Hosts           []appdef.Host               `json:"hosts,omitempty" jsonschema:"if set, replaces the whole host list"`
+	Secrets         []appdef.Secret             `json:"secrets,omitempty" jsonschema:"if set, replaces the whole secret list"`
 	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
 }
@@ -231,6 +233,12 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	}
 	if patch.Jobs != nil {
 		def.Jobs = patch.Jobs
+	}
+	if patch.Hosts != nil {
+		def.Hosts = patch.Hosts
+	}
+	if patch.Secrets != nil {
+		def.Secrets = patch.Secrets
 	}
 	for _, t := range patch.Tables {
 		merged := false

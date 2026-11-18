@@ -408,6 +408,9 @@ type scriptHost struct {
 	// request; with Stripe Checkout itself, the only outside addresses a
 	// script may redirect to.
 	checkouts []string
+	// http.fetch calls and time spent waiting on them in this run.
+	fetches   int
+	fetchWait time.Duration
 }
 
 // mayRedirect reports whether a script may send the visitor to target.
@@ -485,6 +488,8 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.emailSend(ctx, h.st, arg)
 	case "notify.owner":
 		return h.p.notifyOwner(ctx, h.st, arg)
+	case "http.fetch":
+		return h.httpFetch(ctx, arg)
 	case "realtime.publish":
 		return h.p.realtimePublish(h.st, arg)
 	case "realtime.token":

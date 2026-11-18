@@ -31,6 +31,7 @@ var platformFunctions = map[string][]string{
 	"email":    {"send"},
 	"notify":   {"owner"},
 	"realtime": {"publish", "token"},
+	"http":     {"fetch"},
 }
 
 // Request is what a script's handle(req) receives.
@@ -159,11 +160,14 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 	if err != nil {
 		return Response{}, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, g.Timeout)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	vm := goja.New()
 	vm.SetMaxCallStackSize(256)
+	// The time limit pauses while a slow host call (http.fetch) waits.
+	limit := newBudget(g.Timeout, func() { vm.Interrupt("time limit exceeded"); cancel() })
+	defer limit.stop()
 	stop := context.AfterFunc(ctx, func() { vm.Interrupt("time limit exceeded") })
 	defer stop()
 	if g.Watch != nil {
@@ -193,6 +197,10 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 		for _, fn := range fns {
 			name := obj + "." + fn
 			o.Set(fn, func(call goja.FunctionCall) goja.Value {
+				if SlowFunctions[name] {
+					limit.pause()
+					defer limit.resume()
+				}
 				out, err := host.Call(ctx, name, call.Argument(0).Export())
 				if err != nil {
 					throw(err)

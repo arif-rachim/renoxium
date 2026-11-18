@@ -67,6 +67,9 @@ type Config struct {
 	// WhatsAppNotices sends notify.owner notices to owners who confirmed a
 	// number. Nil turns that off.
 	WhatsAppNotices whatsapp.Notifier
+	// FetchTransport replaces http.fetch's own transport, which refuses
+	// private addresses. Tests only.
+	FetchTransport http.RoundTripper
 	// OwnerPlan returns an account's plan: "free", "pro" or "business".
 	// Free-plan apps pay a cut of card payments, show a small badge and
 	// are limited in number. Nil means no plans: nothing is limited.
@@ -159,6 +162,8 @@ type ApplyResult struct {
 	PreviewURL string   `json:"preview_url,omitempty"`
 	Migrations []string `json:"migrations,omitempty" jsonschema:"schema changes applied to the preview database"`
 	Checks     []Check  `json:"checks,omitempty" jsonschema:"result of rendering every GET route without path parameters on preview"`
+	// OwnerActions are steps only the owner can take before http.fetch works.
+	OwnerActions []string `json:"owner_actions,omitempty" jsonschema:"things the owner must do in the admin panel (allow hosts, enter API keys); tell the user and give them the link"`
 }
 
 // PublishResult reports what Publish did.
@@ -276,6 +281,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	pl.live.init(cfg.PreviewKey)
+	if err := pl.ensureFetchTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := pl.ensureJobTable(); err != nil {
 		db.Close()
 		return nil, err
@@ -528,6 +537,19 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, r.Path, nil)
 		out := p.handle(st, req, newRequestID())
 		res.Checks = append(res.Checks, Check{Route: "GET " + r.Path, Status: out.status, Error: out.errMsg})
+	}
+	if hosts, secrets, err := p.Connections(name); err == nil {
+		link := p.cfg.SiteURL + "/apps/" + name + "/connections"
+		for _, h := range hosts {
+			if !h.Allowed {
+				res.OwnerActions = append(res.OwnerActions, "allow "+h.Host+" at "+link)
+			}
+		}
+		for _, s := range secrets {
+			if !s.Set || s.Mismatch {
+				res.OwnerActions = append(res.OwnerActions, "enter "+s.Name+" at "+link)
+			}
+		}
 	}
 	return res, nil
 }

@@ -119,6 +119,19 @@ Emails (plain text; live sends them, preview writes them with their links to get
   (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
+Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an ERP:
+- List each external host in "hosts": [{host: "api.example.com", purpose: "one sentence for the owner"}]. Only HTTPS on port 443.
+- API keys go in "secrets": [{name: "EXAMPLE_KEY", host: "api.example.com", header: "Authorization", prefix: "Bearer", help: "where to find it"}]
+  (or query: "api_key" instead of header; prefix "Basic" means the owner enters user:password). Never put keys in scripts, seed or templates.
+- The owner must allow each host and enter each key at /apps/<app>/connections; apply_change lists what is missing in owner_actions.
+  Tell the user exactly that, with the link. Until then http.fetch throws an error saying what is missing.
+- In a script: const r = http.fetch({url, method: "POST", headers: {...}, body: {...} (objects are sent as JSON) or "text",
+  secret: "EXAMPLE_KEY", timeout_ms: 5000}). It returns {status, ok, headers, body (text), json (when the answer is JSON), truncated}.
+  Redirects are not followed (you get the 3xx). The platform adds the key; the script never sees it.
+- Limits: 5 calls per request or job, at most 10 s each and 20 s in all, 60 calls a minute per app, 1 MB answers, and a monthly
+  quota per plan (1,000 Free, 20,000 Pro, 100,000 Business). Waiting for the answer does not count towards the 2-second script limit.
+- Test on preview with test_request once the owner has allowed the host; preview calls are real calls.
+
 Realtime (live updates in the browser, e.g. a courier on a map, a queue number, new orders on a kitchen screen):
 - In any script: realtime.publish({channel, data}) sends data (JSON, at most 8 KB) to every browser listening on that channel now.
   Channel names: lowercase letters, digits and _ . : - (e.g. "delivery-42"). Each channel keeps its last message for new listeners.

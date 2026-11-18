@@ -124,6 +124,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerStaff()
 	s.registerDomain()
 	s.registerAlerts()
+	s.registerConnections()
 	s.registerAbuse()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.Monitor != nil {
@@ -746,6 +747,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{range .}}<tr><td>{{.Name}}</td><td>{{.Schedule}}</td><td>{{if .Status}}{{.LastRun.UTC.Format "2 Jan 15:04"}} UTC · {{if eq .Status "ok"}}<span class="ok">ok</span>{{else}}<span class="error">{{.Message}}</span>{{end}}{{else}}not yet{{end}}</td><td>{{if not .NextRun.IsZero}}{{.NextRun.UTC.Format "2 Jan 15:04"}} UTC{{end}}</td></tr>{{end}}
 </tbody></table></div>{{end}}
 {{with .MCPURL}}<h1 style="margin-top:24px">AI assistants</h1><p>Shoppers can add your shop to ChatGPT or Claude as a connector with this address, then ask about your products: <code>{{.}}</code></p>{{end}}
+<h1 style="margin-top:24px">Connections</h1><p><a href="/apps/{{.Info.App}}/connections">Other sites and API keys</a> <span class="muted">this app may use</span></p>
 <h1 style="margin-top:24px">Notifications</h1><p><a href="/apps/{{.Info.App}}/notifications">Get new orders on WhatsApp</a> <span class="muted">as well as by email</span></p>
 <h1 style="margin-top:24px">Domain</h1><p><a href="/apps/{{.Info.App}}/domain">Use your own domain</a> <span class="muted">such as www.yourshop.com</span></p>{{else}}<p class="muted" style="margin-top:24px">You have staff access to this app.</p>{{end}}
 {{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
@@ -816,17 +818,36 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{define "billing"}}{{template "top" "Plan and billing"}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>Plan and billing</h1>
 <p>Current plan: <strong>{{if eq .Billing.Plan "pro"}}Pro{{else if eq .Billing.Plan "business"}}Business{{else}}Free{{end}}</strong>
 {{if .Paying}}<span class="muted">· {{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span>{{end}}</p>
-<p class="muted">Apps: {{.Apps}} of {{.Limit}} · WhatsApp sign-in codes this month: {{.WAUsed}} of {{.WAQuota}} · Image storage: {{.StorageMB}} MB of {{.StorageQuotaMB}} MB</p>
+<p class="muted">Apps: {{.Apps}} of {{.Limit}} · WhatsApp sign-in codes this month: {{.WAUsed}} of {{.WAQuota}} · Image storage: {{.StorageMB}} MB of {{.StorageQuotaMB}} MB · External API calls this month: {{.FetchUsed}} of {{.FetchQuota}}</p>
 {{if not .Ready}}<p>Paid plans are not available yet.</p>
 {{else if .Paying}}<p>No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
 <form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form>
 <p class="muted">Change plan, update your card, download invoices or cancel.</p>
 {{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>
 <div class="plans"><form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="pro">
-<h2>Pro</h2><p class="price">AED 99 <span class="muted">/ month</span></p><ul><li>3 apps</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain</li><li>2 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
+<h2>Pro</h2><p class="price">AED 99 <span class="muted">/ month</span></p><ul><li>3 apps</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>20,000 external API calls a month</li><li>Your own domain</li><li>2 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
 <form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
-<h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
+<h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>100,000 external API calls a month</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
 <p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "admin_connections"}}{{template "top" "Connections"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+<div class="card"><h1>Connections</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<p>Your app can call other services, such as a courier or SMS service, only with your permission. Allow a site only if you trust it:
+your app can send it data, including your customers' details.</p>
+{{if not .Hosts}}<p class="muted">This app does not use other sites.</p>{{else}}
+<div class="scroll"><table><thead><tr><th>Site</th><th>Used for</th><th></th></tr></thead><tbody>
+{{range .Hosts}}<tr><td><strong>{{.Host}}</strong></td><td>{{.Purpose}}</td><td>{{if .Allowed}}<span class="ok">allowed</span> <span class="muted">by {{.AllowedBy}}</span>
+<form method="post" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="revoke"><input type="hidden" name="host" value="{{.Host}}"><button class="danger">Stop</button></form>
+{{else}}<form method="post" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="host" value="{{.Host}}"><button>Allow</button></form>{{end}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
+{{if .Secrets}}<h2 style="margin-top:20px">API keys</h2><p class="muted">Keys are stored encrypted. Your app's scripts and the AI agent never see them: Renoxium adds a key only to requests to its own site.</p>
+{{range .Secrets}}<div class="card" style="margin:10px 0"><p><strong>{{.Name}}</strong> <span class="muted">for {{.Host}}</span>{{if .Set}}{{if .Mismatch}} · <span class="error">entered for {{.SavedHost}}; enter it again</span>{{else}} · <span class="ok">saved</span>{{with .Hint}} <span class="muted">(ends in {{.}})</span>{{end}}{{end}}{{end}}</p>
+{{with .Help}}<p class="muted">{{.}}</p>{{end}}
+<form method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="secret"><input type="hidden" name="name" value="{{.Name}}">
+<label for="v-{{.Name}}">{{if .Set}}Replace the key{{else}}Key{{end}}</label><input id="v-{{.Name}}" name="value" type="password" autocomplete="off" required{{if eq .Prefix "Basic"}} placeholder="user:password"{{end}}><button>Save</button></form>
+{{if .Set}}<form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="delete-secret"><input type="hidden" name="name" value="{{.Name}}"><button class="danger">Remove key</button></form>{{end}}</div>{{end}}{{end}}
+<p class="muted">External calls from your live apps this month: {{.Used}} of {{.Quota}}.</p>
+</div>{{template "bottom"}}{{end}}
 
 {{define "admin_alerts"}}{{template "top" "Notifications"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
 <div class="card"><h1>Notifications</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}

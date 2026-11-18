@@ -23,6 +23,8 @@ type App struct {
 	Routes    []Route                     `json:"routes" jsonschema:"HTTP routes served by the app"`
 	OnPayment string                      `json:"on_payment,omitempty" jsonschema:"script run when a payment started with payments.checkout is paid, fails or expires; req.body holds the payment"`
 	Seed      map[string][]map[string]any `json:"seed,omitempty" jsonschema:"rows inserted into a table when that table is first created, keyed by table name"`
+	Hosts     []Host                      `json:"hosts,omitempty" jsonschema:"external HTTPS hosts scripts may call with http.fetch; each needs the owner's approval in the admin panel before it works"`
+	Secrets   []Secret                    `json:"secrets,omitempty" jsonschema:"API keys the owner enters in the admin panel; http.fetch adds them to requests without scripts ever seeing them"`
 	Jobs      []Job                       `json:"jobs,omitempty" jsonschema:"scripts run on a schedule on the live app, e.g. cancel unpaid orders every 15 minutes or send a daily report"`
 	Tools     []Tool                      `json:"tools,omitempty" jsonschema:"public MCP tools served at /mcp on the app's address, so shoppers' AI assistants (ChatGPT, Claude) can use the app; anyone can call them, without signing in"`
 }
@@ -56,6 +58,31 @@ type Job struct {
 	DailyAt  string `json:"daily_at,omitempty" jsonschema:"run once a day at this local time, HH:MM, e.g. 08:00"`
 	Timezone string `json:"timezone,omitempty" jsonschema:"IANA time zone for daily_at; default Asia/Dubai"`
 }
+
+// Host is an external site an app's scripts may call.
+type Host struct {
+	Host    string `json:"host" jsonschema:"exact host name, e.g. api.example.com (HTTPS on port 443 only)"`
+	Purpose string `json:"purpose" jsonschema:"one sentence the owner reads before allowing it, e.g. Calculates Aramex delivery prices"`
+}
+
+// Secret is an API key kept by the platform. http.fetch({secret: name})
+// sends it to its host in a header (with an optional prefix such as
+// "Bearer") or as a query parameter.
+type Secret struct {
+	Name   string `json:"name" jsonschema:"upper-case name, e.g. ARAMEX_API_KEY"`
+	Host   string `json:"host" jsonschema:"the only host it is ever sent to; must be in hosts"`
+	Header string `json:"header,omitempty" jsonschema:"header that carries it, e.g. Authorization or X-Api-Key"`
+	Prefix string `json:"prefix,omitempty" jsonschema:"text before the key in the header, e.g. Bearer; Basic means the owner enters user:password"`
+	Query  string `json:"query,omitempty" jsonschema:"query parameter that carries it instead of a header, e.g. api_key"`
+	Help   string `json:"help,omitempty" jsonschema:"where the owner finds the key, e.g. Aramex developer portal, API keys page"`
+}
+
+var (
+	hostNameRE   = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
+	secretNameRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
+	headerNameRE = regexp.MustCompile(`^[A-Za-z0-9-]{1,64}$`)
+	queryNameRE  = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
+)
 
 // MaxJobs is how many jobs an app may have.
 const MaxJobs = 10
@@ -180,6 +207,42 @@ func (a *App) Validate() []string {
 
 	if _, err := a.ParseTemplates(); err != nil {
 		add("templates: %v", err)
+	}
+
+	hosts := map[string]bool{}
+	if len(a.Hosts) > 20 {
+		add("hosts: at most 20")
+	}
+	for _, h := range a.Hosts {
+		switch {
+		case !hostNameRE.MatchString(h.Host) || len(h.Host) > 253:
+			add("host %q: give the exact lowercase host name, e.g. api.example.com (no scheme, path, port or IP address)", h.Host)
+		case hosts[h.Host]:
+			add("host %q is listed twice", h.Host)
+		case strings.TrimSpace(h.Purpose) == "" || len(h.Purpose) > 300:
+			add("host %q: purpose is required (at most 300 characters); the owner reads it before allowing the host", h.Host)
+		}
+		hosts[h.Host] = true
+	}
+	secretNames := map[string]bool{}
+	for _, s := range a.Secrets {
+		switch {
+		case !secretNameRE.MatchString(s.Name) || secretNames[s.Name]:
+			add("secret %q: name must be unique and match [A-Z][A-Z0-9_]*", s.Name)
+		case !hosts[s.Host]:
+			add("secret %q: host %q must be listed in hosts", s.Name, s.Host)
+		case (s.Header == "") == (s.Query == ""):
+			add("secret %q: set either header or query", s.Name)
+		case s.Header != "" && !headerNameRE.MatchString(s.Header):
+			add("secret %q: header %q is not a valid header name", s.Name, s.Header)
+		case s.Query != "" && (!queryNameRE.MatchString(s.Query) || s.Prefix != ""):
+			add("secret %q: query must be a plain parameter name, without prefix", s.Name)
+		case len(s.Prefix) > 20 || strings.ContainsAny(s.Prefix, "\r\n:"):
+			add("secret %q: prefix must be a short word such as Bearer", s.Name)
+		case len(s.Help) > 300:
+			add("secret %q: help is at most 300 characters", s.Name)
+		}
+		secretNames[s.Name] = true
 	}
 
 	jobNames := map[string]bool{}

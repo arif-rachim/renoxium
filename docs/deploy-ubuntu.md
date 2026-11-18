@@ -508,8 +508,17 @@ sudo systemctl stop renoxium
 sudo mkdir -p /tmp/restore && sudo tar -C /tmp/restore -xzf /var/backups/renoxium/renoxium-STAMP.tar.gz
 ```
 
+Remove the write-ahead files of the current databases, so they are not applied to the restored ones:
+
 ```bash
-sudo rsync -a --delete /tmp/restore/STAMP/ /var/lib/renoxium/ && sudo chown -R renoxium:renoxium /var/lib/renoxium
+sudo find /var/lib/renoxium \( -name '*.db-wal' -o -name '*.db-shm' \) -delete
+```
+
+Copy the databases back. Do not use `--delete`: the archive holds only databases, and the data folder
+also holds the uploaded images (`files/`) and `preview.key`.
+
+```bash
+sudo rsync -a /tmp/restore/STAMP/ /var/lib/renoxium/ && sudo chown -R renoxium:renoxium /var/lib/renoxium
 ```
 
 ```bash
@@ -518,6 +527,24 @@ sudo systemctl start renoxium
 
 Preview databases are not backed up because they only hold a copy of live data. The next
 `apply_change` creates the preview again.
+
+### Keep preview.key safe
+
+`/var/lib/renoxium/preview.key` signs preview links and encrypts the API keys store owners enter for their
+apps (`/apps/<app>/connections`). It is not in the database backups on purpose, so an off-site copy alone
+cannot reveal those keys. Copy it once to a safe place, such as a password manager:
+
+```bash
+sudo base64 /var/lib/renoxium/preview.key
+```
+
+When moving to a new server, write it back before the first start:
+
+```bash
+echo 'PASTE-THE-BASE64-HERE' | base64 -d | sudo tee /var/lib/renoxium/preview.key >/dev/null && sudo chown renoxium:renoxium /var/lib/renoxium/preview.key && sudo chmod 600 /var/lib/renoxium/preview.key
+```
+
+Without it, Renoxium creates a new key: preview links change and owners must enter their API keys again.
 
 ## Monitoring and alerts
 

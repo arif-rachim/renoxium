@@ -350,8 +350,8 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 		defer killMu.Unlock()
 		return killed
 	}
-	deadline := time.AfterFunc(p.cfg.Timeout+time.Second, func() { killFor("time limit exceeded") })
-	defer deadline.Stop()
+	deadline := newBudget(p.cfg.Timeout+time.Second, func() { killFor("time limit exceeded") })
+	defer deadline.stop()
 	stopWatch := make(chan struct{})
 	defer close(stopWatch)
 	go func() {
@@ -419,6 +419,9 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 			}
 		case "call":
 			reply := message{Type: "result"}
+			if SlowFunctions[m.Fn] {
+				deadline.pause()
+			}
 			if host == nil {
 				reply.Error = "no platform here"
 			} else if v, err := host.Call(ctx, m.Fn, m.Value); err != nil {
@@ -426,6 +429,7 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 			} else {
 				reply.Value = v
 			}
+			deadline.resume()
 			if err := send(w.in, reply); err != nil {
 				return fail(err)
 			}

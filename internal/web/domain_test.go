@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 
@@ -48,5 +49,41 @@ func TestJobsOnAppPage(t *testing.T) {
 	r, _ := owner.Get(e.base + "/apps/jana-shop")
 	if page := read(t, r); !strings.Contains(page, "Scheduled jobs") || !strings.Contains(page, "daily at 21:00 (Asia/Dubai)") {
 		t.Fatalf("app page: %s", page)
+	}
+}
+
+func TestConnectionsPage(t *testing.T) {
+	e := newEnv(t)
+	owner := e.browser()
+	e.signup(owner, "rami@shop.ae")
+	e.publishDef(owner, "rami-shop", &appdef.App{Templates: map[string]string{"t": "shop"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}},
+		Hosts:   []appdef.Host{{Host: "api.courier.ae", Purpose: "Delivery prices"}},
+		Secrets: []appdef.Secret{{Name: "COURIER_KEY", Host: "api.courier.ae", Header: "Authorization", Prefix: "Bearer", Help: "Courier portal, API page"}}})
+	page := func() string {
+		r, _ := owner.Get(e.base + "/apps/rami-shop/connections")
+		return read(t, r)
+	}
+	if p := page(); !strings.Contains(p, "api.courier.ae") || !strings.Contains(p, "Delivery prices") || !strings.Contains(p, ">Allow</button>") ||
+		!strings.Contains(p, "Courier portal, API page") {
+		t.Fatalf("page: %s", p)
+	}
+	post := func(form url.Values) int {
+		form.Set("csrf", e.csrf(owner, "/apps/rami-shop/connections"))
+		r, _ := owner.PostForm(e.base+"/apps/rami-shop/connections", form)
+		return r.StatusCode
+	}
+	if code := post(url.Values{"action": {"allow"}, "host": {"api.courier.ae"}}); code != 303 {
+		t.Fatalf("allow: %d", code)
+	}
+	if code := post(url.Values{"action": {"secret"}, "name": {"COURIER_KEY"}, "value": {"sk_live_abcdefgh9876"}}); code != 303 {
+		t.Fatalf("secret: %d", code)
+	}
+	if p := page(); !strings.Contains(p, "by rami@shop.ae") || !strings.Contains(p, "ends in 9876") || strings.Contains(p, "sk_live_abcdefgh9876") {
+		t.Fatalf("after saving: %s", p)
+	}
+	other := e.browser()
+	e.signup(other, "x@other.ae")
+	if r, _ := other.Get(e.base + "/apps/rami-shop/connections"); r.StatusCode != 404 {
+		t.Fatalf("stranger: %d", r.StatusCode)
 	}
 }
