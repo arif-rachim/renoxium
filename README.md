@@ -44,6 +44,7 @@ Working today:
 - Monitoring: every 5 minutes the server checks disk space, backup age (stamps written by `backup.sh`) and error spikes, emails the operators, and shows the state on `/operator`; owners get an email on their live app's first error, then at most daily. `/healthz` answers 503 when the disk is almost full.
 - The store template has product options (sizes, colours) with their own price and stock.
 
+- Realtime: scripts call `realtime.publish({channel, data})` and pages listen with `EventSource('/_rx/live/<channel>')` (server-sent events served by Go, so a waiting browser costs a goroutine, not a script worker). Channels are private unless named `public:...`, with tokens from `realtime.token(channel)`; each channel keeps its last message; connections are limited per plan. The `delivery-tracking` example has a courier page sharing GPS and a live customer map.
 - Scheduled jobs (`jobs` in the definition: `every: "15m"` or `daily_at: "21:00"` in Asia/Dubai by default) run scripts on live apps, with their last run stored so restarts neither skip nor repeat; agents run them on preview with `test_request {job}`. The store template sends the owner a daily sales and low-stock report.
 - Apps can define public MCP tools (`tools` in the definition, backed by scripts) served at `<app>/mcp`, so shoppers can add a shop to ChatGPT or Claude and ask about its products. The store template has search_products, get_product and store_info.
 

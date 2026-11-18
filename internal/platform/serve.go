@@ -72,6 +72,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.servePay(w, r, st)
 		return true
 	}
+	if strings.HasPrefix(r.URL.Path, LivePrefix) {
+		p.serveLive(w, r, st)
+		return true
+	}
 	if servesMCP(st.def, r.URL.Path) {
 		if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
 			w.Header().Set("Retry-After", "60")
@@ -481,6 +485,10 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.emailSend(ctx, h.st, arg)
 	case "notify.owner":
 		return h.p.notifyOwner(ctx, h.st, arg)
+	case "realtime.publish":
+		return h.p.realtimePublish(h.st, arg)
+	case "realtime.token":
+		return h.p.realtimeToken(h.st, arg)
 	}
 	return nil, fmt.Errorf("unknown platform function %s", fn)
 }

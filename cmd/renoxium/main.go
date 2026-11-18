@@ -176,6 +176,7 @@ func main() {
 		}
 	}()
 	srv := &http.Server{Addr: *addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
+	srv.RegisterOnShutdown(p.StopLive) // realtime streams end at once; browsers reconnect
 	go func() {
 		slog.Info("listening", "addr", *addr, "site", *baseURL, "mcp", *baseURL+"/mcp", "apps", "*."+*appsDomain)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

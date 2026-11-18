@@ -1,0 +1,142 @@
+{
+  "tables": [
+    {
+      "name": "shop",
+      "label": "Shop",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "label": "Shop name"
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "label": "Phone for customers"
+        }
+      ]
+    },
+    {
+      "name": "deliveries",
+      "label": "Deliveries",
+      "columns": [
+        {
+          "name": "customer_name",
+          "type": "text",
+          "required": true,
+          "label": "Customer"
+        },
+        {
+          "name": "address",
+          "type": "text",
+          "label": "Address"
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "label": "Tracking code",
+          "help": "Give the customer this code or the link /track/<#>?code=<code>."
+        },
+        {
+          "name": "courier_key",
+          "type": "text",
+          "required": true,
+          "label": "Courier key",
+          "help": "A long secret. Send the courier the link /courier/<#>?key=<key>; anyone with it can move the delivery on the map."
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "options": [
+            "preparing",
+            "on_the_way",
+            "delivered"
+          ],
+          "label": "Status"
+        },
+        {
+          "name": "lat",
+          "type": "real",
+          "label": "Last latitude"
+        },
+        {
+          "name": "lng",
+          "type": "real",
+          "label": "Last longitude"
+        },
+        {
+          "name": "updated",
+          "type": "datetime",
+          "label": "Last position at"
+        }
+      ]
+    }
+  ],
+  "seed": {
+    "shop": [
+      {
+        "name": "Al Noor Flowers",
+        "phone": "+971 50 123 4567"
+      }
+    ],
+    "deliveries": [
+      {
+        "customer_name": "Mariam",
+        "address": "Villa 12, Jumeirah 1, Dubai",
+        "code": "ABC123",
+        "courier_key": "courier-demo-key-change-me",
+        "status": "on_the_way",
+        "lat": 25.2048,
+        "lng": 55.2708
+      }
+    ]
+  },
+  "templates": {
+    "home": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Track your delivery</title><style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#16181d;background:#f6f7f9}main{max-width:720px;margin:0 auto;padding:16px}\nh1{font-size:22px;margin:8px 0}.card{background:#fff;border:1px solid #e3e5ea;border-radius:12px;padding:16px;margin:12px 0}\n#map{height:380px;border-radius:12px;border:1px solid #e3e5ea}.muted{color:#5d6370}.badge{display:inline-block;padding:2px 10px;border-radius:99px;background:#e8eefc;color:#2f5bea;font-weight:600}\nbutton,.btn{font:inherit;padding:12px 18px;border:0;border-radius:10px;background:#2f5bea;color:#fff;cursor:pointer;width:100%;margin-top:8px}\nbutton.done{background:#1f8a4c}input{font:inherit;padding:10px;border:1px solid #e3e5ea;border-radius:8px;width:100%;box-sizing:border-box}label{display:block;margin-top:8px}</style></head><body><main><h1>Track your delivery</h1>\n<form class=\"card\" method=\"get\" action=\"/track\"><label for=\"id\">Order number</label><input id=\"id\" name=\"id\" inputmode=\"numeric\" required><label for=\"code\">Tracking code</label><input id=\"code\" name=\"code\" required autocomplete=\"off\"><button>Track</button></form></main></body></html>",
+    "track": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Delivery #{{.id}}</title><style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#16181d;background:#f6f7f9}main{max-width:720px;margin:0 auto;padding:16px}\nh1{font-size:22px;margin:8px 0}.card{background:#fff;border:1px solid #e3e5ea;border-radius:12px;padding:16px;margin:12px 0}\n#map{height:380px;border-radius:12px;border:1px solid #e3e5ea}.muted{color:#5d6370}.badge{display:inline-block;padding:2px 10px;border-radius:99px;background:#e8eefc;color:#2f5bea;font-weight:600}\nbutton,.btn{font:inherit;padding:12px 18px;border:0;border-radius:10px;background:#2f5bea;color:#fff;cursor:pointer;width:100%;margin-top:8px}\nbutton.done{background:#1f8a4c}input{font:inherit;padding:10px;border:1px solid #e3e5ea;border-radius:8px;width:100%;box-sizing:border-box}label{display:block;margin-top:8px}</style>\n<link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\"><script src=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js\"></script></head>\n<body><main><h1>{{.shop}}: delivery #{{.id}}</h1><p>For {{.customer}} · <span class=\"badge\" id=\"status\">{{.statusText}}</span></p>\n<div id=\"map\"></div><p class=\"muted\" id=\"seen\">{{if .updated}}Last position {{.updated}} UTC{{else}}Waiting for the courier's position{{end}}</p>{{with .phone}}<p class=\"muted\">Questions? Call {{.}}</p>{{end}}</main>\n<script>\nvar texts={preparing:'Preparing',on_the_way:'On the way',delivered:'Delivered'};\nvar start=[{{.lat}},{{.lng}}],has={{.hasPos}};\nvar map=L.map('map').setView(has?start:[25.2048,55.2708],has?15:11);\nL.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);\nvar marker=has?L.marker(start).addTo(map):null;\nvar live=new EventSource('/_rx/live/{{.channel}}?token='+encodeURIComponent({{.token}}));\nlive.onmessage=function(e){var m=JSON.parse(e.data);\n if(m.status){document.getElementById('status').textContent=texts[m.status]||m.status;if(m.status==='delivered')live.close()}\n if(typeof m.lat==='number'){var p=[m.lat,m.lng];if(!marker){marker=L.marker(p).addTo(map);map.setView(p,15)}else{marker.setLatLng(p);map.panTo(p)}\n  document.getElementById('seen').textContent='Live: updated '+new Date().toLocaleTimeString()}};\n</script></body></html>",
+    "courier": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Courier · #{{.id}}</title><style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#16181d;background:#f6f7f9}main{max-width:720px;margin:0 auto;padding:16px}\nh1{font-size:22px;margin:8px 0}.card{background:#fff;border:1px solid #e3e5ea;border-radius:12px;padding:16px;margin:12px 0}\n#map{height:380px;border-radius:12px;border:1px solid #e3e5ea}.muted{color:#5d6370}.badge{display:inline-block;padding:2px 10px;border-radius:99px;background:#e8eefc;color:#2f5bea;font-weight:600}\nbutton,.btn{font:inherit;padding:12px 18px;border:0;border-radius:10px;background:#2f5bea;color:#fff;cursor:pointer;width:100%;margin-top:8px}\nbutton.done{background:#1f8a4c}input{font:inherit;padding:10px;border:1px solid #e3e5ea;border-radius:8px;width:100%;box-sizing:border-box}label{display:block;margin-top:8px}</style></head>\n<body><main><h1>Delivery #{{.id}}</h1><div class=\"card\"><p><strong>{{.customer}}</strong><br>{{.address}}</p><p>Status: <span class=\"badge\" id=\"status\">{{.statusText}}</span></p>\n<button id=\"go\">Start sharing my location</button><button id=\"done\" class=\"done\">Mark as delivered</button><p class=\"muted\" id=\"info\">Keep this page open with the screen on while you drive.</p></div></main>\n<script>\nvar id={{.id}},key={{.key}},watch=null,timer=null,pending=null;\nfunction send(path,body){body.key=key;return fetch(path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)})}\ndocument.getElementById('go').onclick=function(){\n if(!navigator.geolocation){document.getElementById('info').textContent='This phone cannot share its location.';return}\n // The newest position is sent at most every 5 seconds, so a stop is never lost.\n function flush(){if(!pending)return;var p=pending;pending=null;\n  send('/courier/'+id+'/position',p).then(function(r){document.getElementById('info').textContent=r.ok?'Sharing: sent '+new Date().toLocaleTimeString():'Could not send ('+r.status+')'})}\n watch=navigator.geolocation.watchPosition(function(p){var first=!timer;pending={lat:p.coords.latitude,lng:p.coords.longitude};\n  if(first){flush();timer=setInterval(flush,5000)}},\n  function(e){document.getElementById('info').textContent='Location error: '+e.message},{enableHighAccuracy:true,maximumAge:5000});\n document.getElementById('status').textContent='On the way';this.textContent='Sharing location…';this.disabled=true};\ndocument.getElementById('done').onclick=function(){if(watch!==null)navigator.geolocation.clearWatch(watch);if(timer)clearInterval(timer);\n send('/courier/'+id+'/delivered',{}).then(function(){document.getElementById('status').textContent='Delivered';document.getElementById('info').textContent='Thank you! The customer has been told.'})};\n</script></body></html>",
+    "not_found": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Not found</title><style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#16181d;background:#f6f7f9}main{max-width:720px;margin:0 auto;padding:16px}\nh1{font-size:22px;margin:8px 0}.card{background:#fff;border:1px solid #e3e5ea;border-radius:12px;padding:16px;margin:12px 0}\n#map{height:380px;border-radius:12px;border:1px solid #e3e5ea}.muted{color:#5d6370}.badge{display:inline-block;padding:2px 10px;border-radius:99px;background:#e8eefc;color:#2f5bea;font-weight:600}\nbutton,.btn{font:inherit;padding:12px 18px;border:0;border-radius:10px;background:#2f5bea;color:#fff;cursor:pointer;width:100%;margin-top:8px}\nbutton.done{background:#1f8a4c}input{font:inherit;padding:10px;border:1px solid #e3e5ea;border-radius:8px;width:100%;box-sizing:border-box}label{display:block;margin-top:8px}</style></head><body><main><h1>Not found</h1><p>Check the order number and code, or the courier link.</p><p><a href=\"/\">Track a delivery</a></p></main></body></html>"
+  },
+  "scripts": {
+    "track": "function find(req, field, value) {\n  const d = db.query('SELECT * FROM deliveries WHERE id = ?', Number(req.params.id))[0];\n  return d && value && d[field] === value ? d : null;\n}\nfunction shop() { return db.query('SELECT * FROM shop ORDER BY id LIMIT 1')[0]; }\n// The customer's map. The token lets only this page read the delivery's live channel.\nfunction handle(req) {\n  const id = req.params.id || req.query.id;\n  if (!id && !req.query.code) return {template: 'home'};\n  req.params.id = id;\n  const d = find(req, 'code', (req.query.code || '').trim().toUpperCase());\n  if (!d) return {template: 'not_found', status: 404};\n  if (!req.params.id || req.path === '/track') return {redirect: '/track/' + d.id + '?code=' + encodeURIComponent(d.code)};\n  const texts = {preparing: 'Preparing', on_the_way: 'On the way', delivered: 'Delivered'};\n  const channel = 'delivery-' + d.id;\n  return {template: 'track', data: {id: d.id, shop: shop().name, phone: shop().phone, customer: d.customer_name, statusText: texts[d.status] || d.status,\n    lat: d.lat || 0, lng: d.lng || 0, hasPos: d.lat !== null && d.lng !== null, updated: d.updated, channel: channel, token: realtime.token(channel)}};\n}",
+    "courier": "function find(req, field, value) {\n  const d = db.query('SELECT * FROM deliveries WHERE id = ?', Number(req.params.id))[0];\n  return d && value && d[field] === value ? d : null;\n}\nfunction shop() { return db.query('SELECT * FROM shop ORDER BY id LIMIT 1')[0]; }\nfunction handle(req) {\n  const d = find(req, 'courier_key', req.query.key || '');\n  if (!d) return {template: 'not_found', status: 404};\n  return {template: 'courier', data: {id: d.id, key: d.courier_key, customer: d.customer_name, address: d.address,\n    statusText: {preparing: 'Preparing', on_the_way: 'On the way', delivered: 'Delivered'}[d.status] || d.status}};\n}",
+    "position": "function find(req, field, value) {\n  const d = db.query('SELECT * FROM deliveries WHERE id = ?', Number(req.params.id))[0];\n  return d && value && d[field] === value ? d : null;\n}\nfunction shop() { return db.query('SELECT * FROM shop ORDER BY id LIMIT 1')[0]; }\n// The courier's phone sends its position; customers' maps move at once.\nfunction handle(req) {\n  const d = find(req, 'courier_key', req.form.key || '');\n  if (!d) return {text: 'unknown delivery or key', status: 403};\n  const lat = Number(req.form.lat), lng = Number(req.form.lng);\n  if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) return {text: 'bad position', status: 400};\n  db.exec(\"UPDATE deliveries SET lat = ?, lng = ?, updated = datetime('now'), status = CASE status WHEN 'preparing' THEN 'on_the_way' ELSE status END WHERE id = ?\", lat, lng, d.id);\n  realtime.publish({channel: 'delivery-' + d.id, data: {lat: lat, lng: lng, status: d.status === 'preparing' ? 'on_the_way' : d.status}});\n  return {json: {ok: true}};\n}",
+    "delivered": "function find(req, field, value) {\n  const d = db.query('SELECT * FROM deliveries WHERE id = ?', Number(req.params.id))[0];\n  return d && value && d[field] === value ? d : null;\n}\nfunction shop() { return db.query('SELECT * FROM shop ORDER BY id LIMIT 1')[0]; }\nfunction handle(req) {\n  const d = find(req, 'courier_key', req.form.key || '');\n  if (!d) return {text: 'unknown delivery or key', status: 403};\n  db.exec(\"UPDATE deliveries SET status = 'delivered' WHERE id = ?\", d.id);\n  realtime.publish({channel: 'delivery-' + d.id, data: {status: 'delivered'}});\n  try { notify.owner({subject: 'Delivery #' + d.id + ' delivered to ' + d.customer_name, text: d.address || ''}); } catch (e) { console.warn('owner not told: ' + e); }\n  return {json: {ok: true}};\n}"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "template": "home"
+    },
+    {
+      "method": "GET",
+      "path": "/track",
+      "script": "track"
+    },
+    {
+      "method": "GET",
+      "path": "/track/:id",
+      "script": "track"
+    },
+    {
+      "method": "GET",
+      "path": "/courier/:id",
+      "script": "courier"
+    },
+    {
+      "method": "POST",
+      "path": "/courier/:id/position",
+      "script": "position"
+    },
+    {
+      "method": "POST",
+      "path": "/courier/:id/delivered",
+      "script": "delivered"
+    }
+  ]
+}

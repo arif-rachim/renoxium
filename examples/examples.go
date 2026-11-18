@@ -12,6 +12,8 @@ var (
 	catalog []byte
 	//go:embed tasks.json
 	tasks []byte
+	//go:embed delivery-tracking.json
+	deliveryTracking []byte
 	//go:embed store-uae.json
 	storeUAE []byte
 )
@@ -30,6 +32,9 @@ var all = map[string]Example{
 		"orders for signed-in shoppers (email or WhatsApp sign-in), printable invoices (a UAE tax invoice once the store's TRN is set), " +
 		"discount codes, product options such as sizes with their own price and stock (variants table), English and Arabic (right to left). " +
 		"Change the store, products, variants, coupons and texts tables' seed rows.", JSON: storeUAE},
+	"delivery-tracking": {Name: "delivery-tracking", Description: "Live delivery tracking: the courier opens a private link on their phone and shares " +
+		"their location; the customer follows the courier on a map that moves in real time (realtime.publish and EventSource), " +
+		"and the owner is told when it is delivered. Deliveries, tracking codes and courier keys are managed in the admin panel.", JSON: deliveryTracking},
 	"tasks": {Name: "tasks", Description: "Create, edit, toggle and delete records: forms, path parameters, boolean columns, filters and counts.", JSON: tasks},
 }
 

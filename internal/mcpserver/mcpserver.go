@@ -119,6 +119,15 @@ Emails (plain text; live sends them, preview writes them with their links to get
   (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
+Realtime (live updates in the browser, e.g. a courier on a map, a queue number, new orders on a kitchen screen):
+- In any script: realtime.publish({channel, data}) sends data (JSON, at most 8 KB) to every browser listening on that channel now.
+  Channel names: lowercase letters, digits and _ . : - (e.g. "delivery-42"). Each channel keeps its last message for new listeners.
+- In the browser: new EventSource('/_rx/live/' + channel + '?token=' + token), then onmessage = e => JSON.parse(e.data).
+  Channels starting with "public:" need no token; for any other channel a script must hand the page realtime.token(channel)
+  (valid 24 hours), e.g. only on the buyer's own order page. Never put tokens of private channels on public pages.
+- Live connections per app are limited by plan (50 Free, 500 Pro, 2000 Business). Publishing is limited to 600 messages a minute per app,
+  so send positions every few seconds, not on every GPS event. The delivery-tracking example shows a courier page and a live customer map.
+
 Scheduled jobs:
 - "jobs": [{name, script, every: "15m"} or {name, script, daily_at: "21:00", timezone: "Asia/Dubai" (default)}] run scripts on the live
   app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.

@@ -30,6 +30,7 @@ var platformFunctions = map[string][]string{
 	"payments": {"checkout", "get"},
 	"email":    {"send"},
 	"notify":   {"owner"},
+	"realtime": {"publish", "token"},
 }
 
 // Request is what a script's handle(req) receives.

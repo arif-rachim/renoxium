@@ -113,6 +113,7 @@ type Platform struct {
 	liveHosts sync.Map
 	errors    errorCounter
 	jobs      jobCache
+	live      liveHub
 	intake    map[string]*window
 	slots     map[string]chan struct{} // per-app script concurrency
 	limits    map[string]*window       // visitor sign-in rate limits
@@ -274,6 +275,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	pl.live.init(cfg.PreviewKey)
 	if err := pl.ensureJobTable(); err != nil {
 		db.Close()
 		return nil, err
