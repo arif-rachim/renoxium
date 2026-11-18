@@ -16,6 +16,8 @@ var (
 	deliveryTracking []byte
 	//go:embed store-uae.json
 	storeUAE []byte
+	//go:embed listings-uae.json
+	listingsUAE []byte
 )
 
 // Example is one complete app definition.
@@ -36,6 +38,14 @@ var all = map[string]Example{
 	"delivery-tracking": {Name: "delivery-tracking", Description: "Live delivery tracking: the courier opens a private link on their phone and shares " +
 		"their location; the customer follows the courier on a map that moves in real time (realtime.publish and EventSource), " +
 		"and the owner is told when it is delivered. Deliveries, tracking codes and courier keys are managed in the admin panel.", JSON: deliveryTracking},
+	"listings-uae": {Name: "listings-uae", Description: "A property listings and lead-capture site for a UAE real-estate brokerage or agent, ready to customise " +
+		"(no online payments): search by sale or rent, type, community, bedrooms and price with sorting and pages, listing pages with gallery, " +
+		"AED prices, agent card with call and WhatsApp buttons, and forms to request a viewing or ask a question; leads go to the owner by " +
+		"email (and WhatsApp notices) and into the admin panel with a follow-up status, with spam limits for forms that need no sign-in. " +
+		"Regulatory fields are first-class: each listing shows its advertising permit number and QR code (Trakheesi in Dubai, ADREC in Abu Dhabi), " +
+		"the office number (ORN) and the agent's broker number (BRN), and a listing without a permit number is hidden from visitors. " +
+		"English and Arabic (right to left), a daily summary for the owner, and read-only tools for buyers' AI assistants. " +
+		"Change the agency, agents, listings and texts tables' seed rows; it also suits car dealers or other listing-and-lead businesses by changing the listing fields.", JSON: listingsUAE},
 	"tasks": {Name: "tasks", Description: "Create, edit, toggle and delete records: forms, path parameters, boolean columns, filters and counts.", JSON: tasks},
 }
 
