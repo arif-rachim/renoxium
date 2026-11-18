@@ -68,6 +68,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.serveAuth(w, r, st)
 		return true
 	}
+	if r.URL.Path == UploadPath || r.URL.Path == UploadJSPath || strings.HasPrefix(r.URL.Path, PrivatePrefix) {
+		p.servePrivateRoutes(w, r, st)
+		return true
+	}
 	if strings.HasPrefix(r.URL.Path, PayPrefix) {
 		p.servePay(w, r, st)
 		return true
@@ -494,6 +498,8 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.realtimePublish(h.st, arg)
 	case "realtime.token":
 		return h.p.realtimeToken(h.st, arg)
+	case "files.get", "files.delete", "files.url":
+		return h.p.filesCall(ctx, h.st, fn, arg)
 	}
 	return nil, fmt.Errorf("unknown platform function %s", fn)
 }

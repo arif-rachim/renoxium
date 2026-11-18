@@ -49,7 +49,7 @@ How to work:
 
 App definition:
 - tables: every table gets id (integer primary key) and created_at (text, UTC "YYYY-MM-DD HH:MM:SS") automatically.
-  Column types: text, integer, real, boolean, datetime, json, image. Schema changes are additive: add tables and columns, never rename or drop.
+  Column types: text, integer, real, boolean, datetime, json, image, file. Schema changes are additive: add tables and columns, never rename or drop.
   For the owner's admin panel, give tables and columns a "label" (e.g. "Customer name"), add "help" where a field needs explaining,
   and give text columns with fixed values "options" (e.g. order status) so the owner picks from a drop-down. These never change the database.
   Give a bookings table a "calendar" so the owner sees a day and week schedule next to the list, e.g. "calendar": {"date": "date",
@@ -69,10 +69,10 @@ Exact data types in scripts:
   An unchecked checkbox is absent from req.form. req.body is the parsed JSON body for application/json requests, else null.
   Convert yourself: Number(req.params.id), req.form.done === '1' ? 1 : 0.
 - db.query(sql, ...args) returns an array of objects; each key is exactly the column name or alias as written in the SELECT.
-  Values: integer and boolean columns are numbers (booleans are 0 or 1), real is a number, text, datetime, json and image are strings, NULL is null.
+  Values: integer and boolean columns are numbers (booleans are 0 or 1), real is a number, text, datetime, json, image and file are strings, NULL is null.
   Alias aggregates: SELECT COUNT(*) AS n FROM tasks returns [{n: 2}] (without an alias the key is "COUNT(*)").
 - db.exec(sql, ...args) returns {rowsAffected, lastInsertId} (numbers). JavaScript true and false are stored as 1 and 0.
-- Only single SELECT/INSERT/UPDATE/DELETE statements with ? placeholders. No fetch, no files, no timers; 2 second limit; at most 200 database calls per request.
+- Only single SELECT/INSERT/UPDATE/DELETE statements with ? placeholders. No fetch, no file system, no timers; 2 second limit; at most 200 database calls per request.
 - console.log/warn/error write to the app log.
 - Return {template: "name", data: {...}} for HTML (full page or fragment), {json: value}, {text: "..."}, or {redirect: "/path"} (303 after a POST);
   add status to change the HTTP status.
@@ -175,6 +175,24 @@ Images:
 - Add ?w=WIDTH to an uploaded JPEG, PNG or WebP url for a smaller copy, e.g. <img src="{{.image}}?w=480"> in product lists and ?w=960 on a product page.
   Widths round up to 160, 320, 480, 640, 960, 1280 or 1920 and are never larger than the original.
 - The owner can also upload images in the admin panel at the Renoxium site, /apps/<app>.
+
+Visitor uploads (private files, e.g. a driving licence, passport photo, PDF document, a photo of the problem):
+- Signed-in visitors upload one file per request to POST /_rx/upload (multipart/form-data, field "file"); it answers
+  {id, name, size, type} or {error} with status 401 (signed out), 413 (over 10 MB), 415 (wrong type) or 429 (20 a day per visitor).
+  Accepted: JPEG, PNG, WebP, HEIC photos and PDF, detected from the content. Never use upload_file or image columns for these.
+- Easiest in a template: <script src="/_rx/upload.js"></script> and, inside the form,
+  <input type="file" name="licence" data-rx-upload accept="image/*,application/pdf" required>.
+  The file is uploaded as soon as it is chosen and the form then sends licence=<id> in a hidden field (shown as "name uploaded");
+  keep the form's default encoding (no enctype). Without the helper: fetch("/_rx/upload", {method: "POST", body: formDataWithFile}).
+  On phones accept="image/*" offers the camera; add capture="environment" to open the camera directly.
+- Store the id in a column of type file. Files are private: /_rx/private/<id> opens only for the visitor who uploaded it
+  (others get 404); the owner and staff open them from the admin panel. Never put them in image columns or on public pages.
+- The id arrives from the form, so check it before saving: const f = files.get(req.form.licence);
+  if (!f || f.user_id !== req.user.id) return {status: 400, text: "upload the licence again"}.
+- files.get(id) returns {id, name, size, type, user_id, created_at, url} or null; files.delete(id) returns true or false;
+  files.url(id) returns "/_rx/private/<id>" or null. Scripts never see the bytes.
+- Preview uploads stay on preview and are dropped with the rest of preview data on the next change. Test with test_request:
+  POST /_rx/upload with user_email and files {"file": {name: "licence.jpg", type: "image/jpeg", base64: "..."}}.
 
 Security rules for what you write:
 - Render visitor-supplied text through templates (they escape automatically) or element.textContent. Never build HTML strings from visitor data in browser JavaScript.

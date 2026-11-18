@@ -30,6 +30,7 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
 	s.mux.HandleFunc("GET /apps/{app}/preview", s.adminPreview)
 	s.mux.HandleFunc("GET /apps/{app}/publish", s.publishForm)
+	s.mux.HandleFunc("GET /apps/{app}/files/{id}", s.adminPrivateFile)
 	s.mux.HandleFunc("POST /apps/{app}/publish", s.publishConfirm)
 }
 
@@ -208,6 +209,10 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows {
 		var line []string
 		for _, c := range cols {
+			if types[c.Name] == "file" {
+				line = append(line, short(s.privateFileName(app, row[c.Name])))
+				continue
+			}
 			line = append(line, short(display(row[c.Name], types[c.Name])))
 		}
 		cells = append(cells, line)
@@ -225,6 +230,7 @@ type field struct {
 	Name, Label, Help, Type, Input, Value, Error string
 	Options                                      []string
 	Required, Checked                            bool
+	FileName                                     string // file columns: the stored file's name, "" if it is gone
 }
 
 func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
@@ -282,6 +288,11 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		case "image":
 			f.Input = "image"
 			hasImage = true
+		case "file":
+			f.Input = "file"
+			if pf, err := s.platform.PrivateFileInfo(app, platform.Live, f.Value); err == nil {
+				f.FileName = pf.Name
+			}
 		default:
 			if f.Input == "select" {
 				break
@@ -351,8 +362,13 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	}
 	values := map[string]string{}
 	uploadErrs := platform.FieldErrors{}
+	var dropFiles []string // visitor files the owner chose to delete, once the row is saved
 	for _, c := range t.Columns {
 		values[c.Name] = r.PostFormValue(c.Name)
+		if c.Type == "file" && r.PostFormValue(c.Name+"__delete") == "1" {
+			dropFiles = append(dropFiles, values[c.Name])
+			values[c.Name] = ""
+		}
 		if c.Type != "image" {
 			continue
 		}
@@ -388,12 +404,46 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		serverError(w, err)
 	default:
+		for _, id := range dropFiles {
+			if s.platform.DeletePrivateFile(app, platform.Live, id) == nil {
+				s.platform.Note(app, fmt.Sprintf("%s deleted uploaded file %s", u.Email, id))
+			}
+		}
 		next := fmt.Sprintf("/apps/%s/t/%s/%d?saved=1", app, table, newID)
 		if back := calendarBack(r, app, table); back != "" {
 			next += "&back=" + url.QueryEscape(back)
 		}
 		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
+}
+
+// adminPrivateFile streams a visitor's private upload of the live app to
+// its owner or staff, signed in to the Renoxium site; the app host only
+// ever shows a file to the visitor who uploaded it.
+func (s *Site) adminPrivateFile(w http.ResponseWriter, r *http.Request) {
+	_, app, ok := s.member(w, r)
+	if !ok {
+		return
+	}
+	f, fh, err := s.platform.OpenPrivateFile(app, platform.Live, r.PathValue("id"))
+	if err != nil {
+		notFound(w, err)
+		return
+	}
+	defer fh.Close()
+	platform.ServePrivateFile(w, r, f, fh)
+}
+
+// privateFileName is what the table list shows for a file column.
+func (s *Site) privateFileName(app string, v any) string {
+	id, _ := v.(string)
+	if id == "" {
+		return ""
+	}
+	if f, err := s.platform.PrivateFileInfo(app, platform.Live, id); err == nil {
+		return f.Name
+	}
+	return "(file deleted)"
 }
 
 func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
@@ -557,7 +607,7 @@ func display(v any, typ string) string {
 // formValue formats a stored value for an input field.
 func formValue(v any, typ string) string {
 	switch typ {
-	case "image":
+	case "image", "file":
 		s, _ := v.(string)
 		return s
 	case "boolean":

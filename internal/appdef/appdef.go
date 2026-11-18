@@ -109,7 +109,7 @@ type Table struct {
 // datetime, json or image; an image column holds the URL of an uploaded file.
 type Column struct {
 	Name     string `json:"name"`
-	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file)"`
+	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file), file (holds the id of a visitor's private upload from /_rx/upload)"`
 	Required bool   `json:"required,omitempty"`
 	Unique   bool   `json:"unique,omitempty"`
 	// Admin panel only; they do not change the database.
@@ -135,6 +135,7 @@ var toolNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 var ColumnTypes = map[string]string{
 	"text": "TEXT", "integer": "INTEGER", "real": "REAL",
 	"boolean": "INTEGER", "datetime": "TEXT", "json": "TEXT", "image": "TEXT",
+	"file": "TEXT", // the id of a visitor's private upload (/_rx/upload)
 }
 
 // ValidIdent reports whether s is usable as a table or column name.
@@ -184,7 +185,7 @@ func (a *App) Validate() []string {
 			}
 			cols[c.Name] = true
 			if _, ok := ColumnTypes[c.Type]; !ok {
-				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime, json or image)", t.Name, c.Name, c.Type)
+				add("table %q: column %q: unknown type %q (use text, integer, real, boolean, datetime, json, image or file)", t.Name, c.Name, c.Type)
 			}
 			if len(c.Options) > 0 && c.Type != "text" {
 				add("table %q: column %q: options are only for text columns", t.Name, c.Name)

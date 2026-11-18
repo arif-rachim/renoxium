@@ -915,9 +915,9 @@ your app can send it data, including your customers' details.</p>
 {{define "admin_visitors"}}{{template "wide" "Visitors"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <div class="bar"><h1 style="margin:0">Visitor accounts <span class="muted">({{.Total}})</span></h1>
 <form method="get"><input name="q" value="{{.Query}}" placeholder="Search email, number or name" aria-label="Search"><button class="secondary">Search</button></form></div>
-<p class="muted">People who created an account on your app. Passwords are never shown to anyone.</p>
-{{if .Visitors}}<div class="scroll"><table><thead><tr><th>#</th><th>Email</th><th>WhatsApp</th><th>Name</th><th>Confirmed</th><th>Joined</th><th></th></tr></thead><tbody>
-{{range .Visitors}}<tr><td>{{.ID}}</td><td>{{.Email}}</td><td>{{.Phone}}</td><td>{{.Name}}</td><td>{{if .Verified}}Yes{{else}}No{{end}}</td><td>{{.CreatedAt}}</td>
+<p class="muted">People who created an account on your app. Passwords are never shown to anyone. Deleting an account also deletes the files that person uploaded.</p>
+{{if .Visitors}}<div class="scroll"><table><thead><tr><th>#</th><th>Email</th><th>WhatsApp</th><th>Name</th><th>Confirmed</th><th>Files</th><th>Joined</th><th></th></tr></thead><tbody>
+{{range .Visitors}}<tr><td>{{.ID}}</td><td>{{.Email}}</td><td>{{.Phone}}</td><td>{{.Name}}</td><td>{{if .Verified}}Yes{{else}}No{{end}}</td><td>{{.Files}}</td><td>{{.CreatedAt}}</td>
 <td><form method="post" action="/apps/{{$.App}}/visitors/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" style="margin:0;padding:4px 10px">Delete</button></form></td></tr>{{end}}
 </tbody></table></div>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
@@ -933,6 +933,8 @@ your app can send it data, including your customers' details.</p>
 {{if eq .Input "image"}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">
 {{if .Value}}<img class="thumb" src="{{$.LiveURL}}{{.Value}}?w=320" alt=""><label class="check"><input type="checkbox" name="{{.Name}}__remove" value="1"> Remove image</label>{{end}}
 <input id="f-{{.Name}}" name="{{.Name}}__upload" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif">
+{{else if eq .Input "file"}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{if .Value}}{{if .FileName}}<p id="f-{{.Name}}"><a href="/apps/{{$.App}}/files/{{.Value}}" target="_blank" rel="noopener noreferrer">{{.FileName}}</a></p>
+<label class="check"><input type="checkbox" name="{{.Name}}__delete" value="1"> Delete this file</label>{{else}}<p id="f-{{.Name}}" class="muted">The file was deleted.</p>{{end}}{{else}}<p id="f-{{.Name}}" class="muted">No file. Visitors upload files on the app.</p>{{end}}
 {{else if eq .Input "select"}}<select id="f-{{.Name}}" name="{{.Name}}"{{if .Required}} required{{end}}>{{if not .Required}}<option value=""></option>{{end}}{{$v := .Value}}{{range .Options}}<option{{if eq . $v}} selected{{end}}>{{.}}</option>{{end}}</select>
 {{else if eq .Input "textarea"}}<textarea id="f-{{.Name}}" name="{{.Name}}"{{if eq .Type "json"}} class="json"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
 {{else}}<input id="f-{{.Name}}" name="{{.Name}}" type="{{.Input}}" value="{{.Value}}"{{if eq .Type "real"}} step="any"{{end}}{{if eq .Type "integer"}} step="1"{{end}}{{if .Required}} required{{end}}>{{end}}{{end}}

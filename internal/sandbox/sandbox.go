@@ -32,6 +32,7 @@ var platformFunctions = map[string][]string{
 	"notify":   {"owner"},
 	"realtime": {"publish", "token"},
 	"http":     {"fetch"},
+	"files":    {"get", "delete", "url"},
 }
 
 // Request is what a script's handle(req) receives.

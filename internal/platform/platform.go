@@ -293,6 +293,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := pl.ensurePrivateFileTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return pl, nil
 }
 
@@ -491,6 +495,11 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 
 	// Build the preview database first; a failed migration leaves no new version.
 	p.dropStage(name, Preview)
+	// Preview uploads belong to the throwaway preview data; they are never
+	// copied to or from live.
+	if err := p.dropPrivateFiles(name, Preview); err != nil {
+		return ApplyResult{}, err
+	}
 	prev := p.dbPath(name, Preview)
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		os.Remove(prev + suffix)
