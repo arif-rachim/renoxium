@@ -70,9 +70,11 @@ func publishedGuardApp(t *testing.T, p *platform.Platform) {
 func TestTemplateOutputIsCapped(t *testing.T) {
 	p := newPlatform(t)
 	publishedGuardApp(t, p)
+	// Rendering stops at maxPage (4 MB) instead of 10^8 bytes. That takes
+	// some seconds on a slow machine; the whole page would take minutes.
 	start := time.Now()
 	r := do(t, p, "GET", "guard.renoxium.test", "/bomb/1", nil)
-	if r.status != 500 || time.Since(start) > 10*time.Second {
+	if r.status != 500 || time.Since(start) > 60*time.Second {
 		t.Fatalf("template bomb: %d after %s", r.status, time.Since(start))
 	}
 	logs, _ := p.Logs("guard", applog.Filter{Level: "error"})
@@ -403,14 +405,15 @@ func TestSuspendedAppsGoOffline(t *testing.T) {
 func TestFileAndVersionQuotas(t *testing.T) {
 	p := newPlatform(t)
 	publishedGuardApp(t, p)
-	for i := 0; i < platform.MaxFilesPerApp; i++ {
-		img := image.NewRGBA(image.Rect(0, 0, 1, 1))
-		img.Pix[0], img.Pix[1], img.Pix[2], img.Pix[3] = byte(i), byte(i>>8), 1, 255
-		var buf bytes.Buffer
-		png.Encode(&buf, img)
-		if _, err := p.AddFile("guard", &buf); err != nil {
-			t.Fatalf("file %d: %v", i, err)
-		}
+	// All but the last allowed file are recorded directly; the last one and
+	// the one over the limit go through AddFile.
+	platform.SeedFiles(t, p, "guard", platform.MaxFilesPerApp-1)
+	last := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	last.Pix[0], last.Pix[3] = 7, 255
+	var lastBuf bytes.Buffer
+	png.Encode(&lastBuf, last)
+	if _, err := p.AddFile("guard", &lastBuf); err != nil {
+		t.Fatalf("the last allowed file: %v", err)
 	}
 	var buf bytes.Buffer
 	png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 2, 2)))

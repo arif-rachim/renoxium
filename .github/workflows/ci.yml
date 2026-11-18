@@ -1,0 +1,133 @@
+# Tests every push and pull request. On main, when the Go tests and the
+# end-to-end suite pass, it builds the linux/amd64 binary and publishes it as
+# the pre-release build-<first 12 characters of the commit>, which the
+# server's deploy script downloads (deploy/deploy.sh).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Actions are pinned to commit SHAs (the tag in the comment): a tag can be
+# moved to other code, and the release job holds a token that can publish
+# what the server installs. Update a pin by resolving the new tag, e.g.
+#   git ls-remote https://github.com/actions/checkout 'refs/tags/v7*'
+#
+# A newer push to the same branch makes an older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Go tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "Not gofmt-ed:"; echo "$unformatted"; exit 1; fi
+      - run: go vet ./...
+      - run: go test -timeout 25m ./...
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Install
+        working-directory: e2e
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run
+        working-directory: e2e
+        run: ./run.sh
+      - name: Keep the reports of a failed run
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report.log
+            e2e/playwright-report/
+            e2e/test-results/
+            e2e/.run/renoxium.log
+          retention-days: 14
+
+  release:
+    name: Build and publish the binary
+    needs: [test, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Give this environment required reviewers in the repository settings
+    # (Settings, Environments, production) so that a person approves every
+    # build the server will install.
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write     # create the release
+      id-token: write     # sign the build provenance
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: |
+          mkdir dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/renoxium-linux-amd64 ./cmd/renoxium
+          # The binary must carry this commit, unmodified: the server checks the same.
+          go version -m dist/renoxium-linux-amd64 | grep -qP "\tvcs.revision=${GITHUB_SHA}$"
+          go version -m dist/renoxium-linux-amd64 | grep -qP "\tvcs.modified=false$"
+          cd dist && sha256sum renoxium-linux-amd64 > renoxium-linux-amd64.sha256
+      - id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: dist/renoxium-linux-amd64
+      # The signed provenance goes with the binary: the server verifies it
+      # offline (gh attestation verify --bundle), which proves the binary was
+      # built by this workflow from this commit of main. The checksum alone
+      # only proves the download is complete.
+      - name: Keep the provenance with the binary
+        run: cp "${{ steps.attest.outputs.bundle-path }}" dist/renoxium-linux-amd64.sigstore.json
+      - name: Publish
+        run: |
+          tag="build-${GITHUB_SHA::12}"
+          subject=$(git log -1 --format=%s)
+          gh release create "$tag" dist/renoxium-linux-amd64 dist/renoxium-linux-amd64.sha256 dist/renoxium-linux-amd64.sigstore.json \
+            --target "$GITHUB_SHA" --prerelease --title "$tag" \
+            --notes "Built from ${GITHUB_SHA}: ${subject}"
+      - name: Keep the 30 newest builds
+        run: |
+          gh release list --limit 200 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("build-"))] | sort_by(.createdAt) | reverse | .[30:] | .[].tagName' |
+          while read -r tag; do gh release delete "$tag" --yes --cleanup-tag; done
