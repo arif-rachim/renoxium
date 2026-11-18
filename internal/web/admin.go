@@ -132,7 +132,7 @@ func (s *Site) isOwnerOf(u accounts.User, app string) bool {
 }
 
 func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
-	u, app, ok := s.member(w, r)
+	u, app, demo, ok := s.viewer(w, r)
 	if !ok {
 		return
 	}
@@ -160,6 +160,11 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, tableRow{Name: t.Name, Label: tableLabel(t), Rows: total})
 	}
+	if demo {
+		render(w, http.StatusOK, "demo_admin_app", map[string]any{"App": app, "Tables": rows, "DemoURL": info.LiveURL,
+			"Example": strings.TrimPrefix(app, platform.DemoPrefix)})
+		return
+	}
 	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
 	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
 	currency, sales, _ := s.platform.Sales(r.Context(), app)
@@ -172,7 +177,7 @@ type column struct {
 }
 
 func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
-	u, app, ok := s.member(w, r)
+	u, app, demo, ok := s.viewer(w, r)
 	if !ok {
 		return
 	}
@@ -229,6 +234,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		"Total": total, "Query": q, "Page": page, "Pages": pages, "Prev": page - 1, "Next": page + 1,
 		"HasCalendar": t.Calendar != nil,
 		"Notice":      s.hookNotice(r, app),
+		"Demo":        demo,
 	})
 }
 
@@ -241,7 +247,7 @@ type field struct {
 }
 
 func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.member(w, r)
+	_, app, demo, ok := s.viewer(w, r)
 	if !ok {
 		return
 	}
@@ -262,6 +268,10 @@ func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
 			notFound(w, err)
 			return
 		}
+	}
+	if demo && row == nil {
+		http.Redirect(w, r, "/apps/"+app+"/t/"+table, http.StatusSeeOther) // no new rows in a read-only demo
+		return
 	}
 	values := map[string]string{}
 	for _, c := range t.Columns {
@@ -300,7 +310,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		case "file":
 			f.Input = "file"
 			f.OwnerOnly = !isOwner
-			if pf, err := s.platform.PrivateFileInfo(app, platform.Live, f.Value); err == nil {
+			if pf, err := s.platform.PrivateFileInfo(app, s.platform.AdminStage(app), f.Value); err == nil {
 				f.FileName = pf.Name
 				if !isOwner {
 					f.FileName = "Document"
@@ -335,6 +345,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
 		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name), "Notice": s.hookNotice(r, app),
+		"Demo": s.platform.IsDemo(app),
 	})
 }
 
@@ -478,7 +489,7 @@ func (s *Site) privateFileName(app string, v any) string {
 	if id == "" {
 		return ""
 	}
-	if f, err := s.platform.PrivateFileInfo(app, platform.Live, id); err == nil {
+	if f, err := s.platform.PrivateFileInfo(app, s.platform.AdminStage(app), id); err == nil {
 		return f.Name
 	}
 	return "(file deleted)"

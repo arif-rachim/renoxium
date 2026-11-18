@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/arif-rachim/renoxium/examples"
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/cloudflare"
 	"github.com/arif-rachim/renoxium/internal/email"
@@ -183,10 +184,20 @@ func main() {
 	go mon.Run(context.Background())
 	jobsEvery, _ := time.ParseDuration(os.Getenv("JOBS_CHECK_EVERY")) // default 30s
 	go p.RunJobs(context.Background(), jobsEvery)
+	// Template demos: one public app per gallery example, brought up to
+	// date at every start and put back to seed data every hour.
+	go func() {
+		if err := p.EnsureDemos(context.Background(), examples.Gallery()); err != nil {
+			slog.Error("template demos", "err", err)
+		}
+	}()
 	go func() {
 		for range time.Tick(time.Hour) {
 			acc.Cleanup()
 			p.Cleanup(context.Background())
+			if err := p.ResetDemos(context.Background()); err != nil {
+				slog.Error("reset template demos", "err", err)
+			}
 		}
 	}()
 	srv := &http.Server{Addr: *addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}

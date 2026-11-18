@@ -46,8 +46,16 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.suspendedPage(w)
 		return true
 	}
-	if stageName == Preview && !p.guardPreview(w, r, app) {
+	demo := stageName == Preview && p.IsDemo(app)
+	if stageName == Preview && !demo && !p.guardPreview(w, r, app) {
 		return true
+	}
+	if demo {
+		r = p.withDemoKey(w, r)
+		if r.URL.Path == DemoInboxPath {
+			p.serveDemoInbox(w, r, app)
+			return true
+		}
 	}
 	if strings.HasPrefix(r.URL.Path, FilesPrefix) && !signIn {
 		p.serveFile(w, r, app)
@@ -266,6 +274,9 @@ func (p *Platform) render(st *stage, status int, name string, data any, rid stri
 		p.issueRID(st.app, rid)
 		if st.name == Live && p.cfg.OwnerPlan != nil && p.planOf(p.ownerOf(st.app)) == planFree {
 			page = injectBadge(page)
+		}
+		if st.name == Preview && p.IsDemo(st.app) {
+			page = p.injectDemoBanner(st.app, page)
 		}
 	}
 	return result{status: status, contentType: "text/html; charset=utf-8", body: page}

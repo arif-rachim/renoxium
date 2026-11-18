@@ -100,12 +100,12 @@ h2{font-size:clamp(26px,3.6vw,36px);letter-spacing:-.02em;margin:0 0 28px;line-h
 footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color:var(--soft);display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
 footer .links{display:flex;gap:18px;flex-wrap:wrap}
 </style></head><body><div class="wrap">
-<nav><a class="logo" href="/">Renoxium</a><div class="links"><a href="#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
+<nav><a class="logo" href="/">Renoxium</a><div class="links"><a href="/templates">Templates</a><a href="#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
 
 <div class="hero"><div>
 <h1>Your online store, built in a chat.</h1>
 <p class="lede">Tell ChatGPT or Claude what you sell. Renoxium builds the shop, hosts it, and takes card payments and cash on delivery, in English and Arabic.</p>
-<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn quiet" href="/connect">Connect ChatGPT or Claude</a></div>
+<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn quiet" href="/templates">Try the templates</a></div>
 <p class="small">Free to start. No code, no designer, no plugins to install on a server.</p>
 </div>
 <div class="chat" aria-label="Example conversation">
@@ -141,6 +141,30 @@ footer .links{display:flex;gap:18px;flex-wrap:wrap}
 <div class="plan"><h3>Business</h3><p class="amount">AED 299 <span>/ month</span></p><ul><li>10 stores</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per store</li><li>No badge</li></ul><a class="btn quiet" href="/signup">Choose Business</a></div>
 </div><p class="note">Stripe charges its own card processing fees to your Stripe account on every plan. Building and changing your store through your AI assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></section>
 
+<footer><span>© {{.Legal.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a store</a><a href="/login">Sign in</a></div></footer>
+</div></body></html>{{end}}
+
+{{define "gallery"}}{{template "lhead" "Templates · Renoxium"}}<style>
+.intro{padding:24px 0 8px}.intro h1{font-size:clamp(32px,5vw,48px);line-height:1.08;letter-spacing:-.025em;margin:0 0 14px}
+.intro p{font-size:18px;color:var(--soft);max-width:38em;margin:0}
+.cards{display:grid;gap:18px;padding:32px 0 64px}@media(min-width:760px){.cards{grid-template-columns:1fr 1fr}}@media(min-width:1040px){.cards{grid-template-columns:repeat(3,1fr)}}
+.tcard{background:var(--panel);border:1px solid var(--rule);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px}
+.tcard h2{font-size:21px;margin:0;letter-spacing:-.01em}.tcard p{margin:0;color:var(--soft);font-size:15.5px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:2px 0}.tags li{font-size:13px;padding:2px 10px;border-radius:999px;background:var(--bubble);color:var(--ink)}
+.actions{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:auto;padding-top:8px}.actions .btn{padding:10px 16px;font-size:15px}
+details{font-size:14px;color:var(--soft)}details summary{cursor:pointer;color:var(--blue)}details code{display:block;margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--paper);border:1px solid var(--rule);color:var(--ink);white-space:normal;font-size:13.5px}
+.how{border-top:1px solid var(--rule);padding:40px 0 56px}.how h2{font-size:26px;margin:0 0 10px}.how p{color:var(--soft);max-width:44em;margin:0 0 16px}
+footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color:var(--soft);display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}footer .links{display:flex;gap:18px;flex-wrap:wrap}
+</style></head><body><div class="wrap">
+<nav><a class="logo" href="/">Renoxium</a><div class="links"><a href="/templates" aria-current="page">Templates</a><a href="/#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
+<div class="intro"><h1>Templates you can try right now</h1>
+<p>Every template is a finished website for a UAE business: payments, bookings, customer accounts, English and Arabic. Open the demo and use it like a customer, then look at the owner's admin panel. Nothing is charged or sent; demo data is deleted every hour.</p></div>
+<div class="cards">{{range .Cards}}<article class="tcard"><h2>{{.Title}}</h2><p>{{.Summary}}</p>
+<ul class="tags" aria-label="Suits">{{range .For}}<li>{{.}}</li>{{end}}</ul>
+<div class="actions"><a class="btn" href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Owner's admin panel</a></div>
+<details><summary>Use this template</summary><p>Connect Renoxium to ChatGPT or Claude, then ask:</p><code>{{.Prompt}}</code></details></article>{{end}}</div>
+<section class="how"><h2>Make it yours</h2><p>Connect Renoxium to ChatGPT or Claude and ask for the template by name with your business name, services and prices. Your assistant builds your own copy, you check the preview and publish it.</p>
+<a class="btn" href="/signup">Create your account</a> <a class="btn quiet" href="/connect">Connect ChatGPT or Claude</a></section>
 <footer><span>© {{.Legal.Company}}</span><div class="links"><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a store</a><a href="/login">Sign in</a></div></footer>
 </div></body></html>{{end}}
 

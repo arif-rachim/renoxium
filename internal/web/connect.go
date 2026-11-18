@@ -39,6 +39,10 @@ Developer mode needs a paid ChatGPT plan and may only be available on the web.
 
 Add a remote MCP server with the address {{MCP}}. The client discovers OAuth from the server, registers itself and opens the Renoxium sign-in page.
 
+## Templates
+
+Finished websites for UAE businesses (online store, appointments and classes, home services, tours and rentals, quotes and client portal, property listings, delivery tracking) can be tried live, with the owner's admin panel, at {{BASE}}/templates. Ask your assistant to build from one by name.
+
 ## After connecting
 
 - Your apps: {{BASE}}

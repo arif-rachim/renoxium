@@ -1,5 +1,10 @@
 # Template gallery with live demos
 
+**Status:** implemented on 2026-11-18. Differences from the plan: the sign-in host adopts the app host's inbox key
+(passed as `rx_dk` when the app sends the browser there), so one inbox shows sign-in codes and app emails together;
+the read-only admin is the normal admin panel at `/apps/demo-<example>` (`/templates/<example>/admin` redirects there),
+opened to everyone for GET only.
+
 **Goal:** prospective customers browse every Renoxium template at `renoxium.com/templates` and try each one live (customer site
 and a read-only owner admin panel), so they see what they would get before signing up. Adding a template to `examples/` is all
 it takes for it to appear in the gallery.

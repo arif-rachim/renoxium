@@ -320,6 +320,7 @@ func (p *Platform) useToken(ctx context.Context, st *stage, token, purpose strin
 func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) error {
 	if st.name == Preview {
 		p.event(st, "email", "info", "", fmt.Sprintf("not sent from preview: to %s, %q\n%s", m.To, m.Subject, m.Text))
+		p.demoDeliver(ctx, st, DemoMessage{Kind: "email", To: m.To, Subject: m.Subject, Text: m.Text})
 		return nil
 	}
 	m.FromName = st.app + " via Renoxium"
@@ -387,7 +388,13 @@ func (p *Platform) forgot(w http.ResponseWriter, r *http.Request, st *stage) {
 	// in its words nor in how long it takes: the email is sent after the
 	// answer, not before it.
 	ctx := context.WithoutCancel(r.Context())
-	p.background(func() {
+	later := p.background
+	if st.name == Preview && p.IsDemo(st.app) {
+		// The demo inbox shows the link on the next page; demo accounts
+		// are public anyway, so the timing does not matter there.
+		later = func(f func()) { f() }
+	}
+	later(func() {
 		var id int64
 		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ?`, addr).Scan(&id); err == nil {
 			if token, err := p.createToken(ctx, st, id, "reset", visitorResetTTL); err == nil {
@@ -466,7 +473,11 @@ func (p *Platform) authPage(w http.ResponseWriter, r *http.Request, st *stage, s
 		w.Write(buf.Bytes())
 		return
 	}
-	w.Write(p.withAuthFooter(st, buf.Bytes()))
+	out := buf.Bytes()
+	if st.name == Preview && p.IsDemo(st.app) {
+		out = insertBeforeBody(out, p.demoInboxBox(r, st.app))
+	}
+	w.Write(p.withAuthFooter(st, out))
 }
 
 var defaultAuthPages = template.Must(template.New("").Parse(`
