@@ -16,6 +16,8 @@ var (
 	deliveryTracking []byte
 	//go:embed store-uae.json
 	storeUAE []byte
+	//go:embed booking-uae.json
+	bookingUAE []byte
 	//go:embed listings-uae.json
 	listingsUAE []byte
 )
@@ -28,6 +30,14 @@ type Example struct {
 }
 
 var all = map[string]Example{
+	"booking-uae": {Name: "booking-uae", Description: "A complete booking site for UAE businesses that sell time, ready to customise: appointments with a staff member " +
+		"(beauty salons, barbershops, spas) and group classes with limited seats (academies, training centres, tutors). Free times are worked out from the " +
+		"opening hours, each service's duration and each staff member's bookings, and checked again when booking; classes refuse enrolments when full. " +
+		"AED prices including 5% VAT, an online deposit by card (Stripe; 0 to 100% of the price) or pay at the venue, bookings for signed-in customers " +
+		"with cancellation until a set number of hours before, printable receipts (a UAE tax invoice once the TRN is set), confirmation and day-before " +
+		"reminder emails, tomorrow's schedule emailed to the owner every evening, read-only tools for customers' AI assistants, English and Arabic " +
+		"(right to left). Change the business, services, staff, classes and texts tables' seed rows and keep the scripts: " +
+		"a salon fills services and staff and may leave classes empty; an academy fills classes and may leave services and staff empty.", JSON: bookingUAE},
 	"catalog": {Name: "catalog", Description: "A small shop: product list, product page with an order form, and a JSON API.", JSON: catalog},
 	"store-uae": {Name: "store-uae", Description: "A complete online store for the UAE, ready to customise: catalog with photos and categories, cart, " +
 		"AED prices including 5% VAT, delivery fee with a free-delivery threshold, checkout with card payment (Stripe) or cash on delivery, " +
