@@ -89,7 +89,32 @@ type fakeStripe struct {
 	sessions []url.Values
 	accounts []map[string]any
 	headers  []string
+	// calls are money calls (refunds, payment intents, subscriptions).
+	calls []fakeCall
+	// intents answer GET /v1/payment_intents/{id}.
+	intents map[string]map[string]any
 }
+
+type fakeCall struct {
+	method, path, account string
+	form                  url.Values
+}
+
+// callsTo returns the money calls whose path starts with prefix.
+func (f *fakeStripe) callsTo(method, prefix string) []fakeCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []fakeCall
+	for _, c := range f.calls {
+		if c.method == method && strings.HasPrefix(c.path, prefix) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// periodEnd is the fake's current_period_end for subscriptions.
+const periodEnd = 1900000000
 
 func (f *fakeStripe) server(t *testing.T) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +122,52 @@ func (f *fakeStripe) server(t *testing.T) *httptest.Server {
 		defer f.mu.Unlock()
 		raw, _ := io.ReadAll(r.Body)
 		form, _ := url.ParseQuery(string(raw))
+		if r.Method == "GET" {
+			form = r.URL.Query()
+		}
+		path := r.URL.Path
+		if strings.HasPrefix(path, "/v1/refunds") || strings.HasPrefix(path, "/v1/payment_intents") || strings.HasPrefix(path, "/v1/subscriptions") ||
+			strings.HasPrefix(path, "/v1/invoice_payments") {
+			f.calls = append(f.calls, fakeCall{r.Method, path, r.Header.Get("Stripe-Account"), form})
+		}
+		sub := func(id, status string, cancelAtEnd bool) map[string]any {
+			return map[string]any{"id": id, "status": status, "cancel_at_period_end": cancelAtEnd,
+				"items": map[string]any{"data": []map[string]any{{"current_period_end": periodEnd}}}}
+		}
 		switch {
+		case r.Method == "POST" && path == "/v1/refunds":
+			amount, _ := strconv.ParseInt(form.Get("amount"), 10, 64)
+			json.NewEncoder(w).Encode(map[string]any{"id": "re_" + strconv.Itoa(len(f.calls)), "status": "succeeded", "amount": amount})
+		case r.Method == "GET" && strings.HasPrefix(path, "/v1/payment_intents/"):
+			pi, ok := f.intents[strings.TrimPrefix(path, "/v1/payment_intents/")]
+			if !ok {
+				w.WriteHeader(404)
+				w.Write([]byte(`{"error":{"message":"No such payment_intent"}}`))
+				return
+			}
+			json.NewEncoder(w).Encode(pi)
+		case r.Method == "POST" && strings.HasSuffix(path, "/capture"):
+			amount, _ := strconv.ParseInt(form.Get("amount_to_capture"), 10, 64)
+			json.NewEncoder(w).Encode(map[string]any{"id": strings.Split(path, "/")[3], "status": "succeeded", "amount_received": amount})
+		case r.Method == "POST" && strings.HasPrefix(path, "/v1/payment_intents/") && strings.HasSuffix(path, "/cancel"):
+			json.NewEncoder(w).Encode(map[string]any{"id": strings.Split(path, "/")[3], "status": "canceled"})
+		case strings.HasPrefix(path, "/v1/subscriptions/"):
+			id := strings.TrimPrefix(path, "/v1/subscriptions/")
+			switch r.Method {
+			case "DELETE":
+				json.NewEncoder(w).Encode(sub(id, "canceled", false))
+			case "POST":
+				json.NewEncoder(w).Encode(sub(id, "active", form.Get("cancel_at_period_end") == "true"))
+			default:
+				json.NewEncoder(w).Encode(sub(id, "active", false))
+			}
+		case r.Method == "GET" && path == "/v1/invoice_payments":
+			json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"status": "paid",
+				"payment": map[string]any{"type": "payment_intent", "payment_intent": "pi_for_" + form.Get("invoice")}}}})
+		case r.URL.Path == "/v1/checkout/sessions" && form.Get("mode") == "subscription":
+			f.sessions = append(f.sessions, form)
+			f.headers = append(f.headers, r.Header.Get("Stripe-Account"))
+			w.Write([]byte(`{"id":"cs_sub_1","url":"https://checkout.stripe.com/c/pay/cs_sub_1"}`))
 		case r.Method == "POST" && r.URL.Path == "/v2/core/accounts":
 			var acct map[string]any
 			json.Unmarshal(raw, &acct)
@@ -114,7 +184,8 @@ func (f *fakeStripe) server(t *testing.T) *httptest.Server {
 		case r.URL.Path == "/v1/checkout/sessions":
 			f.sessions = append(f.sessions, form)
 			f.headers = append(f.headers, r.Header.Get("Stripe-Account"))
-			w.Write([]byte(`{"id":"cs_test_1","url":"https://checkout.stripe.com/c/pay/cs_test_1"}`))
+			id := "cs_test_" + strconv.Itoa(len(f.sessions)) // cs_test_1 first, as Stripe ids differ per session
+			w.Write([]byte(`{"id":"` + id + `","url":"https://checkout.stripe.com/c/pay/` + id + `"}`))
 		default:
 			w.WriteHeader(404)
 			w.Write([]byte(`{"error":{"message":"unknown"}}`))

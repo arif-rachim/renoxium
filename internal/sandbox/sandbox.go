@@ -27,7 +27,7 @@ type Host interface {
 
 // Functions scripts can call through Host.Call, by JavaScript name.
 var platformFunctions = map[string][]string{
-	"payments": {"checkout", "get"},
+	"payments": {"checkout", "get", "refund", "capture", "release", "subscribe", "subscription", "cancel_subscription"},
 	"email":    {"send"},
 	"notify":   {"owner"},
 	"realtime": {"publish", "token"},

@@ -108,7 +108,7 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
 - Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
 - Test with test_request: POST /_rx/auth/signup with form {name, email, password}, then send requests with user_email set.
 
-Payments (card payments through the owner's own Stripe account; Renoxium takes no fee):
+Payments (card payments through the owner's own Stripe account; on the Free plan Renoxium takes a 2% fee, on paid plans none):
 - Never collect card details yourself. In a script, create the order first, then call
   payments.checkout({items: [{name, price, quantity}], reference, success_path, cancel_path, customer_email})
   and return {redirect: result.url}. price is in AED with at most 2 decimals (250 or 99.5, not fils); quantity defaults to 1;
@@ -116,7 +116,8 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
   currency defaults to "aed" (also usd, eur, gbp, sar). It returns {url, id, reference, amount, currency}.
 - Set "on_payment": "<script name>" in the app definition. That script runs when a payment is paid, fails or expires, with
   req.body = {event, status, reference, id, amount, refunded_amount, currency, customer_email, customer_name}; event is "paid",
-  "failed", "expired", or later "partially_refunded" / "refunded" when the owner refunds in Stripe. Mark the order there
+  "failed", "expired", or later "partially_refunded" / "refunded" (a refund from a script, the admin panel or Stripe), and for
+  holds and subscriptions the events below. Mark the order there
   (e.g. UPDATE orders SET status = 'paid' WHERE id = ?). It runs once per change.
 - On the success page do not trust the URL: read payments.get(reference), which returns the newest payment for the reference
   ({status, amount, ...}) or null. Status "pending" can still turn "paid" a few seconds later.
@@ -126,6 +127,29 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
   "Cancel". Test with test_request: POST your buy route, then POST result.url with form {decision: "pay"} (or "fail"/"cancel").
 - On live, checkout works once the owner has connected Stripe in the Renoxium admin panel (/apps/<app>/payments); before that
   payments.checkout throws an error saying so. Cash on delivery needs no platform support: just record the order.
+- Refunds (e.g. a customer cancels): payments.refund({reference, amount, reason}) refunds the newest paid payment for the reference;
+  without amount, everything not yet refunded; amount in AED with at most 2 decimals, never more than what is left (else it throws).
+  It returns {status: "partially_refunded"|"refunded", refunded_amount, amount}. on_payment then runs once with that event (after
+  your script finishes). On the Free plan Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
+- Card holds (e.g. a car rental deposit): payments.checkout({..., hold: true}) only authorises the card; on_payment gets "authorized".
+  Then payments.capture({reference, amount}) takes all or part of it (e.g. a damage charge; on_payment gets "paid" with the amount
+  taken, the rest is released) or payments.release({reference}) cancels it (on_payment gets "released"). Cards drop a hold after about
+  7 days (Stripe cancels it; on_payment gets "released"); payments.get shows hold and hold_expires_at. Use holds only for short rentals;
+  for longer ones take the deposit with a normal payment and refund it.
+- Recurring payments (weekly cleaning, monthly fees, school terms): payments.subscribe({items, interval: "week"|"month"|"year",
+  interval_count, reference, customer_email, success_path, cancel_path, trial_days, end_after}) returns {url, id}; redirect to url.
+  The customer's card is charged every interval_count intervals (default 1) until cancelled, or end_after payments (0 = no end).
+  on_payment gets "paid" for the first payment (amount 0 when trial_days is set), "renewed" for each later one, "renewal_failed"
+  when a charge fails (Stripe retries; a later success is "renewed") and "subscription_cancelled" when it ends; req.body also has
+  subscription {id, status, current_period_end, cancel_at_period_end, payments_made} and period {start, end}.
+  payments.subscription(reference) returns {status (trialing, active, past_due, canceled, or pending before checkout),
+  amount, interval, current_period_end (next payment date), cancel_at_period_end, payments_made} or null.
+  payments.cancel_subscription({reference, at_period_end}) stops it now, or at the end of the paid period with at_period_end: true.
+  Each payment can be refunded with payments.refund. Scripts cannot charge saved cards otherwise.
+- Refunds, captures, releases and cancellations are limited to 60 an hour per app.
+- Test on preview: POST the simulated page with {decision: "pay"} authorises a hold or starts a subscription; for a subscription,
+  POST the same /_rx/pay/<id> again with {decision: "renew"} or {decision: "renewal_failed"} to simulate the next invoice
+  (with cancel_at_period_end set, "renew" ends it). payments.refund, capture, release and cancel_subscription act at once on preview.
 
 Emails (plain text; live sends them, preview writes them with their links to get_logs):
 - email.send({to, subject, text}) emails one address from the app, e.g. an order confirmation to req.user.email.

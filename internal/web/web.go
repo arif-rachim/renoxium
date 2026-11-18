@@ -904,13 +904,28 @@ your app can send it data, including your customers' details.</p>
 <li>the business address and phone number</li><li>a UAE bank account in the business's name (IBAN), for payouts</li></ul>
 <p class="muted">Stripe may show a CAPTCHA and ask for more. You can stop and continue later from this page; payments open once Stripe has checked your details, often within minutes.</p></div>
 <form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Connect Stripe</button></form>
-{{else if .Account.ChargesEnabled}}<p class="ok">Stripe is connected and ready to take payments.</p><p class="muted">Account {{.Account.StripeAccount}}. Manage payouts, refunds and disputes in your Stripe Dashboard.</p>
+{{else if .Account.ChargesEnabled}}<p class="ok">Stripe is connected and ready to take payments.</p><p class="muted">Account {{.Account.StripeAccount}}. Refund payments and take card holds below; manage payouts and disputes in your Stripe Dashboard.</p>
 {{else}}<p>Your Stripe account is connected but not ready to take payments yet{{if .Account.DetailsSubmitted}}: Stripe is reviewing your details{{end}}.</p>
 <form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Continue Stripe setup</button></form>{{end}}
+{{with .Notice}}<p class="ok" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <h1 style="margin-top:24px">Recent payments</h1>
-{{if .Payments}}<div class="scroll"><table><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th></tr></thead><tbody>
-{{range .Payments}}<tr><td>{{.Reference}}</td><td>{{.Status}}</td><td>{{printf "%.2f" .Amount}} {{.Currency}}</td><td>{{.CustomerEmail}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
-</tbody></table></div>{{else}}<p class="muted">No payments yet.</p>{{end}}</div>{{template "bottom"}}{{end}}
+{{if .Payments}}<div class="scroll"><table><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th><th></th></tr></thead><tbody>
+{{range .Payments}}<tr><td>{{.Reference}}</td><td>{{if eq .Status "authorized"}}card hold{{with .HoldExpiresAt}}, take by {{.}} UTC{{end}}{{else}}{{.Status}}{{end}}</td>
+<td>{{printf "%.2f" .Amount}} {{.Currency}}{{if gt .Refunded 0.0}}<br><span class="muted">{{printf "%.2f" .Refunded}} refunded</span>{{end}}</td><td>{{.CustomerEmail}}</td><td>{{.CreatedAt}}</td>
+<td>{{if gt .Refundable 0.0}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/refund" class="inline" onsubmit="return confirm('Refund this payment to the card?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Refundable}}" aria-label="Amount to refund (empty = {{printf "%.2f" .Refundable}})" style="width:7em;margin:0"> <button class="secondary" style="margin:0;padding:4px 10px">Refund</button></form>
+{{else if eq .Status "authorized"}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/capture" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Authorized}}" aria-label="Amount to take (empty = all {{printf "%.2f" .Authorized}})" style="width:7em;margin:0"> <button style="margin:0;padding:4px 10px">Capture</button></form>
+<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/release" class="inline" onsubmit="return confirm('Release the hold? Nothing is charged.')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin:0;padding:4px 10px">Release</button></form>{{end}}</td></tr>{{end}}
+</tbody></table></div><p class="muted">Refund: leave the amount empty to refund everything that is left, or type part of it. On the Free plan Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
+{{else}}<p class="muted">No payments yet.</p>{{end}}
+{{if .Subscriptions}}<h1 style="margin-top:24px">Subscriptions</h1><div class="scroll"><table><thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Next payment</th><th>Customer</th><th></th></tr></thead><tbody>
+{{range .Subscriptions}}<tr><td>{{.Reference}}</td><td>{{.Status}}{{if .CancelAtPeriodEnd}}{{if ne .Status "canceled"}}, ends at period end{{end}}{{end}}</td>
+<td>{{printf "%.2f" .Amount}} {{.Currency}} every {{if gt .IntervalCount 1}}{{.IntervalCount}} {{.Interval}}s{{else}}{{.Interval}}{{end}}<br><span class="muted">{{.PaymentsMade}} paid</span></td>
+<td>{{if and (ne .Status "canceled") (not .CancelAtPeriodEnd)}}{{.CurrentPeriodEnd}}{{else}}—{{end}}</td><td>{{.CustomerEmail}}</td>
+<td>{{if ne .Status "canceled"}}<form method="post" action="/apps/{{$.App}}/subscriptions/{{.ID}}/cancel" class="inline" onsubmit="return confirm('Cancel this subscription?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<select name="when" aria-label="When" style="margin:0;width:auto"><option value="period_end">At period end</option><option value="now">Now</option></select> <button class="danger" style="margin:0;padding:4px 10px">Cancel</button></form>{{end}}</td></tr>{{end}}
+</tbody></table></div><p class="muted">Cancelling never refunds a payment already made; refund it above if needed.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_visitors"}}{{template "wide" "Visitors"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
 <div class="bar"><h1 style="margin:0">Visitor accounts <span class="muted">({{.Total}})</span></h1>
