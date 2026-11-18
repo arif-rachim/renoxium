@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -95,9 +96,21 @@ func main() {
 	} else {
 		slog.Warn("STRIPE_SECRET_KEY is not set: live apps cannot take card payments; previews simulate checkout")
 	}
+	if base := os.Getenv("FETCH_API_BASE"); base != "" {
+		// End-to-end tests only: every http.fetch goes to <base>/<host>/<path>
+		// instead of the internet. Never set this in production.
+		target, err := url.Parse(base)
+		if err != nil || target.Host == "" {
+			slog.Error("FETCH_API_BASE is not a URL", "value", base)
+			os.Exit(1)
+		}
+		cfg.FetchTransport = fetchTo{target}
+		slog.Warn("FETCH_API_BASE is set: apps' http.fetch calls go to a test server, not the internet", "base", base)
+	}
 	if token, zone := os.Getenv("CLOUDFLARE_API_TOKEN"), os.Getenv("CLOUDFLARE_ZONE_ID"); token != "" && zone != "" {
 		cfg.Cloudflare = &cloudflare.Client{Token: token, ZoneID: zone, BaseURL: os.Getenv("CLOUDFLARE_API_BASE")}
 		cfg.CustomDomainTarget = os.Getenv("CUSTOM_DOMAIN_TARGET")
+		cfg.LookupTXT = platform.LookupTXT(os.Getenv("RENOXIUM_DNS_API")) // default: Cloudflare's DNS over HTTPS
 		slog.Info("custom domains on", "target", cfg.CustomDomainTarget)
 	}
 	if wa := whatsappFromEnv(); wa != nil {
@@ -168,7 +181,8 @@ func main() {
 		Backups: cronErr == nil || stampErr == nil}
 	site.Monitor = mon
 	go mon.Run(context.Background())
-	go p.RunJobs(context.Background())
+	jobsEvery, _ := time.ParseDuration(os.Getenv("JOBS_CHECK_EVERY")) // default 30s
+	go p.RunJobs(context.Background(), jobsEvery)
 	go func() {
 		for range time.Tick(time.Hour) {
 			acc.Cleanup()
@@ -190,6 +204,19 @@ func main() {
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.Shutdown(shutdown)
+}
+
+// fetchTo sends every request to one test server, keeping the original host
+// as the first path segment.
+type fetchTo struct{ base *url.URL }
+
+func (f fetchTo) RoundTrip(r *http.Request) (*http.Response, error) {
+	out := r.Clone(r.Context())
+	out.URL.Scheme, out.URL.Host = f.base.Scheme, f.base.Host
+	out.URL.Path = strings.TrimRight(f.base.Path, "/") + "/" + r.URL.Hostname() + r.URL.Path
+	out.URL.RawPath = ""
+	out.Host = f.base.Host
+	return http.DefaultTransport.RoundTrip(out)
 }
 
 // loadKey reads a 32-byte secret, creating it on first start. It signs

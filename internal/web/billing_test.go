@@ -23,6 +23,7 @@ type fakeBilling struct {
 	checkouts  []url.Values
 	cancels    []string // subscriptions cancelled with DELETE
 	failCancel bool
+	lists      int // GET /v1/subscriptions calls
 }
 
 func (f *fakeBilling) server(t *testing.T) *httptest.Server {
@@ -51,6 +52,7 @@ func (f *fakeBilling) server(t *testing.T) *httptest.Server {
 			f.checkouts = append(f.checkouts, form)
 			w.Write([]byte(`{"id":"cs_sub","url":"https://checkout.stripe.com/c/pay/cs_sub"}`))
 		case "/v1/subscriptions":
+			f.lists++
 			data := []any{}
 			if f.status != "" {
 				data = append(data, map[string]any{"id": "sub_1", "customer": "cus_1", "status": f.status,
@@ -163,5 +165,33 @@ func TestGrantedPlan(t *testing.T) {
 	}
 	if err := acc.GrantPlan(u.ID, "gold"); err == nil {
 		t.Fatal("unknown plan accepted")
+	}
+}
+
+// Pages that call Stripe with the platform's key do so a limited number of
+// times per account, so one account cannot use up Stripe's rate limit for
+// everyone's payments.
+func TestBillingPageCallsStripeSparingly(t *testing.T) {
+	e := newEnv(t)
+	fb := &fakeBilling{}
+	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+	c := e.browser()
+	e.signup(c, "tala@shop.ae")
+	token := e.csrf(c, "/billing")
+	if r, _ := c.PostForm(e.base+"/billing/checkout", url.Values{"csrf": {token}, "plan": {"pro"}}); r.StatusCode != 303 {
+		t.Fatalf("checkout: %d", r.StatusCode)
+	}
+	for i := 0; i < 60; i++ {
+		r, err := c.Get(e.base + "/billing?done=1")
+		if err != nil || r.StatusCode != 200 {
+			t.Fatalf("billing page %d: %v", i, err)
+		}
+		read(t, r)
+	}
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	if fb.lists == 0 || fb.lists > 30 {
+		t.Fatalf("60 page loads made %d calls to Stripe", fb.lists)
 	}
 }

@@ -33,6 +33,9 @@ export default async function globalSetup() {
     WHATSAPP_TOKEN: 'wa_e2e', WHATSAPP_PHONE_NUMBER_ID: '100200300', WHATSAPP_OTP_TEMPLATE: 'login_code',
     WHATSAPP_NOTICE_TEMPLATE: 'owner_notice', WHATSAPP_NOTICE_LANGUAGE: 'en', WHATSAPP_API_BASE: `${FAKES}/meta`,
     CLOUDFLARE_API_TOKEN: 'cf_e2e', CLOUDFLARE_ZONE_ID: 'zone_e2e', CLOUDFLARE_API_BASE: `${FAKES}/cf`, CUSTOM_DOMAIN_TARGET: 'customers.localhost',
+    FETCH_API_BASE: `${FAKES}/extapi`, // apps' http.fetch calls go to the fake API
+    JOBS_CHECK_EVERY: '1s',            // scheduled jobs are checked every second instead of every 30
+    RENOXIUM_DNS_API: `${FAKES}/dns`,
     RENOXIUM_OPERATORS: OPERATOR,
     RENOXIUM_LEGAL_NAME: 'Renoxium E2E (FZC)', RENOXIUM_LEGAL_ADDRESS: 'Test address, Sharjah', RENOXIUM_LEGAL_EMAIL: 'legal@e2e.test',
   };

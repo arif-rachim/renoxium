@@ -56,7 +56,7 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login?next=%2Fbilling", http.StatusSeeOther)
 		return
 	}
-	if r.URL.Query().Get("done") == "1" && s.Billing.ready() {
+	if r.URL.Query().Get("done") == "1" && s.Billing.ready() && s.apiLimiter.allow("stripe:"+u.ID) {
 		// Back from Stripe: read the subscription now rather than wait for the webhook.
 		if err := s.syncBilling(r.Context(), u.ID); err != nil {
 			slog.Error("billing sync", "user", u.ID, "err", err)
@@ -107,6 +107,10 @@ func (s *Site) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
 		return
 	}
+	if !s.apiLimiter.allow("stripe:" + u.ID) {
+		http.Error(w, "too many attempts; try again in a few minutes", http.StatusTooManyRequests)
+		return
+	}
 	plan := r.PostFormValue("plan")
 	price := s.Billing.price(plan)
 	if !s.Billing.ready() || price == "" {
@@ -145,6 +149,10 @@ func (s *Site) billingPortal(w http.ResponseWriter, r *http.Request) {
 	b, _ := s.accounts.Billing(u.ID)
 	if !s.Billing.ready() || b.Customer == "" {
 		http.Redirect(w, r, "/billing", http.StatusSeeOther)
+		return
+	}
+	if !s.apiLimiter.allow("stripe-portal:" + u.ID) {
+		http.Error(w, "too many attempts; try again in a few minutes", http.StatusTooManyRequests)
 		return
 	}
 	url, err := s.Billing.Stripe.BillingPortal(r.Context(), b.Customer, s.base+"/billing?done=1")

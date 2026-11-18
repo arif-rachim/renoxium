@@ -72,6 +72,10 @@ sudo cloudflared service install
 
 ## Notes
 
+- Visitors sign in on `<app>--id.renoxium.app` (and `<app>--preview--id.renoxium.app`), a host per app where only
+  the platform's sign-in pages are served. The wildcard DNS record, the tunnel's `*.renoxium.app` rule and the
+  Universal SSL certificate already cover it: nothing to set up. App names cannot contain `--`, so no app can take
+  such a name.
 - HTTPS for `*.renoxium.app` comes from Cloudflare's free Universal SSL, which covers one level of
   subdomain. That is why previews use `<app>--preview.renoxium.app` rather than a nested subdomain.
 - Renoxium listens on `127.0.0.1` only, so the `CF-Connecting-IP` header it trusts for rate limits can

@@ -17,7 +17,10 @@ Visitors / ChatGPT / Claude
 
 - An Ubuntu VPS with SSH access and `sudo`.
 - `renoxium.com` and `renoxium.app` are both zones in the same Cloudflare account.
-- A computer with Go 1.26 or newer to build the binary. An older Go downloads 1.26 by itself.
+- A computer with Go 1.26 or newer to build the binary. `go.mod` names the exact patch release (1.26.11 now),
+  and Go downloads it by itself when the installed one is older, so builds always include Go's security fixes.
+  After `git pull`, check for new ones with `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`; when it
+  reports standard library issues, raise the release with `go get go@<version> toolchain@go<version>`.
 
 ## Memory budget
 
@@ -420,6 +423,12 @@ through the tunnel. The tunnel configuration above ends with a catch-all to Reno
 
    The log shows `custom domains on target=customers.renoxium.app`.
 
+The owner first proves the domain is theirs: the page shows a `TXT` record for `_renoxium.<domain>`,
+made from their account, and nothing is registered with Cloudflare until it is found in DNS. Renoxium
+looks it up through Cloudflare's DNS over HTTPS (`https://cloudflare-dns.com/dns-query`; set
+`RENOXIUM_DNS_API` to use another JSON API). This is what stops another account from claiming a domain
+whose DNS already points at Renoxium.
+
 The owner then adds a `CNAME` from their domain to `customers.renoxium.app` at their domain provider
 (the page lists any extra TXT records Cloudflare asks for). The page checks again on every visit; once
 the domain is active, the app's live address, payment return links and emails use it. Subdomains such
@@ -590,7 +599,7 @@ A restart takes a few seconds. Requests in flight at that moment can fail, so up
 | Follow the Renoxium log | `sudo journalctl -u renoxium -f` |
 | Follow the tunnel log | `sudo journalctl -u cloudflared -f` |
 | Status | `systemctl status renoxium cloudflared` |
-| Running version | `curl -s https://www.renoxium.com/version` (the commit the server was built from) |
+| Running version | `curl -s localhost:8080/version` on the VPS, or open `/version` signed in as an operator (the commit the server was built from; hidden from everyone else) |
 | Memory use | `ps -o rss,args -u renoxium` (RSS in KB) |
 | Data size | `sudo du -sh /var/lib/renoxium` |
 | Image storage size | `sudo du -sh /var/lib/renoxium/files` |

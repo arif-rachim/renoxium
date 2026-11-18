@@ -103,6 +103,10 @@ func TestWhatsAppQuotaPerPlan(t *testing.T) {
 	p.CreateApp("usr_free", "club")
 	p.ApplyChange(context.Background(), "club", def)
 	p.Publish("club", 0)
+	// This test is about the monthly quota alone: lift the daily share of
+	// new numbers and the part kept for known ones (see TestWhatsAppNewNumbers).
+	platform.WhatsAppNewPerDayShare, platform.WhatsAppKnownReserveShare = 1, 0
+	defer func() { platform.WhatsAppNewPerDayShare, platform.WhatsAppKnownReserveShare = 4, 5 }()
 	quota := platform.WhatsAppCodesPerPlan["free"]
 	for i := 0; i < quota; i++ {
 		v := newVisitor(t, p, "club.renoxium.test")

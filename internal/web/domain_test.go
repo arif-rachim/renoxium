@@ -81,6 +81,19 @@ func TestConnectionsPage(t *testing.T) {
 	if p := page(); !strings.Contains(p, "by rami@shop.ae") || !strings.Contains(p, "ends in 9876") || strings.Contains(p, "sk_live_abcdefgh9876") {
 		t.Fatalf("after saving: %s", p)
 	}
+	// Test calls from the preview are off until the owner turns them on.
+	if p := page(); !strings.Contains(p, "Turn on for 2 hours") || e.p.PreviewFetchOn("rami-shop") {
+		t.Fatalf("test calls before turning on: %s", p)
+	}
+	if code := post(url.Values{"action": {"preview-on"}}); code != 303 || !e.p.PreviewFetchOn("rami-shop") {
+		t.Fatalf("turn on: %d", code)
+	}
+	if p := page(); !strings.Contains(p, "On until") {
+		t.Fatalf("after turning on: %s", p)
+	}
+	if code := post(url.Values{"action": {"preview-off"}}); code != 303 || e.p.PreviewFetchOn("rami-shop") {
+		t.Fatalf("turn off: %d", code)
+	}
 	other := e.browser()
 	e.signup(other, "x@other.ae")
 	if r, _ := other.Get(e.base + "/apps/rami-shop/connections"); r.StatusCode != 404 {

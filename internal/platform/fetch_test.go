@@ -112,6 +112,14 @@ func TestHTTPFetch(t *testing.T) {
 	}
 	p.AllowHost("shop", "api.courier.ae", "owner@shop.ae")
 	p.AllowHost("shop", "sms.example.com", "owner@shop.ae")
+	// Preview holds a copy of live data and the agent can change it unasked,
+	// so it calls out only while the owner has turned test calls on.
+	if e := errOf(map[string]any{"url": "https://api.courier.ae/hello"}); !strings.Contains(e, "until the owner turns on test calls") {
+		t.Fatalf("preview call without test calls on: %s", e)
+	}
+	if err := p.SetPreviewFetch("shop", true); err != nil || !p.PreviewFetchOn("shop") {
+		t.Fatal("test calls not turned on", err)
+	}
 	if out := call(map[string]any{"url": "https://api.courier.ae/hello", "method": "post", "body": map[string]any{"a": 1}}); out["body"] != "POST api.courier.ae/hello" || out["status"] != 200.0 {
 		t.Fatalf("plain call: %v", out)
 	}

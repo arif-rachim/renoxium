@@ -16,11 +16,11 @@ func (s *Site) renderDomain(w http.ResponseWriter, r *http.Request, app string, 
 }
 
 func (s *Site) domainPage(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	u, app, ok := s.owner(w, r)
 	if !ok {
 		return
 	}
-	if d, _ := s.platform.CustomDomain(app); d != nil && d.Status != "active" {
+	if d, _ := s.platform.CustomDomain(app); d != nil && d.Status != "active" && s.apiLimiter.allow("domain:"+u.ID) {
 		s.platform.RefreshCustomDomain(r.Context(), app) // show the newest state on every visit
 	}
 	s.renderDomain(w, r, app, http.StatusOK, "")
@@ -28,12 +28,16 @@ func (s *Site) domainPage(w http.ResponseWriter, r *http.Request) {
 
 // domainAction adds, checks or removes the app's domain.
 func (s *Site) domainAction(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	u, app, ok := s.owner(w, r)
 	if !ok {
 		return
 	}
 	if !s.checkCSRF(r) {
 		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	if !s.apiLimiter.allow("domain:" + u.ID) {
+		s.renderDomain(w, r, app, http.StatusTooManyRequests, "Too many checks. Try again in a few minutes.")
 		return
 	}
 	var err error

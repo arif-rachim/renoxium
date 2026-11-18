@@ -15,6 +15,7 @@ import (
 type mailbox struct {
 	mu   sync.Mutex
 	sent []email.Message
+	wait func() // waits for emails still being sent, when set
 }
 
 func (m *mailbox) Send(_ context.Context, msg email.Message) error {
@@ -26,6 +27,9 @@ func (m *mailbox) Send(_ context.Context, msg email.Message) error {
 
 func (m *mailbox) last(t *testing.T, to, tag string) email.Message {
 	t.Helper()
+	if m.wait != nil {
+		m.wait() // reset emails are sent after the request was answered
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := len(m.sent) - 1; i >= 0; i-- {

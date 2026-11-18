@@ -29,7 +29,7 @@ import (
 type TestRequestInput struct {
 	Stage  string              `json:"stage,omitempty" jsonschema:"preview (default) or live; live accepts only GET so tests never change live data"`
 	Method string              `json:"method,omitempty" jsonschema:"GET (default) or POST"`
-	Path   string              `json:"path" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud"`
+	Path   string              `json:"path,omitempty" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud; required unless job or admin is set"`
 	Form   map[string]string   `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
 	JSON   any                 `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
 	Files  map[string]TestFile `json:"files,omitempty" jsonschema:"files for a POST by field name, sent as multipart/form-data together with form; e.g. {\"file\": {...}} for POST /_rx/upload with user_email"`
@@ -141,7 +141,18 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	default:
 		body = bytes.NewReader(nil)
 	}
-	req := httptest.NewRequestWithContext(ctx, method, "http://"+p.host(app, stage)+in.Path, body)
+	// Sign-in pages live on the stage's sign-in host; a test request goes
+	// straight there, as a visitor's browser would after the redirect.
+	host := p.host(app, stage)
+	authPath := strings.SplitN(in.Path, "?", 2)[0]
+	signIn := strings.HasPrefix(authPath, AuthPrefix) && authPath != AuthPrefix+"callback" && authPath != AuthPrefix+"logout"
+	if signIn {
+		host = p.idHost(app, stage)
+	}
+	req := httptest.NewRequestWithContext(ctx, method, "http://"+host+in.Path, body)
+	if signIn {
+		req.AddCookie(&http.Cookie{Name: p.cookieName(authFlowCookie), Value: secretToken()})
+	}
 	if ctype != "" {
 		req.Header.Set("Content-Type", ctype)
 	}

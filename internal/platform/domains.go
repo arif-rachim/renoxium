@@ -2,20 +2,35 @@ package platform
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/arif-rachim/renoxium/internal/cloudflare"
 )
 
 // CustomDomain is an app's own domain and its setup state.
 type CustomDomain struct {
-	Host       string
-	Status     string // pending until DNS and the certificate are in place, then active
+	Host string
+	// Status is "verify" until the owner proves the domain is theirs with
+	// the Verify record, then "pending" until DNS and the certificate are in
+	// place, then "active".
+	Status string
+	// Verify is the TXT record that proves ownership. It is derived from the
+	// account and the domain, so nobody else can produce it: a domain whose
+	// DNS still points at Renoxium cannot be claimed by another account, and
+	// claiming someone else's domain leads nowhere.
+	Verify     struct{ Name, Value string }
 	CNAME      string // where the owner points the domain
 	Ownership  struct{ Name, Value string }
 	SSLRecords []struct{ Name, Value string }
@@ -67,7 +82,74 @@ func (p *Platform) CustomDomain(app string) (*CustomDomain, error) {
 	}
 	json.Unmarshal([]byte(details), &d)
 	d.CNAME = p.cfg.CustomDomainTarget
+	d.Verify.Name, d.Verify.Value = p.domainProof(app, d.Host)
 	return &d, nil
+}
+
+// domainProof is the TXT record an app's owner sets to prove a domain is theirs.
+func (p *Platform) domainProof(app, host string) (name, value string) {
+	mac := hmac.New(sha256.New, p.live.key)
+	mac.Write([]byte("domain|" + p.ownerOf(app) + "|" + host))
+	return "_renoxium." + host, "renoxium-verify=" + hex.EncodeToString(mac.Sum(nil)[:16])
+}
+
+// domainProven looks the proof up in DNS.
+func (p *Platform) domainProven(ctx context.Context, app, host string) bool {
+	name, want := p.domainProof(app, host)
+	lookup := p.cfg.LookupTXT
+	if lookup == nil {
+		lookup = LookupTXT("")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	records, err := lookup(ctx, name)
+	if err != nil {
+		return false
+	}
+	for _, r := range records {
+		if strings.TrimSpace(r) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// LookupTXT returns a TXT lookup through a DNS-over-HTTPS JSON API
+// (default Cloudflare's), which sees new records sooner than a caching
+// resolver on the server would.
+func LookupTXT(api string) func(ctx context.Context, name string) ([]string, error) {
+	if api == "" {
+		api = "https://cloudflare-dns.com/dns-query"
+	}
+	return func(ctx context.Context, name string) ([]string, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, api+"?type=TXT&name="+url.QueryEscape(name), nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "application/dns-json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		var out struct {
+			Answer []struct {
+				Type int    `json:"type"`
+				Data string `json:"data"`
+			}
+		}
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out); err != nil {
+			return nil, err
+		}
+		var records []string
+		for _, a := range out.Answer {
+			if a.Type == 16 || a.Type == 0 {
+				// Long values come as several quoted pieces: "a" "b".
+				records = append(records, strings.ReplaceAll(strings.Trim(a.Data, `"`), `" "`, ""))
+			}
+		}
+		return records, nil
+	}
 }
 
 func (p *Platform) saveDomain(app string, h cloudflare.Hostname) (*CustomDomain, error) {
@@ -125,23 +207,39 @@ func (p *Platform) SetCustomDomain(ctx context.Context, app, host string) (*Cust
 	if taken > 0 {
 		return nil, errors.New("this domain is already used by an app")
 	}
-	h, err := p.cfg.Cloudflare.Create(ctx, host)
-	if err != nil {
+	// A claim nobody has proven yet does not hold the name: the newest
+	// claimant replaces it, and whoever sets their own proof record gets it.
+	if _, err := p.db.Exec(`DELETE FROM custom_domains WHERE host = ? AND status = 'verify'`, host); err != nil {
 		return nil, err
 	}
-	if _, err := p.db.Exec(`INSERT INTO custom_domains (app, host, cf_id, status) VALUES (?, ?, ?, 'pending')`, app, host, h.ID); err != nil {
-		p.cfg.Cloudflare.Delete(context.WithoutCancel(ctx), h.ID)
+	if _, err := p.db.Exec(`INSERT INTO custom_domains (app, host, cf_id, status) VALUES (?, ?, '', 'verify')`, app, host); err != nil {
 		return nil, errors.New("this domain is already used by an app")
 	}
-	return p.saveDomain(app, h)
+	return p.RefreshCustomDomain(ctx, app)
 }
 
 // RefreshCustomDomain reads the domain's state from Cloudflare and starts
 // serving it once it is active.
 func (p *Platform) RefreshCustomDomain(ctx context.Context, app string) (*CustomDomain, error) {
-	var id string
-	if err := p.db.QueryRow(`SELECT cf_id FROM custom_domains WHERE app = ?`, app).Scan(&id); err != nil || p.cfg.Cloudflare == nil {
+	var id, host, status string
+	if err := p.db.QueryRow(`SELECT cf_id, host, status FROM custom_domains WHERE app = ?`, app).Scan(&id, &host, &status); err != nil || p.cfg.Cloudflare == nil {
 		return p.CustomDomain(app)
+	}
+	if status == "verify" {
+		// Only a proven domain is registered with Cloudflare, where pointing
+		// its DNS at Renoxium is enough to start serving it.
+		if !p.domainProven(ctx, app, host) {
+			return p.CustomDomain(app)
+		}
+		h, err := p.cfg.Cloudflare.Create(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.db.Exec(`UPDATE custom_domains SET cf_id = ?, status = 'pending' WHERE app = ? AND status = 'verify'`, h.ID, app); err != nil {
+			p.cfg.Cloudflare.Delete(context.WithoutCancel(ctx), h.ID)
+			return nil, err
+		}
+		return p.saveDomain(app, h)
 	}
 	h, err := p.cfg.Cloudflare.Get(ctx, id)
 	if err != nil {
@@ -156,7 +254,7 @@ func (p *Platform) RemoveCustomDomain(ctx context.Context, app string) error {
 	if err := p.db.QueryRow(`SELECT cf_id, host FROM custom_domains WHERE app = ?`, app).Scan(&id, &host); err != nil {
 		return nil
 	}
-	if p.cfg.Cloudflare != nil {
+	if p.cfg.Cloudflare != nil && id != "" {
 		if err := p.cfg.Cloudflare.Delete(ctx, id); err != nil && !strings.Contains(err.Error(), "not found") {
 			return err
 		}

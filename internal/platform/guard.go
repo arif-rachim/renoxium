@@ -174,6 +174,12 @@ func (p *Platform) guardPreview(w http.ResponseWriter, r *http.Request, app stri
 	if c, err := r.Cookie(p.cookieName("rx_preview")); err == nil && p.validPreviewToken(app, c.Value) {
 		return true
 	}
+	// The preview's sign-in host is another host, so the preview hands its
+	// access over in the link (see serveAuthApp).
+	if p.validPreviewToken(app, r.URL.Query().Get("pv")) {
+		http.SetCookie(w, p.previewCookie(app))
+		return true
+	}
 	p.previewLocked(w, app, "This preview is private.")
 	return false
 }

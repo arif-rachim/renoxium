@@ -40,6 +40,14 @@ var (
 	liveMaxConnection      = time.Hour        // then the browser reconnects by itself
 	liveTokenTTL           = 24 * time.Hour   // realtime.token lifetime
 	liveLastTTL            = 6 * time.Hour    // how long a channel's last message is kept
+	// liveLastChannels is how many channels of one app stage keep their last
+	// message. Channel names are free text, so without a cap an app could
+	// fill the server's memory by publishing to ever new names. Past the cap
+	// the channel published to longest ago forgets its message.
+	liveLastChannels = 200
+	// liveMaxTotal caps open streams over all apps: each holds a connection
+	// and a goroutine on a small server.
+	liveMaxTotal = 5000
 )
 
 var channelRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.:-]{0,99}$`)
@@ -51,9 +59,10 @@ type liveMessage struct {
 
 type liveHub struct {
 	mu     sync.Mutex
-	subs   map[string]map[chan []byte]bool // "app/stage/channel" -> subscribers
-	counts map[string]int                  // "app/stage" -> subscribers
-	last   map[string]liveMessage
+	subs   map[string]map[chan []byte]bool   // "app/stage/channel" -> subscribers
+	counts map[string]int                    // "app/stage" -> subscribers
+	total  int                               // all subscribers
+	last   map[string]map[string]liveMessage // "app/stage" -> "app/stage/channel" -> last message
 	key    []byte
 	stop   chan struct{}
 	once   sync.Once
@@ -64,7 +73,7 @@ type liveHub struct {
 func (p *Platform) StopLive() { p.live.once.Do(func() { close(p.live.stop) }) }
 
 func (h *liveHub) init(key []byte) {
-	h.subs, h.counts, h.last = map[string]map[chan []byte]bool{}, map[string]int{}, map[string]liveMessage{}
+	h.subs, h.counts, h.last = map[string]map[chan []byte]bool{}, map[string]int{}, map[string]map[string]liveMessage{}
 	h.stop = make(chan struct{})
 	h.key = key
 	if len(h.key) == 0 {
@@ -73,17 +82,28 @@ func (h *liveHub) init(key []byte) {
 	}
 }
 
-func (h *liveHub) publish(key string, data []byte) int {
+func (h *liveHub) publish(appStage, key string, data []byte) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.last[key] = liveMessage{data: data, at: time.Now()}
-	if len(h.last) > 100000 {
-		for k, m := range h.last {
+	last := h.last[appStage]
+	if last == nil {
+		last = map[string]liveMessage{}
+		h.last[appStage] = last
+	}
+	if _, known := last[key]; !known && len(last) >= liveLastChannels {
+		oldest, at := "", time.Now()
+		for k, m := range last {
 			if time.Since(m.at) > liveLastTTL {
-				delete(h.last, k)
+				delete(last, k)
+			} else if m.at.Before(at) {
+				oldest, at = k, m.at
 			}
 		}
+		if len(last) >= liveLastChannels {
+			delete(last, oldest)
+		}
 	}
+	last[key] = liveMessage{data: data, at: time.Now()}
 	n := 0
 	for c := range h.subs[key] {
 		select {
@@ -100,9 +120,10 @@ func (h *liveHub) publish(key string, data []byte) int {
 func (h *liveHub) subscribe(appStage, key string, limit int) (chan []byte, []byte, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.counts[appStage] >= limit {
+	if h.counts[appStage] >= limit || h.total >= liveMaxTotal {
 		return nil, nil, false
 	}
+	h.total++
 	c := make(chan []byte, 16)
 	if h.subs[key] == nil {
 		h.subs[key] = map[chan []byte]bool{}
@@ -110,7 +131,7 @@ func (h *liveHub) subscribe(appStage, key string, limit int) (chan []byte, []byt
 	h.subs[key][c] = true
 	h.counts[appStage]++
 	var last []byte
-	if m, ok := h.last[key]; ok && time.Since(m.at) < liveLastTTL {
+	if m, ok := h.last[appStage][key]; ok && time.Since(m.at) < liveLastTTL {
 		last = m.data
 	}
 	return c, last, true
@@ -124,6 +145,7 @@ func (h *liveHub) unsubscribe(appStage, key string, c chan []byte) {
 		delete(h.subs, key)
 	}
 	h.counts[appStage]--
+	h.total--
 }
 
 // LiveSubscribers is how many browsers are subscribed to an app's stage.
@@ -172,7 +194,7 @@ func (p *Platform) realtimePublish(st *stage, arg any) (any, error) {
 	if !p.allow("live-pub:"+st.app+":"+st.name, livePublishPerMinute, time.Minute) {
 		return nil, fmt.Errorf("realtime.publish: more than %d messages a minute for this app", livePublishPerMinute)
 	}
-	n := p.live.publish(st.app+"/"+st.name+"/"+in.Channel, data)
+	n := p.live.publish(st.app+"/"+st.name, st.app+"/"+st.name+"/"+in.Channel, data)
 	return map[string]any{"delivered": n}, nil
 }
 
@@ -274,4 +296,26 @@ func (p *Platform) liveVisitorOpen(key string, delta int) bool {
 		delete(p.live.counts, k)
 	}
 	return true
+}
+
+// forgetLive drops the stored last messages of an app (both stages) and of
+// stages whose messages have all expired. Called when an app is deleted
+// and from Cleanup.
+func (p *Platform) forgetLive(app string) {
+	p.live.mu.Lock()
+	defer p.live.mu.Unlock()
+	for appStage, last := range p.live.last {
+		if app != "" && (appStage == app+"/"+Live || appStage == app+"/"+Preview) {
+			delete(p.live.last, appStage)
+			continue
+		}
+		for k, m := range last {
+			if time.Since(m.at) > liveLastTTL {
+				delete(last, k)
+			}
+		}
+		if len(last) == 0 {
+			delete(p.live.last, appStage)
+		}
+	}
 }

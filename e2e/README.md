@@ -20,6 +20,11 @@ unset in production, so the real services are used there:
 - `RESEND_API_URL`
 - `WHATSAPP_API_BASE`
 - `CLOUDFLARE_API_BASE`
+- `FETCH_API_BASE`: every `http.fetch` an app makes goes to `<base>/<host>/<path>` (the fake API in
+  `fakes.mjs`) instead of the internet. The server logs a warning when it is set.
+
+`JOBS_CHECK_EVERY=1s` makes the server look for due scheduled jobs every second instead of every 30,
+so the job scenario waits about a minute, not a minute and a half.
 
 ## Run
 
@@ -50,9 +55,10 @@ opens with `npx playwright show-report`.
 | `03-shop-and-shoppers` | Catalogue, Arabic (right to left), product options with their own price, 404, favicon, cart price API, badge on Free; visitor sign-up with an email in the app's name, confirmation, sign-out, sign-in, password reset; WhatsApp sign-in code (wrong code refused, quota counted); cash on delivery with a wrong and a right discount code, totals, emails to the shopper and the owner, order list, invoice, another visitor gets 404, the owner sets it shipped; card refused while Stripe is not connected; the shop's own MCP (`search_products`, `get_product`, `store_info`); the preview's simulated checkout (pay and fail) |
 | `04-card-payments` | Payments page explains Stripe's documents and the 2% fee; onboarding left halfway, under review, ready; one Stripe account per app; WhatsApp notices confirmed with a code; card payment as a direct charge with a 2% application fee, the webhook marks it paid, owner email and WhatsApp, a repeated webhook changes nothing, payments list and sales tiles; declined card, back, paying again; abandoned and expired Checkout; partial and full refunds; forged webhook signatures refused; COD orders on WhatsApp; turning notices off |
 | `05-plans-and-billing` | Free limits shown; Pro through Checkout (price, metadata, one customer); badge gone and no fee on Pro; more apps, staff and a domain allowed; no second subscription while paying; switching to Business, cancelling at period end, renewing, a failed renewal (`past_due`) keeps the plan, cancelling now returns to Free with the badge back and new apps refused; closing Checkout without paying |
-| `06-admin-panel` | Products: add with a photo, field errors, edit, search, delete, and the live shop follows; staff: invitation email, signing in, editing data, no access to payments, staff, domain, notifications or publishing, removal; custom domain: refused names, DNS records, active after Cloudflare validates, served on the domain, removed; deleting a visitor ends their session |
+| `06-admin-panel` | Products: add with a photo, field errors, edit, search, delete, and the live shop follows; staff: invitation email, signing in, editing data, no access to payments, staff, domain, notifications or publishing, removal; custom domain: refused names, proof of ownership (TXT record, looked up through a fake DNS-over-HTTPS API), DNS records, active after Cloudflare validates, served on the domain, removed; deleting a visitor ends their session |
 | `07-operator` | 404 for owners and for an unconfirmed operator address; figures; search; giving Pro without payment (it survives a billing sync); suspending an app (451) and bringing it back; abuse reports marked handled; back to Free |
 | `08-account-deletion` | Wrong confirmation and wrong password change nothing; a paid plan is cancelled at Stripe at once; the apps go offline; the agent's token dies; the app name is free again |
+| `09-jobs-realtime-fetch` | Scheduled job: rejected schedules, tried on preview with `test_request {job}`, runs on live by itself after its interval, shown on the app page and in the log; realtime: the job's message updates an open page, a courier's phone (emulated GPS) moves the marker on the customer's map in the delivery-tracking example, the live channel refuses a missing or forged token, the owner is emailed on delivery; external API: `owner_actions` from `apply_change`, calls refused until the owner allows the host and enters the key on the Connections page (404 for another owner), the key reaches the API but not the script, the page, `get_app` or the log, unlisted hosts refused, the monthly meter on `/billing`, Stop refuses calls again |
 
 The Go tests (`go test ./...`) cover the rest at unit level, such as rate
 limits, quotas, the sandbox, migrations and monitoring.

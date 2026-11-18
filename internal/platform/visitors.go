@@ -87,6 +87,10 @@ func (p *Platform) DeleteVisitor(ctx context.Context, app string, id int64, by s
 // Cleanup deletes expired visitor sessions, links and codes of every
 // running stage. Call it periodically.
 func (p *Platform) Cleanup(ctx context.Context) {
+	p.cleanDurable()
+	p.forgetLive("")
+	// Domain claims nobody proved within a week are dropped.
+	p.db.Exec(`DELETE FROM custom_domains WHERE status = 'verify' AND created_at < datetime('now', '-7 days')`)
 	p.mu.Lock()
 	stages := make([]*stage, 0, len(p.stages))
 	for _, st := range p.stages {
@@ -98,6 +102,7 @@ func (p *Platform) Cleanup(ctx context.Context) {
 		st.admin.ExecContext(ctx, `DELETE FROM rx_sessions WHERE expires_at < ?`, now)
 		st.admin.ExecContext(ctx, `DELETE FROM rx_email_tokens WHERE expires_at < ? OR used = 1`, now)
 		st.admin.ExecContext(ctx, `DELETE FROM rx_phone_codes WHERE expires_at < ?`, now)
+		cleanAuthCodes(ctx, st)
 	}
 	p.mu.Lock()
 	for k, e := range p.rids {

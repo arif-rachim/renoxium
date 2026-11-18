@@ -26,8 +26,12 @@ const maxBody = 1 << 20
 // does not belong to any app.
 func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	app, stageName, ok := p.Resolve(r.Host)
+	signIn := false // the request is for the stage's sign-in host
 	if !ok {
-		return false
+		if app, stageName, ok = p.resolveID(r.Host); !ok {
+			return false
+		}
+		signIn = true
 	}
 	if p.cfg.PublicScheme == "https" {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
@@ -45,7 +49,7 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	if stageName == Preview && !p.guardPreview(w, r, app) {
 		return true
 	}
-	if strings.HasPrefix(r.URL.Path, FilesPrefix) {
+	if strings.HasPrefix(r.URL.Path, FilesPrefix) && !signIn {
 		p.serveFile(w, r, app)
 		return true
 	}
@@ -60,12 +64,22 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprint(w, "<!doctype html><title>Not published</title><p>This app has not been published yet.</p>")
 		return true
 	}
+	if signIn {
+		// Only the platform's sign-in pages: nothing of the app runs here.
+		if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)
+			return true
+		}
+		p.serveID(w, r, st)
+		return true
+	}
 	if r.URL.Path == "/_rx/log" {
 		p.browserLog(w, r, st)
 		return true
 	}
 	if strings.HasPrefix(r.URL.Path, AuthPrefix) {
-		p.serveAuth(w, r, st)
+		p.serveAuthApp(w, r, st)
 		return true
 	}
 	if r.URL.Path == UploadPath || r.URL.Path == UploadJSPath || strings.HasPrefix(r.URL.Path, PrivatePrefix) {
@@ -413,6 +427,10 @@ type scriptHost struct {
 	// request; with Stripe Checkout itself, the only outside addresses a
 	// script may redirect to.
 	checkouts []string
+	// readOnly is set for MCP tools marked read_only: assistants call those
+	// without asking the person first, so the platform makes sure they
+	// cannot change data, send messages or call other services.
+	readOnly bool
 	// http.fetch calls and time spent waiting on them in this run.
 	fetches   int
 	fetchWait time.Duration
@@ -439,6 +457,8 @@ func (h *scriptHost) mayRedirect(target string) bool {
 	return false
 }
 
+var errReadOnlyTool = errors.New("this tool is marked read_only, so it cannot change data, send messages or call other services; remove read_only from the tool if it must")
+
 const maxDBCalls = 200
 
 func (h *scriptHost) count() error {
@@ -454,12 +474,18 @@ func (h *scriptHost) Query(ctx context.Context, q string, args []any) ([]map[str
 	if err := h.count(); err != nil {
 		return nil, err
 	}
+	if h.readOnly {
+		return h.st.db.QueryReadOnly(ctx, q, args)
+	}
 	return h.st.db.Query(ctx, q, args)
 }
 
 func (h *scriptHost) Exec(ctx context.Context, q string, args []any) (int64, int64, error) {
 	if err := h.count(); err != nil {
 		return 0, 0, err
+	}
+	if h.readOnly {
+		return 0, 0, errReadOnlyTool
 	}
 	return h.st.db.Exec(ctx, q, args)
 }
@@ -478,6 +504,9 @@ func (h *scriptHost) Log(level, message string) {
 func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) {
 	if err := h.count(); err != nil {
 		return nil, err
+	}
+	if h.readOnly && fn != "payments.get" && fn != "realtime.token" {
+		return nil, errReadOnlyTool
 	}
 	switch fn {
 	case "payments.checkout":

@@ -61,16 +61,25 @@ func (s *Site) forgot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many attempts; try again later", http.StatusTooManyRequests)
 		return
 	}
-	if u, err := s.accounts.UserByEmail(addr); err == nil {
+	// Sent after the answer, so how long the answer takes does not show
+	// whether the address has an account.
+	ctx := context.WithoutCancel(r.Context())
+	s.bg.Add(1)
+	go func() {
+		defer s.bg.Done()
+		u, err := s.accounts.UserByEmail(addr)
+		if err != nil {
+			return
+		}
 		if token, err := s.accounts.CreateEmailToken(u.ID, accounts.PurposeReset); err == nil {
 			link := s.base + "/reset?token=" + url.QueryEscape(token)
-			s.send(r.Context(), email.Message{To: u.Email, Tag: "password_reset", Subject: "Reset your Renoxium password",
+			s.send(ctx, email.Message{To: u.Email, Tag: "password_reset", Subject: "Reset your Renoxium password",
 				Text: "Someone asked to reset the password of your Renoxium account.\n\nChoose a new password here:\n\n" + link +
 					"\n\nThe link works for 1 hour and only once. If it was not you, ignore this email; your password stays the same.\n",
 				HTML: "<p>Someone asked to reset the password of your Renoxium account.</p><p><a href=\"" + link + "\">Choose a new password</a></p>" +
 					"<p>The link works for 1 hour and only once. If it was not you, ignore this email; your password stays the same.</p>"})
 		}
-	}
+	}()
 	render(w, http.StatusOK, "notice", map[string]any{"Title": "Check your email",
 		"Message": "If an account exists for " + addr + ", we sent it a link to choose a new password. The link works for 1 hour."})
 }

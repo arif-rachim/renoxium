@@ -1,6 +1,6 @@
 module github.com/arif-rachim/renoxium
 
-go 1.26.0
+go 1.26.11
 
 require (
 	github.com/dop251/goja v0.0.0-20261110204830-f493a2b600d6

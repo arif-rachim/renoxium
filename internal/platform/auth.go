@@ -26,6 +26,10 @@ import (
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 )
 
+// signupTakenPerHour is how often one visitor address may be told "this
+// email already has an account" before sign-up stops for it.
+const signupTakenPerHour = 5
+
 // AuthPrefix is where every app serves its visitor sign-in pages.
 const AuthPrefix = "/_rx/auth/"
 
@@ -150,7 +154,8 @@ func (p *Platform) allow(key string, max int, period time.Duration) bool {
 	return w.count <= max
 }
 
-// serveAuth handles /_rx/auth/* on an app host.
+// serveAuth handles the sign-in pages on the stage's sign-in host (see
+// idhost.go; the app's own host only starts and finishes a sign-in).
 func (p *Platform) serveAuth(w http.ResponseWriter, r *http.Request, st *stage) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
@@ -158,9 +163,7 @@ func (p *Platform) serveAuth(w http.ResponseWriter, r *http.Request, st *stage) 
 	page := strings.TrimPrefix(r.URL.Path, AuthPrefix)
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-		// Sign-out needs no token: ServeApp already refuses POSTs from other
-		// origins, including other apps on the same parent domain.
-		if page != "logout" && !p.validCSRF(r) {
+		if !p.validCSRF(r) {
 			p.authPage(w, r, st, http.StatusForbidden, "message", authData{Title: "Please try again", Message: "The form expired. Go back, reload the page and try again."})
 			return
 		}
@@ -178,14 +181,6 @@ func (p *Platform) serveAuth(w http.ResponseWriter, r *http.Request, st *stage) 
 		p.authPage(w, r, st, http.StatusOK, "login", authData{Next: localPath(r.URL.Query().Get("next"))})
 	case page == "login" && r.Method == http.MethodPost:
 		p.login(w, r, st)
-	case page == "logout" && r.Method == http.MethodGet:
-		p.authPage(w, r, st, http.StatusOK, "logout", authData{})
-	case page == "logout" && r.Method == http.MethodPost:
-		if c, err := r.Cookie(p.cookieName(visitorSessionCookie)); err == nil {
-			st.admin.ExecContext(r.Context(), `DELETE FROM rx_sessions WHERE hash = ?`, sha(c.Value))
-		}
-		p.cookie(w, p.cookieName(visitorSessionCookie), "", -time.Second)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
 	case page == "forgot" && r.Method == http.MethodGet:
 		p.authPage(w, r, st, http.StatusOK, "forgot", authData{})
 	case page == "forgot" && r.Method == http.MethodPost:
@@ -216,6 +211,15 @@ func (p *Platform) signup(w http.ResponseWriter, r *http.Request, st *stage) {
 		p.authPage(w, r, st, http.StatusTooManyRequests, "signup", data)
 		return
 	}
+	// Signing up with an address tells whether it has an account here. An
+	// address that got that answer a few times cannot sign anyone up for a
+	// while, so the form is no way to test a list of addresses.
+	dupKey := "signup-taken:" + st.app + ":" + p.clientIP(r)
+	if p.usedBudget(dupKey, time.Hour) >= signupTakenPerHour {
+		data.Error = "Too many attempts. Try again in an hour."
+		p.authPage(w, r, st, http.StatusTooManyRequests, "signup", data)
+		return
+	}
 	if !ok {
 		data.Error = "Enter a valid email address."
 		p.authPage(w, r, st, http.StatusBadRequest, "signup", data)
@@ -232,6 +236,7 @@ func (p *Platform) signup(w http.ResponseWriter, r *http.Request, st *stage) {
 	}
 	res, err := st.admin.ExecContext(r.Context(), `INSERT INTO rx_users (email, name, password_hash) VALUES (?, ?, ?)`, addr, name, password.Hash(pw))
 	if err != nil {
+		p.spend(dupKey, 1, 1<<30, time.Hour)
 		data.Error = "An account with this email already exists. Sign in instead."
 		p.authPage(w, r, st, http.StatusConflict, "signup", data)
 		return
@@ -239,11 +244,7 @@ func (p *Platform) signup(w http.ResponseWriter, r *http.Request, st *stage) {
 	id, _ := res.LastInsertId()
 	p.event(st, "auth", "info", "", fmt.Sprintf("visitor #%d signed up", id))
 	p.sendVerification(r.Context(), st, id, addr)
-	if err := p.startVisitorSession(r.Context(), w, st, id); err != nil {
-		http.Error(w, "could not sign you in", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
+	p.finishAuth(w, r, st, id, next)
 }
 
 func (p *Platform) login(w http.ResponseWriter, r *http.Request, st *stage) {
@@ -270,11 +271,7 @@ func (p *Platform) login(w http.ResponseWriter, r *http.Request, st *stage) {
 		p.authPage(w, r, st, http.StatusUnauthorized, "login", data)
 		return
 	}
-	if err := p.startVisitorSession(r.Context(), w, st, id); err != nil {
-		http.Error(w, "could not sign you in", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
+	p.finishAuth(w, r, st, id, next)
 }
 
 func (p *Platform) createToken(ctx context.Context, st *stage, userID int64, purpose string, ttl time.Duration) (string, error) {
@@ -313,10 +310,17 @@ func (p *Platform) useToken(ctx context.Context, st *stage, token, purpose strin
 
 // sendEmail sends from live. On preview nothing leaves the platform: the
 // message, links included, goes to the app log instead.
-func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
+//
+// Two separate daily budgets apply. Sign-in emails (confirmation, password
+// reset) are limited per app and over all apps. Emails a script sends with
+// email.send (Tag "app_email") are limited per account by plan and have
+// their own total, so one account's scripts can neither use Renoxium's
+// sender for bulk mail nor use up the budget other apps' sign-in emails
+// need. It returns an error when the email was not sent.
+func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) error {
 	if st.name == Preview {
 		p.event(st, "email", "info", "", fmt.Sprintf("not sent from preview: to %s, %q\n%s", m.To, m.Subject, m.Text))
-		return
+		return nil
 	}
 	m.FromName = st.app + " via Renoxium"
 	if p.cfg.OwnerEmail != nil {
@@ -331,43 +335,69 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
 	defer cancel()
 	if p.cfg.Mailer == nil {
 		p.event(st, "email", "warn", "", "email not sent: no mail service configured: "+m.Subject)
-		return
+		return errors.New("email is not set up on this Renoxium server")
 	}
-	if !p.allow("mail-day:"+st.app, p.cfg.Daily.EmailsPerApp, 24*time.Hour) || !p.allow("mail-day", p.cfg.Daily.Emails, 24*time.Hour) {
+	owner := p.ownerOf(st.app)
+	plan := p.planOf(owner)
+	within := false
+	if m.Tag == "app_email" {
+		within = p.allowDurable("app-mail:"+owner, AppEmailsPerPlan[plan], 24*time.Hour) && p.allowDurable("app-mail-day", p.cfg.Daily.Emails, 24*time.Hour)
+	} else {
+		perApp := p.cfg.Daily.EmailsPerApp
+		if plan == planFree {
+			perApp = min(perApp, 100)
+		}
+		within = p.allowDurable("mail-day:"+st.app, perApp, 24*time.Hour) && p.allowDurable("mail-day", p.cfg.Daily.Emails, 24*time.Hour)
+	}
+	if !within {
 		p.event(st, "email", "error", "", "email not sent: the daily email limit was reached: "+m.Subject)
-		return
+		return errors.New("the daily email limit was reached")
 	}
 	if err := p.cfg.Mailer.Send(ctx, m); err != nil {
+		// The mail service's answer can name the platform's own account;
+		// the app log, which the owner and their agent read, gets a plain line.
 		slog.Error("visitor email", "app", st.app, "err", err)
-		p.event(st, "email", "error", "", "email to a visitor failed: "+err.Error())
+		p.event(st, "email", "error", "", "an email could not be sent; Renoxium has logged the reason")
+		return errors.New("the email could not be sent")
 	}
+	return nil
 }
+
+// AppEmailsPerPlan is how many emails the scripts of all apps of one
+// account may send with email.send per day.
+var AppEmailsPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
 
 func (p *Platform) sendVerification(ctx context.Context, st *stage, id int64, addr string) {
 	token, err := p.createToken(ctx, st, id, "verify", visitorVerifyTTL)
 	if err != nil {
 		return
 	}
-	link := p.URL(st.app, st.name) + AuthPrefix + "verify?token=" + url.QueryEscape(token)
+	link := p.IDURL(st.app, st.name) + AuthPrefix + "verify?token=" + url.QueryEscape(token)
 	p.sendEmail(ctx, st, email.Message{To: addr, Tag: "visitor_verify", Subject: "Confirm your email",
 		Text: "Confirm your email address by opening this link:\n\n" + link + "\n\nThe link works for 7 days. If you did not sign up, ignore this email.\n"})
 }
 
 func (p *Platform) forgot(w http.ResponseWriter, r *http.Request, st *stage) {
 	addr, _ := normalizeEmail(r.PostFormValue("email"))
-	if !p.allow("forgot:"+st.app+":"+p.clientIP(r), 10, 15*time.Minute) || !p.allow("forgot-mail:"+st.app+":"+addr, 3, time.Hour) {
+	if !p.allow("forgot:"+st.app+":"+p.clientIP(r), 10, 15*time.Minute) || !p.allowDurable("forgot-mail:"+st.app+":"+addr, 3, time.Hour) {
 		p.authPage(w, r, st, http.StatusTooManyRequests, "message", authData{Title: "Too many attempts", Message: "Try again later."})
 		return
 	}
-	var id int64
-	if err := st.admin.QueryRowContext(r.Context(), `SELECT id FROM rx_users WHERE email = ?`, addr).Scan(&id); err == nil {
-		if token, err := p.createToken(r.Context(), st, id, "reset", visitorResetTTL); err == nil {
-			link := p.URL(st.app, st.name) + AuthPrefix + "reset?token=" + url.QueryEscape(token)
-			p.sendEmail(r.Context(), st, email.Message{To: addr, Tag: "visitor_reset", Subject: "Reset your password",
-				Text: "Someone asked to reset your password.\n\nChoose a new password here:\n\n" + link +
-					"\n\nThe link works for 1 hour and only once. If it was not you, ignore this email.\n"})
+	// The answer must not show whether the address has an account, neither
+	// in its words nor in how long it takes: the email is sent after the
+	// answer, not before it.
+	ctx := context.WithoutCancel(r.Context())
+	p.background(func() {
+		var id int64
+		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ?`, addr).Scan(&id); err == nil {
+			if token, err := p.createToken(ctx, st, id, "reset", visitorResetTTL); err == nil {
+				link := p.IDURL(st.app, st.name) + AuthPrefix + "reset?token=" + url.QueryEscape(token)
+				p.sendEmail(ctx, st, email.Message{To: addr, Tag: "visitor_reset", Subject: "Reset your password",
+					Text: "Someone asked to reset your password.\n\nChoose a new password here:\n\n" + link +
+						"\n\nThe link works for 1 hour and only once. If it was not you, ignore this email.\n"})
+			}
 		}
-	}
+	})
 	p.authPage(w, r, st, http.StatusOK, "message", authData{Title: "Check your email",
 		Message: "If an account exists for " + addr + ", we sent it a link to choose a new password."})
 }
@@ -391,11 +421,7 @@ func (p *Platform) reset(w http.ResponseWriter, r *http.Request, st *stage) {
 	}
 	st.admin.ExecContext(ctx, `DELETE FROM rx_sessions WHERE user_id = ?`, id)
 	p.event(st, "auth", "info", "", fmt.Sprintf("visitor #%d reset their password", id))
-	if err := p.startVisitorSession(ctx, w, st, id); err != nil {
-		http.Error(w, "could not sign you in", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	p.finishAuth(w, r, st, id, "/")
 }
 
 func (p *Platform) verify(w http.ResponseWriter, r *http.Request, st *stage) {
@@ -424,25 +450,23 @@ func (d authData) templateData() map[string]any {
 func (p *Platform) authPage(w http.ResponseWriter, r *http.Request, st *stage, status int, page string, d authData) {
 	d.CSRF = p.csrf(w, r)
 	d.WhatsApp = p.whatsappAvailable(st)
-	var buf bytes.Buffer
-	if t := st.tmpl.Lookup("auth_" + page); t != nil {
-		lw := &limitedWriter{max: maxPage}
-		if err := t.Execute(lw, d.templateData()); err == nil {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(status)
-			w.Write(lw.buf)
-			return
-		} else {
-			p.event(st, "server", "error", "", "template auth_"+page+": "+err.Error())
-		}
+	// Only the platform's own pages: an app's template here would run the
+	// owner's markup and scripts on the page where visitors type passwords.
+	if d.Link == "/" {
+		d.Link = p.URL(st.app, st.name) + "/"
 	}
+	var buf bytes.Buffer
 	if err := defaultAuthPages.ExecuteTemplate(&buf, page, d.templateData()); err != nil {
 		http.Error(w, "page unavailable", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	w.Write(buf.Bytes())
+	if page == "logout" { // served on the app's own host
+		w.Write(buf.Bytes())
+		return
+	}
+	w.Write(p.withAuthFooter(st, buf.Bytes()))
 }
 
 var defaultAuthPages = template.Must(template.New("").Parse(`

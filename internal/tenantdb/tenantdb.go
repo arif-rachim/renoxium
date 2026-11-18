@@ -133,8 +133,20 @@ func (d *DB) conn(ctx context.Context) (*sql.Conn, error) {
 // Close releases the pool.
 func (d *DB) Close() error { return d.pool.Close() }
 
-// Query runs a single read statement and returns rows as maps.
+// Query runs a single statement and returns rows as maps.
 func (d *DB) Query(ctx context.Context, query string, args []any) ([]map[string]any, error) {
+	return d.query(ctx, query, args, false)
+}
+
+// QueryReadOnly is Query for callers that must not change data: the
+// statement runs in a transaction that is always rolled back, so a write
+// hidden in it (INSERT ... RETURNING, a WITH that feeds an UPDATE) has no
+// effect.
+func (d *DB) QueryReadOnly(ctx context.Context, query string, args []any) ([]map[string]any, error) {
+	return d.query(ctx, query, args, true)
+}
+
+func (d *DB) query(ctx context.Context, query string, args []any, readOnly bool) ([]map[string]any, error) {
 	if err := CheckScriptSQL(query); err != nil {
 		return nil, err
 	}
@@ -145,7 +157,18 @@ func (d *DB) Query(ctx context.Context, query string, args []any) ([]map[string]
 		return nil, err
 	}
 	defer c.Close()
-	rows, err := c.QueryContext(ctx, query, args...)
+	var q interface {
+		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	} = c
+	if readOnly {
+		tx, err := c.BeginTx(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback()
+		q = tx
+	}
+	rows, err := q.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -368,6 +391,10 @@ var platformTables = []string{
 		success_path TEXT NOT NULL, cancel_path TEXT NOT NULL,
 		created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`,
 	`CREATE INDEX IF NOT EXISTS rx_subscriptions_reference ON rx_subscriptions (reference)`,
+	// One-time codes that carry a finished sign-in from the platform's
+	// sign-in host to the app's host (see platform/idhost.go).
+	`CREATE TABLE IF NOT EXISTS rx_auth_codes (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
+		state_hash TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
 	`CREATE TABLE IF NOT EXISTS rx_phone_codes (phone TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
 		attempts INTEGER NOT NULL DEFAULT 0)`,
 }
@@ -504,3 +531,32 @@ func Snapshot(src, dst string) error {
 
 // quote wraps an identifier already validated by appdef.ValidIdent.
 func quote(ident string) string { return `"` + ident + `"` }
+
+// ScrubForExport removes what must not leave the platform from a copy of a
+// tenant database before the owner downloads it: visitors' password hashes
+// and every sign-in session, emailed link and sign-in code. Visitors keep
+// their rows (email, name, phone), which the owner sees in the admin panel
+// anyway.
+func ScrubForExport(path string) error {
+	db, err := openAdmin(path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	for _, stmt := range []string{
+		`UPDATE rx_users SET password_hash = NULL`,
+		`DELETE FROM rx_sessions`,
+		`DELETE FROM rx_email_tokens`,
+		`DELETE FROM rx_phone_codes`,
+		`DELETE FROM rx_auth_codes`,
+		`VACUUM`, // deleted rows must not stay readable in free pages
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "no such table") {
+			return err
+		}
+	}
+	// VACUUM in WAL mode leaves the result in the -wal file: fold it back so
+	// the single .db file is complete.
+	_, err = db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+	return err
+}

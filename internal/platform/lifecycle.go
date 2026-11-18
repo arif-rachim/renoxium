@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
 )
@@ -47,6 +48,10 @@ func (p *Platform) DeleteApp(app string) error {
 		return err
 	}
 	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO released_names (name, owner, released_at) SELECT name, owner, ? FROM apps WHERE name = ?`,
+		time.Now().Unix(), app); err != nil {
+		return err
+	}
 	for _, stmt := range []string{
 		`DELETE FROM versions WHERE app = ?`, `DELETE FROM domains WHERE app = ?`, `DELETE FROM payment_accounts WHERE app = ?`,
 		`DELETE FROM app_files WHERE app = ?`, `DELETE FROM app_staff WHERE app = ?`, `DELETE FROM owner_alerts WHERE app = ?`, `DELETE FROM job_runs WHERE app = ?`, `DELETE FROM app_hosts WHERE app = ?`,
@@ -64,6 +69,7 @@ func (p *Platform) DeleteApp(app string) error {
 		p.hosts.Delete(h)
 	}
 	p.owners.Delete(app)
+	p.forgetLive(app)
 	return os.RemoveAll(p.appDir(app))
 }
 
@@ -110,6 +116,9 @@ func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) er
 	defer os.RemoveAll(tmp)
 	copyPath := filepath.Join(tmp, "live.db")
 	if err := tenantdb.Snapshot(live, copyPath); err != nil {
+		return err
+	}
+	if err := tenantdb.ScrubForExport(copyPath); err != nil {
 		return err
 	}
 	f, err := os.Open(copyPath)

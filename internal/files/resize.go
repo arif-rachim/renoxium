@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp" // decode WebP uploads
@@ -19,6 +20,10 @@ var Widths = []int{160, 320, 480, 640, 960, 1280, 1920}
 
 // MaxPixels is the largest image resized; bigger ones are served as uploaded.
 const MaxPixels = 16_000_000
+
+// ResizeWait is how long a request waits for the resizer before it gets
+// the original image instead.
+var ResizeWait = 3 * time.Second
 
 // resizing allows one resize at a time: decoding needs width*height*4 bytes.
 var resizing = make(chan struct{}, 1)
@@ -41,8 +46,12 @@ func SnapWidth(w int) int {
 // Variant returns a file holding the blob scaled down to width (a value
 // from Widths), creating it once. Images already that narrow, too large to
 // decode, or of another type come back as the original. JPEG and WebP
-// become JPEG; PNG stays PNG.
-func (s *Store) Variant(b Blob, width int) (*os.File, string, error) {
+// become JPEG; PNG stays PNG. A size not made yet is only made when
+// mayCreate (if set) allows it and the resizer is free within a few
+// seconds; otherwise this request gets the original, and a later one makes
+// the smaller copy. Resizing is slow and happens one image at a time, so
+// one app's images must not keep every other app's waiting.
+func (s *Store) Variant(b Blob, width int, mayCreate func() bool) (*os.File, string, error) {
 	if !Resizable(b.ContentType) {
 		f, err := s.Open(b.Hash)
 		return f, b.ContentType, err
@@ -64,7 +73,16 @@ func (s *Store) Variant(b Blob, width int) (*os.File, string, error) {
 		src.Seek(0, 0)
 		return src, b.ContentType, nil
 	}
-	resizing <- struct{}{}
+	if mayCreate != nil && !mayCreate() {
+		src.Seek(0, 0)
+		return src, b.ContentType, nil
+	}
+	select {
+	case resizing <- struct{}{}:
+	case <-time.After(ResizeWait):
+		src.Seek(0, 0)
+		return src, b.ContentType, nil
+	}
 	defer func() { <-resizing }()
 	if f, err := os.Open(path); err == nil { // made while waiting
 		src.Close()
@@ -111,4 +129,18 @@ func (s *Store) Variant(b Blob, width int) (*os.File, string, error) {
 	}
 	f, err := os.Open(path)
 	return f, ctype, err
+}
+
+// Deferred reports whether f, as Variant returned it for width, is the
+// original standing in for a smaller copy that was not made this time
+// (the resizer was busy), rather than the final answer.
+func Deferred(f *os.File, b Blob, width int) bool {
+	if !Resizable(b.ContentType) || filepath.Base(f.Name()) != b.Hash {
+		return false // a stored variant, or a type that is never resized
+	}
+	pos, _ := f.Seek(0, 1)
+	defer f.Seek(pos, 0)
+	f.Seek(0, 0)
+	cfg, _, err := image.DecodeConfig(f)
+	return err == nil && cfg.Width > width && cfg.Width*cfg.Height <= MaxPixels
 }

@@ -39,8 +39,18 @@ var FetchCallsPerPlan = map[string]int{planFree: 1000, planPro: 20000, planBusin
 
 // Per-run limits; variables so tests can change them.
 var (
-	fetchPerRun        = 5
-	fetchWaitPerRun    = 20 * time.Second
+	fetchPerRun     = 5
+	fetchWaitPerRun = 8 * time.Second // a script worker is held while a call waits
+	// fetchWaitPerOwner is how long, per minute, the scripts of one account
+	// may hold workers waiting for external answers; it keeps an account
+	// that calls slow hosts from occupying the workers.
+	fetchWaitPerOwner = 30 * time.Second
+	// fetchUnconfirmedPerDay is the daily calls of an account whose email
+	// is not confirmed yet.
+	fetchUnconfirmedPerDay = 100
+	// PreviewFetchWindow is how long preview makes real calls after the
+	// owner turns that on.
+	PreviewFetchWindow = 2 * time.Hour
 	fetchDefaultTimout = 5 * time.Second
 	fetchMaxTimeout    = 10 * time.Second
 	fetchMaxBody       = 256 << 10
@@ -245,14 +255,31 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	if waited >= fetchWaitPerRun {
 		return nil, fetchError("external calls in this request already took %s", fetchWaitPerRun)
 	}
+	// Preview runs on a copy of live data, and an agent can change preview
+	// scripts without the owner seeing them. So preview only makes real
+	// calls while the owner has turned that on.
+	if st.name == Preview && !p.PreviewFetchOn(st.app) {
+		return nil, fetchError("preview does not call other services until the owner turns on test calls (for %s) at %s/apps/%s/connections",
+			PreviewFetchWindow, p.cfg.SiteURL, st.app)
+	}
 	if !p.allow("fetch:"+st.app+":"+st.name, fetchPerMinute, time.Minute) {
 		return nil, fetchError("more than %d calls a minute for this app", fetchPerMinute)
 	}
+	// The monthly quota counts live and preview alike: both send real
+	// requests from Renoxium's address.
 	owner := p.ownerOf(st.app)
-	if st.name == Live && p.cfg.OwnerPlan != nil {
+	if p.cfg.OwnerPlan != nil {
 		if used, quota := p.FetchUsage(owner); used >= quota {
 			return nil, fetchError("the account used all %d external calls of this month; upgrade at %s/billing", quota, p.cfg.SiteURL)
 		}
+	}
+	if p.cfg.OwnerEmail != nil {
+		if _, confirmed := p.cfg.OwnerEmail(owner); !confirmed && !p.allowDurable("fetch-unconfirmed:"+owner, fetchUnconfirmedPerDay, 24*time.Hour) {
+			return nil, fetchError("confirm your Renoxium email address to make more than %d external calls a day", fetchUnconfirmedPerDay)
+		}
+	}
+	if p.usedBudget("fetch-wait:"+owner, time.Minute) >= int(fetchWaitPerOwner.Milliseconds()) {
+		return nil, fetchError("this account's external calls waited more than %s in the last minute; call faster services or fewer of them", fetchWaitPerOwner)
 	}
 
 	var body io.Reader
@@ -316,6 +343,7 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	if in.TimeoutMS > 0 {
 		timeout = min(time.Duration(in.TimeoutMS)*time.Millisecond, fetchMaxTimeout)
 	}
+	timeout = min(timeout, fetchWaitPerRun-waited) // never past the run's waiting time
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
@@ -355,7 +383,8 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	h.mu.Lock()
 	h.fetchWait += took
 	h.mu.Unlock()
-	if st.name == Live && p.cfg.OwnerPlan != nil {
+	p.spend("fetch-wait:"+owner, int(took.Milliseconds()), 1<<30, time.Minute)
+	if p.cfg.OwnerPlan != nil {
 		p.addUsage(owner, "fetch")
 	}
 	logURL := "https://" + host + u.EscapedPath()
@@ -456,4 +485,29 @@ func publicIP(ip net.IP) bool {
 		}
 	}
 	return true
+}
+
+// PreviewFetchOn reports whether preview may make real http.fetch calls now.
+func (p *Platform) PreviewFetchOn(app string) bool {
+	return time.Now().Before(p.PreviewFetchUntil(app))
+}
+
+// PreviewFetchUntil is when preview's real calls end; zero when off.
+func (p *Platform) PreviewFetchUntil(app string) time.Time {
+	var until int64
+	p.db.QueryRow(`SELECT preview_fetch_until FROM apps WHERE name = ?`, app).Scan(&until)
+	if until == 0 {
+		return time.Time{}
+	}
+	return time.Unix(until, 0)
+}
+
+// SetPreviewFetch turns preview's real calls on for PreviewFetchWindow, or off.
+func (p *Platform) SetPreviewFetch(app string, on bool) error {
+	var until int64
+	if on {
+		until = time.Now().Add(PreviewFetchWindow).Unix()
+	}
+	_, err := p.db.Exec(`UPDATE apps SET preview_fetch_until = ? WHERE name = ?`, until, app)
+	return err
 }

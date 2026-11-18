@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/arif-rachim/renoxium/internal/monitor"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -57,6 +59,7 @@ func newEnv(t *testing.T) *env {
 	ws := web.New(srv.URL, acc, p)
 	mb := &mailbox{}
 	ws.Mailer = mb
+	mb.wait = ws.WaitBackground
 	ws.StripeWebhookSecret = "whsec_test"
 	ws.AbuseEmail = "abuse@renoxium.test"
 	site = ws
@@ -710,5 +713,75 @@ func TestLoginReturnsToPage(t *testing.T) {
 		if loc := r.Header.Get("Location"); r.StatusCode != 303 || loc != want {
 			t.Errorf("next %q: %d %q, want %q", next, r.StatusCode, loc, want)
 		}
+	}
+}
+
+// The running commit and the reason the server is unhealthy tell an
+// attacker what to try, so visitors coming through the tunnel see neither.
+func TestVersionAndHealthDetailsAreNotPublic(t *testing.T) {
+	dir := t.TempDir()
+	p, _ := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	acc, _ := accounts.Open(filepath.Join(dir, "accounts.db"))
+	defer p.Close()
+	defer acc.Close()
+	site := web.New("https://renoxium.test", acc, p)
+	site.TrustedIPHeader = "CF-Connecting-IP"
+	site.Version = "abc1234"
+	site.Monitor = sickMonitor{}
+	get := func(path, remote, visitor string) (int, string) {
+		r := httptest.NewRequest("GET", "https://renoxium.test"+path, nil)
+		r.RemoteAddr = remote
+		if visitor != "" {
+			r.Header.Set("CF-Connecting-IP", visitor)
+		}
+		w := httptest.NewRecorder()
+		site.ServeHTTP(w, r)
+		return w.Code, w.Body.String()
+	}
+	if code, body := get("/version", "127.0.0.1:4000", "203.0.113.7"); code != 404 || strings.Contains(body, "abc1234") {
+		t.Fatalf("version through the tunnel: %d %s", code, body)
+	}
+	if code, _ := get("/version", "203.0.113.7:4000", ""); code != 404 {
+		t.Fatalf("version from another machine: %d", code)
+	}
+	if code, body := get("/version", "127.0.0.1:4000", ""); code != 200 || !strings.Contains(body, "abc1234") {
+		t.Fatalf("version on the server itself: %d %s", code, body)
+	}
+	if code, body := get("/healthz", "127.0.0.1:4000", "203.0.113.7"); code != 503 || strings.Contains(body, "disk") {
+		t.Fatalf("healthz: %d %s", code, body)
+	}
+}
+
+type sickMonitor struct{}
+
+func (sickMonitor) Healthy() error         { return errors.New("disk almost full: 1.2% free") }
+func (sickMonitor) Status() monitor.Status { return monitor.Status{} }
+
+// Sign-up on the site has to say when an address is taken; after a few
+// such answers it stops for that visitor address, whatever they try, so
+// the form is no way to test a list of addresses.
+func TestSignupDoesNotListAccounts(t *testing.T) {
+	e := newEnv(t)
+	e.signup(e.browser(), "known@example.com")
+	try := func(addr string) int {
+		c := e.browser()
+		token := e.csrf(c, "/signup")
+		r, err := c.PostForm(e.base+"/signup", url.Values{"csrf": {token}, "email": {addr}, "password": {"correct horse battery"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		read(t, r)
+		return r.StatusCode
+	}
+	for i := 0; i < 5; i++ {
+		if c := try("known@example.com"); c != 400 {
+			t.Fatalf("taken address, try %d: %d", i, c)
+		}
+	}
+	if c := try("known@example.com"); c != 429 {
+		t.Fatalf("sixth try with a taken address: %d", c)
+	}
+	if c := try("free@example.com"); c != 429 {
+		t.Fatalf("a free address after the limit told it apart from a taken one: %d", c)
 	}
 }

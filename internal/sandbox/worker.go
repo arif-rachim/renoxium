@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"runtime/metrics"
 	"strconv"
@@ -94,15 +95,30 @@ func heapWatch(limit int64) func(func(string)) func() {
 		go func() {
 			t := time.NewTicker(2 * time.Millisecond)
 			defer t.Stop()
+			var lastGC time.Time
 			for {
 				select {
 				case <-done:
 					return
 				case <-t.C:
-					if heapBytes() > limit {
-						interrupt("memory limit exceeded")
-						return
+					if heapBytes() <= limit {
+						continue
 					}
+					// The heap figure includes garbage not yet collected, so an
+					// ordinary script can pass the limit between collections.
+					// Collect first (at most every 50 ms; the parent's resident
+					// memory limit still applies in between) and stop the script
+					// only if what it really holds is over the limit.
+					if time.Since(lastGC) < 50*time.Millisecond {
+						continue
+					}
+					runtime.GC()
+					lastGC = time.Now()
+					if heapBytes() <= limit {
+						continue
+					}
+					interrupt("memory limit exceeded")
+					return
 				}
 			}
 		}()

@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"time"
 )
 
 func (s *Site) registerConnections() {
@@ -10,15 +11,18 @@ func (s *Site) registerConnections() {
 }
 
 func (s *Site) renderConnections(w http.ResponseWriter, r *http.Request, app string, status int, errText string) {
-	u, _ := s.currentUser(r)
 	hosts, secrets, err := s.platform.Connections(app)
 	if err != nil {
 		serverError(w, err)
 		return
 	}
-	used, quota := s.platform.FetchUsage(u.ID)
+	used, quota := s.platform.FetchUsage(s.platform.OwnerOf(app))
+	previewUntil := ""
+	if t := s.platform.PreviewFetchUntil(app); time.Now().Before(t) {
+		previewUntil = t.UTC().Format("15:04")
+	}
 	render(w, status, "admin_connections", map[string]any{"App": app, "Hosts": hosts, "Secrets": secrets, "CSRF": s.csrfToken(w, r),
-		"Error": errText, "Used": used, "Quota": quota})
+		"Error": errText, "Used": used, "Quota": quota, "PreviewUntil": previewUntil})
 }
 
 func (s *Site) connectionsPage(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +52,10 @@ func (s *Site) connectionsAction(w http.ResponseWriter, r *http.Request) {
 		err = s.platform.SetSecret(app, r.PostFormValue("name"), r.PostFormValue("value"))
 	case "delete-secret":
 		err = s.platform.DeleteSecret(app, r.PostFormValue("name"))
+	case "preview-on":
+		err = s.platform.SetPreviewFetch(app, true)
+	case "preview-off":
+		err = s.platform.SetPreviewFetch(app, false)
 	}
 	if err != nil {
 		s.renderConnections(w, r, app, http.StatusBadRequest, err.Error())
