@@ -87,9 +87,11 @@ var all = map[string]Example{
 	"home-service-uae": {Name: "home-service-uae", Description: "A complete booking and dispatch site for a UAE home-service company, ready to customise for cleaning, " +
 		"AC servicing, pest control, handyman, movers or laundry pickup: services priced per hour, per unit or fixed, areas served with surcharges, " +
 		"date and arrival-window picker with a limited number of crews per window, AED prices including 5% VAT, card payment (Stripe) or cash on completion, " +
-		"weekly and 2-weekly repeat visits booked by a daily job, bookings for signed-in customers with live status and the crew on a map, " +
-		"a private phone page for each crew (on the way, arrived, completed, cash collected), cancellation before a cut-off, printable receipts " +
-		"(a UAE tax invoice once the TRN is set), email confirmations and reminders, owner notices, tools for customers' AI assistants, " +
+		"weekly and 2-weekly repeat visits booked by a daily job, optionally paid automatically by card (payments.subscribe, each renewal pays the next visit), " +
+		"an optional private photo of the problem (visitor upload), bookings for signed-in customers with live status and the crew on a map, " +
+		"a private phone page for each crew (on the way, arrived, completed, cash collected), cancellation before a cut-off with automatic card refunds, " +
+		"admin-panel hooks (setting the crew emails the customer, cancelling refunds and emails, status changes reach the live page), printable receipts " +
+		"(a UAE tax invoice once the TRN is set), email confirmations and reminders, owner notices, tools for customers' AI assistants, shared script helpers in lib, " +
 		"English and Arabic (right to left). Change the business, services, zones, crews and texts tables' seed rows.", JSON: homeServiceUAE},
 	"listings-uae": {Name: "listings-uae", Description: "A property listings and lead-capture site for a UAE real-estate brokerage or agent, ready to customise " +
 		"(no online payments): search by sale or rent, type, community, bedrooms and price with sorting and pages, listing pages with gallery, " +

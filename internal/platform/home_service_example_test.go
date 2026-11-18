@@ -2,6 +2,7 @@ package platform_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -251,6 +252,10 @@ func TestHomeServiceUAEExample(t *testing.T) {
 	if key == "" {
 		t.Fatal("no crew link in the owner's notice")
 	}
+	// The key is crypto.randomId(): 16 random bytes, 22 URL-safe characters.
+	if !regexp.MustCompile(`^[A-Za-z0-9_-]{22}$`).MatchString(key) {
+		t.Fatalf("crew key %q is not a crypto.randomId()", key)
+	}
 	if x := req(platform.TestRequestInput{Path: "/crew/1?key=wrong"}); x.Status != 404 {
 		t.Fatalf("crew page with a wrong key: %d", x.Status)
 	}
@@ -333,18 +338,23 @@ func TestHomeServiceUAEExample(t *testing.T) {
 		t.Fatal("own bookings list")
 	}
 
-	// The customer cancels the paid card booking: its window is free again and the owner is asked to refund.
+	// The customer cancels the paid card booking before the cut-off: its window is free again, the card is refunded
+	// (payments.refund) and the owner is told.
 	if x := as(platform.TestRequestInput{Method: "POST", Path: "/bookings/2/cancel", Form: map[string]string{"later": "0"}}); x.Location != "/bookings/2" {
 		t.Fatalf("cancel: %+v", x)
 	}
-	if o := as(platform.TestRequestInput{Path: "/bookings/2"}); !strings.Contains(o.Body, `id="status">Cancelled<`) || strings.Contains(o.Body, "Cancel this visit") {
-		t.Fatal("cancelled booking page")
+	if o := as(platform.TestRequestInput{Path: "/bookings/2"}); !strings.Contains(o.Body, `id="status">Cancelled<`) || strings.Contains(o.Body, "Cancel this visit") ||
+		!strings.Contains(o.Body, "Refunded to your card: AED 240.00") {
+		t.Fatalf("cancelled booking page: %s", o.Body)
 	}
 	if n := left(day, "10:00"); n != 1 {
 		t.Fatalf("crews left after cancelling = %d", n)
 	}
-	if !logged(`Booking #2 cancelled by the customer: AC service, ` + day + ` 10:00, refund AED 240.00`) {
+	if !logged(`Booking #2 cancelled by the customer: AC service, ` + day + ` 10:00, refunded AED 240.00`) {
 		t.Error("owner not told about the cancellation")
+	}
+	if !logged("a script refunded AED 240.00 of the payment for booking-2 (cancelled by the customer)") {
+		t.Error("card payment not refunded")
 	}
 	if x := as(platform.TestRequestInput{Method: "POST", Path: "/bookings/1/cancel"}); x.Status != 409 {
 		t.Fatalf("cancelling a completed booking: %d", x.Status)
@@ -414,6 +424,264 @@ func TestHomeServiceUAEExample(t *testing.T) {
 	} else if o := as(platform.TestRequestInput{Path: x.Location}); !strings.Contains(o.Body, "تنظيف الكنب بالشامبو") || !strings.Contains(o.Body, "البرشاء") ||
 		!strings.Contains(o.Body, `dir="rtl"`) || !strings.Contains(o.Body, "AED 140.00") {
 		t.Fatalf("arabic booking page: %s", o.Body)
+	}
+}
+
+// The owner's admin panel changes (on_admin_change), refunds, a photo of the
+// problem (private upload) and repeat visits paid automatically by card
+// (payments.subscribe with simulated renewals).
+func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	ex, _ := examples.Get("home-service-uae")
+	def, problems := appdef.Parse(ex.JSON)
+	if len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	p.CreateApp("usr_test", "bayti")
+	if res, err := p.ApplyChange(ctx, "bayti", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	req := func(in platform.TestRequestInput) platform.TestResponse {
+		t.Helper()
+		r, err := p.TestRequest(ctx, "bayti", in)
+		if err != nil {
+			t.Fatalf("%+v: %v", in, err)
+		}
+		if r.Status >= 500 {
+			t.Fatalf("%s %s: %d\n%s\n%s", in.Method, in.Path, r.Status, r.Body, logText(r))
+		}
+		return r
+	}
+	count := func(want string) int {
+		t.Helper()
+		logs, _ := p.Logs("bayti", logFilterAll())
+		return countMessages(logs, want)
+	}
+	admin := func(id int64, values map[string]any) platform.TestResponse {
+		t.Helper()
+		return req(platform.TestRequestInput{Admin: &platform.TestAdminInput{Action: "update", Table: "bookings", ID: id, Values: values}})
+	}
+	for _, who := range []string{"fatima", "omar"} {
+		req(platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": who, "email": who + "@mail.ae", "password": who + " password"}})
+	}
+	as := func(in platform.TestRequestInput) platform.TestResponse {
+		t.Helper()
+		in.UserEmail = "fatima@mail.ae"
+		return req(in)
+	}
+	dubai := time.Now().UTC().Add(4 * time.Hour)
+	visit := dubai.AddDate(0, 0, 3)
+	if visit.Weekday() == time.Sunday {
+		visit = visit.AddDate(0, 0, 1)
+	}
+	day := visit.Format("2006-01-02")
+	form := func(service, qty, zone, start, payment string) map[string]string {
+		return map[string]string{"service": service, "qty": qty, "zone": zone, "date": day, "slot": start, "repeat": "once", "payment": payment,
+			"name": "Fatima", "phone": "+971501234567", "address": "Villa 12, Street 4"}
+	}
+	payCard := func(f map[string]string) string {
+		t.Helper()
+		r := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: f})
+		if !strings.HasPrefix(r.Location, "/_rx/pay/") {
+			t.Fatalf("card booking: %+v\n%s", r, logText(r))
+		}
+		if x := req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "pay"}}); x.Status != 303 {
+			t.Fatalf("pay: %+v", x)
+		}
+		return r.Location
+	}
+
+	// Booking 1, paid by card. The owner sets the crew in the admin panel: the booking becomes assigned and
+	// the customer is emailed the crew's first name.
+	payCard(form("4", "2", "1", "10:00", "card"))
+	r := admin(1, map[string]any{"crew_id": 2})
+	if r.Admin == nil || r.Admin.Hook != "admin_change" || !strings.Contains(r.Body, "crew Imran Khan (AC and handyman) assigned, customer emailed") {
+		t.Fatalf("assign a crew: %+v\n%s", r, logText(r))
+	}
+	if count(`to fatima@mail.ae, "Your crew for booking #1: Imran on `+day+`"`) != 1 {
+		t.Fatalf("crew email not sent:\n%s", logText(r))
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/1"}); !strings.Contains(o.Body, `id="status">Crew assigned<`) || !strings.Contains(o.Body, "Imran Khan") {
+		t.Fatalf("booking after the crew was set: %s", o.Body)
+	}
+	// The crew link from the hook's answer works; a booking whose key was cleared gets a new one.
+	m := regexp.MustCompile(`/crew/1\?key=([A-Za-z0-9_-]{22})`).FindStringSubmatch(r.Body)
+	if m == nil {
+		t.Fatalf("no crew link: %s", r.Body)
+	}
+	if x := req(platform.TestRequestInput{Path: "/crew/1?key=" + m[1]}); x.Status != 200 || !strings.Contains(x.Body, "Already paid: nothing to collect") {
+		t.Fatalf("crew page: %d %s", x.Status, x.Body)
+	}
+	if x := admin(1, map[string]any{"crew_key": ""}); !strings.Contains(x.Body, "crew key made") {
+		t.Fatalf("no new crew key: %s", x.Body)
+	}
+	if x := req(platform.TestRequestInput{Path: "/crew/1?key=" + m[1]}); x.Status != 404 {
+		t.Fatalf("old crew key still works: %d", x.Status)
+	}
+	// Changing another field sends nothing; a status set in the panel reaches the booking page.
+	if x := admin(1, map[string]any{"notes": "Bring the ladder"}); x.Body != "nothing to do" {
+		t.Fatalf("unrelated change: %s", x.Body)
+	}
+	if x := admin(1, map[string]any{"status": "on_the_way"}); !strings.Contains(x.Body, "status on_the_way sent to the booking page") {
+		t.Fatalf("on the way from the panel: %s", x.Body)
+	}
+	if count(`Your crew for booking #1`) != 1 {
+		t.Fatal("the crew email was sent again")
+	}
+
+	// Booking 2, paid by card, cancelled by the owner: refunded to the card and the customer is emailed.
+	payCard(form("6", "1", "2", "12:00", "card"))
+	if x := admin(2, map[string]any{"status": "cancelled"}); !strings.Contains(x.Body, "cancelled, refunded AED 250.00, customer emailed") {
+		t.Fatalf("owner cancels: %s\n%s", x.Body, logText(x))
+	}
+	if count("a script refunded AED 250.00 of the payment for booking-2 (cancelled by the business)") != 1 ||
+		count(`to fatima@mail.ae, "Booking #2 cancelled: Pest control (apartment) on `+day+`"`) != 1 ||
+		count("AED 250.00 has been refunded to your card") != 1 {
+		t.Fatal("owner cancel: refund or email missing")
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/2"}); !strings.Contains(o.Body, `id="status">Cancelled<`) || !strings.Contains(o.Body, "Refunded to your card: AED 250.00") {
+		t.Fatalf("booking cancelled by the owner: %s", o.Body)
+	}
+
+	// A photo of the problem: a private upload, checked to be the visitor's own before it is saved.
+	upload := func(email string) string {
+		t.Helper()
+		x := req(platform.TestRequestInput{Method: "POST", Path: "/_rx/upload", UserEmail: email,
+			Files: map[string]platform.TestFile{"file": {Name: "leak.jpg", Type: "image/jpeg", Base64: base64.StdEncoding.EncodeToString(jpegBytes(t))}}})
+		var u struct{ ID string }
+		if json.Unmarshal([]byte(x.Body), &u); x.Status != 200 || u.ID == "" {
+			t.Fatalf("upload: %d %s", x.Status, x.Body)
+		}
+		return u.ID
+	}
+	mine, omars := upload("fatima@mail.ae"), upload("omar@mail.ae")
+	if x := as(platform.TestRequestInput{Path: "/checkout?service=5&qty=1&zone=1&date=" + day + "&slot=14:00&repeat=once"}); !strings.Contains(x.Body, `<script src="/_rx/upload.js">`) ||
+		!strings.Contains(x.Body, `name="photo" data-rx-upload`) {
+		t.Fatalf("checkout without the photo field: %s", x.Body)
+	}
+	f := form("5", "1", "1", "14:00", "cash")
+	f["photo"] = omars
+	if x := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: f}); !strings.HasSuffix(x.Location, "&error=error_photo") {
+		t.Fatalf("someone else's photo: %+v", x)
+	}
+	f["photo"] = mine
+	x := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: f})
+	if x.Location != "/bookings/3?placed=1" {
+		t.Fatalf("booking with a photo: %+v\n%s", x, logText(x))
+	}
+	if count(`"New booking #3 (cash): Handyman, `+day+` 14:00, Dubai Marina, AED 110.00, photo attached"`) != 1 ||
+		count("Photo of the problem: attached, open booking #3 in the admin panel") != 1 {
+		t.Fatal("owner not told about the photo")
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/3"}); !strings.Contains(o.Body, `<img src="/_rx/private/`+mine+`"`) {
+		t.Fatalf("customer does not see the photo: %s", o.Body)
+	}
+	logs, _ := p.Logs("bayti", logFilterAll())
+	var key3 string
+	for _, e := range logs {
+		if m := regexp.MustCompile(`/crew/3\?key=([A-Za-z0-9_-]{22})`).FindStringSubmatch(e.Message); m != nil {
+			key3 = m[1]
+		}
+	}
+	if c := req(platform.TestRequestInput{Path: "/crew/3?key=" + key3}); c.Status != 200 || !strings.Contains(c.Body, "Photo attached: see the admin panel") ||
+		strings.Contains(c.Body, "/_rx/private/") {
+		t.Fatalf("crew page with a photo: %d %s", c.Status, c.Body)
+	}
+
+	// Repeat visits paid automatically: the owner allows booking 30 days ahead so that the next two weekly visits fit.
+	if x := req(platform.TestRequestInput{Admin: &platform.TestAdminInput{Action: "update", Table: "business", ID: 1, Values: map[string]any{"days_ahead": 30}}}); x.Body != "nothing to do" {
+		t.Fatalf("business settings: %+v", x)
+	}
+	q := "/checkout?service=1&qty=3&zone=5&date=" + day + "&slot=16:00&repeat=weekly"
+	if x := as(platform.TestRequestInput{Path: q}); !strings.Contains(x.Body, `value="auto"> Pay automatically: card charged for each visit, every week`) {
+		t.Fatalf("no automatic payment offered: %s", x.Body)
+	}
+	if x := as(platform.TestRequestInput{Path: strings.Replace(q, "weekly", "once", 1)}); strings.Contains(x.Body, `value="auto"`) {
+		t.Fatal("automatic payment offered for one visit")
+	}
+	f = form("1", "3", "5", "16:00", "auto")
+	f["repeat"] = "weekly"
+	sub := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: f})
+	if !strings.HasPrefix(sub.Location, "/_rx/pay/rxs_") {
+		t.Fatalf("subscribe: %+v\n%s", sub, logText(sub))
+	}
+	if pg := req(platform.TestRequestInput{Path: sub.Location}); !strings.Contains(pg.Body, "145.00 AED every week") {
+		t.Fatalf("subscription page: %s", pg.Body)
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/4"}); !strings.Contains(o.Body, "Waiting for payment") || strings.Contains(o.Body, "Pay by card now") {
+		t.Fatalf("series waiting for its first payment: %s", o.Body)
+	}
+	if x := req(platform.TestRequestInput{Method: "POST", Path: sub.Location, Form: map[string]string{"decision": "pay"}}); x.Location != "/bookings/4?placed=1" {
+		t.Fatalf("first payment: %+v", x)
+	}
+	if o := as(platform.TestRequestInput{Path: "/bookings/4"}); !strings.Contains(o.Body, `id="status">Confirmed<`) || !strings.Contains(o.Body, "Paid by card") ||
+		!strings.Contains(o.Body, "Paid automatically: your card is charged for each visit") {
+		t.Fatalf("first visit of the series: %s", o.Body)
+	}
+	visitOn := func(date string) string {
+		t.Helper()
+		list := as(platform.TestRequestInput{Path: "/bookings"})
+		m := regexp.MustCompile(`href="/bookings/(\d+)">Booking #\d+</a><span>Home cleaning</span><span class="muted">` + date + ` 16:00<`).FindStringSubmatch(list.Body)
+		if m == nil {
+			t.Fatalf("no visit on %s: %s", date, list.Body)
+		}
+		return "/bookings/" + m[1]
+	}
+	week1, week2 := visit.AddDate(0, 0, 7).Format("2006-01-02"), visit.AddDate(0, 0, 14).Format("2006-01-02")
+
+	// A renewal before the daily job ran books next week's visit and pays it.
+	req(platform.TestRequestInput{Method: "POST", Path: sub.Location, Form: map[string]string{"decision": "renew"}})
+	second := visitOn(week1)
+	if o := as(platform.TestRequestInput{Path: second}); !strings.Contains(o.Body, "Paid by card") || strings.Contains(o.Body, "Pay by card now") || !strings.Contains(o.Body, "AED 145.00") {
+		t.Fatalf("visit paid by the renewal: %s", o.Body)
+	}
+	if count(`to fatima@mail.ae, "Your next visit is booked: Home cleaning on `+week1+`"`) != 1 {
+		t.Fatal("customer not told about the next visit")
+	}
+	// The daily job books the visit after it, waiting for its charge: nothing to pay by hand or to the crew.
+	if job := req(platform.TestRequestInput{Job: "daily"}); !strings.HasPrefix(job.Body, "1 repeat visits booked, 0 skipped") {
+		t.Fatalf("daily job: %+v\n%s", job, logText(job))
+	}
+	third := visitOn(week2)
+	if o := as(platform.TestRequestInput{Path: third}); !strings.Contains(o.Body, "Card, charged automatically") || strings.Contains(o.Body, "Pay by card now") {
+		t.Fatalf("visit waiting for its charge: %s", o.Body)
+	}
+	if count("Your card is charged automatically: nothing to pay the crew.") != 2 {
+		t.Fatal("repeat emails for the series")
+	}
+	// A failed renewal: that visit is paid on completion or by card, and the customer gets a link, once.
+	req(platform.TestRequestInput{Method: "POST", Path: sub.Location, Form: map[string]string{"decision": "renewal_failed"}})
+	req(platform.TestRequestInput{Method: "POST", Path: sub.Location, Form: map[string]string{"decision": "renewal_failed"}})
+	if o := as(platform.TestRequestInput{Path: third}); !strings.Contains(o.Body, "Pay on completion (cash)") || !strings.Contains(o.Body, "Pay by card now") {
+		t.Fatalf("visit after a failed renewal: %s", o.Body)
+	}
+	if n := count(`to fatima@mail.ae, "Card payment failed for your visit on ` + week2 + `"`); n != 1 {
+		t.Fatalf("payment failed emails: %d", n)
+	}
+	if count("https://bayti--preview.renoxium.test"+third) == 0 {
+		t.Fatal("no pay link in the email")
+	}
+	// Cancelling next week's visit and all later ones refunds it and stops the automatic payments.
+	if x := as(platform.TestRequestInput{Method: "POST", Path: second + "/cancel", Form: map[string]string{"later": "1"}}); x.Location != second {
+		t.Fatalf("cancel the series: %+v\n%s", x, logText(x))
+	}
+	if count("a script refunded AED 145.00 of the payment for series-4 (cancelled by the customer)") != 1 {
+		t.Fatal("series visit not refunded")
+	}
+	for _, path := range []string{second, third} {
+		if o := as(platform.TestRequestInput{Path: path}); !strings.Contains(o.Body, `id="status">Cancelled<`) {
+			t.Fatalf("%s not cancelled: %s", path, o.Body)
+		}
+	}
+	if o := as(platform.TestRequestInput{Path: second}); !strings.Contains(o.Body, "Refunded to your card: AED 145.00") {
+		t.Fatalf("refund not shown: %s", o.Body)
+	}
+	if x := req(platform.TestRequestInput{Method: "POST", Path: sub.Location, Form: map[string]string{"decision": "renew"}}); x.Status < 400 {
+		t.Fatalf("renewal after the series was cancelled: %+v", x)
+	}
+	if job := req(platform.TestRequestInput{Job: "daily"}); !strings.HasPrefix(job.Body, "0 repeat visits booked, 0 skipped") {
+		t.Fatalf("daily job after the series stopped: %+v", job)
 	}
 }
 
