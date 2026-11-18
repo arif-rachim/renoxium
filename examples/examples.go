@@ -16,6 +16,8 @@ var (
 	deliveryTracking []byte
 	//go:embed store-uae.json
 	storeUAE []byte
+	//go:embed quote-portal-uae.json
+	quotePortalUAE []byte
 	//go:embed home-service-uae.json
 	homeServiceUAE []byte
 	//go:embed reservation-uae.json
@@ -43,6 +45,16 @@ var all = map[string]Example{
 		"(right to left). Change the business, services, staff, classes and texts tables' seed rows and keep the scripts: " +
 		"a salon fills services and staff and may leave classes empty; an academy fills classes and may leave services and staff empty.", JSON: bookingUAE},
 	"catalog": {Name: "catalog", Description: "A small shop: product list, product page with an order form, and a JSON API.", JSON: catalog},
+	"quote-portal-uae": {Name: "quote-portal-uae", Description: "Quote-to-payment client portal for UAE service firms that sell by quotation " +
+		"(business setup and PRO consultants, accounting and tax firms, event and wedding planners, photographers, small agencies): " +
+		"packages with starting prices, enquiries from signed-in visitors, quotes the owner writes in the admin panel (lines as JSON, 5% VAT added on top " +
+		"or included), online acceptance recorded with name and time, deposit and balance by card (payments.checkout, on_payment) or bank transfer " +
+		"the owner marks paid, a payments ledger, progress updates and messages per quote, printable receipts (UAE tax invoices once the TRN is set), " +
+		"emails to clients from a 15-minute job (admin-panel edits run no scripts), a daily summary for the owner, read-only MCP tools, " +
+		"English and Arabic (right to left). To reuse it, change the seed rows of business, packages and texts and keep the scripts: " +
+		"for an event planner or photographer, replace the packages (e.g. wedding planning, corporate event, half-day shoot) with their categories, " +
+		"set prices_include_vat to 1 when selling to private clients, adjust deposit_percent, and reword the how_* and message_hint texts " +
+		"(the enquiry form already has a target date and a budget). Clients cannot upload files: the owner pastes links in updates.", JSON: quotePortalUAE},
 	"reservation-uae": {Name: "reservation-uae", Description: "A complete reservation site for UAE businesses that sell dated inventory, ready to customise. " +
 		"Each item is sold in one of two ways (items.mode): departure = seats on dated departures with adult and child prices (desert safari, dhow cruise, " +
 		"yacht trip, city tour); range = a quantity rented from a start date to an end date with a price per day, optional weekly price, minimum days and a " +

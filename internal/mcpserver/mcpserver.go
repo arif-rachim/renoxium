@@ -31,6 +31,11 @@ How to work:
    AED with VAT, orders, English and Arabic). Ask only for the shop's name, WhatsApp number, delivery fee and products,
    then change the seed rows of its store, products, variants (sizes or colours, each with an optional own price and its own stock; leave it empty when products have no options) and texts tables (and the styling if the user wants) and keep the scripts.
    Product photos: upload_file, then put the url in the products.image seed. Owners can edit everything later in the admin panel.
+   For other UAE businesses start from the matching finished example instead, change its seed rows and keep its scripts:
+   booking-uae (salons, spas, barbers, academies, tutors), home-service-uae (cleaning, AC, pest control, handyman, movers),
+   reservation-uae (tours, yacht and safari trips, car rental, party rentals), quote-portal-uae (business setup, accounting,
+   event planners, photographers, agencies) and listings-uae (real-estate brokers). For made-to-order goods such as cakes or
+   flowers use store-uae with store.preorder_days set.
 3. list_apps to find the user's existing apps. create_app once for a new app, then apply_change with the complete definition.
    For later changes use patch_app (change one template, script, route list or table) instead of resending everything.
 4. apply_change and patch_app only update the preview, and render every GET route without parameters.
