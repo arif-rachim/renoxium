@@ -16,6 +16,8 @@ var (
 	deliveryTracking []byte
 	//go:embed store-uae.json
 	storeUAE []byte
+	//go:embed reservation-uae.json
+	reservationUAE []byte
 	//go:embed booking-uae.json
 	bookingUAE []byte
 	//go:embed listings-uae.json
@@ -39,6 +41,21 @@ var all = map[string]Example{
 		"(right to left). Change the business, services, staff, classes and texts tables' seed rows and keep the scripts: " +
 		"a salon fills services and staff and may leave classes empty; an academy fills classes and may leave services and staff empty.", JSON: bookingUAE},
 	"catalog": {Name: "catalog", Description: "A small shop: product list, product page with an order form, and a JSON API.", JSON: catalog},
+	"reservation-uae": {Name: "reservation-uae", Description: "A complete reservation site for UAE businesses that sell dated inventory, ready to customise. " +
+		"Each item is sold in one of two ways (items.mode): departure = seats on dated departures with adult and child prices (desert safari, dhow cruise, " +
+		"yacht trip, city tour); range = a quantity rented from a start date to an end date with a price per day, optional weekly price, minimum days and a " +
+		"refundable security deposit shown to the customer and collected at handover (car rental, party and event equipment). Availability is never counted down: " +
+		"it is added up from the reservations, so cancelled, failed, expired and refunded reservations free their seats or stock by themselves. " +
+		"AED prices including 5% VAT, optional extras per booking, person or day, an online card deposit (business.deposit_percent: 100 = pay in full, 0 = nothing online) " +
+		"through Stripe with the balance due on the day, or reserve now and pay later, reservations for signed-in customers with cancellation inside the " +
+		"free-cancellation window, a printable voucher (a tax invoice once the TRN is set) showing the licence number, confirmation and day-before reminder emails, " +
+		"a daily job that sends the owner tomorrow's departures, handovers and returns and expires unpaid reservations, read-only MCP tools, English and Arabic (right to left). " +
+		"Dates: the seeded departures have no date; they repeat on weekdays (departures.weekdays: daily, or e.g. fri,sat) at departures.time, so the sample is always in the future. " +
+		"For a one-off departure set departures.date to YYYY-MM-DD (UAE local date) and leave weekdays empty. " +
+		"To customise, change the seed rows of business and texts, then: tour operator = items with mode departure plus departures and extras, and delete the range items; " +
+		"car rental = items with mode range (stock = cars of that model, price_day, price_week, min_days, security_deposit) and extras such as child seat or delivery, " +
+		"and leave departures empty; party rental = items with mode range (stock = pieces owned) and a delivery extra. Keep the scripts. " +
+		"Not possible on the platform, so not in the example: card holds or later automatic charges, customer file uploads (licence numbers are typed as notes), WhatsApp messages to customers.", JSON: reservationUAE},
 	"store-uae": {Name: "store-uae", Description: "A complete online store for the UAE, ready to customise: catalog with photos and categories, cart, " +
 		"AED prices including 5% VAT, delivery fee with a free-delivery threshold, checkout with card payment (Stripe) or cash on delivery, " +
 		"orders for signed-in shoppers (email or WhatsApp sign-in), printable invoices (a UAE tax invoice once the store's TRN is set), " +
