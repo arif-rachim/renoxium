@@ -36,6 +36,9 @@ type TestRequestInput struct {
 	// UserEmail sends the request as a signed-in visitor (preview only).
 	Job       string `json:"job,omitempty" jsonschema:"run this scheduled job once on preview instead of sending a request (path is then ignored); jobs never run on preview by themselves"`
 	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as the visitor with this email or WhatsApp number; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup or /_rx/auth/phone first, or it may come from live data)"`
+
+	// Admin makes an admin panel change on preview (see TestAdminInput).
+	Admin *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
 }
 
 // TestFile is a file sent with a test request.
@@ -54,6 +57,8 @@ type TestResponse struct {
 	Truncated   bool           `json:"truncated,omitempty"`
 	RequestID   string         `json:"request_id"`
 	Logs        []applog.Event `json:"logs" jsonschema:"server log events of this request, including script console output and errors"`
+	// Admin is set for test_request {admin}: the row after the change.
+	Admin *TestAdminResult `json:"admin,omitempty"`
 }
 
 const maxTestBody = 20000
@@ -69,6 +74,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	}
 	if in.Job != "" {
 		return p.testJob(ctx, app, stage, in.Job)
+	}
+	if in.Admin != nil {
+		return p.testAdmin(ctx, app, stage, *in.Admin)
 	}
 	method := strings.ToUpper(in.Method)
 	if method == "" {
@@ -223,6 +231,9 @@ type Patch struct {
 	Secrets         []appdef.Secret             `json:"secrets,omitempty" jsonschema:"if set, replaces the whole secret list"`
 	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept, and a calendar given here replaces the table's calendar"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
+	Lib             map[string]string           `json:"lib,omitempty" jsonschema:"lib entries (shared script code) to add or replace, by name"`
+	DeleteLib       []string                    `json:"delete_lib,omitempty"`
+	OnAdminChange   *string                     `json:"on_admin_change,omitempty" jsonschema:"if set, replaces on_admin_change; empty turns it off"`
 }
 
 // ApplyPatch merges a patch into the newest version and applies the result
@@ -252,6 +263,15 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	for k, v := range patch.Scripts {
 		def.Scripts[k] = v
 	}
+	if len(patch.Lib) > 0 && def.Lib == nil {
+		def.Lib = map[string]string{}
+	}
+	for k, v := range patch.Lib {
+		def.Lib[k] = v
+	}
+	if patch.OnAdminChange != nil {
+		def.OnAdminChange = *patch.OnAdminChange
+	}
 	var problems []string
 	for _, k := range patch.DeleteTemplates {
 		if _, ok := def.Templates[k]; !ok {
@@ -264,6 +284,12 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 			problems = append(problems, fmt.Sprintf("delete_scripts: %q does not exist", k))
 		}
 		delete(def.Scripts, k)
+	}
+	for _, k := range patch.DeleteLib {
+		if _, ok := def.Lib[k]; !ok {
+			problems = append(problems, fmt.Sprintf("delete_lib: %q does not exist", k))
+		}
+		delete(def.Lib, k)
 	}
 	if len(problems) > 0 {
 		return ApplyResult{Problems: problems}, nil

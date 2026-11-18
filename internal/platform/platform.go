@@ -124,6 +124,8 @@ type Platform struct {
 
 	suspendedAt time.Time       // when suspended was last read
 	suspended   map[string]bool // apps taken offline
+
+	adminNotices sync.Map // app + "\x00" + email -> failed on_admin_change notice
 }
 
 type stage struct {
@@ -473,12 +475,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	if _, err := p.Info(name); err != nil {
 		return ApplyResult{}, err
 	}
-	problems := def.Validate()
-	for sname, src := range def.Scripts {
-		if err := p.sb.Check(src); err != nil {
-			problems = append(problems, fmt.Sprintf("script %q: %v", sname, err))
-		}
-	}
+	problems := append(def.Validate(), p.checkScripts(def)...)
 	raw, err := json.Marshal(def)
 	if err != nil {
 		return ApplyResult{}, err

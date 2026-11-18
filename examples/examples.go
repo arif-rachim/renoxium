@@ -50,7 +50,7 @@ var all = map[string]Example{
 		"packages with starting prices, enquiries from signed-in visitors, quotes the owner writes in the admin panel (lines as JSON, 5% VAT added on top " +
 		"or included), online acceptance recorded with name and time, deposit and balance by card (payments.checkout, on_payment) or bank transfer " +
 		"the owner marks paid, a payments ledger, progress updates and messages per quote, printable receipts (UAE tax invoices once the TRN is set), " +
-		"emails to clients from a 15-minute job (admin-panel edits run no scripts), a daily summary for the owner, read-only MCP tools, " +
+		"emails to clients right after the owner changes a row in the admin panel (on_admin_change, with an hourly job retrying emails over the daily limit), shared helpers in lib, a daily summary for the owner, read-only MCP tools, " +
 		"English and Arabic (right to left). To reuse it, change the seed rows of business, packages and texts and keep the scripts: " +
 		"for an event planner or photographer, replace the packages (e.g. wedding planning, corporate event, half-day shoot) with their categories, " +
 		"set prices_include_vat to 1 when selling to private clients, adjust deposit_percent, and reword the how_* and message_hint texts " +

@@ -16,9 +16,10 @@ import (
 
 // The quote portal example works end to end. The owner's part (writing
 // quotes, marking bank transfers paid, posting updates) is done with the row
-// functions behind the admin panel, which work on live data; the client's part
-// runs on live for bank transfers and on preview, a copy of live data, for
-// simulated card payments and jobs.
+// functions behind the admin panel, which work on live data and run the
+// app's on_admin_change script (it emails the client at once); the client's
+// part runs on live for bank transfers and on preview, a copy of live data,
+// for simulated card payments, admin changes made with test_request and jobs.
 func TestQuotePortalUAEExample(t *testing.T) {
 	p := newPlatform(t)
 	ctx := context.Background()
@@ -75,9 +76,10 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 
 	// Emails are never sent from preview: they are written to the log, newest first.
-	mails := func() string {
+	// This test server has no mail service, so live logs the emails it would send.
+	stageMails := func(stage string) string {
 		t.Helper()
-		events, err := p.Logs(app, applog.Filter{Stage: "preview", Source: "email", Limit: 200})
+		events, err := p.Logs(app, applog.Filter{Stage: stage, Source: "email", Limit: 200})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -87,6 +89,8 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		}
 		return b.String()
 	}
+	mails := func() string { t.Helper(); return stageMails("preview") }
+	liveMails := func() string { t.Helper(); return stageMails("live") }
 
 	// The public pages, in two languages.
 	home := req(platform.TestRequestInput{Path: "/"})
@@ -218,6 +222,17 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	if _, err := p.AdminSave(ctx, app, "quotes", 0, map[string]string{"enquiry_id": "1", "title": "x", "status": "sent", "lines": "[{name"}, "owner@bayan.ae"); err == nil {
 		t.Fatal("invalid JSON lines were saved")
 	}
+	// on_admin_change emailed the client about each sent quote right away; the expired, broken and draft ones are not announced.
+	const unsent = "email not sent: no mail service configured: "
+	has("emails after the quotes were written", liveMails(), unsent+"Your quote #1 from Bayan Business Setup is ready", unsent+"Your quote #4 from Bayan Business Setup is ready",
+		unsent+"Your quote #5 from Bayan Business Setup is ready", unsent+"Your quote #7 from Bayan Business Setup is ready")
+	hasNot("emails after the quotes were written", liveMails(), "quote #2", "quote #3", "quote #6")
+	if logs, _ := p.Logs(app, logFilterAll()); !anyLog(logs, "on_admin_change admin_change after insert quotes #5 by owner@bayan.ae -> ok") || !anyLog(logs, "quote 3 not announced") {
+		t.Error("the admin-change runs are not in the log")
+	}
+	if q := row("quotes", 1); q["notified"] != "1" || q["valid_until"] == "" {
+		t.Fatalf("announced quote: %v", q)
+	}
 
 	// The client sees sent quotes only; a quote whose lines cannot be read shows a kind message.
 	portal := page(fatima, "/portal")
@@ -293,6 +308,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	edit("quote_payments", deposit, map[string]string{"status": "paid"})
 	q1 = page(fatima, "/quotes/1")
 	has("after the deposit", q1, "<span class=\"badge\">Deposit paid</span>", "We will ask for the balance", fmt.Sprintf(`href="/quotes/1/invoice/%d"`, deposit))
+	has("receipt email", liveMails(), unsent+"Payment received: AED 7875.00 for quote #1")
 	hasNot("after the deposit", q1, "Pay by card", "I will pay by bank transfer")
 	if q := row("quotes", 1); q["status"] != "deposit_paid" || q["paid_amount"] != "7875" {
 		t.Fatalf("stored quote after the deposit: %v", q)
@@ -302,6 +318,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 	edit("quotes", 1, map[string]string{"balance_due": "1"})
 	has("balance asked for", page(fatima, "/quotes/1"), "Due now: Balance, AED 7875.00")
+	has("balance email", liveMails(), unsent+"Balance due: AED 7875.00 for quote #1")
 	if _, loc := post(fatima, "/quotes/1/pay", url.Values{"method": {"transfer"}}); loc != "/quotes/1?done=done_transfer" {
 		t.Fatalf("balance by transfer: %s", loc)
 	}
@@ -336,6 +353,13 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	q1 = page(fatima, "/quotes/1")
 	has("updates and messages", q1, "Trade licence issued", `href="https://drive.example/licence"`, "When can I collect the licence?", "Tomorrow from 9 am.")
 	hasNot("updates", q1, "Internal note", "javascript:")
+	has("update emails", liveMails(), unsent+"Update from Bayan Business Setup: Trade licence issued")
+	hasNot("update emails", liveMails(), "Internal note")
+	// That was the tenth email to the client today: the firm's reply waits for the hourly job (below, on preview).
+	if logs, _ := p.Logs(app, logFilterAll()); !anyLog(logs, "email to client not sent: GoError: too many emails to this address today") {
+		t.Error("the daily limit per address was not reached")
+	}
+	hasNot("reply email", liveMails(), "New message from Bayan Business Setup")
 
 	if _, loc := post(fatima, "/quotes/7/decline", url.Values{"reason": {"Too expensive"}}); loc != "/quotes/7?done=done_declined" {
 		t.Fatalf("decline: %s", loc)
@@ -425,7 +449,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	has("messages", q5, "Question 20", "You sent many messages today")
 	hasNot("messages", q5, "One more")
 
-	// The 15-minute job emails clients about what the owner did in the admin panel, once.
+	// The hourly job sends what hit the daily limit, once.
 	job := func(name string) platform.TestResponse {
 		t.Helper()
 		r, err := p.TestRequest(ctx, app, platform.TestRequestInput{Job: name})
@@ -434,15 +458,13 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		}
 		return r
 	}
-	// Quote 5 is ready, two visible updates and one reply on quote 1, and two transfers were marked paid.
+	// The firm's reply on quote 1 is all that is left.
 	n := job("notify_clients")
-	if n.Body != "6 emails sent" {
+	if n.Body != "1 emails sent" {
 		t.Fatalf("notify_clients: %s\n%s", n.Body, logText(n))
 	}
-	has("emails of notify_clients", mails(), `"Your quote #5 from Bayan Business Setup is ready"`, "Total: AED 2205.00 including VAT", "/quotes/5\n",
-		`"Update from Bayan Business Setup: Trade licence issued"`, `"New message from Bayan Business Setup about quote #1"`, "Tomorrow from 9 am.",
-		`"Payment received: AED 7875.00 for quote #1"`)
-	hasNot("emails of notify_clients", mails(), "Internal note", "Old offer", "Draft offer", "quote #7", "quote #3")
+	has("emails of notify_clients", mails(), `not sent from preview: to fatima@mail.ae, "New message from Bayan Business Setup about quote #1"`, "Tomorrow from 9 am.")
+	hasNot("emails of notify_clients", mails(), "Internal note", "Old offer", "Draft offer", "quote #7", "quote #3", "Your quote #5", "Trade licence issued")
 	if logs, _ := p.Logs(app, logFilterAll()); !anyLog(logs, "quote 3 not announced") {
 		t.Error("no warning about the quote that could not be announced")
 	}
@@ -461,6 +483,27 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		t.Fatalf("daily_summary a second time: %s", again.Body)
 	}
 	has("expired quote", as(client, "GET", "/quotes/6", nil).Body, "<span class=\"badge\">Expired</span>")
+
+	// The owner's changes on preview, made with test_request: a new quote is emailed when it is set to sent.
+	admin := func(in platform.TestAdminInput) platform.TestResponse {
+		t.Helper()
+		r, err := p.TestRequest(ctx, app, platform.TestRequestInput{Admin: &in})
+		if err != nil || r.Status != 200 {
+			t.Fatalf("admin %+v: %v %+v\n%s", in, err, r, logText(r))
+		}
+		return r
+	}
+	a := admin(platform.TestAdminInput{Action: "insert", Table: "quotes", By: "owner@bayan.ae", Values: map[string]any{"enquiry_id": 1, "title": "Annual audit",
+		"status": "draft", "lines": `[{"name": "Audit of the 2025 accounts", "price": 4000}]`}})
+	if a.Body != "0 emails sent" || a.Admin.Row["notified"] != int64(0) {
+		t.Fatalf("draft quote: %s %v", a.Body, a.Admin.Row)
+	}
+	a = admin(platform.TestAdminInput{Action: "update", Table: "quotes", ID: a.Admin.ID, Values: map[string]any{"status": "sent"}})
+	if a.Body != "1 emails sent" || a.Admin.Row["notified"] != int64(1) || a.Admin.Row["title"] != "Annual audit" || !anyLog(a.Logs, "on_admin_change admin_change after update quotes") {
+		t.Fatalf("sending the quote: %s %v\n%s", a.Body, a.Admin.Row, logText(a))
+	}
+	has("quote email on preview", mails(), `not sent from preview: to fatima@mail.ae, "Your quote #8 from Bayan Business Setup is ready"`, "Total: AED 4200.00", "/quotes/8\n")
+	has("the new quote", as(client, "GET", "/quotes/8", nil).Body, "Annual audit", "AED 4200.00", "Accept quote")
 
 	// ---- Prices that include VAT, and a TRN: 2100 holds 100 VAT, and receipts become tax invoices.
 	edit("business", 1, map[string]string{"prices_include_vat": "1", "trn": "100123456700003"})

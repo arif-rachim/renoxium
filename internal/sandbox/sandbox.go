@@ -86,7 +86,12 @@ type Response struct {
 type Sandbox interface {
 	// Check reports whether src compiles and defines handle.
 	Check(src string) error
-	// Run calls handle(req) in src.
+	// CheckLib is Check with shared library code evaluated first (see Lib);
+	// with an empty src it checks only that the libraries compile, run and
+	// do not define handle.
+	CheckLib(lib []Lib, src string) error
+	// Run calls handle(req) in src. When host is a LibHost, its libraries
+	// are evaluated before src.
 	Run(ctx context.Context, src string, req Request, host Host) (Response, error)
 }
 
@@ -113,15 +118,15 @@ func NewGoja() *Goja {
 	return &Goja{Timeout: 2 * time.Second, programs: map[[32]byte]*goja.Program{}}
 }
 
-func (g *Goja) compile(src string) (*goja.Program, error) {
-	key := sha256.Sum256([]byte(src))
+func (g *Goja) compile(name, src string) (*goja.Program, error) {
+	key := sha256.Sum256([]byte(name + "\x00" + src))
 	g.mu.Lock()
 	p := g.programs[key]
 	g.mu.Unlock()
 	if p != nil {
 		return p, nil
 	}
-	p, err := goja.Compile("script", src, true)
+	p, err := goja.Compile(name, src, true)
 	if err != nil {
 		return nil, &ScriptError{Message: err.Error()}
 	}
@@ -135,16 +140,26 @@ func (g *Goja) compile(src string) (*goja.Program, error) {
 }
 
 // Check implements Sandbox.
-func (g *Goja) Check(src string) error {
-	p, err := g.compile(src)
-	if err != nil {
-		return err
-	}
+func (g *Goja) Check(src string) error { return g.CheckLib(nil, src) }
+
+// CheckLib implements Sandbox.
+func (g *Goja) CheckLib(lib []Lib, src string) error {
 	vm := goja.New()
 	stop := time.AfterFunc(g.Timeout, func() { vm.Interrupt("time limit exceeded") })
 	defer stop.Stop()
 	if g.Watch != nil {
 		defer g.Watch(func(reason string) { vm.Interrupt(reason) })()
+	}
+	installCrypto(vm)
+	if err := g.runLib(vm, lib, true); err != nil {
+		return err
+	}
+	if src == "" {
+		return nil
+	}
+	p, err := g.compile("script", src)
+	if err != nil {
+		return err
 	}
 	if _, err := vm.RunProgram(p); err != nil {
 		return &ScriptError{Message: describe(err)}
@@ -157,7 +172,11 @@ func (g *Goja) Check(src string) error {
 
 // Run implements Sandbox.
 func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Response, error) {
-	p, err := g.compile(src)
+	return g.run(ctx, libOf(host), src, req, host)
+}
+
+func (g *Goja) run(ctx context.Context, lib []Lib, src string, req Request, host Host) (Response, error) {
+	p, err := g.compile("script", src)
 	if err != nil {
 		return Response{}, err
 	}
@@ -228,7 +247,11 @@ func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Res
 		})
 	}
 	vm.Set("console", console)
+	installCrypto(vm)
 
+	if err := g.runLib(vm, lib, false); err != nil {
+		return Response{}, err
+	}
 	if _, err := vm.RunProgram(p); err != nil {
 		return Response{}, &ScriptError{Message: describe(err)}
 	}

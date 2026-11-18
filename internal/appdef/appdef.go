@@ -27,6 +27,23 @@ type App struct {
 	Secrets   []Secret                    `json:"secrets,omitempty" jsonschema:"API keys the owner enters in the admin panel; http.fetch adds them to requests without scripts ever seeing them"`
 	Jobs      []Job                       `json:"jobs,omitempty" jsonschema:"scripts run on a schedule on the live app, e.g. cancel unpaid orders every 15 minutes or send a daily report"`
 	Tools     []Tool                      `json:"tools,omitempty" jsonschema:"public MCP tools served at /mcp on the app's address, so shoppers' AI assistants (ChatGPT, Claude) can use the app; anyone can call them, without signing in"`
+	// Lib and OnAdminChange: shared script code and the admin-change hook.
+	Lib           map[string]string `json:"lib,omitempty" jsonschema:"shared server JavaScript by name (helper functions and constants used by several scripts); evaluated in name order before every script, job, tool and hook; must not define handle"`
+	OnAdminChange string            `json:"on_admin_change,omitempty" jsonschema:"script run right after the owner or staff adds, changes or deletes a row in the admin panel; req.body holds {action, table, id, row, before, by}"`
+}
+
+// MaxLibs is how many lib entries an app may have.
+const MaxLibs = 20
+
+// LibNames returns the names of the app's lib entries in the order they
+// are evaluated.
+func (a *App) LibNames() []string {
+	names := make([]string, 0, len(a.Lib))
+	for n := range a.Lib {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // Tool is a public MCP tool backed by a script. The script gets req.method
@@ -319,6 +336,19 @@ func (a *App) Validate() []string {
 	if a.OnPayment != "" {
 		if _, ok := a.Scripts[a.OnPayment]; !ok {
 			add("on_payment: script %q is not defined", a.OnPayment)
+		}
+	}
+	if a.OnAdminChange != "" {
+		if _, ok := a.Scripts[a.OnAdminChange]; !ok {
+			add("on_admin_change: script %q is not defined", a.OnAdminChange)
+		}
+	}
+	if len(a.Lib) > MaxLibs {
+		add("lib: at most %d entries; put related helpers together", MaxLibs)
+	}
+	for _, n := range a.LibNames() {
+		if !toolNameRE.MatchString(n) {
+			add("lib %q: name must match [a-z][a-z0-9_]{0,63}", n)
 		}
 	}
 	if len(a.Routes) == 0 {

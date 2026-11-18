@@ -60,6 +60,10 @@ App definition:
 - templates: Go html/template sources. Any HTML, CSS and browser JavaScript is allowed. Include templates in each other with {{template "name" .}}.
   Full pages must contain <head>. Compare numbers with eq, e.g. {{if eq .done 1}}.
 - scripts: server JavaScript defining function handle(req).
+- lib: {"<name>": "<javascript>"}: put helpers shared by several scripts in lib instead of repeating them in every script.
+  Lib entries are evaluated in name order before every script, job, tool and hook, so their functions and constants are
+  available everywhere. They must not define handle; a script must not redeclare their const/let names. Errors show lib/<name>:line.
+  Change one entry with patch_app {lib: {"<name>": "..."}}.
 - routes: {method: GET|POST, path: "/tasks/:id", template or script}. A template route gets {params, query} as data.
 - seed: rows inserted when a table is first created (sample data).
 
@@ -74,6 +78,9 @@ Exact data types in scripts:
 - db.exec(sql, ...args) returns {rowsAffected, lastInsertId} (numbers). JavaScript true and false are stored as 1 and 0.
 - Only single SELECT/INSERT/UPDATE/DELETE statements with ? placeholders. No fetch, no file system, no timers; 2 second limit; at most 200 database calls per request.
 - console.log/warn/error write to the app log.
+- crypto.randomId() returns a URL-safe random string from a secure generator (16 bytes = 22 characters; crypto.randomId(32)
+  for 8 to 64 bytes). Use it for secret links, codes and tokens, never Math.random or realtime.token.
+  crypto.sha256(text) returns lowercase hex, e.g. store only the hash of a lookup code and compare hashes.
 - Return {template: "name", data: {...}} for HTML (full page or fragment), {json: value}, {text: "..."}, or {redirect: "/path"} (303 after a POST);
   add status to change the HTTP status.
 
@@ -157,6 +164,18 @@ Scheduled jobs:
   every is at least 1m (5m on the Free plan). A new job first runs after its interval or at its next daily time.
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
 - Jobs never run on preview by themselves: test one with test_request {"job": "daily_report"}. The owner sees last and next runs on the app page.
+
+Admin changes (on_admin_change), e.g. email the client when the owner sets a quote to sent or assigns a crew:
+- Set "on_admin_change": "<script name>". It runs right after the owner or staff adds, changes or deletes a row in the admin panel,
+  with req.method "ADMIN", req.path "/_rx/admin/<table>", no visitor, and req.body = {action: "insert"|"update"|"delete", table, id,
+  row (after the change; null on delete), before (null on insert), by (the email of who made the change)}. Check table and compare
+  before with row, e.g. if (b.table === 'quotes' && b.row.status === 'sent' && (!b.before || b.before.status !== 'sent')).
+  db, email.send, notify.owner, realtime.publish and payments work as in any script. Use it instead of polling jobs for owner actions.
+- The change is already saved: if the script fails, the change stays, the error is in get_logs and the owner sees a short notice.
+  Changes the script makes itself do not run it again.
+- Test on preview with test_request {"admin": {"action": "update", "table": "quotes", "id": 3, "values": {"status": "sent"}}}:
+  it changes the preview row with the admin panel's checks (on update, columns left out keep their value; "by" sets req.body.by),
+  runs the script and returns its answer, the row after the change and the logs.
 
 Tools for shoppers' AI assistants (MCP):
 - "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
@@ -356,7 +375,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.Patch
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "patch_app",
-		Description: "Change part of the newest app definition and apply it to preview: add or replace templates and scripts by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. Returns the same result as apply_change."},
+		Description: "Change part of the newest app definition and apply it to preview: add or replace templates, scripts and lib entries by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. Returns the same result as apply_change."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in patchIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.ApplyResult{}, err
@@ -370,7 +389,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.TestRequestInput
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "test_request",
-		Description: "Send a GET or POST request to the app's preview (or a GET to live) as a visitor would, and get the status, redirect, body and the server log of that request. Use it to test forms, routes with parameters and error cases. POST changes preview data only; preview data is a throwaway copy of live."},
+		Description: "Send a GET or POST request to the app's preview (or a GET to live) as a visitor would, and get the status, redirect, body and the server log of that request. Use it to test forms, routes with parameters and error cases. POST changes preview data only; preview data is a throwaway copy of live. With admin set, it changes a preview row as the owner would in the admin panel and runs on_admin_change."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in testIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.TestResponse{}, err

@@ -46,7 +46,7 @@ func (p *Platform) emailSend(ctx context.Context, st *stage, arg any) (any, erro
 	if err := in.clean(true); err != nil {
 		return nil, err
 	}
-	if !p.allow("mail-to:"+st.app+":"+in.To, 10, 24*time.Hour) {
+	if !p.allow("mail-to:"+st.app+":"+st.name+":"+in.To, 10, 24*time.Hour) {
 		return nil, errors.New("too many emails to this address today")
 	}
 	p.sendEmail(ctx, st, email.Message{To: in.To, Subject: in.Subject, Text: in.Text, Tag: "app_email"})

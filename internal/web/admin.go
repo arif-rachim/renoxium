@@ -223,6 +223,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		"App": app, "Table": table, "Label": tableLabel(t), "Columns": cols, "Cells": cells, "IDs": ids,
 		"Total": total, "Query": q, "Page": page, "Pages": pages, "Prev": page - 1, "Next": page + 1,
 		"HasCalendar": t.Calendar != nil,
+		"Notice":      s.hookNotice(r, app),
 	})
 }
 
@@ -321,8 +322,18 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 	render(w, status, "admin_form", map[string]any{
 		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
-		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name),
+		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name), "Notice": s.hookNotice(r, app),
 	})
+}
+
+// hookNotice is the notice about a failed on_admin_change run after this
+// person's last change, shown once on the next admin page.
+func (s *Site) hookNotice(r *http.Request, app string) string {
+	u, ok := s.currentUser(r)
+	if !ok {
+		return ""
+	}
+	return s.platform.AdminNotice(app, u.Email)
 }
 
 func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {

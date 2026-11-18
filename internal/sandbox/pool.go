@@ -178,6 +178,7 @@ type message struct {
 	// run / check
 	Src string   `json:"src,omitempty"`
 	Req *Request `json:"req,omitempty"`
+	Lib []Lib    `json:"lib,omitempty"`
 	// host calls from the worker
 	Op    string `json:"op,omitempty"`
 	SQL   string `json:"sql,omitempty"`
@@ -287,14 +288,17 @@ func normalizeSlice(s []any) []any {
 
 // Check implements Sandbox. Top-level script code runs during the check, so
 // it runs in a worker too.
-func (p *Pool) Check(src string) error {
-	_, err := p.exchange(context.Background(), message{Type: "check", Src: src}, nil)
+func (p *Pool) Check(src string) error { return p.CheckLib(nil, src) }
+
+// CheckLib implements Sandbox.
+func (p *Pool) CheckLib(lib []Lib, src string) error {
+	_, err := p.exchange(context.Background(), message{Type: "check", Src: src, Lib: lib}, nil)
 	return err
 }
 
 // Run implements Sandbox.
 func (p *Pool) Run(ctx context.Context, src string, req Request, host Host) (Response, error) {
-	m, err := p.exchange(ctx, message{Type: "run", Src: src, Req: &req}, host)
+	m, err := p.exchange(ctx, message{Type: "run", Src: src, Req: &req, Lib: libOf(host)}, host)
 	if err != nil {
 		return Response{}, err
 	}
