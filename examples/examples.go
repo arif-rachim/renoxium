@@ -31,6 +31,7 @@ var all = map[string]Example{
 		"AED prices including 5% VAT, delivery fee with a free-delivery threshold, checkout with card payment (Stripe) or cash on delivery, " +
 		"orders for signed-in shoppers (email or WhatsApp sign-in), printable invoices (a UAE tax invoice once the store's TRN is set), " +
 		"discount codes, product options such as sizes with their own price and stock (variants table), English and Arabic (right to left). " +
+		"For made-to-order goods (cakes, flowers, catering) set store.preorder_days: shoppers then choose a delivery or pickup date that many days ahead. " +
 		"Change the store, products, variants, coupons and texts tables' seed rows.", JSON: storeUAE},
 	"delivery-tracking": {Name: "delivery-tracking", Description: "Live delivery tracking: the courier opens a private link on their phone and shares " +
 		"their location; the customer follows the courier on a map that moves in real time (realtime.publish and EventSource), " +
