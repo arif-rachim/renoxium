@@ -279,3 +279,35 @@ func logText(r platform.TestResponse) string {
 	}
 	return b.String()
 }
+
+func TestScriptsRedirectOnlyToTheirOwnCheckout(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "hop")
+	def := &appdef.App{
+		Templates: map[string]string{"t": "<!doctype html><html><head></head><body>ok</body></html>"},
+		Scripts: map[string]string{
+			"stripe":  `function handle(req){ return {redirect: "https://checkout.stripe.com.evil.example/c/pay/cs_forged"} }`,
+			"away":    `function handle(req){ return {redirect: "https://evil.example/"} }`,
+			"slashes": `function handle(req){ return {redirect: "//evil.example/"} }`,
+			"own":     `function handle(req){ return {redirect: "/thanks"} }`,
+			"pay":     `function handle(req){ return {redirect: payments.checkout({items: [{name: "x", price: 5}], reference: "r1", success_path: "/", cancel_path: "/"}).url} }`,
+		},
+		Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}, {Method: "POST", Path: "/stripe", Script: "stripe"},
+			{Method: "POST", Path: "/away", Script: "away"}, {Method: "POST", Path: "/slashes", Script: "slashes"},
+			{Method: "POST", Path: "/own", Script: "own"}, {Method: "POST", Path: "/pay", Script: "pay"}},
+	}
+	if res, err := p.ApplyChange(ctx, "hop", def); err != nil || !res.OK {
+		t.Fatalf("apply: %v %+v", err, res)
+	}
+	host := "hop--preview.renoxium.test"
+	for path, want := range map[string]int{"/stripe": 500, "/away": 500, "/slashes": 500, "/own": 303} {
+		if r := do(t, p, "POST", host, path, url.Values{}); r.status != want {
+			t.Errorf("%s: %d, want %d", path, r.status, want)
+		}
+	}
+	// A checkout the script just created is allowed (on preview it is the simulated one).
+	if r := do(t, p, "POST", host, "/pay", url.Values{}); r.status != 303 || !strings.HasPrefix(r.header.Get("Location"), platform.PayPrefix) {
+		t.Fatalf("pay: %d %s", r.status, r.header.Get("Location"))
+	}
+}

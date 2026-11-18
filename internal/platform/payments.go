@@ -20,9 +20,6 @@ import (
 // PayPrefix serves the simulated checkout on previews.
 const PayPrefix = "/_rx/pay/"
 
-// stripeCheckoutPrefix is the only outside address a script may redirect to.
-const stripeCheckoutPrefix = "https://checkout.stripe.com/"
-
 // Two-decimal currencies scripts may charge in.
 var currencies = map[string]bool{"aed": true, "usd": true, "eur": true, "gbp": true, "sar": true}
 
@@ -407,6 +404,10 @@ td{padding:6px 0;border-bottom:1px solid #ddd}td.r{text-align:right}button{paddi
 <form method="post"><input type="hidden" name="csrf" value="{{.csrf}}">
 <button class="pay" name="decision" value="pay">Pay (simulated)</button><button class="alt" name="decision" value="fail">Simulate a failed payment</button>
 <button class="alt" name="decision" value="cancel">Cancel</button></form></body></html>`))
+
+// stripeCheckoutPrefix is Stripe Checkout's address, where scripts may send
+// shoppers to pay.
+const stripeCheckoutPrefix = "https://checkout.stripe.com/"
 
 // HandleStripeEvent applies a verified webhook event. It returns an error
 // only for problems worth a retry by Stripe.

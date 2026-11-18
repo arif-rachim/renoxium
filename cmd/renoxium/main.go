@@ -70,7 +70,7 @@ func main() {
 	}
 	var mailer email.Sender = email.Log{}
 	if key := os.Getenv("RESEND_API_KEY"); key != "" {
-		mailer = &email.Resend{Key: key, From: *emailFrom}
+		mailer = &email.Resend{Key: key, From: *emailFrom, Endpoint: os.Getenv("RESEND_API_URL")}
 	} else {
 		slog.Warn("RESEND_API_KEY is not set: emails are written to the log instead of being sent")
 	}
@@ -86,7 +86,7 @@ func main() {
 	cfg.ScriptsPerOwner = max(1, *workers/2)
 	cfg.ScriptsPerApp = cfg.ScriptsPerOwner
 	if key := os.Getenv("STRIPE_SECRET_KEY"); key != "" {
-		cfg.Stripe = &stripe.Client{Key: key}
+		cfg.Stripe = &stripe.Client{Key: key, BaseURL: os.Getenv("STRIPE_API_BASE")}
 		mode := "live"
 		if strings.HasPrefix(key, "sk_test_") {
 			mode = "test"
@@ -96,7 +96,7 @@ func main() {
 		slog.Warn("STRIPE_SECRET_KEY is not set: live apps cannot take card payments; previews simulate checkout")
 	}
 	if token, zone := os.Getenv("CLOUDFLARE_API_TOKEN"), os.Getenv("CLOUDFLARE_ZONE_ID"); token != "" && zone != "" {
-		cfg.Cloudflare = &cloudflare.Client{Token: token, ZoneID: zone}
+		cfg.Cloudflare = &cloudflare.Client{Token: token, ZoneID: zone, BaseURL: os.Getenv("CLOUDFLARE_API_BASE")}
 		cfg.CustomDomainTarget = os.Getenv("CUSTOM_DOMAIN_TARGET")
 		slog.Info("custom domains on", "target", cfg.CustomDomainTarget)
 	}

@@ -210,8 +210,7 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		}
 		return result{status: status, contentType: "application/json", body: body}
 	case resp.Redirect != "":
-		external := strings.HasPrefix(resp.Redirect, stripeCheckoutPrefix)
-		if !external && (!strings.HasPrefix(resp.Redirect, "/") || strings.HasPrefix(resp.Redirect, "//") || strings.HasPrefix(resp.Redirect, "/\\")) {
+		if !host.mayRedirect(resp.Redirect) {
 			return failure(http.StatusInternalServerError, "script "+route.Script+": redirect must be a path starting with / on this app")
 		}
 		if resp.Status < 300 || resp.Status > 399 {
@@ -401,6 +400,28 @@ type scriptHost struct {
 	rid string
 	mu  sync.Mutex
 	n   int
+	// checkouts are the payment pages payments.checkout created during this
+	// request; with Stripe Checkout itself, the only outside addresses a
+	// script may redirect to.
+	checkouts []string
+}
+
+// mayRedirect reports whether a script may send the visitor to target.
+func (h *scriptHost) mayRedirect(target string) bool {
+	if strings.HasPrefix(target, "/") && !strings.HasPrefix(target, "//") && !strings.HasPrefix(target, "/\\") {
+		return true
+	}
+	if strings.HasPrefix(target, stripeCheckoutPrefix) {
+		return true
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, c := range h.checkouts {
+		if target == c {
+			return true
+		}
+	}
+	return false
 }
 
 const maxDBCalls = 200
@@ -445,7 +466,15 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 	}
 	switch fn {
 	case "payments.checkout":
-		return h.p.checkout(ctx, h.st, arg)
+		out, err := h.p.checkout(ctx, h.st, arg)
+		if m, ok := out.(map[string]any); ok && err == nil {
+			if u, ok := m["url"].(string); ok && !strings.HasPrefix(u, "/") {
+				h.mu.Lock()
+				h.checkouts = append(h.checkouts, u)
+				h.mu.Unlock()
+			}
+		}
+		return out, err
 	case "payments.get":
 		return h.p.paymentStatus(ctx, h.st, arg)
 	case "email.send":

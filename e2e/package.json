@@ -1,0 +1,13 @@
+{
+  "name": "renoxium-e2e",
+  "private": true,
+  "description": "End-to-end tests: a real renoxium binary against fake Stripe, Resend, Meta and Cloudflare, driven by Playwright",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@playwright/test": "1.65.1"
+  }
+}

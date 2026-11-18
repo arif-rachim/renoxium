@@ -1,2 +1,7 @@
 /data/
 /renoxium
+/e2e/node_modules/
+/e2e/test-results/
+/e2e/playwright-report/
+/e2e/.run/
+/e2e/playwright-report.log

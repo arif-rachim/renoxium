@@ -24,7 +24,7 @@ func whatsappFromEnv() *whatsapp.CloudAPI {
 	if lang == "" {
 		lang = "en"
 	}
-	return &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl, Language: lang, Version: os.Getenv("WHATSAPP_API_VERSION"),
+	return &whatsapp.CloudAPI{Token: token, PhoneNumberID: number, Template: tmpl, Language: lang, Version: os.Getenv("WHATSAPP_API_VERSION"), BaseURL: os.Getenv("WHATSAPP_API_BASE"),
 		NoticeTemplate: os.Getenv("WHATSAPP_NOTICE_TEMPLATE"), NoticeLanguage: os.Getenv("WHATSAPP_NOTICE_LANGUAGE")}
 }
 
