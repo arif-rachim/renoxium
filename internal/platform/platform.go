@@ -113,8 +113,9 @@ type Platform struct {
 	mu     sync.Mutex
 	stages map[string]*stage
 	logs   map[string]*applog.Log
-	hosts  sync.Map // host -> hostEntry
-	owners sync.Map // app -> owner
+	bg     sync.WaitGroup // work that continues after a request is answered
+	hosts  sync.Map       // host -> hostEntry
+	owners sync.Map       // app -> owner
 	// liveHosts maps an app to its active custom domain.
 	liveHosts sync.Map
 	errors    errorCounter
@@ -318,6 +319,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 
 // Close releases every open database.
 func (p *Platform) Close() {
+	p.bg.Wait()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, st := range p.stages {

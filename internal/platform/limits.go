@@ -80,3 +80,16 @@ func (p *Platform) usedBudget(key string, period time.Duration) int {
 	}
 	return 0
 }
+
+// background runs f after the current request is answered. Close waits for it.
+func (p *Platform) background(f func()) {
+	p.bg.Add(1)
+	go func() {
+		defer p.bg.Done()
+		f()
+	}()
+}
+
+// WaitBackground waits for work started by requests that were already
+// answered, such as sending an email. Tests use it.
+func (p *Platform) WaitBackground() { p.bg.Wait() }

@@ -48,6 +48,9 @@ type Site struct {
 	// apiLimiter caps, per account, pages that call Stripe or Cloudflare with
 	// the platform's keys, so one account cannot use up their rate limits.
 	apiLimiter *limiter
+	// takenLimiter counts "this email already has an account" answers per address.
+	takenLimiter *limiter
+	bg           sync.WaitGroup // emails sent after the request was answered
 	// accountLimiter caps sign-in attempts for one account from everywhere.
 	accountLimiter *limiter
 
@@ -94,7 +97,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 		host = h
 	}
 	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
-		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), apiLimiter: newLimiter(30, 10*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
+		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), takenLimiter: newLimiter(5, time.Hour), apiLimiter: newLimiter(30, 10*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
 	s.mcp = mcpserver.Handler(mcpserver.New(p, mcpserver.Options{ConfirmPublish: s.publishLink}), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
 	s.mux.HandleFunc("GET /{$}", s.home)
@@ -335,7 +338,17 @@ func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many attempts; try again later", http.StatusTooManyRequests)
 		return
 	}
+	// See platform.signup: a few "this email already has an account"
+	// answers stop sign-up from that address for an hour.
+	dupKey := "signup-taken:" + s.clientIP(r)
+	if s.takenLimiter.count(dupKey) >= s.takenLimiter.max {
+		http.Error(w, "too many attempts; try again in an hour", http.StatusTooManyRequests)
+		return
+	}
 	u, err := s.accounts.CreateUser(r.PostFormValue("email"), r.PostFormValue("password"))
+	if errors.Is(err, accounts.ErrEmailTaken) {
+		s.takenLimiter.allow(dupKey)
+	}
 	if err != nil {
 		render(w, http.StatusBadRequest, "signup", map[string]any{"CSRF": s.csrfToken(w, r), "Next": next, "Error": err.Error(), "Email": r.PostFormValue("email")})
 		return
@@ -646,6 +659,23 @@ type limiter struct {
 func newLimiter(max int, window time.Duration) *limiter {
 	return &limiter{max: max, window: window, hits: map[string][]time.Time{}}
 }
+
+// count is how many uses of key fall in the current window.
+func (l *limiter) count(key string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n := 0
+	for _, t := range l.hits[key] {
+		if time.Since(t) < l.window {
+			n++
+		}
+	}
+	return n
+}
+
+// WaitBackground waits for emails still being sent for requests that were
+// already answered. Tests use it.
+func (s *Site) WaitBackground() { s.bg.Wait() }
 
 func (l *limiter) allow(key string) bool {
 	l.mu.Lock()

@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,30 +11,51 @@ import (
 	"github.com/arif-rachim/renoxium/internal/appdef"
 )
 
-// signUpVisitor creates a visitor account on an app host and returns its
-// session cookie.
+// signUpVisitor creates a visitor account as a browser would and returns
+// the session cookie of the app's host: the app's host sends the browser
+// to the sign-in host, the form is posted there, and the finished sign-up
+// comes back to the app's host through /_rx/auth/callback.
 func (e *env) signUpVisitor(host, addr, name string) *http.Cookie {
 	e.t.Helper()
-	w := e.appGet(host, "/_rx/auth/signup")
-	csrf := csrfRE.FindStringSubmatch(w.Body.String())[1]
-	var csrfCookie *http.Cookie
-	for _, c := range w.Result().Cookies() {
-		if c.Name == "__Host-rx_csrf" {
-			csrfCookie = c
+	send := func(method, target string, form url.Values, cookies []*http.Cookie) *httptest.ResponseRecorder {
+		var body io.Reader
+		if form != nil {
+			body = strings.NewReader(form.Encode())
 		}
+		r := httptest.NewRequest(method, target, body)
+		if form != nil {
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		for _, c := range cookies {
+			r.AddCookie(c)
+		}
+		rec := httptest.NewRecorder()
+		e.p.ServeApp(rec, r)
+		return rec
 	}
-	form := url.Values{"csrf": {csrf}, "email": {addr}, "name": {name}, "password": {"visitor password"}}
-	r := httptest.NewRequest("POST", "http://"+host+"/_rx/auth/signup", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	r.AddCookie(csrfCookie)
-	rec := httptest.NewRecorder()
-	e.p.ServeApp(rec, r)
+	start := send("GET", "http://"+host+"/_rx/auth/signup", nil, nil)
+	signIn, err := url.Parse(start.Header().Get("Location"))
+	if err != nil || start.Code != 303 || !strings.Contains(signIn.Host, "--id.") {
+		e.t.Fatalf("start of sign-up: %d %s", start.Code, start.Header().Get("Location"))
+	}
+	page := send("GET", "http://"+signIn.Host+signIn.RequestURI(), nil, nil)
+	m := csrfRE.FindStringSubmatch(page.Body.String())
+	if m == nil {
+		e.t.Fatalf("sign-up page: %d %s", page.Code, page.Body.String())
+	}
+	form := url.Values{"csrf": {m[1]}, "email": {addr}, "name": {name}, "password": {"visitor password"}}
+	done := send("POST", "http://"+signIn.Host+"/_rx/auth/signup", form, page.Result().Cookies())
+	back, err := url.Parse(done.Header().Get("Location"))
+	if err != nil || done.Code != 303 || back.Host != host {
+		e.t.Fatalf("signup %s: %d %s", addr, done.Code, done.Body.String())
+	}
+	rec := send("GET", "http://"+host+back.RequestURI(), nil, start.Result().Cookies())
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == "__Host-rx_session" {
+		if c.Name == "__Host-rx_session" && c.MaxAge >= 0 {
 			return c
 		}
 	}
-	e.t.Fatalf("signup %s: %d %s", addr, rec.Code, rec.Body.String())
+	e.t.Fatalf("callback for %s: %d %s", addr, rec.Code, rec.Body.String())
 	return nil
 }
 

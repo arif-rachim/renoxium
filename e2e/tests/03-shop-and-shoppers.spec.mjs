@@ -3,7 +3,7 @@
 // cash-on-delivery orders with their emails, the invoice, the badge, the
 // shop's own MCP for shoppers' AI assistants, and the preview's simulated checkout.
 import { test, expect } from '@playwright/test';
-import { appURL } from '../env.mjs';
+import { appURL, idURL } from '../env.mjs';
 import { person, ownerWithStore, email, waitEmail, waitWhatsApp, linkIn, mcp, fake } from '../lib.mjs';
 
 let shop; // one shop for the whole file
@@ -66,12 +66,18 @@ test('visitor accounts: sign-up, confirm, sign-out, sign-in, password reset', as
   const address = await visitorSignUp(page, shop.live, { next: '/' });
   const confirm = await waitEmail(address, /Confirm your email/, { after: t });
   expect(confirm.from).toContain(`${shop.app} via Renoxium`); // sent in the app's name
-  await page.goto(linkIn(confirm, shop.live));
+  // Links in emails open the platform's sign-in host, not the app.
+  await page.goto(linkIn(confirm, idURL(shop.app)));
   await expect(page.locator('body')).toContainText(/confirmed/i);
 
   await page.goto(shop.live + '/_rx/auth/logout');
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await page.goto(shop.live + '/_rx/auth/login');
+  // The app's sign-in address leads to the sign-in host: a page of the platform's own that allows no
+  // scripts, so nothing the shop's owner wrote runs where the password is typed.
+  const signIn = await page.goto(shop.live + '/_rx/auth/login');
+  expect(page.url().startsWith(idURL(shop.app) + '/_rx/auth/login')).toBeTruthy();
+  expect(signIn.headers()['content-security-policy']).toContain("default-src 'none'");
+  await expect(page.locator('body')).toContainText(`You are signing in to ${shop.app}`);
   await page.fill('#email', address);
   await page.fill('#password', 'wrong password 1');
   await page.getByRole('button', { name: 'Sign in' }).click();
@@ -82,7 +88,7 @@ test('visitor accounts: sign-up, confirm, sign-out, sign-in, password reset', as
   await page.fill('#email', address);
   await page.getByRole('button', { name: 'Send me a link' }).click();
   const reset = await waitEmail(address, /Reset your password/, { after: t2 });
-  await page.goto(linkIn(reset, shop.live));
+  await page.goto(linkIn(reset, idURL(shop.app)));
   await page.fill('#password', 'new shopper password');
   await page.getByRole('button', { name: 'Save and sign in' }).click();
   await page.goto(shop.live + '/orders');

@@ -202,9 +202,5 @@ func (p *Platform) verifyPhoneCode(w http.ResponseWriter, r *http.Request, st *s
 		id, _ = res.LastInsertId()
 		p.event(st, "auth", "info", "", fmt.Sprintf("visitor #%d signed up with WhatsApp", id))
 	}
-	if err := p.startVisitorSession(ctx, w, st, id); err != nil {
-		http.Error(w, "could not sign you in", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
+	p.finishAuth(w, r, st, id, next)
 }

@@ -380,6 +380,10 @@ var platformTables = []string{
 		customer_email TEXT NOT NULL DEFAULT '', customer_name TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`,
 	`CREATE INDEX IF NOT EXISTS rx_payments_reference ON rx_payments (reference)`,
+	// One-time codes that carry a finished sign-in from the platform's
+	// sign-in host to the app's host (see platform/idhost.go).
+	`CREATE TABLE IF NOT EXISTS rx_auth_codes (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES rx_users(id) ON DELETE CASCADE,
+		state_hash TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
 	`CREATE TABLE IF NOT EXISTS rx_phone_codes (phone TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
 		attempts INTEGER NOT NULL DEFAULT 0)`,
 }
@@ -525,6 +529,7 @@ func ScrubForExport(path string) error {
 		`DELETE FROM rx_sessions`,
 		`DELETE FROM rx_email_tokens`,
 		`DELETE FROM rx_phone_codes`,
+		`DELETE FROM rx_auth_codes`,
 		`VACUUM`, // deleted rows must not stay readable in free pages
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "no such table") {

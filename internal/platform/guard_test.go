@@ -269,9 +269,9 @@ func TestPhoneCodeGuessesAreLimitedPerNumber(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			form := url.Values{"csrf": {csrf}, "phone": {phone}, "code": {bad}}
-			r := httptest.NewRequest("POST", "http://club.renoxium.test/_rx/auth/phone/verify", strings.NewReader(form.Encode()))
+			r := httptest.NewRequest("POST", "http://"+v.idHost()+"/_rx/auth/phone/verify", strings.NewReader(form.Encode()))
 			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			for _, c := range v.cookies {
+			for _, c := range v.jar(v.idHost()) {
 				r.AddCookie(c)
 			}
 			p.ServeApp(httptest.NewRecorder(), r)
@@ -356,15 +356,15 @@ func TestStrangersCannotLockAVisitorOut(t *testing.T) {
 		w := v.do("GET", "/_rx/auth/login", nil)
 		csrf := csrfField.FindStringSubmatch(w.Body.String())[1]
 		form := url.Values{"csrf": {csrf}, "email": {"huda@club.ae"}, "password": {password}}
-		r := httptest.NewRequest("POST", "http://"+host+"/_rx/auth/login", strings.NewReader(form.Encode()))
+		r := httptest.NewRequest("POST", "http://"+v.idHost()+"/_rx/auth/login", strings.NewReader(form.Encode()))
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		r.RemoteAddr = ip + ":4000"
-		for _, c := range v.cookies {
+		for _, c := range v.jar(v.idHost()) {
 			r.AddCookie(c)
 		}
 		rec := httptest.NewRecorder()
 		p.ServeApp(rec, r)
-		return rec.Code
+		return rec.Code // 303 is the hand-over to the app's host
 	}
 	for i := 0; i < 12; i++ {
 		login("203.0.113.66", "guess number "+fmt.Sprint(i))

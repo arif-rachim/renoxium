@@ -59,6 +59,7 @@ func newEnv(t *testing.T) *env {
 	ws := web.New(srv.URL, acc, p)
 	mb := &mailbox{}
 	ws.Mailer = mb
+	mb.wait = ws.WaitBackground
 	ws.StripeWebhookSecret = "whsec_test"
 	ws.AbuseEmail = "abuse@renoxium.test"
 	site = ws
@@ -755,3 +756,32 @@ type sickMonitor struct{}
 
 func (sickMonitor) Healthy() error         { return errors.New("disk almost full: 1.2% free") }
 func (sickMonitor) Status() monitor.Status { return monitor.Status{} }
+
+// Sign-up on the site has to say when an address is taken; after a few
+// such answers it stops for that visitor address, whatever they try, so
+// the form is no way to test a list of addresses.
+func TestSignupDoesNotListAccounts(t *testing.T) {
+	e := newEnv(t)
+	e.signup(e.browser(), "known@example.com")
+	try := func(addr string) int {
+		c := e.browser()
+		token := e.csrf(c, "/signup")
+		r, err := c.PostForm(e.base+"/signup", url.Values{"csrf": {token}, "email": {addr}, "password": {"correct horse battery"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		read(t, r)
+		return r.StatusCode
+	}
+	for i := 0; i < 5; i++ {
+		if c := try("known@example.com"); c != 400 {
+			t.Fatalf("taken address, try %d: %d", i, c)
+		}
+	}
+	if c := try("known@example.com"); c != 429 {
+		t.Fatalf("sixth try with a taken address: %d", c)
+	}
+	if c := try("free@example.com"); c != 429 {
+		t.Fatalf("a free address after the limit told it apart from a taken one: %d", c)
+	}
+}

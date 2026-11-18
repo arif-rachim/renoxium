@@ -90,7 +90,18 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	default:
 		body = bytes.NewReader(nil)
 	}
-	req := httptest.NewRequestWithContext(ctx, method, "http://"+p.host(app, stage)+in.Path, body)
+	// Sign-in pages live on the stage's sign-in host; a test request goes
+	// straight there, as a visitor's browser would after the redirect.
+	host := p.host(app, stage)
+	authPath := strings.SplitN(in.Path, "?", 2)[0]
+	signIn := strings.HasPrefix(authPath, AuthPrefix) && authPath != AuthPrefix+"callback" && authPath != AuthPrefix+"logout"
+	if signIn {
+		host = p.idHost(app, stage)
+	}
+	req := httptest.NewRequestWithContext(ctx, method, "http://"+host+in.Path, body)
+	if signIn {
+		req.AddCookie(&http.Cookie{Name: p.cookieName(authFlowCookie), Value: secretToken()})
+	}
 	if ctype != "" {
 		req.Header.Set("Content-Type", ctype)
 	}

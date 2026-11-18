@@ -20,6 +20,7 @@ import (
 type outbox struct {
 	mu   sync.Mutex
 	sent []email.Message
+	wait func() // waits for emails still being sent, when set
 }
 
 func (o *outbox) Send(_ context.Context, m email.Message) error {
@@ -31,6 +32,9 @@ func (o *outbox) Send(_ context.Context, m email.Message) error {
 
 func (o *outbox) last(t *testing.T, tag string) email.Message {
 	t.Helper()
+	if o.wait != nil {
+		o.wait() // reset emails are sent after the request was answered
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	for i := len(o.sent) - 1; i >= 0; i-- {
@@ -42,49 +46,94 @@ func (o *outbox) last(t *testing.T, tag string) email.Message {
 	return email.Message{}
 }
 
-// visitorBrowser keeps cookies per host, like a browser.
+// visitorBrowser keeps cookies per host and follows redirects from one
+// host to another, like a browser. Sign-in pages live on the stage's
+// sign-in host (<app>--id), so a visit to /_rx/auth/login on the app's host
+// ends on that host, and a finished sign-in comes back to the app's host.
 type visitorBrowser struct {
 	t       *testing.T
 	p       *platform.Platform
 	host    string
-	cookies map[string]*http.Cookie
-	ip      string // client address; empty uses httptest's default
+	cookies map[string]*http.Cookie            // of the app's own host
+	other   map[string]map[string]*http.Cookie // of other hosts
+	ip      string                             // client address; empty uses httptest's default
 }
 
 func newVisitor(t *testing.T, p *platform.Platform, host string) *visitorBrowser {
-	return &visitorBrowser{t: t, p: p, host: host, cookies: map[string]*http.Cookie{}}
+	return &visitorBrowser{t: t, p: p, host: host, cookies: map[string]*http.Cookie{}, other: map[string]map[string]*http.Cookie{}}
 }
 
+// idHost is the sign-in host of the browser's app host.
+func (b *visitorBrowser) idHost() string {
+	label, rest, _ := strings.Cut(b.host, ".")
+	return label + "--id." + rest
+}
+
+func (b *visitorBrowser) jar(host string) map[string]*http.Cookie {
+	if host == b.host {
+		return b.cookies
+	}
+	if b.other[host] == nil {
+		b.other[host] = map[string]*http.Cookie{}
+	}
+	return b.other[host]
+}
+
+func signInPage(path string) bool {
+	p, _, _ := strings.Cut(path, "?")
+	return strings.HasPrefix(p, "/_rx/auth/") && p != "/_rx/auth/callback" && p != "/_rx/auth/logout"
+}
+
+// do sends a request to the app's host and follows redirects to another
+// host. A form of a sign-in page is posted where that page is shown: on
+// the sign-in host.
 func (b *visitorBrowser) do(method, path string, form url.Values) *httptest.ResponseRecorder {
 	b.t.Helper()
-	var body *strings.Reader
-	if form != nil {
-		body = strings.NewReader(form.Encode())
-	} else {
-		body = strings.NewReader("")
+	host := b.host
+	if u, err := url.Parse(path); err == nil && u.Host != "" { // a whole link, as in an email
+		host, path = u.Host, u.RequestURI()
+	} else if method == "POST" && signInPage(path) {
+		host = b.idHost()
 	}
-	r := httptest.NewRequest(method, "http://"+b.host+path, body)
-	if form != nil {
-		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	}
-	for _, c := range b.cookies {
-		r.AddCookie(c)
-	}
-	if b.ip != "" {
-		r.RemoteAddr = b.ip + ":1234"
-	}
-	w := httptest.NewRecorder()
-	if !b.p.ServeApp(w, r) {
-		b.t.Fatalf("%s is not an app host", b.host)
-	}
-	for _, c := range w.Result().Cookies() {
-		if c.MaxAge < 0 {
-			delete(b.cookies, c.Name)
+	return b.doAt(host, method, path, form)
+}
+
+func (b *visitorBrowser) doAt(host, method, path string, form url.Values) *httptest.ResponseRecorder {
+	b.t.Helper()
+	for hop := 0; ; hop++ {
+		var body *strings.Reader
+		if form != nil {
+			body = strings.NewReader(form.Encode())
 		} else {
-			b.cookies[c.Name] = c
+			body = strings.NewReader("")
 		}
+		r := httptest.NewRequest(method, "http://"+host+path, body)
+		if form != nil {
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		for _, c := range b.jar(host) {
+			r.AddCookie(c)
+		}
+		if b.ip != "" {
+			r.RemoteAddr = b.ip + ":1234"
+		}
+		w := httptest.NewRecorder()
+		if !b.p.ServeApp(w, r) {
+			b.t.Fatalf("%s is not an app host", host)
+		}
+		for _, c := range w.Result().Cookies() {
+			if c.MaxAge < 0 {
+				delete(b.jar(host), c.Name)
+			} else {
+				b.jar(host)[c.Name] = c
+			}
+		}
+		loc, err := url.Parse(w.Header().Get("Location"))
+		if w.Code/100 != 3 || err != nil || loc.Host == "" || loc.Host == host || hop == 5 {
+			return w
+		}
+		host, method, path, form = loc.Host, "GET", loc.RequestURI(), nil
 	}
-	return w
 }
 
 var csrfField = regexp.MustCompile(`name="csrf" value="([^"]+)"`)
@@ -131,6 +180,7 @@ func newAuthPlatform(t *testing.T) (*platform.Platform, *outbox) {
 		t.Fatal(err)
 	}
 	t.Cleanup(p.Close)
+	box.wait = p.WaitBackground
 	return p, box
 }
 
@@ -187,7 +237,8 @@ func TestVisitorAccounts(t *testing.T) {
 		t.Fatalf("verify email: %+v", msg)
 	}
 	link := tokenLink.FindString(msg.Text)
-	if !strings.HasPrefix(link, "https://club.renoxium.test/_rx/auth/verify?token=") {
+	// Links in emails go to the sign-in host, which only the platform serves.
+	if !strings.HasPrefix(link, "https://club--id.renoxium.test/_rx/auth/verify?token=") {
 		t.Fatalf("link: %s", link)
 	}
 	if w := v.do("GET", strings.TrimPrefix(link, "https://"+host), nil); w.Code != 200 || !strings.Contains(w.Body.String(), "confirmed") {
@@ -212,9 +263,19 @@ func TestVisitorAccounts(t *testing.T) {
 	if w := v.submit("/_rx/auth/login", "/_rx/auth/login", url.Values{"email": {"salma@mail.ae"}, "password": {"wrong password"}}); w.Code != 401 {
 		t.Fatalf("wrong password: %d", w.Code)
 	}
-	// The app's own auth_login template is used.
-	if w := v.do("GET", "/_rx/auth/login", nil); !strings.Contains(w.Body.String(), "Members sign in") {
-		t.Fatal("custom login page not used")
+	// The sign-in page is the platform's own, on the sign-in host, with no
+	// scripts allowed: the app's auth_login template is not used, so nothing
+	// the app's owner wrote runs where visitors type their password.
+	if w := v.do("GET", "/_rx/auth/login", nil); w.Code != 200 || strings.Contains(w.Body.String(), "Members sign in") ||
+		!strings.Contains(w.Body.String(), "You are signing in to <strong>club</strong>") ||
+		!strings.Contains(w.Header().Get("Content-Security-Policy"), "default-src 'none'") || w.Header().Get("X-Frame-Options") != "DENY" {
+		t.Fatalf("sign-in page: %d %v %s", w.Code, w.Header(), w.Body.String())
+	}
+	// The app's host serves no sign-in page itself, and what is posted to it
+	// (by a page the owner wrote, say) is not read: it only redirects.
+	if w := v.doAt(host, "POST", "/_rx/auth/login", url.Values{"email": {"salma@mail.ae"}, "password": {"salma's password"}}); w.Code != 200 ||
+		!strings.Contains(w.Body.String(), "<h1>Sign in</h1>") || v.cookies["__Host-rx_session"] != nil {
+		t.Fatalf("a password posted to the app's host: %d", w.Code)
 	}
 	if w := v.submit("/_rx/auth/login", "/_rx/auth/login", url.Values{"email": {"salma@mail.ae"}, "password": {"salma's password"}, "next": {"//evil.example/x"}}); w.Code != 303 || w.Header().Get("Location") != "/" {
 		t.Fatalf("login with foreign next: %d %s", w.Code, w.Header().Get("Location"))
@@ -240,6 +301,9 @@ func TestVisitorAccounts(t *testing.T) {
 	resetLink := strings.TrimPrefix(tokenLink.FindString(box.last(t, "visitor_reset").Text), "https://"+host)
 	token := strings.SplitN(resetLink, "token=", 2)[1]
 	tok, _ := url.QueryUnescape(token)
+	// This browser asked for the reset from the app, so it is signed in
+	// when the password is saved. (A browser that only opens the emailed
+	// link is sent to sign in: see TestSignInHandOver.)
 	if w := r.submit(resetLink, "/_rx/auth/reset", url.Values{"token": {tok}, "password": {"a new salma password"}}); w.Code != 303 {
 		t.Fatalf("reset: %d %s", w.Code, w.Body.String())
 	}
@@ -266,7 +330,7 @@ func TestPreviewEmailsGoToTheLog(t *testing.T) {
 		t.Fatalf("preview sent %d emails", len(box.sent))
 	}
 	logs, _ := p.Logs("club", applog.Filter{Source: "email"})
-	if len(logs) != 1 || !strings.Contains(logs[0].Message, "not sent from preview") || !strings.Contains(logs[0].Message, "https://club--preview.renoxium.test/_rx/auth/verify?token=") {
+	if len(logs) != 1 || !strings.Contains(logs[0].Message, "not sent from preview") || !strings.Contains(logs[0].Message, "https://club--preview--id.renoxium.test/_rx/auth/verify?token=") {
 		t.Fatalf("logs: %+v", logs)
 	}
 

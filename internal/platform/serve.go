@@ -26,8 +26,12 @@ const maxBody = 1 << 20
 // does not belong to any app.
 func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	app, stageName, ok := p.Resolve(r.Host)
+	signIn := false // the request is for the stage's sign-in host
 	if !ok {
-		return false
+		if app, stageName, ok = p.resolveID(r.Host); !ok {
+			return false
+		}
+		signIn = true
 	}
 	if p.cfg.PublicScheme == "https" {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
@@ -45,7 +49,7 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	if stageName == Preview && !p.guardPreview(w, r, app) {
 		return true
 	}
-	if strings.HasPrefix(r.URL.Path, FilesPrefix) {
+	if strings.HasPrefix(r.URL.Path, FilesPrefix) && !signIn {
 		p.serveFile(w, r, app)
 		return true
 	}
@@ -60,12 +64,22 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprint(w, "<!doctype html><title>Not published</title><p>This app has not been published yet.</p>")
 		return true
 	}
+	if signIn {
+		// Only the platform's sign-in pages: nothing of the app runs here.
+		if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)
+			return true
+		}
+		p.serveID(w, r, st)
+		return true
+	}
 	if r.URL.Path == "/_rx/log" {
 		p.browserLog(w, r, st)
 		return true
 	}
 	if strings.HasPrefix(r.URL.Path, AuthPrefix) {
-		p.serveAuth(w, r, st)
+		p.serveAuthApp(w, r, st)
 		return true
 	}
 	if strings.HasPrefix(r.URL.Path, PayPrefix) {
