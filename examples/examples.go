@@ -16,6 +16,8 @@ var (
 	deliveryTracking []byte
 	//go:embed store-uae.json
 	storeUAE []byte
+	//go:embed home-service-uae.json
+	homeServiceUAE []byte
 	//go:embed reservation-uae.json
 	reservationUAE []byte
 	//go:embed booking-uae.json
@@ -65,6 +67,13 @@ var all = map[string]Example{
 	"delivery-tracking": {Name: "delivery-tracking", Description: "Live delivery tracking: the courier opens a private link on their phone and shares " +
 		"their location; the customer follows the courier on a map that moves in real time (realtime.publish and EventSource), " +
 		"and the owner is told when it is delivered. Deliveries, tracking codes and courier keys are managed in the admin panel.", JSON: deliveryTracking},
+	"home-service-uae": {Name: "home-service-uae", Description: "A complete booking and dispatch site for a UAE home-service company, ready to customise for cleaning, " +
+		"AC servicing, pest control, handyman, movers or laundry pickup: services priced per hour, per unit or fixed, areas served with surcharges, " +
+		"date and arrival-window picker with a limited number of crews per window, AED prices including 5% VAT, card payment (Stripe) or cash on completion, " +
+		"weekly and 2-weekly repeat visits booked by a daily job, bookings for signed-in customers with live status and the crew on a map, " +
+		"a private phone page for each crew (on the way, arrived, completed, cash collected), cancellation before a cut-off, printable receipts " +
+		"(a UAE tax invoice once the TRN is set), email confirmations and reminders, owner notices, tools for customers' AI assistants, " +
+		"English and Arabic (right to left). Change the business, services, zones, crews and texts tables' seed rows.", JSON: homeServiceUAE},
 	"listings-uae": {Name: "listings-uae", Description: "A property listings and lead-capture site for a UAE real-estate brokerage or agent, ready to customise " +
 		"(no online payments): search by sale or rent, type, community, bedrooms and price with sorting and pages, listing pages with gallery, " +
 		"AED prices, agent card with call and WhatsApp buttons, and forms to request a viewing or ask a question; leads go to the owner by " +
