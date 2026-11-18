@@ -40,6 +40,7 @@ Working today:
 
 - Owners can get `notify.owner` notices and card payments on WhatsApp (a Utility template), after confirming their number with a code; notices count towards the monthly WhatsApp messages.
 - Images resize on request (`?w=480`), and the admin panel shows table and column labels, help text and drop-down options from the app definition.
+- Calendar view: a table with `calendar` metadata (`{date, start, end | duration, end_date, group, group_table, title, status, hide_status}`) gets a Calendar tab in the admin panel next to its list: a day view with lanes by group (staff, crew, item; `<stem>_id` columns show the name from the `<stem>`/`<stem>s` table) along a time axis, and a week view with multi-day ranges spanning days. Dates are local strings as stored, "today" is Asia/Dubai, at most 500 items per view, hidden statuses can be shown, items open the row form and return to the same view; on phones each lane is a plain list. The booking, home-service and reservation templates use it.
 
 - Monitoring: every 5 minutes the server checks disk space, backup age (stamps written by `backup.sh`) and error spikes, emails the operators, and shows the state on `/operator`; owners get an email on their live app's first error, then at most daily. `/healthz` answers 503 when the disk is almost full.
 - The store template has product options (sizes, colours) with their own price and stock.

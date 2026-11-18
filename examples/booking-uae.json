@@ -285,6 +285,7 @@
     {
       "name": "bookings",
       "label": "Bookings and enrolments",
+      "calendar": {"date": "date", "start": "time", "end": "end_time", "group": "staff_id", "title": ["customer_name", "item"], "status": "status", "hide_status": ["cancelled", "failed", "expired"]},
       "columns": [
         {
           "name": "user_id",

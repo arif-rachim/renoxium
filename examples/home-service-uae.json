@@ -258,6 +258,7 @@
     {
       "name": "bookings",
       "label": "Bookings",
+      "calendar": {"date": "date", "start": "slot", "end": "slot_end", "group": "crew_id", "title": ["customer_name", "service", "zone"], "status": "status", "hide_status": ["cancelled", "failed", "expired"]},
       "columns": [
         {
           "name": "user_id",

@@ -318,6 +318,7 @@
     {
       "name": "reservations",
       "label": "Reservations",
+      "calendar": {"date": "start_date", "end_date": "end_date", "start": "time", "group": "item_id", "title": ["customer_name", "item_name"], "status": "status", "hide_status": ["cancelled", "failed", "expired"]},
       "columns": [
         {
           "name": "user_id",

@@ -763,6 +763,7 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "bottom"}}{{end}}
 
 {{define "admin_list"}}{{template "wide" .Label}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
+{{if .HasCalendar}}<p style="display:flex;gap:16px"><strong>List</strong><a href="/apps/{{.App}}/t/{{.Table}}/calendar">Calendar</a></p>{{end}}
 <div class="bar"><h1 style="margin:0">{{.Label}} <span class="muted">({{.Total}})</span></h1>
 <form method="get"><input name="q" value="{{.Query}}" placeholder="Search" aria-label="Search"><button class="secondary">Search</button></form>
 <a class="button" href="/apps/{{.App}}/t/{{.Table}}/new">Add</a></div>
@@ -922,11 +923,11 @@ your app can send it data, including your customers' details.</p>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nobody matches "{{.Query}}".{{else}}No visitor accounts yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
 
-{{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a></p>
+{{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>
 <form class="card" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>
 {{if .Saved}}<p class="ok">Saved.</p>{{end}}{{if .HasErrors}}<p class="error">Check the highlighted fields.{{with .Error}} {{.}}{{end}}</p>{{end}}
 {{with .Created}}<p class="muted">Created {{.}}</p>{{end}}
-<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}
 {{range .Fields}}{{if eq .Input "checkbox"}}<label class="check"><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
 {{else}}<label for="f-{{.Name}}">{{.Label}}{{if .Required}} *{{end}}</label>
 {{if eq .Input "image"}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">
@@ -937,7 +938,7 @@ your app can send it data, including your customers' details.</p>
 {{else}}<input id="f-{{.Name}}" name="{{.Name}}" type="{{.Input}}" value="{{.Value}}"{{if eq .Type "real"}} step="any"{{end}}{{if eq .Type "integer"}} step="1"{{end}}{{if .Required}} required{{end}}>{{end}}{{end}}
 {{with .Help}}<p class="muted help">{{.}}</p>{{end}}{{with .Error}}<p class="field-error">{{.}}</p>{{end}}{{end}}
 <button>Save</button></form>
-{{if .ID}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
+{{if .ID}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
 {{template "bottom"}}{{end}}
 
 {{define "connect"}}{{template "wide" "Connect"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>

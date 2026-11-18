@@ -178,7 +178,7 @@ type Patch struct {
 	Jobs            []appdef.Job                `json:"jobs,omitempty" jsonschema:"if set, replaces the whole job list"`
 	Hosts           []appdef.Host               `json:"hosts,omitempty" jsonschema:"if set, replaces the whole host list"`
 	Secrets         []appdef.Secret             `json:"secrets,omitempty" jsonschema:"if set, replaces the whole secret list"`
-	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept"`
+	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept, and a calendar given here replaces the table's calendar"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
 }
 
@@ -247,6 +247,9 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 				continue
 			}
 			merged = true
+			if t.Calendar != nil {
+				def.Tables[i].Calendar = t.Calendar
+			}
 			for _, c := range t.Columns {
 				exists := false
 				for _, old := range def.Tables[i].Columns {

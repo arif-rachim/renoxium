@@ -20,6 +20,7 @@ import (
 func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}", s.adminApp)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}", s.adminList)
+	s.mux.HandleFunc("GET /apps/{app}/t/{table}/calendar", s.adminCalendar)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/new", s.adminForm)
 	s.mux.HandleFunc("POST /apps/{app}/t/{table}/new", s.adminSave)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/{id}", s.adminForm)
@@ -216,6 +217,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 	render(w, http.StatusOK, "admin_list", map[string]any{
 		"App": app, "Table": table, "Label": tableLabel(t), "Columns": cols, "Cells": cells, "IDs": ids,
 		"Total": total, "Query": q, "Page": page, "Pages": pages, "Prev": page - 1, "Next": page + 1,
+		"HasCalendar": t.Calendar != nil,
 	})
 }
 
@@ -308,7 +310,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 	render(w, status, "admin_form", map[string]any{
 		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
-		"HasImage": hasImage, "LiveURL": liveURL,
+		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name),
 	})
 }
 
@@ -386,7 +388,11 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		serverError(w, err)
 	default:
-		http.Redirect(w, r, fmt.Sprintf("/apps/%s/t/%s/%d?saved=1", app, table, newID), http.StatusSeeOther)
+		next := fmt.Sprintf("/apps/%s/t/%s/%d?saved=1", app, table, newID)
+		if back := calendarBack(r, app, table); back != "" {
+			next += "&back=" + url.QueryEscape(back)
+		}
+		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
 }
 
@@ -413,7 +419,11 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 		render(w, http.StatusConflict, "error", map[string]any{"Message": "Could not delete: " + err.Error()})
 		return
 	}
-	http.Redirect(w, r, "/apps/"+app+"/t/"+table, http.StatusSeeOther)
+	next := "/apps/" + app + "/t/" + table
+	if back := calendarBack(r, app, table); back != "" {
+		next = back
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (s *Site) adminVisitors(w http.ResponseWriter, r *http.Request) {

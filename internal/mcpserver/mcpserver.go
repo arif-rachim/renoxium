@@ -52,6 +52,11 @@ App definition:
   Column types: text, integer, real, boolean, datetime, json, image. Schema changes are additive: add tables and columns, never rename or drop.
   For the owner's admin panel, give tables and columns a "label" (e.g. "Customer name"), add "help" where a field needs explaining,
   and give text columns with fixed values "options" (e.g. order status) so the owner picks from a drop-down. These never change the database.
+  Give a bookings table a "calendar" so the owner sees a day and week schedule next to the list, e.g. "calendar": {"date": "date",
+  "start": "time", "end": "end_time" (or "duration": "duration_min"), "group": "staff_id", "title": ["customer_name", "service"],
+  "status": "status", "hide_status": ["cancelled"]}. date holds YYYY-MM-DD (UAE local), start and end HH:MM; "end_date" makes
+  multi-day ranges (rentals); group splits the day into lanes, and an integer <stem>_id column shows names from the <stem> or <stem>s
+  table (or set "group_table"). Only date is required.
 - templates: Go html/template sources. Any HTML, CSS and browser JavaScript is allowed. Include templates in each other with {{template "name" .}}.
   Full pages must contain <head>. Compare numbers with eq, e.g. {{if eq .done 1}}.
 - scripts: server JavaScript defining function handle(req).

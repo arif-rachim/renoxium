@@ -101,6 +101,8 @@ type Table struct {
 	Name    string   `json:"name"`
 	Label   string   `json:"label,omitempty" jsonschema:"name shown to the owner in the admin panel, e.g. Orders; defaults to the table name"`
 	Columns []Column `json:"columns"`
+	// Calendar adds a day and week schedule of the table to the admin panel.
+	Calendar *Calendar `json:"calendar,omitempty" jsonschema:"show this table to the owner as a day and week schedule too, e.g. bookings by staff"`
 }
 
 // Column is a table column. Type is one of text, integer, real, boolean,
@@ -192,6 +194,7 @@ func (a *App) Validate() []string {
 			}
 		}
 	}
+	p = append(p, a.validateCalendars()...)
 	for name, rows := range a.Seed {
 		if !tables[name] {
 			add("seed: table %q is not defined", name)
