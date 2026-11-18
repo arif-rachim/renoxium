@@ -172,7 +172,7 @@ type column struct {
 }
 
 func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.member(w, r)
+	u, app, ok := s.member(w, r)
 	if !ok {
 		return
 	}
@@ -200,6 +200,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		cols = append(cols, column{Name: c.Name, Label: columnLabel(c)})
 	}
 	cols = append(cols, column{Name: "created_at", Label: "Created"})
+	isOwner := s.isOwnerOf(u, app)
 	types := map[string]string{}
 	for _, c := range t.Columns {
 		types[c.Name] = c.Type
@@ -210,7 +211,11 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		var line []string
 		for _, c := range cols {
 			if types[c.Name] == "file" {
-				line = append(line, short(s.privateFileName(app, row[c.Name])))
+				name := s.privateFileName(app, row[c.Name])
+				if !isOwner && name != "" && name != "(file deleted)" {
+					name = "Document" // staff do not see visitors' documents, not even their names
+				}
+				line = append(line, short(name))
 				continue
 			}
 			line = append(line, short(display(row[c.Name], types[c.Name])))
@@ -232,6 +237,7 @@ type field struct {
 	Options                                      []string
 	Required, Checked                            bool
 	FileName                                     string // file columns: the stored file's name, "" if it is gone
+	OwnerOnly                                    bool   // file columns seen by staff: no link, no delete
 }
 
 func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
@@ -266,6 +272,8 @@ func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, app string, t appdef.Table, id int64, row map[string]any,
 	values map[string]string, errs platform.FieldErrors, saved bool) {
+	u, _ := s.currentUser(r)
+	isOwner := s.isOwnerOf(u, app)
 	var fields []field
 	hasImage := false
 	for _, c := range t.Columns {
@@ -291,8 +299,12 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 			hasImage = true
 		case "file":
 			f.Input = "file"
+			f.OwnerOnly = !isOwner
 			if pf, err := s.platform.PrivateFileInfo(app, platform.Live, f.Value); err == nil {
 				f.FileName = pf.Name
+				if !isOwner {
+					f.FileName = "Document"
+				}
 			}
 		default:
 			if f.Input == "select" {
@@ -374,8 +386,19 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	values := map[string]string{}
 	uploadErrs := platform.FieldErrors{}
 	var dropFiles []string // visitor files the owner chose to delete, once the row is saved
+	isOwner := s.isOwnerOf(u, app)
+	var stored map[string]any // the row as saved, for file columns staff may not change
+	if !isOwner && id != 0 {
+		stored, _ = s.platform.AdminGet(r.Context(), app, table, id)
+	}
 	for _, c := range t.Columns {
 		values[c.Name] = r.PostFormValue(c.Name)
+		if c.Type == "file" && !isOwner {
+			// Staff can neither remove a visitor's document nor point the
+			// row at another one: the stored value stays.
+			values[c.Name] = formValue(stored[c.Name], c.Type)
+			continue
+		}
 		if c.Type == "file" && r.PostFormValue(c.Name+"__delete") == "1" {
 			dropFiles = append(dropFiles, values[c.Name])
 			values[c.Name] = ""
@@ -431,8 +454,12 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 // adminPrivateFile streams a visitor's private upload of the live app to
 // its owner or staff, signed in to the Renoxium site; the app host only
 // ever shows a file to the visitor who uploaded it.
+//
+// Owner only: these are visitors' personal documents (passports, licences),
+// and staff are matched by an email address the owner typed. Staff get 404,
+// as if the file did not exist.
 func (s *Site) adminPrivateFile(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.member(w, r)
+	_, app, ok := s.owner(w, r)
 	if !ok {
 		return
 	}

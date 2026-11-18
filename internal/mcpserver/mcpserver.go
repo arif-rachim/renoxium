@@ -125,6 +125,8 @@ Payments (card payments through the owner's own Stripe account; on the Free plan
   "Cancel". Test with test_request: POST your buy route, then POST result.url with form {decision: "pay"} (or "fail"/"cancel").
 - On live, checkout works once the owner has connected Stripe in the Renoxium admin panel (/apps/<app>/payments); before that
   payments.checkout throws an error saying so. Cash on delivery needs no platform support: just record the order.
+- payments.refund, capture, release and cancel_subscription work only in a route with "auth": "user" (check that the order is
+  req.user's own), a job, on_payment or on_admin_change. They throw in public MCP tools and in requests without a signed-in visitor.
 - Refunds (e.g. a customer cancels): payments.refund({reference, amount, reason}) refunds the newest paid payment for the reference;
   without amount, everything not yet refunded; amount in AED with at most 2 decimals, never more than what is left (else it throws).
   It returns {status: "partially_refunded"|"refunded", refunded_amount, amount}. on_payment then runs once with that event (after
@@ -231,7 +233,8 @@ Visitor uploads (private files, e.g. a driving licence, passport photo, PDF docu
   keep the form's default encoding (no enctype). Without the helper: fetch("/_rx/upload", {method: "POST", body: formDataWithFile}).
   On phones accept="image/*" offers the camera; add capture="environment" to open the camera directly.
 - Store the id in a column of type file. Files are private: /_rx/private/<id> opens only for the visitor who uploaded it
-  (others get 404); the owner and staff open them from the admin panel. Never put them in image columns or on public pages.
+  (others get 404); only the owner opens them from the admin panel (staff see that a document is attached, never the file or its
+  name). Never put them in image columns or on public pages. One visitor may keep at most 40 MB of files.
 - The id arrives from the form, so check it before saving: const f = files.get(req.form.licence);
   if (!f || f.user_id !== req.user.id) return {status: 400, text: "upload the licence again"}.
 - files.get(id) returns {id, name, size, type, user_id, created_at, url} or null; files.delete(id) returns true or false;

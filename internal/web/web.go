@@ -1012,8 +1012,9 @@ your app can send it data, including your customers' details.</p>
 {{if eq .Input "image"}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">
 {{if .Value}}<img class="thumb" src="{{$.LiveURL}}{{.Value}}?w=320" alt=""><label class="check"><input type="checkbox" name="{{.Name}}__remove" value="1"> Remove image</label>{{end}}
 <input id="f-{{.Name}}" name="{{.Name}}__upload" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif">
-{{else if eq .Input "file"}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{if .Value}}{{if .FileName}}<p id="f-{{.Name}}"><a href="/apps/{{$.App}}/files/{{.Value}}" target="_blank" rel="noopener noreferrer">{{.FileName}}</a></p>
-<label class="check"><input type="checkbox" name="{{.Name}}__delete" value="1"> Delete this file</label>{{else}}<p id="f-{{.Name}}" class="muted">The file was deleted.</p>{{end}}{{else}}<p id="f-{{.Name}}" class="muted">No file. Visitors upload files on the app.</p>{{end}}
+{{else if eq .Input "file"}}{{if .OwnerOnly}}<p id="f-{{.Name}}" class="muted">{{if .FileName}}A document is attached. Only the app's owner can open it.{{else if .Value}}The file was deleted.{{else}}No file.{{end}}</p>
+{{else}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{if .Value}}{{if .FileName}}<p id="f-{{.Name}}"><a href="/apps/{{$.App}}/files/{{.Value}}" target="_blank" rel="noopener noreferrer">{{.FileName}}</a></p>
+<label class="check"><input type="checkbox" name="{{.Name}}__delete" value="1"> Delete this file</label>{{else}}<p id="f-{{.Name}}" class="muted">The file was deleted.</p>{{end}}{{else}}<p id="f-{{.Name}}" class="muted">No file. Visitors upload files on the app.</p>{{end}}{{end}}
 {{else if eq .Input "select"}}<select id="f-{{.Name}}" name="{{.Name}}"{{if .Required}} required{{end}}>{{if not .Required}}<option value=""></option>{{end}}{{$v := .Value}}{{range .Options}}<option{{if eq . $v}} selected{{end}}>{{.}}</option>{{end}}</select>
 {{else if eq .Input "textarea"}}<textarea id="f-{{.Name}}" name="{{.Name}}"{{if eq .Type "json"}} class="json"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
 {{else}}<input id="f-{{.Name}}" name="{{.Name}}" type="{{.Input}}" value="{{.Value}}"{{if eq .Type "real"}} step="any"{{end}}{{if eq .Type "integer"}} step="1"{{end}}{{if .Required}} required{{end}}>{{end}}{{end}}

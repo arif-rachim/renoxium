@@ -204,7 +204,7 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		}
 	}
 
-	host := &scriptHost{st: st, p: p, rid: rid}
+	host := &scriptHost{st: st, p: p, rid: rid, noMoney: user == nil}
 	defer host.runDeferred(r.Context()) // after release: on_payment needs a slot of its own
 	release, ok := p.acquireSlot(r.Context(), st.app)
 	if !ok {
@@ -437,6 +437,13 @@ type scriptHost struct {
 	// on_payment runs started by this run's money calls (payments.refund,
 	// capture, release, cancel_subscription), run once it has finished.
 	hooks hookQueue
+	// noMoney refuses payments.refund, capture, release and
+	// cancel_subscription. It is set for runs anyone on the internet can
+	// start without signing in: public MCP tools and requests without a
+	// signed-in visitor. A script bug there (or a script written to) must
+	// not let a stranger move a merchant's money. Signed-in visitors' own
+	// requests, jobs, on_payment and on_admin_change keep them.
+	noMoney bool
 }
 
 // mayRedirect reports whether a script may send the visitor to target.
@@ -456,6 +463,9 @@ func (h *scriptHost) mayRedirect(target string) bool {
 	}
 	return false
 }
+
+var errNoMoney = errors.New("payments.refund, capture, release and cancel_subscription only work in a request of a signed-in visitor " +
+	`(a route with "auth": "user"), a job, on_payment or on_admin_change; not in public MCP tools or requests without a signed-in visitor`)
 
 var errReadOnlyTool = errors.New("this tool is marked read_only, so it cannot change data, send messages or call other services; remove read_only from the tool if it must")
 
@@ -534,6 +544,9 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 	case "payments.subscription":
 		return h.p.subscriptionStatus(ctx, h.st, arg)
 	case "payments.refund", "payments.capture", "payments.release", "payments.cancel_subscription":
+		if h.noMoney {
+			return nil, errNoMoney
+		}
 		ctx = context.WithValue(ctx, hookQueueKey{}, &h.hooks)
 		switch fn {
 		case "payments.refund":

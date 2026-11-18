@@ -52,13 +52,13 @@ func moneyShop() *appdef.App {
 		OnPayment: "paid",
 		Routes: []appdef.Route{
 			{Method: "POST", Path: "/buy", Script: "buy"},
-			{Method: "POST", Path: "/refund/:id", Script: "refund"},
-			{Method: "POST", Path: "/capture/:id", Script: "capture"},
-			{Method: "POST", Path: "/release/:id", Script: "release"},
+			{Method: "POST", Path: "/refund/:id", Script: "refund", Auth: "user"},
+			{Method: "POST", Path: "/capture/:id", Script: "capture", Auth: "user"},
+			{Method: "POST", Path: "/release/:id", Script: "release", Auth: "user"},
 			{Method: "GET", Path: "/status/:id", Script: "status"},
 			{Method: "POST", Path: "/subscribe", Script: "subscribe"},
 			{Method: "GET", Path: "/sub", Script: "sub"},
-			{Method: "POST", Path: "/cancel", Script: "cancel"},
+			{Method: "POST", Path: "/cancel", Script: "cancel", Auth: "user"},
 		},
 	}
 }
@@ -85,8 +85,9 @@ func TestPreviewRefunds(t *testing.T) {
 	if res, err := p.ApplyChange(ctx, "rent", moneyShop()); err != nil || !res.OK {
 		t.Fatal(err, res)
 	}
+	buyer := previewBuyer(t, p, "rent")
 	tr := func(method, path string, form map[string]string) platform.TestResponse {
-		r, err := p.TestRequest(ctx, "rent", platform.TestRequestInput{Method: method, Path: path, Form: form})
+		r, err := p.TestRequest(ctx, "rent", platform.TestRequestInput{Method: method, Path: path, Form: form, UserEmail: buyer})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -136,8 +137,9 @@ func TestPreviewCardHold(t *testing.T) {
 	ctx := context.Background()
 	p.CreateApp("usr_test", "cars")
 	p.ApplyChange(ctx, "cars", moneyShop())
+	buyer := previewBuyer(t, p, "cars")
 	tr := func(method, path string, form map[string]string) platform.TestResponse {
-		r, _ := p.TestRequest(ctx, "cars", platform.TestRequestInput{Method: method, Path: path, Form: form})
+		r, _ := p.TestRequest(ctx, "cars", platform.TestRequestInput{Method: method, Path: path, Form: form, UserEmail: buyer})
 		return r
 	}
 	buy := tr("POST", "/buy", map[string]string{"hold": "1"})
@@ -194,8 +196,9 @@ func TestPreviewSubscription(t *testing.T) {
 	ctx := context.Background()
 	p.CreateApp("usr_test", "clean")
 	p.ApplyChange(ctx, "clean", moneyShop())
+	buyer := previewBuyer(t, p, "clean")
 	tr := func(method, path string, form map[string]string) platform.TestResponse {
-		r, _ := p.TestRequest(ctx, "clean", platform.TestRequestInput{Method: method, Path: path, Form: form})
+		r, _ := p.TestRequest(ctx, "clean", platform.TestRequestInput{Method: method, Path: path, Form: form, UserEmail: buyer})
 		return r
 	}
 	if r := tr("POST", "/subscribe", map[string]string{"interval": "day"}); r.Status != 500 || !strings.Contains(logText(r), `interval must be "week"`) {
@@ -301,6 +304,7 @@ func stripeEvent(t *testing.T, id, typ, account string, obj any) stripe.Event {
 
 func TestLiveRefundsAndHoldsThroughStripe(t *testing.T) {
 	p, fs, host := liveMoneyShop(t, "free")
+	buyer := liveBuyer(t, p, host)
 	ctx := context.Background()
 	apply := func(e stripe.Event) {
 		t.Helper()
@@ -316,7 +320,7 @@ func TestLiveRefundsAndHoldsThroughStripe(t *testing.T) {
 	// A paid order, refunded in part by a script: a refund on the merchant's account, fee returned.
 	do(t, p, "POST", host, "/buy", url.Values{})
 	apply(stripeEvent(t, "evt_1", "checkout.session.completed", "acct_merchant", session("cs_test_1", "pi_1", "paid")))
-	r := do(t, p, "POST", host, "/refund/1", url.Values{"amount": {"100"}, "reason": {"requested_by_customer"}})
+	r := as(buyer, "POST", "/refund/1", url.Values{"amount": {"100"}, "reason": {"requested_by_customer"}})
 	if r.status != 200 || !strings.Contains(r.body, `"status":"partially_refunded"`) {
 		t.Fatalf("refund: %d %s", r.status, r.body)
 	}
@@ -332,7 +336,7 @@ func TestLiveRefundsAndHoldsThroughStripe(t *testing.T) {
 		t.Fatalf("partially_refunded ran %d times", n)
 	}
 	// More than is left is refused before Stripe is called.
-	if r := do(t, p, "POST", host, "/refund/1", url.Values{"amount": {"450"}}); r.status != 500 || len(fs.callsTo("POST", "/v1/refunds")) != 1 {
+	if r := as(buyer, "POST", "/refund/1", url.Values{"amount": {"450"}}); r.status != 500 || len(fs.callsTo("POST", "/v1/refunds")) != 1 {
 		t.Fatalf("over-refund: %d", r.status)
 	}
 	// A Dashboard refund of the rest still reaches the order.
@@ -357,7 +361,7 @@ func TestLiveRefundsAndHoldsThroughStripe(t *testing.T) {
 	if st := do(t, p, "GET", host, "/status/2", nil); !strings.Contains(st.body, `"hold_expires_at":"2030-03-17 17:46:40"`) {
 		t.Fatalf("hold expiry: %s", st.body)
 	}
-	r = do(t, p, "POST", host, "/capture/2", url.Values{"amount": {"300"}})
+	r = as(buyer, "POST", "/capture/2", url.Values{"amount": {"300"}})
 	if r.status != 200 || !strings.Contains(r.body, `"status":"paid"`) || !strings.Contains(r.body, `"amount":300`) {
 		t.Fatalf("capture: %d %s", r.status, r.body)
 	}
@@ -391,13 +395,14 @@ func TestLiveRefundsAndHoldsThroughStripe(t *testing.T) {
 		t.Fatal("event from another account applied")
 	}
 	// Releasing calls Stripe's cancel.
-	if r := do(t, p, "POST", host, "/release/4", url.Values{}); r.status != 200 || len(fs.callsTo("POST", "/v1/payment_intents/pi_hold4/cancel")) != 1 {
+	if r := as(buyer, "POST", "/release/4", url.Values{}); r.status != 200 || len(fs.callsTo("POST", "/v1/payment_intents/pi_hold4/cancel")) != 1 {
 		t.Fatalf("release: %d %s", r.status, r.body)
 	}
 }
 
 func TestLiveSubscriptionThroughStripe(t *testing.T) {
 	p, fs, host := liveMoneyShop(t, "free")
+	buyer := liveBuyer(t, p, host)
 	ctx := context.Background()
 	apply := func(e stripe.Event) {
 		t.Helper()
@@ -465,7 +470,7 @@ func TestLiveSubscriptionThroughStripe(t *testing.T) {
 		t.Fatalf("unknown payment: %v", err)
 	}
 	// Cancel at the end of the period, then Stripe ends it.
-	r = do(t, p, "POST", host, "/cancel", url.Values{"end": {"1"}})
+	r = as(buyer, "POST", "/cancel", url.Values{"end": {"1"}})
 	if r.status != 200 || !strings.Contains(r.body, `"cancel_at_period_end":true`) {
 		t.Fatalf("cancel: %d %s", r.status, r.body)
 	}
@@ -503,6 +508,7 @@ func TestLiveSubscriptionThroughStripe(t *testing.T) {
 
 func TestSubscriptionFeeFollowsThePlan(t *testing.T) {
 	p, fs, host := liveMoneyShop(t, "pro")
+	buyer := liveBuyer(t, p, host)
 	do(t, p, "POST", host, "/subscribe", url.Values{})
 	s := fs.sessions[len(fs.sessions)-1]
 	if s.Get("mode") != "subscription" || s.Get("subscription_data[application_fee_percent]") != "" {
@@ -512,7 +518,7 @@ func TestSubscriptionFeeFollowsThePlan(t *testing.T) {
 	do(t, p, "POST", host, "/buy", url.Values{})
 	p.HandleStripeEvent(context.Background(), stripeEvent(t, "evt_p", "checkout.session.completed", "acct_merchant",
 		map[string]any{"id": "cs_test_2", "payment_status": "paid", "payment_intent": "pi_p", "metadata": map[string]string{"rx_app": "rent"}}))
-	if r := do(t, p, "POST", host, "/refund/1", url.Values{}); r.status != 200 {
+	if r := as(buyer, "POST", "/refund/1", url.Values{}); r.status != 200 {
 		t.Fatalf("refund: %d %s", r.status, r.body)
 	}
 	if c := fs.callsTo("POST", "/v1/refunds"); len(c) != 1 || c[0].form.Get("refund_application_fee") != "" || c[0].form.Get("amount") != "50000" {
@@ -525,8 +531,9 @@ func TestMoneyActionsAreRateLimited(t *testing.T) {
 	ctx := context.Background()
 	p.CreateApp("usr_test", "loop")
 	p.ApplyChange(ctx, "loop", moneyShop())
+	buyer := previewBuyer(t, p, "loop")
 	tr := func(method, path string, form map[string]string) platform.TestResponse {
-		r, _ := p.TestRequest(ctx, "loop", platform.TestRequestInput{Method: method, Path: path, Form: form})
+		r, _ := p.TestRequest(ctx, "loop", platform.TestRequestInput{Method: method, Path: path, Form: form, UserEmail: buyer})
 		return r
 	}
 	buy := tr("POST", "/buy", nil)
@@ -564,5 +571,78 @@ func TestAdminHookRefundRunsOnPayment(t *testing.T) {
 	}
 	if n := hookCount(t, p, "rent", "refunded order-1 500"); n != 1 {
 		t.Fatalf("on_payment after an admin-hook refund ran %d times", n)
+	}
+}
+
+// previewBuyer signs a visitor up on an app's preview and returns their
+// email, for test requests made as them: money actions run only in
+// requests of a signed-in visitor.
+func previewBuyer(t *testing.T, p *platform.Platform, app string) string {
+	t.Helper()
+	const addr = "buyer@shop.ae"
+	r, err := p.TestRequest(context.Background(), app, platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup",
+		Form: map[string]string{"email": addr, "password": "buyer's password"}})
+	if err != nil || r.Status != 303 {
+		t.Fatalf("buyer sign-up: %v %+v", err, r)
+	}
+	return addr
+}
+
+// liveBuyer is a signed-in visitor of a live app.
+func liveBuyer(t *testing.T, p *platform.Platform, host string) *visitorBrowser {
+	t.Helper()
+	v := newVisitor(t, p, host)
+	if w := v.submit("/_rx/auth/signup", "/_rx/auth/signup", url.Values{"email": {"buyer@shop.ae"}, "password": {"buyer's password"}}); w.Code != 303 {
+		t.Fatalf("buyer sign-up: %d", w.Code)
+	}
+	return v
+}
+
+// as sends a request to the app's host as a signed-in visitor.
+func as(v *visitorBrowser, method, path string, form url.Values) response {
+	w := v.do(method, path, form)
+	return response{status: w.Code, body: w.Body.String(), header: w.Header()}
+}
+
+// Refunds and the other money actions move a merchant's money, so they do
+// not run where anyone on the internet can start a script without signing
+// in: public MCP tools and requests without a signed-in visitor.
+func TestMoneyActionsNeedASignedInVisitor(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "rent")
+	def := moneyShop()
+	def.Routes = append(def.Routes, appdef.Route{Method: "POST", Path: "/open-refund/:id", Script: "refund"}) // no "auth": a script mistake
+	def.Tools = []appdef.Tool{{Name: "refund_order", Description: "Refund an order", Script: "tool_refund",
+		Params: []appdef.ToolParam{{Name: "id", Type: "string", Required: true}}}}
+	def.Scripts["tool_refund"] = `function handle(req) { return {json: payments.refund({reference: "order-" + req.body.id})} }`
+	if res, err := p.ApplyChange(ctx, "rent", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	buyer := previewBuyer(t, p, "rent")
+	tr := func(in platform.TestRequestInput) platform.TestResponse {
+		r, err := p.TestRequest(ctx, "rent", in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	buy := tr(platform.TestRequestInput{Method: "POST", Path: "/buy"})
+	tr(platform.TestRequestInput{Method: "POST", Path: buy.Location, Form: map[string]string{"decision": "pay"}})
+
+	if r := tr(platform.TestRequestInput{Method: "POST", Path: "/open-refund/1"}); r.Status != 500 || !strings.Contains(logText(r), "only work in a request of a signed-in visitor") {
+		t.Fatalf("refund from an anonymous request: %+v", r)
+	}
+	r := tr(platform.TestRequestInput{Method: "POST", Path: "/mcp", JSON: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+		"params": map[string]any{"name": "refund_order", "arguments": map[string]any{"id": "1"}}}})
+	if !strings.Contains(r.Body, `"isError":true`) {
+		t.Fatalf("refund from a public MCP tool: %s", r.Body)
+	}
+	if st := tr(platform.TestRequestInput{Path: "/status/1"}); !strings.Contains(st.Body, `"status":"paid"`) {
+		t.Fatalf("the payment changed: %s", st.Body)
+	}
+	// The same script in a signed-in visitor's request works.
+	if r := tr(platform.TestRequestInput{Method: "POST", Path: "/open-refund/1", UserEmail: buyer}); r.Status != 200 || !strings.Contains(r.Body, `"status":"refunded"`) {
+		t.Fatalf("refund by a signed-in visitor: %+v", r)
 	}
 }

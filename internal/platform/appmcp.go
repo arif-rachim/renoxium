@@ -142,7 +142,7 @@ func (p *Platform) runTool(ctx context.Context, st *stage, t appdef.Tool, args m
 	if args == nil {
 		args = map[string]any{}
 	}
-	host := &scriptHost{st: st, p: p, rid: rid, readOnly: t.ReadOnly}
+	host := &scriptHost{st: st, p: p, rid: rid, readOnly: t.ReadOnly, noMoney: true}
 	defer host.runDeferred(ctx) // on_payment runs from money calls, after the slot is released
 	release, ok := p.acquireSlot(ctx, st.app)
 	if !ok {

@@ -69,7 +69,8 @@ func lockMoney(st *stage, id string) func() {
 }
 
 func (p *Platform) allowMoney(st *stage) error {
-	if !p.allow("money:"+st.app+":"+st.name, MoneyActionsPerHour, time.Hour) {
+	// Stored, so a restart does not hand out a fresh hour of refunds.
+	if !p.allowDurable("money:"+st.app+":"+st.name, MoneyActionsPerHour, time.Hour) {
 		return fmt.Errorf("more than %d refunds, captures, releases or cancellations in an hour for this app; try again later", MoneyActionsPerHour)
 	}
 	return nil

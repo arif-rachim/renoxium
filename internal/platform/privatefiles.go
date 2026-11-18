@@ -40,6 +40,15 @@ const (
 	UploadsPerAppPerDay = 500
 	// MaxPrivateFilesPerApp caps the private files one app stage keeps.
 	MaxPrivateFilesPerApp = 5000
+	// MaxPrivateBytesPerVisitor caps what one visitor keeps stored, and
+	// PrivateBytesPerAppPerDay what an app stage takes in a day, so that
+	// visitors (anyone can sign up) cannot fill the owner's storage, which
+	// the owner's own product photos share.
+	MaxPrivateBytesPerVisitor = 40 << 20
+	PrivateBytesPerAppPerDay  = 200 << 20
+	// PrivateShareOfStorage is the part of the account's storage that
+	// visitors' private files may use at most, in percent.
+	PrivateShareOfStorage = 50
 )
 
 var privateIDRE = regexp.MustCompile(`^pf_[0-9a-f]{32}$`)
@@ -294,6 +303,18 @@ func (p *Platform) AddPrivateFile(app, stageName string, userID int64, name stri
 	if used, quota := p.StorageUsage(owner); used+n > quota {
 		return nil, &UploadError{http.StatusInsufficientStorage, "this app's storage is full; tell the business"}
 	}
+	var mine, ownerPrivate int64
+	p.db.QueryRow(`SELECT coalesce(sum(size), 0) FROM private_files WHERE app = ? AND stage = ? AND user_id = ?`, app, stageName, userID).Scan(&mine)
+	if mine+n > MaxPrivateBytesPerVisitor {
+		return nil, &UploadError{http.StatusInsufficientStorage, fmt.Sprintf("you already keep %d MB of files here, the most one person may; ask the business to remove old ones", mine>>20)}
+	}
+	p.db.QueryRow(`SELECT coalesce(sum(f.size), 0) FROM private_files f JOIN apps a ON a.name = f.app WHERE a.owner = ?`, owner).Scan(&ownerPrivate)
+	if _, quota := p.StorageUsage(owner); ownerPrivate+n > quota*PrivateShareOfStorage/100 {
+		return nil, &UploadError{http.StatusInsufficientStorage, "this app cannot take more uploaded files right now; tell the business"}
+	}
+	if p.addDurable("upload-bytes:"+app+":"+stageName, int(n), 24*time.Hour) > PrivateBytesPerAppPerDay {
+		return nil, &UploadError{http.StatusTooManyRequests, "this app has taken in all the files it can today; try again tomorrow"}
+	}
 	f := &PrivateFile{ID: newPrivateID(), Name: SanitizeFileName(name, ctype), Size: n, ContentType: ctype, UserID: userID,
 		CreatedAt: time.Now().UTC().Format("2006-01-02 15:04:05")}
 	if err := tmp.Sync(); err != nil {
@@ -338,8 +359,8 @@ func (p *Platform) serveUpload(w http.ResponseWriter, r *http.Request, st *stage
 		fail(http.StatusUnauthorized, "sign in to upload files")
 		return
 	}
-	if !p.allow(fmt.Sprintf("upload:%s:%s:%d", st.app, st.name, user.ID), UploadsPerVisitorPerDay, 24*time.Hour) ||
-		!p.allow("upload:"+st.app+":"+st.name, UploadsPerAppPerDay, 24*time.Hour) {
+	if !p.allowDurable(fmt.Sprintf("upload:%s:%s:%d", st.app, st.name, user.ID), UploadsPerVisitorPerDay, 24*time.Hour) ||
+		!p.allowDurable("upload:"+st.app+":"+st.name, UploadsPerAppPerDay, 24*time.Hour) {
 		w.Header().Set("Retry-After", "3600")
 		fail(http.StatusTooManyRequests, "too many uploads today; try again tomorrow")
 		return

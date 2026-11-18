@@ -462,3 +462,34 @@ func TestFilesAPIInWorkers(t *testing.T) {
 		t.Fatalf("other's file: %d %s", w.Code, w.Body.String())
 	}
 }
+
+// Anyone can sign up, so visitors' uploads must not be able to fill the
+// owner's storage, which the owner's own product photos share.
+func TestVisitorUploadBytesAreCapped(t *testing.T) {
+	p, host := publishedRental(t)
+	big := func(n int) []byte {
+		b := make([]byte, n)
+		copy(b, "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+		return b
+	}
+	v := signedInVisitor(t, p, host, "filler@mail.ae")
+	file := big(9 << 20)
+	stored := 0
+	for i := 0; i < 6; i++ {
+		w := v.upload("scan.png", "image/png", file, nil)
+		if w.Code == 200 {
+			stored++
+			continue
+		}
+		if w.Code != http.StatusInsufficientStorage || !strings.Contains(w.Body.String(), "the most one person may") {
+			t.Fatalf("upload %d: %d %s", i, w.Code, w.Body.String())
+		}
+	}
+	if want := platform.MaxPrivateBytesPerVisitor / (9 << 20); stored != int(want) {
+		t.Fatalf("one visitor stored %d files of 9 MB, want %d", stored, want)
+	}
+	// Another visitor still can.
+	if w := signedInVisitor(t, p, host, "other@mail.ae").upload("licence.png", "image/png", big(1<<20), nil); w.Code != 200 {
+		t.Fatalf("another visitor: %d %s", w.Code, w.Body.String())
+	}
+}
