@@ -112,7 +112,8 @@ Payments (card payments through the owner's own Stripe account; Renoxium takes n
 
 Emails (plain text; live sends them, preview writes them with their links to get_logs):
 - email.send({to, subject, text}) emails one address from the app, e.g. an order confirmation to req.user.email.
-  At most 10 emails per address per day, within the app's daily email limit. Replies go to the owner.
+  At most 10 emails per address per day, within the account's daily number over all its apps (50 Free, 500 Pro, 2,000 Business);
+  past it email.send throws an error. Replies go to the owner.
 - notify.owner({subject, text}) emails the app owner, e.g. "New order #12". Card payments already email the owner
   "Payment received" automatically, so use it for other events such as cash-on-delivery orders.
   If the owner turned on WhatsApp notices, the subject is also sent to their WhatsApp, so put the essentials in the subject
@@ -128,13 +129,15 @@ Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an
 - In a script: const r = http.fetch({url, method: "POST", headers: {...}, body: {...} (objects are sent as JSON) or "text",
   secret: "EXAMPLE_KEY", timeout_ms: 5000}). It returns {status, ok, headers, body (text), json (when the answer is JSON), truncated}.
   Redirects are not followed (you get the 3xx). The platform adds the key; the script never sees it.
-- Limits: 5 calls per request or job, at most 10 s each and 20 s in all, 60 calls a minute per app, 1 MB answers, and a monthly
+- Limits: 5 calls per request or job, at most 8 s of waiting in all, 60 calls a minute per app, 1 MB answers, and a monthly
   quota per plan (1,000 Free, 20,000 Pro, 100,000 Business). Waiting for the answer does not count towards the 2-second script limit.
-- Test on preview with test_request once the owner has allowed the host; preview calls are real calls.
+- Preview makes real calls only while the owner has turned on test calls at /apps/<app>/connections (2 hours at a time); otherwise
+  http.fetch throws an error saying so. Ask the user to turn it on when you need to test a connection, then use test_request.
+  Preview calls count towards the monthly quota.
 
 Realtime (live updates in the browser, e.g. a courier on a map, a queue number, new orders on a kitchen screen):
 - In any script: realtime.publish({channel, data}) sends data (JSON, at most 8 KB) to every browser listening on that channel now.
-  Channel names: lowercase letters, digits and _ . : - (e.g. "delivery-42"). Each channel keeps its last message for new listeners.
+  Channel names: lowercase letters, digits and _ . : - (e.g. "delivery-42"). Each of an app's 200 most recently used channels keeps its last message for new listeners.
 - In the browser: new EventSource('/_rx/live/' + channel + '?token=' + token), then onmessage = e => JSON.parse(e.data).
   Channels starting with "public:" need no token; for any other channel a script must hand the page realtime.token(channel)
   (valid 24 hours), e.g. only on the buyer's own order page. Never put tokens of private channels on public pages.
@@ -151,7 +154,8 @@ Scheduled jobs:
 Tools for shoppers' AI assistants (MCP):
 - "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
   about products. Anyone can call them without signing in (req.user is null), so return only public information, mark read-only
-  tools "read_only": true, and link to the app's pages for ordering and paying (req.origin + path).
+  tools "read_only": true (the platform then refuses db.exec, writes through db.query, email.send, notify.owner, payments.checkout,
+  realtime.publish and http.fetch in them), and link to the app's pages for ordering and paying (req.origin + path).
 - Each tool: {name, description, script, params: [{name, type: string|number|integer|boolean, description, required}], read_only}.
   The script gets req.method "TOOL" and the arguments in req.body, and returns {json: value} or {text: "..."}; a status of 400 or more
   becomes an error the assistant sees. The store-uae example has search_products, get_product and store_info.

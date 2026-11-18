@@ -93,10 +93,27 @@ func (p *Platform) serveFile(w http.ResponseWriter, r *http.Request, app string)
 	}
 	ctype, etag := b.ContentType, b.Hash
 	var f *os.File
-	if w, werr := strconv.Atoi(r.URL.Query().Get("w")); werr == nil && w > 0 && files.Resizable(b.ContentType) {
-		width := files.SnapWidth(w)
-		f, ctype, err = p.files.Variant(b, width)
+	if want, werr := strconv.Atoi(r.URL.Query().Get("w")); werr == nil && want > 0 && files.Resizable(b.ContentType) {
+		width := files.SnapWidth(want)
+		// New sizes are made at most 30 times a minute per app; past that,
+		// and when the resizer is busy, this request gets the original.
+		deferred := false
+		f, ctype, err = p.files.Variant(b, width, func() bool {
+			deferred = !p.allow("resize:"+app, 30, time.Minute)
+			return !deferred
+		})
 		etag = fmt.Sprintf("%s-%d", b.Hash, width)
+		if err == nil && (deferred || files.Deferred(f, b, width)) {
+			// Not the final answer for this address: do not let it be cached.
+			defer f.Close()
+			h := w.Header()
+			h.Set("Content-Type", ctype)
+			h.Set("Cache-Control", "no-store")
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+			http.ServeContent(w, r, "", time.Time{}, f)
+			return
+		}
 	} else {
 		f, err = p.files.Open(hash)
 	}

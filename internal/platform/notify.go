@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -46,10 +47,12 @@ func (p *Platform) emailSend(ctx context.Context, st *stage, arg any) (any, erro
 	if err := in.clean(true); err != nil {
 		return nil, err
 	}
-	if !p.allow("mail-to:"+st.app+":"+in.To, 10, 24*time.Hour) {
+	if !p.allowDurable("mail-to:"+st.app+":"+in.To, 10, 24*time.Hour) {
 		return nil, errors.New("too many emails to this address today")
 	}
-	p.sendEmail(ctx, st, email.Message{To: in.To, Subject: in.Subject, Text: in.Text, Tag: "app_email"})
+	if err := p.sendEmail(ctx, st, email.Message{To: in.To, Subject: in.Subject, Text: in.Text, Tag: "app_email"}); err != nil {
+		return nil, fmt.Errorf("email.send: %v", err)
+	}
 	return map[string]any{"sent": st.name == Live}, nil
 }
 
@@ -82,7 +85,7 @@ func (p *Platform) mailOwner(ctx context.Context, st *stage, subject, text strin
 		p.event(st, "email", "warn", "", "owner not emailed (no confirmed email address): "+subject)
 		return
 	}
-	if !p.allow("owner-mail:"+st.app, 200, 24*time.Hour) {
+	if !p.allowDurable("owner-mail:"+st.app, 200, 24*time.Hour) {
 		p.event(st, "email", "error", "", "owner not emailed: more than 200 notifications today: "+subject)
 		return
 	}
@@ -93,6 +96,7 @@ func (p *Platform) mailOwner(ctx context.Context, st *stage, subject, text strin
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 	if err := p.cfg.Mailer.Send(ctx, email.Message{To: addr, Subject: "[" + st.app + "] " + subject, Text: text + link, Tag: "owner_notice", FromName: "Renoxium"}); err != nil {
-		p.event(st, "email", "error", "", "owner email failed: "+err.Error())
+		slog.Error("owner email", "app", st.app, "err", err)
+		p.event(st, "email", "error", "", "the owner could not be emailed; Renoxium has logged the reason")
 	}
 }

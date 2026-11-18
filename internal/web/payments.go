@@ -42,7 +42,7 @@ func (s *Site) adminPayments(w http.ResponseWriter, r *http.Request) {
 		fee = platform.FreePlanFeePercent
 	}
 	pa, err := s.platform.PaymentAccount(app)
-	if err == nil && pa.StripeAccount != "" && r.URL.Query().Get("returned") == "1" {
+	if err == nil && pa.StripeAccount != "" && r.URL.Query().Get("returned") == "1" && s.apiLimiter.allow("stripe:"+u.ID) {
 		// Back from Stripe: read the account's state now rather than wait for the webhook.
 		pa, err = s.platform.RefreshPaymentAccount(r.Context(), app)
 	}
@@ -70,6 +70,10 @@ func (s *Site) connectStripe(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/apps/"+app+"/payments", http.StatusSeeOther)
 			return
 		}
+	}
+	if !s.apiLimiter.allow("stripe:" + u.ID) {
+		http.Error(w, "too many attempts; try again in a few minutes", http.StatusTooManyRequests)
+		return
 	}
 	page := s.base + "/apps/" + app + "/payments"
 	link, err := s.platform.StripeOnboardingURL(r.Context(), app, u.Email, page+"?returned=1", page+"/connect")

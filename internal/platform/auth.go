@@ -313,10 +313,17 @@ func (p *Platform) useToken(ctx context.Context, st *stage, token, purpose strin
 
 // sendEmail sends from live. On preview nothing leaves the platform: the
 // message, links included, goes to the app log instead.
-func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
+//
+// Two separate daily budgets apply. Sign-in emails (confirmation, password
+// reset) are limited per app and over all apps. Emails a script sends with
+// email.send (Tag "app_email") are limited per account by plan and have
+// their own total, so one account's scripts can neither use Renoxium's
+// sender for bulk mail nor use up the budget other apps' sign-in emails
+// need. It returns an error when the email was not sent.
+func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) error {
 	if st.name == Preview {
 		p.event(st, "email", "info", "", fmt.Sprintf("not sent from preview: to %s, %q\n%s", m.To, m.Subject, m.Text))
-		return
+		return nil
 	}
 	m.FromName = st.app + " via Renoxium"
 	if p.cfg.OwnerEmail != nil {
@@ -331,17 +338,37 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) {
 	defer cancel()
 	if p.cfg.Mailer == nil {
 		p.event(st, "email", "warn", "", "email not sent: no mail service configured: "+m.Subject)
-		return
+		return errors.New("email is not set up on this Renoxium server")
 	}
-	if !p.allow("mail-day:"+st.app, p.cfg.Daily.EmailsPerApp, 24*time.Hour) || !p.allow("mail-day", p.cfg.Daily.Emails, 24*time.Hour) {
+	owner := p.ownerOf(st.app)
+	plan := p.planOf(owner)
+	within := false
+	if m.Tag == "app_email" {
+		within = p.allowDurable("app-mail:"+owner, AppEmailsPerPlan[plan], 24*time.Hour) && p.allowDurable("app-mail-day", p.cfg.Daily.Emails, 24*time.Hour)
+	} else {
+		perApp := p.cfg.Daily.EmailsPerApp
+		if plan == planFree {
+			perApp = min(perApp, 100)
+		}
+		within = p.allowDurable("mail-day:"+st.app, perApp, 24*time.Hour) && p.allowDurable("mail-day", p.cfg.Daily.Emails, 24*time.Hour)
+	}
+	if !within {
 		p.event(st, "email", "error", "", "email not sent: the daily email limit was reached: "+m.Subject)
-		return
+		return errors.New("the daily email limit was reached")
 	}
 	if err := p.cfg.Mailer.Send(ctx, m); err != nil {
+		// The mail service's answer can name the platform's own account;
+		// the app log, which the owner and their agent read, gets a plain line.
 		slog.Error("visitor email", "app", st.app, "err", err)
-		p.event(st, "email", "error", "", "email to a visitor failed: "+err.Error())
+		p.event(st, "email", "error", "", "an email could not be sent; Renoxium has logged the reason")
+		return errors.New("the email could not be sent")
 	}
+	return nil
 }
+
+// AppEmailsPerPlan is how many emails the scripts of all apps of one
+// account may send with email.send per day.
+var AppEmailsPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
 
 func (p *Platform) sendVerification(ctx context.Context, st *stage, id int64, addr string) {
 	token, err := p.createToken(ctx, st, id, "verify", visitorVerifyTTL)
@@ -355,7 +382,7 @@ func (p *Platform) sendVerification(ctx context.Context, st *stage, id int64, ad
 
 func (p *Platform) forgot(w http.ResponseWriter, r *http.Request, st *stage) {
 	addr, _ := normalizeEmail(r.PostFormValue("email"))
-	if !p.allow("forgot:"+st.app+":"+p.clientIP(r), 10, 15*time.Minute) || !p.allow("forgot-mail:"+st.app+":"+addr, 3, time.Hour) {
+	if !p.allow("forgot:"+st.app+":"+p.clientIP(r), 10, 15*time.Minute) || !p.allowDurable("forgot-mail:"+st.app+":"+addr, 3, time.Hour) {
 		p.authPage(w, r, st, http.StatusTooManyRequests, "message", authData{Title: "Too many attempts", Message: "Try again later."})
 		return
 	}

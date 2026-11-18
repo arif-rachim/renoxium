@@ -34,10 +34,11 @@ test('delete an account on a paid plan', async ({ browser }) => {
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Sign in' })).toBeVisible();
   await expect(shop.agent.call('list_apps')).rejects.toThrow(); // the agent's token died with the account
 
-  // The app name is free for someone else.
+  // The app name is held for 90 days: its address is in customers' bookmarks
+  // and old emails, so another account cannot start serving pages there.
   const next = await person(browser);
   await signUp(next.page, email('next'));
   const agent = await builder((await connectAgent(next.page)).access_token);
-  await agent.call('create_app', { app: shop.app });
+  await expect(agent.call('create_app', { app: shop.app })).rejects.toThrow(/already taken/);
   await agent.close();
 });

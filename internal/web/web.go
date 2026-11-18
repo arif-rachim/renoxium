@@ -45,6 +45,9 @@ type Site struct {
 	mcp      http.Handler
 	mux      *http.ServeMux
 	limiter  *limiter
+	// apiLimiter caps, per account, pages that call Stripe or Cloudflare with
+	// the platform's keys, so one account cannot use up their rate limits.
+	apiLimiter *limiter
 	// accountLimiter caps sign-in attempts for one account from everywhere.
 	accountLimiter *limiter
 
@@ -91,7 +94,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 		host = h
 	}
 	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
-		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
+		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), apiLimiter: newLimiter(30, 10*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
 	s.mcp = mcpserver.Handler(mcpserver.New(p, mcpserver.Options{ConfirmPublish: s.publishLink}), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
 	s.mux.HandleFunc("GET /{$}", s.home)
@@ -129,13 +132,23 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.Monitor != nil {
 			if err := s.Monitor.Healthy(); err != nil {
-				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				// The reason (such as how full the disk is) is for the operator:
+				// the monitor emails it and the operator panel shows it.
+				http.Error(w, "unhealthy", http.StatusServiceUnavailable)
 				return
 			}
 		}
 		io.WriteString(w, "ok\n")
 	})
-	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, s.Version+"\n") })
+	// The running commit tells an attacker which fixes are deployed, so only
+	// the operator sees it: signed in, or asking on the server itself.
+	s.mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
+		if u, ok := s.currentUser(r); !s.onServer(r) && !(ok && u.Verified && s.isOperator(u.Email)) {
+			http.NotFound(w, r)
+			return
+		}
+		io.WriteString(w, s.Version+"\n")
+	})
 	return s
 }
 
@@ -147,7 +160,7 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
-	if host != s.host && r.URL.Path != "/healthz" {
+	if host != s.host && r.URL.Path != "/healthz" && r.URL.Path != "/version" {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
@@ -252,6 +265,17 @@ func safeNext(next string) string {
 		}
 	}
 	return "/"
+}
+
+// onServer reports whether a request was made on the server itself rather
+// than through the tunnel, which always adds the visitor's address.
+func (s *Site) onServer(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback() && (s.TrustedIPHeader == "" || r.Header.Get(s.TrustedIPHeader) == "")
 }
 
 // clientIP is the visitor's address. Behind a local tunnel or proxy (such
@@ -846,7 +870,12 @@ your app can send it data, including your customers' details.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="secret"><input type="hidden" name="name" value="{{.Name}}">
 <label for="v-{{.Name}}">{{if .Set}}Replace the key{{else}}Key{{end}}</label><input id="v-{{.Name}}" name="value" type="password" autocomplete="off" required{{if eq .Prefix "Basic"}} placeholder="user:password"{{end}}><button>Save</button></form>
 {{if .Set}}<form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="delete-secret"><input type="hidden" name="name" value="{{.Name}}"><button class="danger">Remove key</button></form>{{end}}</div>{{end}}{{end}}
-<p class="muted">External calls from your live apps this month: {{.Used}} of {{.Quota}}.</p>
+{{if .Hosts}}<h2 style="margin-top:20px">Test calls from the preview</h2>
+<p class="muted">The preview holds a copy of your live data, and your AI agent can change the preview without asking you. So the preview only calls these sites while you turn test calls on. Turn it on when you and your agent are testing a connection.</p>
+{{if .PreviewUntil}}<p><span class="ok">On until {{.PreviewUntil}} UTC.</span></p>
+<form method="post" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="preview-off"><button class="danger">Turn off now</button></form>
+{{else}}<form method="post" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="preview-on"><button>Turn on for 2 hours</button></form>{{end}}{{end}}
+<p class="muted" style="margin-top:16px">External calls from your apps this month, preview included: {{.Used}} of {{.Quota}}.</p>
 </div>{{template "bottom"}}{{end}}
 
 {{define "admin_alerts"}}{{template "top" "Notifications"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
@@ -872,8 +901,13 @@ your app can send it data, including your customers' details.</p>
 {{else if not .Domain}}<p>Serve this app on a domain you own, such as <strong>www.yourshop.com</strong>. A subdomain like www works with every domain provider.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="add">
 <label for="host">Domain</label><input id="host" name="host" placeholder="www.yourshop.com" required autocomplete="off"><button>Add domain</button></form>
-{{else}}{{with .Domain}}<p><strong>{{.Host}}</strong> · {{if eq .Status "active"}}<span class="ok">active</span>{{else}}waiting for DNS{{end}}</p>
-{{if eq .Status "active"}}<p>Your app is live at <a href="https://{{.Host}}">https://{{.Host}}</a>, and links in emails and payments use it.</p>
+{{else}}{{with .Domain}}<p><strong>{{.Host}}</strong> · {{if eq .Status "active"}}<span class="ok">active</span>{{else if eq .Status "verify"}}prove it is yours{{else}}waiting for DNS{{end}}</p>
+{{if eq .Status "verify"}}<p>First show that this domain is yours. At the company where you bought it, add this DNS record, then choose Check now. Changes can take from minutes to a few hours.</p>
+<div class="scroll"><table><thead><tr><th>Type</th><th>Name</th><th>Value</th></tr></thead><tbody>
+<tr><td>TXT</td><td>{{.Verify.Name}}</td><td><code>{{.Verify.Value}}</code></td></tr></tbody></table></div>
+<p class="muted">This record belongs to your Renoxium account. Keep it for as long as you use the domain here.</p>
+<form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="check"><button>Check now</button></form>
+{{else if eq .Status "active"}}<p>Your app is live at <a href="https://{{.Host}}">https://{{.Host}}</a>, and links in emails and payments use it.</p>
 {{else}}<p>At the company where you bought the domain, add these DNS records. Changes can take from minutes to a few hours.</p>
 <div class="scroll"><table><thead><tr><th>Type</th><th>Name</th><th>Value</th></tr></thead><tbody>
 <tr><td>CNAME</td><td>{{.Host}}</td><td><code>{{.CNAME}}</code></td></tr>

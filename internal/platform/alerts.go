@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -53,7 +54,7 @@ func (p *Platform) StartAlertPhone(ctx context.Context, app, raw string) error {
 		return errors.New("enter the number with the country code, for example +971 50 123 4567")
 	}
 	owner := p.ownerOf(app)
-	if !p.allow("alert-phone:"+app, 5, time.Hour) {
+	if !p.allowDurable("alert-phone:"+app, 5, time.Hour) {
 		return errors.New("too many codes requested; try again in an hour")
 	}
 	if p.cfg.OwnerPlan != nil {
@@ -80,7 +81,7 @@ func (p *Platform) StartAlertPhone(ctx context.Context, app, raw string) error {
 
 // ConfirmAlertPhone turns notices on when the code is right.
 func (p *Platform) ConfirmAlertPhone(app, code string) error {
-	if !p.allow("alert-confirm:"+app, 10, time.Hour) {
+	if !p.allowDurable("alert-confirm:"+app, 10, time.Hour) {
 		return errors.New("too many attempts; try again in an hour")
 	}
 	var phone, hash string
@@ -123,7 +124,7 @@ func (p *Platform) whatsappOwner(st *stage, subject string) {
 		p.event(st, "whatsapp", "warn", "", "owner WhatsApp notice not sent: the monthly WhatsApp messages are used up: "+subject)
 		return
 	}
-	if !p.allow("owner-wa:"+st.app, 100, 24*time.Hour) || !p.allow("wa-day", p.cfg.Daily.WhatsApp, 24*time.Hour) {
+	if !p.allowDurable("owner-wa:"+st.app, 100, 24*time.Hour) || !p.allowDurable("wa-day", p.cfg.Daily.WhatsApp, 24*time.Hour) {
 		p.event(st, "whatsapp", "warn", "", "owner WhatsApp notice not sent: daily limit reached: "+subject)
 		return
 	}
@@ -132,7 +133,8 @@ func (p *Platform) whatsappOwner(st *stage, subject string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := p.cfg.WhatsAppNotices.SendNotice(ctx, a.Phone, st.app, subject); err != nil {
-			p.event(st, "whatsapp", "error", "", "owner WhatsApp notice failed: "+err.Error())
+			slog.Error("whatsapp owner notice", "app", st.app, "err", err)
+			p.event(st, "whatsapp", "error", "", "a WhatsApp notice to the owner could not be delivered; Renoxium has logged the reason")
 		}
 	}()
 }

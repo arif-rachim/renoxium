@@ -110,6 +110,7 @@ func main() {
 	if token, zone := os.Getenv("CLOUDFLARE_API_TOKEN"), os.Getenv("CLOUDFLARE_ZONE_ID"); token != "" && zone != "" {
 		cfg.Cloudflare = &cloudflare.Client{Token: token, ZoneID: zone, BaseURL: os.Getenv("CLOUDFLARE_API_BASE")}
 		cfg.CustomDomainTarget = os.Getenv("CUSTOM_DOMAIN_TARGET")
+		cfg.LookupTXT = platform.LookupTXT(os.Getenv("RENOXIUM_DNS_API")) // default: Cloudflare's DNS over HTTPS
 		slog.Info("custom domains on", "target", cfg.CustomDomainTarget)
 	}
 	if wa := whatsappFromEnv(); wa != nil {

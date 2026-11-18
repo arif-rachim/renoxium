@@ -58,6 +58,9 @@ type Config struct {
 	// zone; CustomDomainTarget is the fallback origin owners point a CNAME at.
 	Cloudflare         *cloudflare.Client
 	CustomDomainTarget string
+	// LookupTXT finds a name's TXT records, to check that a custom domain
+	// belongs to the account adding it. Nil uses LookupTXT("").
+	LookupTXT func(ctx context.Context, name string) ([]string, error)
 	// Stripe takes payments for live apps on their owners' Stripe
 	// accounts. Nil turns live checkout off; previews always simulate it.
 	Stripe *stripe.Client
@@ -194,6 +197,10 @@ func init() {
 	}
 }
 
+// NameHold is how long a deleted app's name can only be taken again by the
+// account that had it.
+const NameHold = 90 * 24 * time.Hour
+
 // Quotas per account and per app. There is no billing yet, so these keep
 // one account from filling the server's disk.
 const (
@@ -230,6 +237,11 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	}
 	// Apps created before accounts existed have no owner and are reachable by nobody.
 	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN owner TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		db.Close()
+		return nil, err
+	}
+	// Until this time preview makes real http.fetch calls (see fetch.go).
+	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN preview_fetch_until INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		db.Close()
 		return nil, err
 	}
@@ -281,6 +293,14 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	pl.live.init(cfg.PreviewKey)
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS released_names (name TEXT PRIMARY KEY, owner TEXT NOT NULL, released_at INTEGER NOT NULL)`); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := pl.ensureLimitTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := pl.ensureFetchTables(); err != nil {
 		db.Close()
 		return nil, err
@@ -377,6 +397,13 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 		return AppInfo{}, err
 	}
 	defer tx.Rollback()
+	// A deleted app's name stays with its last owner for a while: its
+	// address is in customers' bookmarks, search results and old emails, and
+	// must not start serving someone else's pages overnight.
+	var lastOwner string
+	if tx.QueryRow(`SELECT owner FROM released_names WHERE name = ? AND released_at > ?`, name, time.Now().Add(-NameHold).Unix()).Scan(&lastOwner) == nil && lastOwner != owner {
+		return AppInfo{}, fmt.Errorf("app name %q is already taken", name)
+	}
 	if _, err := tx.Exec(`INSERT INTO apps (name, created_at, owner) VALUES (?, ?, ?)`, name, now(), owner); err != nil {
 		return AppInfo{}, fmt.Errorf("app name %q is already taken", name)
 	}

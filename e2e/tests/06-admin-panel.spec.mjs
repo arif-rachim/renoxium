@@ -123,6 +123,16 @@ test('custom domain: refused names, DNS records, active, served, removed', async
   }
   await page.fill('#host', `https://${host.toUpperCase()}/`);
   await page.getByRole('button', { name: 'Add domain' }).click();
+  // First the owner proves the domain is theirs; Cloudflare hears nothing before that.
+  await expect(page.locator('body')).toContainText(`${host} · prove it is yours`);
+  await expect(page.locator('tbody')).toContainText(`_renoxium.${host}`);
+  const proof = (await page.locator('tbody code').first().textContent()).trim();
+  expect(proof).toMatch(/^renoxium-verify=[0-9a-f]{32}$/);
+  await page.getByRole('button', { name: 'Check now' }).click();
+  await expect(page.locator('body')).toContainText('prove it is yours');
+  expect((await fake.get('/cf/hostnames')).find((h) => h.hostname === host)).toBeUndefined();
+  await fake.post('/dns/txt', { name: `_renoxium.${host}`, value: proof });
+  await page.getByRole('button', { name: 'Check now' }).click();
   await expect(page.locator('body')).toContainText(`${host} · waiting for DNS`);
   await expect(page.locator('tbody')).toContainText('customers.localhost');
   await expect(page.locator('tbody')).toContainText(`_cf-custom-hostname.${host}`);

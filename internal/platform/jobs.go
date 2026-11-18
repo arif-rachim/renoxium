@@ -41,8 +41,9 @@ type liveJobs struct {
 }
 
 type jobCache struct {
-	mu   sync.Mutex
-	apps map[string]liveJobs
+	mu      sync.Mutex
+	apps    map[string]liveJobs
+	running sync.Map // owner -> true while that account's due jobs run
 }
 
 func (p *Platform) ensureJobTable() error {
@@ -60,7 +61,7 @@ func (p *Platform) RunJobs(ctx context.Context, every time.Duration) {
 	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
-		p.RunDueJobs(ctx, time.Now())
+		p.runDueJobs(ctx, time.Now(), false)
 		select {
 		case <-ctx.Done():
 			return
@@ -71,6 +72,12 @@ func (p *Platform) RunJobs(ctx context.Context, every time.Duration) {
 
 // RunDueJobs runs every job that is due at now and waits for them.
 func (p *Platform) RunDueJobs(ctx context.Context, now time.Time) int {
+	return p.runDueJobs(ctx, now, true)
+}
+
+// runDueJobs starts every due job. The scheduler does not wait: a slow
+// job of one account must not delay the next check for all the others.
+func (p *Platform) runDueJobs(ctx context.Context, now time.Time, wait bool) int {
 	rows, err := p.db.Query(`SELECT name, live_version FROM apps WHERE live_version > 0 AND suspended = ''`)
 	if err != nil {
 		slog.Error("jobs: list apps", "err", err)
@@ -89,25 +96,49 @@ func (p *Platform) RunDueJobs(ctx context.Context, now time.Time) int {
 	}
 	rows.Close()
 
-	var wg sync.WaitGroup
-	slots := make(chan struct{}, max(1, p.cfg.ScriptsPerOwner))
+	// Each account's due jobs run one after another on their own queue, and
+	// the queues share a few slots, so an account with many slow jobs waits
+	// for itself, not ahead of everyone else. An account whose queue from an
+	// earlier check is still running is skipped this time.
+	type dueJob struct {
+		app string
+		job appdef.Job
+	}
+	queues := map[string][]dueJob{}
 	started := 0
 	for _, a := range live {
 		for _, j := range p.jobsOf(a.app, a.version) {
-			if !p.jobDue(a.app, j, now) {
-				continue
+			if p.jobDue(a.app, j, now) {
+				owner := p.ownerOf(a.app)
+				queues[owner] = append(queues[owner], dueJob{a.app, j})
 			}
-			started++
-			wg.Add(1)
-			slots <- struct{}{}
-			go func(app string, j appdef.Job) {
-				defer wg.Done()
-				defer func() { <-slots }()
-				p.runLiveJob(ctx, app, j, now)
-			}(a.app, j)
 		}
 	}
-	wg.Wait()
+	var wg sync.WaitGroup
+	slots := make(chan struct{}, max(1, p.cfg.ScriptsPerOwner))
+	for owner, queue := range queues {
+		if _, busy := p.jobs.running.LoadOrStore(owner, true); busy {
+			continue
+		}
+		started += len(queue)
+		wg.Add(1)
+		go func(owner string, queue []dueJob) {
+			defer wg.Done()
+			defer p.jobs.running.Delete(owner)
+			for _, d := range queue {
+				select {
+				case slots <- struct{}{}:
+				case <-ctx.Done():
+					return
+				}
+				p.runLiveJob(ctx, d.app, d.job, now)
+				<-slots
+			}
+		}(owner, queue)
+	}
+	if wait {
+		wg.Wait()
+	}
 	return started
 }
 

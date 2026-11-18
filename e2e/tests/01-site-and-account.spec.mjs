@@ -20,7 +20,9 @@ test('public pages answer', async ({ browser }) => {
   }
   const health = await page.request.get('/healthz');
   expect(health.ok()).toBeTruthy();
-  expect((await page.request.get('/version')).ok()).toBeTruthy();
+  // The running commit is for the operator only: a visitor gets 404, a request made on the server gets it.
+  expect((await page.request.get('/version')).status()).toBe(404);
+  expect((await fetch(RENOXIUM + '/version')).ok).toBeTruthy();
   const llms = await page.request.get('/llms.txt');
   expect(await llms.text()).toContain('/mcp');
   const meta = await (await page.request.get('/.well-known/oauth-authorization-server')).json();

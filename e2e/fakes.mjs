@@ -25,6 +25,7 @@ export function startFakes({ port = 0, renoxiumURL, webhookSecret, billingWebhoo
     subscriptions: new Map(), // sub_ → subscription
     portals: new Map(),       // bps_ → { customer, return_url }
     hostnames: new Map(),     // cf id → hostname object
+    txt: new Map(),           // DNS name → TXT value, for domain ownership proofs
     webhookLog: [],
   };
   let seq = 0;
@@ -276,6 +277,7 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
     }
     if (path === '/cf/hostnames') return json(res, 200, [...state.hostnames.values()]);
     if (path === '/extapi/calls') return json(res, 200, state.apiCalls.filter((c) => !q.get('host') || c.host === q.get('host')));
+    if (path === '/dns/txt') { state.txt.set(b.name, b.value); return json(res, 200, { ok: true }); } // b: { name, value }
     return json(res, 404, { error: 'no such control' });
   }
 
@@ -314,6 +316,11 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
         return json(res, 404, { error: 'no such endpoint' });
       }
       if (p.startsWith('/cf/')) return cloudflare(req, res, p.slice(3), body);
+      if (p === '/dns') { // DNS over HTTPS, JSON form: only the TXT records set through /_fake/dns/txt exist
+        const name = url.searchParams.get('name');
+        const answer = state.txt.has(name) ? [{ name, type: 16, TTL: 60, data: `"${state.txt.get(name)}"` }] : [];
+        return json(res, 200, { Status: 0, Answer: answer });
+      }
       if (p.startsWith('/_fake/')) return await control(req, res, p.slice(6), body);
       res.writeHead(404); res.end('fake: not found');
     } catch (err) {

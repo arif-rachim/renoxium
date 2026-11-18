@@ -408,6 +408,10 @@ type scriptHost struct {
 	// request; with Stripe Checkout itself, the only outside addresses a
 	// script may redirect to.
 	checkouts []string
+	// readOnly is set for MCP tools marked read_only: assistants call those
+	// without asking the person first, so the platform makes sure they
+	// cannot change data, send messages or call other services.
+	readOnly bool
 	// http.fetch calls and time spent waiting on them in this run.
 	fetches   int
 	fetchWait time.Duration
@@ -431,6 +435,8 @@ func (h *scriptHost) mayRedirect(target string) bool {
 	return false
 }
 
+var errReadOnlyTool = errors.New("this tool is marked read_only, so it cannot change data, send messages or call other services; remove read_only from the tool if it must")
+
 const maxDBCalls = 200
 
 func (h *scriptHost) count() error {
@@ -446,12 +452,18 @@ func (h *scriptHost) Query(ctx context.Context, q string, args []any) ([]map[str
 	if err := h.count(); err != nil {
 		return nil, err
 	}
+	if h.readOnly {
+		return h.st.db.QueryReadOnly(ctx, q, args)
+	}
 	return h.st.db.Query(ctx, q, args)
 }
 
 func (h *scriptHost) Exec(ctx context.Context, q string, args []any) (int64, int64, error) {
 	if err := h.count(); err != nil {
 		return 0, 0, err
+	}
+	if h.readOnly {
+		return 0, 0, errReadOnlyTool
 	}
 	return h.st.db.Exec(ctx, q, args)
 }
@@ -470,6 +482,9 @@ func (h *scriptHost) Log(level, message string) {
 func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) {
 	if err := h.count(); err != nil {
 		return nil, err
+	}
+	if h.readOnly && fn != "payments.get" && fn != "realtime.token" {
+		return nil, errReadOnlyTool
 	}
 	switch fn {
 	case "payments.checkout":

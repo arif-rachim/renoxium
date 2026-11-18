@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"strings"
@@ -21,6 +22,14 @@ const (
 	phoneCodeAttempts = 5
 	// phoneGuessesPerHour caps wrong and right guesses for one number.
 	phoneGuessesPerHour = 10
+)
+
+// Shares of an account's monthly WhatsApp messages: numbers without an
+// account may use quota/WhatsAppNewPerDayShare per day (at least 10), and
+// quota/WhatsAppKnownReserveShare is kept for numbers that have an account.
+var (
+	WhatsAppNewPerDayShare    = 4
+	WhatsAppKnownReserveShare = 5
 )
 
 func rowsAffected(res sql.Result, err error) (int64, error) {
@@ -72,10 +81,29 @@ func (p *Platform) sendPhoneCode(w http.ResponseWriter, r *http.Request, st *sta
 		return
 	}
 	// Every code costs a WhatsApp message: limit per visitor address and per number.
-	if !p.allow("phone-ip:"+st.app+":"+p.clientIP(r), 10, time.Hour) || !p.allow("phone:"+st.app+":"+phone, 3, 15*time.Minute) {
+	if !p.allow("phone-ip:"+st.app+":"+p.clientIP(r), 10, time.Hour) || !p.allowDurable("phone:"+st.app+":"+phone, 3, 15*time.Minute) {
 		data.Error = "Too many codes requested. Try again in 15 minutes."
 		p.authPage(w, r, st, http.StatusTooManyRequests, "phone", data)
 		return
+	}
+	// Anyone can type any number, so without a limit a stranger could use
+	// up a shop's whole month of messages in minutes and lock its customers
+	// out of WhatsApp sign-in. Numbers without an account get a share of
+	// the month per day, and part of the month is kept for customers who
+	// already have an account.
+	if st.name == Live && p.cfg.OwnerPlan != nil {
+		var known int
+		st.admin.QueryRowContext(r.Context(), `SELECT count(*) FROM rx_users WHERE phone = ?`, phone).Scan(&known)
+		used, quota := p.WhatsAppUsage(p.ownerOf(st.app))
+		reserved := 0
+		if WhatsAppKnownReserveShare > 0 {
+			reserved = quota / WhatsAppKnownReserveShare
+		}
+		if known == 0 && (used >= quota-reserved || !p.allowDurable("wa-new:"+st.app, max(10, quota/WhatsAppNewPerDayShare), 24*time.Hour)) {
+			data.Error = "Too many new WhatsApp sign-ups right now. Please sign up with your email instead."
+			p.authPage(w, r, st, http.StatusTooManyRequests, "phone", data)
+			return
+		}
 	}
 	code := sixDigits()
 	_, err := st.admin.ExecContext(r.Context(), `INSERT INTO rx_phone_codes (phone, code_hash, expires_at, attempts) VALUES (?, ?, ?, 0)
@@ -102,14 +130,17 @@ func (p *Platform) sendCode(ctx context.Context, st *stage, phone, code string) 
 		p.event(st, "whatsapp", "info", "", fmt.Sprintf("not sent from preview: sign-in code %s for %s", code, phone))
 		return nil
 	}
-	if !p.allow("wa-day:"+st.app, p.cfg.Daily.WhatsAppPerApp, 24*time.Hour) || !p.allow("wa-day", p.cfg.Daily.WhatsApp, 24*time.Hour) {
+	if !p.allowDurable("wa-day:"+st.app, p.cfg.Daily.WhatsAppPerApp, 24*time.Hour) || !p.allowDurable("wa-day", p.cfg.Daily.WhatsApp, 24*time.Hour) {
 		p.event(st, "whatsapp", "error", "", "sign-in code not sent: the daily WhatsApp limit was reached")
 		return errors.New("daily WhatsApp limit reached")
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 	if err := p.cfg.WhatsApp.SendCode(ctx, phone, code); err != nil {
-		p.event(st, "whatsapp", "error", "", "sign-in code not delivered: "+err.Error())
+		// Meta's answer can describe the platform's own WhatsApp account
+		// (payment, restrictions, template names): it goes to the server log.
+		slog.Error("whatsapp sign-in code", "app", st.app, "err", err)
+		p.event(st, "whatsapp", "error", "", "a WhatsApp sign-in code could not be delivered; Renoxium has logged the reason")
 		return err
 	}
 	return nil
@@ -124,7 +155,7 @@ func (p *Platform) verifyPhoneCode(w http.ResponseWriter, r *http.Request, st *s
 
 	// Guesses are limited per number across every code sent to it, and per
 	// visitor address, so asking for new codes does not buy more guesses.
-	if !p.allow("phone-verify:"+st.app+":"+phone, phoneGuessesPerHour, time.Hour) || !p.allow("phone-verify-ip:"+st.app+":"+p.clientIP(r), 30, time.Hour) {
+	if !p.allowDurable("phone-verify:"+st.app+":"+phone, phoneGuessesPerHour, time.Hour) || !p.allow("phone-verify-ip:"+st.app+":"+p.clientIP(r), 30, time.Hour) {
 		data.Error = "Too many attempts. Try again in an hour."
 		p.authPage(w, r, st, http.StatusTooManyRequests, "phone", data)
 		return

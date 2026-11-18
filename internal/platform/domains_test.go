@@ -19,6 +19,7 @@ import (
 type fakeCloudflare struct {
 	mu      sync.Mutex
 	active  bool
+	created int
 	deleted []string
 }
 
@@ -35,6 +36,7 @@ func (f *fakeCloudflare) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var body struct{ Hostname string }
 		json.NewDecoder(r.Body).Decode(&body)
 		host = body.Hostname
+		f.created++
 	}
 	if r.Method == http.MethodDelete {
 		f.deleted = append(f.deleted, strings.TrimPrefix(r.URL.Path, "/zones/zone1/custom_hostnames/"))
@@ -57,9 +59,11 @@ func TestCustomDomainLifecycle(t *testing.T) {
 	cf := &fakeCloudflare{}
 	srv := httptest.NewServer(cf)
 	defer srv.Close()
-	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
+	plans := map[string]string{"usr_free": "free", "usr_pro": "pro", "usr_other": "pro"}
+	dns := map[string][]string{} // the TXT records "in DNS"
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://renoxium.com",
 		OwnerPlan:  func(id string) string { return plans[id] },
+		LookupTXT:  func(_ context.Context, name string) ([]string, error) { return dns[name], nil },
 		Cloudflare: &cloudflare.Client{Token: "cf-token", ZoneID: "zone1", BaseURL: srv.URL}, CustomDomainTarget: "customers.renoxium.test"},
 		sandbox.NewGoja())
 	if err != nil {
@@ -84,9 +88,34 @@ func TestCustomDomainLifecycle(t *testing.T) {
 		}
 	}
 
+	// Adding a domain first asks for proof that it belongs to the account:
+	// nothing reaches Cloudflare before the proof record is in DNS.
 	d, err := p.SetCustomDomain(ctx, "oud", " https://WWW.Oud.ae/ ")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if d.Host != "www.oud.ae" || d.Status != "verify" || d.Verify.Name != "_renoxium.www.oud.ae" || !strings.HasPrefix(d.Verify.Value, "renoxium-verify=") || cf.created != 0 {
+		t.Fatalf("unproven domain = %+v, %d created at Cloudflare", d, cf.created)
+	}
+	// Another account claims the same domain, as someone would to take over
+	// a domain whose DNS already points here. Its proof record is different,
+	// so the first owner's record does not help it, and its claim does not
+	// keep the real owner out.
+	p.CreateApp("usr_other", "squatter")
+	p.ApplyChange(ctx, "squatter", page)
+	sq, err := p.SetCustomDomain(ctx, "squatter", "www.oud.ae")
+	if err != nil || sq.Status != "verify" || sq.Verify.Value == d.Verify.Value {
+		t.Fatalf("second claim = %+v, %v", sq, err)
+	}
+	dns[d.Verify.Name] = []string{"unrelated", d.Verify.Value}
+	if sq, _ = p.RefreshCustomDomain(ctx, "squatter"); sq.Status != "verify" || cf.created != 0 {
+		t.Fatalf("another account's proof was accepted: %+v", sq)
+	}
+	if d, err = p.SetCustomDomain(ctx, "oud", "www.oud.ae"); err != nil {
+		t.Fatal(err)
+	}
+	if sq, _ := p.CustomDomain("squatter"); sq != nil {
+		t.Fatalf("the unproven claim was kept: %+v", sq)
 	}
 	if d.Host != "www.oud.ae" || d.Status != "pending" || d.CNAME != "customers.renoxium.test" || d.Ownership.Value != "abc" || len(d.SSLRecords) != 1 || len(d.Problems) == 0 {
 		t.Errorf("pending domain = %+v", d)

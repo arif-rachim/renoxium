@@ -123,12 +123,13 @@ func TestAccountPage(t *testing.T) {
 	if _, err := e.acc.UserByEmail("xena@shop.ae"); err == nil {
 		t.Fatal("the account still exists")
 	}
-	// The name is free again for someone else.
+	// The name is held: its address is in customers' bookmarks and old
+	// emails, so another account cannot take it over right away.
 	n := e.browser()
 	e.signup(n, "yuri@shop.ae")
 	if s := e.mcpSession(e.connect(n, e.registerClient()).AccessToken); true {
-		if _, errText := call(t, s, "create_app", map[string]any{"app": "xena-shop"}); errText != "" {
-			t.Fatalf("name not released: %s", errText)
+		if _, errText := call(t, s, "create_app", map[string]any{"app": "xena-shop"}); !strings.Contains(errText, "already taken") {
+			t.Fatalf("a deleted app's name went to another account: %q", errText)
 		}
 	}
 }

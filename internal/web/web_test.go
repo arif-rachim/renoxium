@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/arif-rachim/renoxium/internal/monitor"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -712,3 +714,44 @@ func TestLoginReturnsToPage(t *testing.T) {
 		}
 	}
 }
+
+// The running commit and the reason the server is unhealthy tell an
+// attacker what to try, so visitors coming through the tunnel see neither.
+func TestVersionAndHealthDetailsAreNotPublic(t *testing.T) {
+	dir := t.TempDir()
+	p, _ := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	acc, _ := accounts.Open(filepath.Join(dir, "accounts.db"))
+	defer p.Close()
+	defer acc.Close()
+	site := web.New("https://renoxium.test", acc, p)
+	site.TrustedIPHeader = "CF-Connecting-IP"
+	site.Version = "abc1234"
+	site.Monitor = sickMonitor{}
+	get := func(path, remote, visitor string) (int, string) {
+		r := httptest.NewRequest("GET", "https://renoxium.test"+path, nil)
+		r.RemoteAddr = remote
+		if visitor != "" {
+			r.Header.Set("CF-Connecting-IP", visitor)
+		}
+		w := httptest.NewRecorder()
+		site.ServeHTTP(w, r)
+		return w.Code, w.Body.String()
+	}
+	if code, body := get("/version", "127.0.0.1:4000", "203.0.113.7"); code != 404 || strings.Contains(body, "abc1234") {
+		t.Fatalf("version through the tunnel: %d %s", code, body)
+	}
+	if code, _ := get("/version", "203.0.113.7:4000", ""); code != 404 {
+		t.Fatalf("version from another machine: %d", code)
+	}
+	if code, body := get("/version", "127.0.0.1:4000", ""); code != 200 || !strings.Contains(body, "abc1234") {
+		t.Fatalf("version on the server itself: %d %s", code, body)
+	}
+	if code, body := get("/healthz", "127.0.0.1:4000", "203.0.113.7"); code != 503 || strings.Contains(body, "disk") {
+		t.Fatalf("healthz: %d %s", code, body)
+	}
+}
+
+type sickMonitor struct{}
+
+func (sickMonitor) Healthy() error         { return errors.New("disk almost full: 1.2% free") }
+func (sickMonitor) Status() monitor.Status { return monitor.Status{} }
