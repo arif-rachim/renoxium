@@ -17,7 +17,10 @@ Visitors / ChatGPT / Claude
 
 - An Ubuntu VPS with SSH access and `sudo`.
 - `renoxium.com` and `renoxium.app` are both zones in the same Cloudflare account.
-- A computer with Go 1.26 or newer to build the binary. An older Go downloads 1.26 by itself.
+- A computer with Go 1.26 or newer to build the binary. `go.mod` names the exact patch release (1.26.11 now),
+  and Go downloads it by itself when the installed one is older, so builds always include Go's security fixes.
+  After `git pull`, check for new ones with `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`; when it
+  reports standard library issues, raise the release with `go get go@<version> toolchain@go<version>`.
 
 ## Memory budget
 
