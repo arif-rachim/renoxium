@@ -56,11 +56,11 @@ var landingPages = template.Must(template.New("").Parse(`
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light dark;--logo-a:#0e6f66;--logo-b:#3a9d7c;--logo-c:#e9a825;--deep-1:#0f4540;--deep-2:#0a2b28;--deep-soft:#b9d3ce;--gold:#f2bd4b;--gold-hover:#ffd27a;--gold-ink:#2a1d00;--overlay:6 34 31;--ink:#0d2624;--soft:#4a625f;--paper:#f4f7f5;--paper-2:#e8f0ed;--panel:#ffffff;--panel-2:#f7faf9;--rule:#dae4e0;--rule-strong:#c2d3ce;
---blue:#0e6f66;--blue-hover:#0a5952;--blue-ink:#ffffff;--blue-soft:#e1f1ed;--live:#1f8a4c;--bubble:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--sun-ink:#3d2a00;--deep:#0b3532;--deep-ink:#e6f2ef;
---shade:13 38 36;--shadow-sm:0 1px 2px rgb(var(--shade) / .06),0 1px 1px rgb(var(--shade) / .03);--shadow:0 1px 2px rgb(var(--shade) / .05),0 10px 28px -14px rgb(var(--shade) / .22);--shadow-lg:0 2px 4px rgb(var(--shade) / .04),0 28px 56px -28px rgb(var(--shade) / .38)}
-@media (prefers-color-scheme:dark){:root{--ink:#e4efec;--soft:#9fb4b0;--paper:#091312;--paper-2:#0d1d1b;--panel:#10201e;--panel-2:#142724;--rule:#1f3a36;--rule-strong:#2b4e48;
---blue:#45c7b6;--blue-hover:#6ad6c8;--blue-ink:#03201c;--blue-soft:#11302c;--live:#4cc88a;--bubble:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--sun-ink:#2a1d00;--deep:#0c2926;--deep-ink:#e3eeeb;
+:root{color-scheme:light dark;--logo-a:#0f1b2d;--logo-b:#2d4470;--logo-c:#d4af5a;--deep-1:#15233b;--deep-2:#0a1322;--deep-soft:#b7c0d0;--gold:#d4af5a;--gold-hover:#e2c27a;--gold-ink:#0f1b2d;--overlay:10 19 34;--ink:#0f1b2d;--soft:#55627a;--paper:#f6f5f1;--paper-2:#eceae3;--panel:#ffffff;--panel-2:#faf9f6;--rule:#e2e0d8;--rule-strong:#cfcbbf;
+--blue:#1b2a4a;--blue-hover:#13203a;--blue-ink:#ffffff;--blue-soft:#e6e9f0;--live:#2e7d5b;--bubble:#e9ecf3;--sun:#c9a227;--sun-soft:#f6eed3;--sun-ink:#2b2206;--deep:#0f1b2d;--deep-ink:#eef1f6;
+--shade:15 27 45;--shadow-sm:0 1px 2px rgb(var(--shade) / .06),0 1px 1px rgb(var(--shade) / .03);--shadow:0 1px 2px rgb(var(--shade) / .05),0 10px 28px -14px rgb(var(--shade) / .22);--shadow-lg:0 2px 4px rgb(var(--shade) / .04),0 28px 56px -28px rgb(var(--shade) / .38)}
+@media (prefers-color-scheme:dark){:root{--ink:#e8ecf3;--soft:#9aa6ba;--paper:#0a111d;--paper-2:#0e1726;--panel:#121c2d;--panel-2:#172235;--rule:#223049;--rule-strong:#2e3f5e;
+--blue:#d4af5a;--blue-hover:#e2c27a;--blue-ink:#0f1b2d;--blue-soft:#2a2616;--live:#4cc88a;--bubble:#1a2740;--sun:#d4af5a;--sun-soft:#2e2715;--sun-ink:#1d1606;--deep:#0c1525;--deep-1:#111d33;--deep-2:#08101d;--deep-ink:#e8ecf3;--deep-soft:#aab5c8;--overlay:6 12 22;
 --shadow-sm:0 1px 2px rgba(0,0,0,.35);--shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px -14px rgba(0,0,0,.6);--shadow-lg:0 2px 4px rgba(0,0,0,.25),0 30px 60px -28px rgba(0,0,0,.75)}
 img{filter:brightness(.94)}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
@@ -197,23 +197,44 @@ h2{font-size:clamp(28px,3.8vw,42px);letter-spacing:-.025em;margin:0 0 14px;line-
 .end .btn{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);box-shadow:0 10px 24px -12px rgba(0,0,0,.6)}.end .btn:hover{background:var(--gold-hover);border-color:var(--gold-hover)}
 .end .btn.quiet{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.5);color:#fff}.end .btn.quiet:hover{background:rgba(255,255,255,.16)}
 .end :focus-visible{outline-color:var(--gold)}
+.bhero{position:relative;isolation:isolate;color:#fff;overflow:hidden;padding-bottom:52px;background:var(--deep-2)}
+.bhero>.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:saturate(.7) contrast(1.05)}
+.bhero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgb(var(--overlay) / .88) 0%,rgb(var(--overlay) / .62) 55%,rgb(var(--overlay) / .42) 100%),linear-gradient(0deg,rgb(var(--overlay) / .9) 0%,transparent 50%)}
+body:has(.bhero)>header.wrap{position:absolute;inset:0 0 auto;z-index:3}
+body:has(.bhero)>header nav.top .logo,body:has(.bhero)>header nav.top .links a{color:#fff}body:has(.bhero)>header nav.top .links a:hover{background:rgba(255,255,255,.12)}body:has(.bhero)>header nav.top .links a.join{background:var(--gold);color:var(--gold-ink)}
+.bhero{padding-top:84px}.btext{padding:44px 0 40px;max-width:760px;text-align:start}
+.bhero .eyebrow{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#fff;box-shadow:none}.bhero .eyebrow b{background:var(--gold);color:var(--gold-ink)}
+.bhero h1{margin:0 0 18px;color:#fff;max-width:none;text-align:start;font-size:clamp(34px,4.6vw,60px)}
+.bhero h1 .ar{margin:12px 0 0;width:fit-content;color:var(--gold)}
+.bhero .lede{margin:0 0 26px;font-size:18px;color:rgba(255,255,255,.84);max-width:34em;text-align:start}
+.bhero .cta{justify-content:flex-start}.bhero .small{color:rgba(255,255,255,.7);text-align:start}
+.bhero .btn{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}.bhero .btn:hover{background:var(--gold-hover);border-color:var(--gold-hover)}
+.bhero .btn.quiet{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.55);color:#fff}.bhero .btn.quiet:hover{background:rgba(255,255,255,.18)}
+.bhero :focus-visible{outline-color:var(--gold)}
+.bpaths{display:grid;gap:16px}@media(min-width:960px){.bpaths{grid-template-columns:repeat(3,1fr)}}
+.bpath{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);border-radius:22px;padding:18px;display:grid;grid-template-columns:84px 1fr;gap:14px 16px;align-items:start;box-shadow:0 24px 48px -28px rgba(0,0,0,.6)}
+.bpath img{width:84px;height:84px;object-fit:cover;border-radius:16px;filter:none}
+.bpath h2{font-size:22px;margin:2px 0 4px;color:#fff;letter-spacing:-.015em}.bpath p{margin:0;color:rgba(255,255,255,.82);font-size:15px;line-height:1.5}
+.bpath p.for{margin-top:6px;font-size:13.5px;color:var(--gold)}
+.bpath .demos{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;margin:0;padding:0}
+.bpath .demos a{display:flex;justify-content:space-between;gap:10px;background:rgba(255,255,255,.94);color:var(--ink);padding:9px 14px;font-size:14.5px;font-weight:500;border-radius:999px;text-decoration:none}
+.bpath .demos a small{color:var(--blue);font-size:13.5px}.bpath .demos a:hover{background:#fff}
+.bhero .also{color:rgba(255,255,255,.74);text-align:start;margin-top:22px}.bhero .also a{color:#fff}
+@media(max-width:700px){.bhero{padding-top:132px}.bhero::before{background:linear-gradient(180deg,rgb(var(--overlay) / .82),rgb(var(--overlay) / .7) 60%,rgb(var(--overlay) / .92))}}
+@media(max-width:600px){.btext{padding:32px 0 32px}.bpath{grid-template-columns:64px 1fr;padding:14px}.bpath img{width:64px;height:64px}}
+@media (prefers-color-scheme:dark){.bpath .demos a{background:rgba(18,28,45,.92);color:var(--ink)}.bpath .demos a:hover{background:var(--panel-2)}}
 </style></head><body>
-<div class="hero-bg" aria-hidden="true"></div>
 {{template "nav" "home"}}
-<main id="main">
-<section class="hero" aria-labelledby="hero-h"><div class="wrap">
+<main id="main"><section class="bhero" aria-labelledby="hero-h">{{with .Hero}}<img class="bg" src="{{.Src}}" srcset="{{.SrcSet}}" sizes="100vw" width="1600" height="1067" alt="" fetchpriority="high">{{end}}
+<div class="wrap"><div class="btext">
 <p class="eyebrow"><b>UAE</b>For businesses that sell, book and quote</p>
 <h1 id="hero-h">Get orders, bookings and payments online, set up in a chat. <span class="ar" lang="ar">موقع عملك، جاهز من محادثة.</span></h1>
 <p class="lede">Move your business out of WhatsApp and Instagram DMs. Tell ChatGPT or Claude what you sell or book: Renoxium builds the site from a finished UAE template, hosts it, and takes card payments and cash on delivery, in English and Arabic.</p>
 <div class="cta"><a class="btn lg" href="/signup">Create your account</a><a class="btn quiet lg" href="/templates">Try the templates</a></div>
-<p class="small">Free to start. No code, no designer, nothing to install.</p>
-<div class="paths">{{range .Paths}}<article class="path" id="{{.ID}}" aria-labelledby="{{.ID}}-h">
-<div class="ph"><img src="{{.Photo.Src}}" srcset="{{.Photo.SrcSet}}" sizes="(min-width:1180px) 370px, (min-width:960px) 31vw, (min-width:640px) 45vw, 100vw" width="800" height="533" alt="{{.Photo.Alt}}"><span class="n">{{.N}}</span>
-<div class="extra">{{range .Extra}}<img src="{{.Small}}" width="400" height="267" alt="{{.Alt}}">{{end}}</div></div>
-<div class="pb"><h2 id="{{.ID}}-h">{{.Title}}</h2><p class="promise">{{.Promise}}</p>
-<ul class="suits" aria-label="Suits">{{range .Suits}}<li>{{.}}</li>{{end}}</ul>
-<p class="inc">{{range .Includes}}<span>{{.}}</span>{{end}}</p>
-<div class="demos">{{range .Demos}}<a href="{{.DemoURL}}/">{{.Title}}<small>Try the demo →</small></a>{{end}}</div></div></article>{{end}}</div>
+<p class="small">Free to start. No code, no designer, nothing to install.</p></div>
+<div class="bpaths">{{range .Paths}}<article class="bpath" id="{{.ID}}" aria-labelledby="{{.ID}}-h"><img src="{{.Photo.Small}}" width="400" height="267" alt="{{.Photo.Alt}}">
+<div><h2 id="{{.ID}}-h">{{.Title}}</h2><p>{{.Promise}}</p><p class="for">{{range $i, $s := .Suits}}{{if $i}} · {{end}}{{$s}}{{end}}</p></div>
+<div class="demos">{{range .Demos}}<a href="{{.DemoURL}}/">{{.Title}}<small>Try the demo →</small></a>{{end}}</div></article>{{end}}</div>
 <p class="also">Delivering too? <a href="/templates#delivery-tracking">Live delivery tracking</a> shows customers the courier on a map. <a href="/templates">See every template</a></p>
 </div></section>
 
