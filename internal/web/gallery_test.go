@@ -34,7 +34,7 @@ func TestTemplateGallery(t *testing.T) {
 		}
 	}
 	// Grouped by what the owner does, each with a screenshot of its demo.
-	for _, want := range []string{"I sell products", "I take bookings", "I send quotes", "I deliver", "/static/img/screen-booking-slots.webp?v="} {
+	for _, want := range []string{"I sell products", "I take bookings", "I send quotes", "I deliver", "/static/img/screen-booking.webp?v="} {
 		if !strings.Contains(page, want) {
 			t.Errorf("gallery lacks %q", want)
 		}

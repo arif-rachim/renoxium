@@ -67,14 +67,14 @@ func (s screen) Src() string { return staticURL(s.File) }
 func phone(file, alt string) screen { return screen{File: file, Alt: alt, W: 600, H: 1298} }
 
 var screens = map[string]screen{
-	"store-uae":         phone("screen-store-product.webp", "The Royal Oud product page of the Al Noor Perfumes demo shop: a photo of an amber perfume bottle, AED 250.00 including VAT, a 50 ml option, quantity, Add to cart and a Chat on WhatsApp button"),
+	"store-uae":         phone("screen-store-home.webp", "The home page of the Al Noor Perfumes demo shop: the shop name over a full-screen photo of desert dunes at dusk, with Oud, musk and amber from the UAE and Discover the collection"),
 	"store-ar":          phone("screen-store-home-ar.webp", "The Al Noor Perfumes demo shop in Arabic: the shop name, category filters and four perfumes with their photos and AED prices, laid out right to left"),
-	"booking-uae":       phone("screen-booking-slots.webp", "The Haircut and Blow-dry page of the Lamsa Beauty Lounge demo: a photo of a stylist blow-drying a client's hair, AED 150 including VAT, a choice of stylist, a date and a grid of the free times left that day"),
-	"home-service-uae":  phone("screen-home-service.webp", "The Home cleaning booking form of the Bayti Home Services demo: number of hours, materials, area, date, arrival windows with the morning ones already taken, repeat and the price with VAT"),
-	"reservation-uae":   phone("screen-reservation.webp", "The Evening Desert Safari with BBQ Dinner page of the Sahara Bay demo: a photo of sand dunes, what is included, adult and child prices, and the first departure with seats left"),
-	"quote-portal-uae":  phone("screen-quote-portal.webp", "The home page of the Bayan Business Setup demo: an Ask for a quote button and company formation packages from AED 12,900 and AED 14,500 with typical durations"),
-	"listings-uae":      phone("screen-listing.webp", "A four-bedroom villa in Arabian Ranches on the Marsa Homes demo: a photo of the villa and its pool, AED 6,900,000, property type, bedrooms, bathrooms, area and furnishing"),
-	"delivery-tracking": phone("screen-delivery.webp", "Delivery #1 of the Al Noor Flowers demo for Mariam, marked On the way, with the courier's position on a map of Dubai"),
+	"booking-uae":       phone("screen-booking.webp", "The home page of the Lamsa Beauty Lounge demo: Hair, nails and skincare in Jumeirah on a plum banner with a Book an appointment button and a photo of a calm spa bathroom"),
+	"home-service-uae":  phone("screen-home-service.webp", "The home page of the Bayti Home Services demo: Cleaning, AC and maintenance across Dubai, booked in a minute on a green banner with a Choose a service button and a photo of a tidy living room"),
+	"reservation-uae":   phone("screen-reservation.webp", "The home page of the Sahara Bay Tours and Rentals demo: Desert safaris, cruises, car hire and party rentals in Dubai on a brown banner with a See tours and rentals button and a photo of a camel caravan crossing the dunes"),
+	"quote-portal-uae":  phone("screen-quote-portal.webp", "The home page of the Bayan Business Setup demo: Company formation, visas and tax services in Dubai, with a clear quote before you pay, an Ask for a quote button and a photo of the Dubai skyline at night"),
+	"listings-uae":      phone("screen-listing.webp", "The home page of the Marsa Homes demo: the broker's name over a full-screen photo of Downtown Dubai and the Burj Khalifa, with Homes to buy and rent across Dubai and Search properties"),
+	"delivery-tracking": phone("screen-delivery.webp", "Delivery #1 of the Al Noor Flowers demo for Mariam: the courier's position on a map of Dubai and the progress Preparing, On the way, Delivered, with On the way reached"),
 	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
 		Alt: "The owner's admin panel of the Lamsa Beauty Lounge demo: the bookings calendar for one day, one lane each for Layla, Maryam and Priya, with nine appointments from 10:00 to 19:00, each with the customer's name and service, marked confirmed or pending"},
 }
