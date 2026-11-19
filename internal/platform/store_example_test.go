@@ -53,11 +53,16 @@ func TestStoreUAEExample(t *testing.T) {
 	if !strings.Contains(ar.Body, `dir="rtl"`) || !strings.Contains(ar.Body, "العود الملكي") || !strings.Contains(ar.Body, "عطور النور") {
 		t.Fatal("arabic home")
 	}
+	// Arabic pages show Arabic categories and prices in dirhams, and keep the brand theme from the store settings.
+	if !strings.Contains(ar.Body, ">مسك</a>") || !strings.Contains(ar.Body, "95.00 د.إ") || !strings.Contains(ar.Body, `data-font="classic"`) ||
+		!strings.Contains(ar.Body, "--brand:#5c2a3d") {
+		t.Fatalf("arabic home details: %s", ar.Body)
+	}
 	if r := req(platform.TestRequestInput{Path: "/?c=Musk"}); strings.Contains(r.Body, "Royal Oud") || !strings.Contains(r.Body, "White Musk") {
 		t.Fatal("category filter")
 	}
 	if r := req(platform.TestRequestInput{Path: "/p/1"}); r.Status != 200 || !strings.Contains(r.Body, "Includes VAT") ||
-		!strings.Contains(r.Body, `<select id="variant">`) || !strings.Contains(r.Body, "100 ml") {
+		!strings.Contains(r.Body, `type="radio" name="variant" value="2"`) || !strings.Contains(r.Body, "100 ml") {
 		t.Fatalf("product with options: %d", r.Status)
 	}
 	if !strings.Contains(home.Body, "From AED 250.00") {

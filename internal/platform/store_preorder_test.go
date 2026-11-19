@@ -69,7 +69,7 @@ func TestStoreUAEOrderAhead(t *testing.T) {
 		t.Fatal("owner notice has no date")
 	}
 	page := as(platform.TestRequestInput{Path: "/orders/1"})
-	if !strings.Contains(page.Body, "<strong>"+tomorrow+"</strong>") || !strings.Contains(page.Body, "Happy birthday Noor") {
+	if !strings.Contains(page.Body, `<time datetime="`+tomorrow+`">`) || !strings.Contains(page.Body, "Happy birthday Noor") {
 		t.Fatalf("order page: %s", page.Body)
 	}
 	job, err := p.TestRequest(ctx, "cakes", platform.TestRequestInput{Job: "daily_report"})
