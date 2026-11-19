@@ -12,10 +12,23 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Your business online, built in a chat.", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Get orders, bookings and payments online", "Sell products", "Take bookings", "Send quotes", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
+	}
+	// The photos are served from the binary, cached for good under a versioned URL.
+	i := strings.Index(page, "/static/img/")
+	if i < 0 {
+		t.Fatal("landing has no photos")
+	}
+	src := page[i : i+strings.IndexByte(page[i:], '"')]
+	r, _ = http.Get(e.base + strings.ReplaceAll(src, "&amp;", "&"))
+	if read(t, r); r.StatusCode != 200 || r.Header.Get("Content-Type") != "image/webp" || !strings.Contains(r.Header.Get("Cache-Control"), "immutable") {
+		t.Fatalf("photo %s: %d %s %s", src, r.StatusCode, r.Header.Get("Content-Type"), r.Header.Get("Cache-Control"))
+	}
+	if r, _ := http.Get(e.base + "/static/img/nothing.webp"); r.StatusCode != 404 {
+		t.Fatalf("missing photo: %d", r.StatusCode)
 	}
 	r, _ = http.Get(e.base + "/privacy")
 	if p := read(t, r); r.StatusCode != 200 || !strings.Contains(p, "Draft.") || !strings.Contains(p, "Privacy Policy") {

@@ -18,8 +18,9 @@ func (s *Site) registerGallery() {
 }
 
 type galleryCard struct {
-	Name, Title, Summary, DemoURL, AdminURL, Prompt string
-	For                                             []string
+	Name, Title, Summary, DemoURL, AdminURL, Prompt, Job string
+	For                                                  []string
+	Photo                                                photo
 }
 
 func (s *Site) galleryCards() []galleryCard {
@@ -27,6 +28,7 @@ func (s *Site) galleryCards() []galleryCard {
 	for _, e := range examples.Gallery() {
 		out = append(out, galleryCard{Name: e.Name, Title: e.Gallery.Title, Summary: e.Gallery.Summary, For: e.Gallery.For,
 			DemoURL: s.platform.DemoURL(e.Name), AdminURL: "/templates/" + e.Name + "/admin",
+			Photo: photos[examplePhoto[e.Name]], Job: exampleJob[e.Name],
 			Prompt: "Use Renoxium to build me a website from the " + e.Name + " template for my business, <your business name>."})
 	}
 	return out
