@@ -11,6 +11,7 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | store-royal-oud.webp | https://images.unsplash.com/photo-1588405748880-12d1d2a59f75 | Unsplash License | cropped; the label blurred |
 | store-white-musk.webp | https://images.unsplash.com/photo-1617897903246-719242758050 | Unsplash License | resized |
 | store-amber-night.webp | https://images.unsplash.com/photo-1608571423902-eed4a5ad8108 | Unsplash License | resized |
+| store-hero.webp | https://images.unsplash.com/photo-1608571423902-eed4a5ad8108 | Unsplash License | 4:5 crop for the home banner |
 | store-oud-gift-set.webp | https://images.unsplash.com/photo-1515377905703-c4788e51af15 | Unsplash License | the bottle label (a brand) blurred |
 | booking-haircut.webp | https://images.unsplash.com/photo-1562322140-8baeececf3df | Unsplash License | resized |
 | booking-hair-colour.webp | https://images.unsplash.com/photo-1522337360788-8b13dee7a37e | Unsplash License | resized |
