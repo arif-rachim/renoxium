@@ -18,17 +18,34 @@ func (s *Site) registerGallery() {
 }
 
 type galleryCard struct {
-	Name, Title, Summary, DemoURL, AdminURL, Prompt, Job string
-	For                                                  []string
-	Photo                                                photo
+	Name, Title, Summary, DemoURL, AdminURL, Prompt, Job, Suits string
+	Screen                                                      screen
+}
+
+// galleryGroup is the templates for one job of the owner, in gallery order.
+type galleryGroup struct {
+	Job   string
+	Cards []galleryCard
+}
+
+func galleryGroups(cards []galleryCard) []galleryGroup {
+	var out []galleryGroup
+	for _, c := range cards {
+		if n := len(out); n > 0 && out[n-1].Job == c.Job {
+			out[n-1].Cards = append(out[n-1].Cards, c)
+			continue
+		}
+		out = append(out, galleryGroup{Job: c.Job, Cards: []galleryCard{c}})
+	}
+	return out
 }
 
 func (s *Site) galleryCards() []galleryCard {
 	var out []galleryCard
 	for _, e := range examples.Gallery() {
-		out = append(out, galleryCard{Name: e.Name, Title: e.Gallery.Title, Summary: e.Gallery.Summary, For: e.Gallery.For,
+		out = append(out, galleryCard{Name: e.Name, Title: e.Gallery.Title, Summary: e.Gallery.Summary, Suits: suits(e.Gallery.For),
 			DemoURL: s.platform.DemoURL(e.Name), AdminURL: "/templates/" + e.Name + "/admin",
-			Photo: photos[examplePhoto[e.Name]], Job: exampleJob[e.Name],
+			Screen: screens[e.Name], Job: exampleJob[e.Name],
 			Prompt: "Use Renoxium to build me a website from the " + e.Name + " template for my business, <your business name>."})
 	}
 	return out
@@ -37,7 +54,7 @@ func (s *Site) galleryCards() []galleryCard {
 func (s *Site) galleryPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	landingPages.ExecuteTemplate(w, "gallery", map[string]any{"Cards": s.galleryCards(), "Legal": s.legalOrDefaults()})
+	landingPages.ExecuteTemplate(w, "gallery", map[string]any{"Groups": galleryGroups(s.galleryCards()), "Legal": s.legalOrDefaults()})
 }
 
 func galleryExample(r *http.Request) (examples.Example, bool) {

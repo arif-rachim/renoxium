@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 )
 
-// Photos of the public site pages, embedded in the binary. Each photo is
-// stored as <name>-400.webp, -800.webp and -1600.webp (3:2); see
-// static/img/CREDITS.md for where each one comes from.
+// Screenshots of the template demos shown on the public site pages,
+// embedded in the binary; see static/img/CREDITS.md.
 //
 //go:embed static/img/*.webp
 var staticFiles embed.FS
@@ -55,94 +55,100 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(b))
 }
 
-// photo is one picture of the site pages, used through Src and SrcSet so
-// every page gets the same sizes.
-type photo struct {
-	Name, Alt string
-	Right     bool // the subject is on the right: crop from there
+// screen is a screenshot of a template demo: a phone screen (600x1298)
+// unless W and H say otherwise.
+type screen struct {
+	File, Alt string
+	W, H      int
 }
 
-func (p photo) Src() string { return staticURL(p.Name + "-800.webp") }
-func (p photo) Small() string {
-	return staticURL(p.Name + "-400.webp")
-}
-func (p photo) SrcSet() string {
-	return staticURL(p.Name+"-400.webp") + " 400w, " + staticURL(p.Name+"-800.webp") + " 800w, " + staticURL(p.Name+"-1600.webp") + " 1600w"
+func (s screen) Src() string { return staticURL(s.File) }
+
+func phone(file, alt string) screen { return screen{File: file, Alt: alt, W: 600, H: 1298} }
+
+var screens = map[string]screen{
+	"store-uae":         phone("screen-store-product.webp", "The Royal Oud product page of the Al Noor Perfumes demo shop: AED 250.00 including VAT, a 50 ml option, quantity, Add to cart and a Chat on WhatsApp button"),
+	"store-ar":          phone("screen-store-home-ar.webp", "The Al Noor Perfumes demo shop in Arabic: the shop name, category filters and four perfumes with AED prices, laid out right to left"),
+	"booking-uae":       phone("screen-booking-slots.webp", "The Haircut and Blow-dry page of the Lamsa Beauty Lounge demo: AED 150 including VAT, a choice of stylist, a date and a grid of free times from 11:00 to 20:00"),
+	"home-service-uae":  phone("screen-home-service.webp", "The Home cleaning page of the Bayti Home Services demo: AED 40 per hour, number of hours, area, date and arrival windows, one of them already full"),
+	"reservation-uae":   phone("screen-reservation.webp", "The Evening Desert Safari with BBQ Dinner page of the Sahara Bay demo: what is included, adult and child prices, and a list of departures with seats left"),
+	"quote-portal-uae":  phone("screen-quote-portal.webp", "The home page of the Bayan Business Setup demo: an Ask for a quote button and company formation packages from AED 12,900 and AED 14,500 with typical durations"),
+	"listings-uae":      phone("screen-listing.webp", "An off-plan three-bedroom townhouse in JVC on the Marsa Homes demo: AED 2,150,000, property type, bedrooms, bathrooms, area, developer and handover date"),
+	"delivery-tracking": phone("screen-delivery.webp", "Delivery #1 of the Al Noor Flowers demo for Mariam, marked On the way, with the courier's position on a map of Dubai"),
+	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 875,
+		Alt: "The owner's admin panel of the Lamsa Beauty Lounge demo: the bookings calendar for Thursday 19 November, one lane each for Layla, Maryam and Priya, with appointments from 10:00 to 18:00 marked confirmed or pending"},
 }
 
-var photos = map[string]photo{
-	"shop-boutique":   {Name: "shop-boutique", Alt: "Dresses, shirts and jeans on rails and shelves in a small clothing boutique"},
-	"shop-cake":       {Name: "shop-cake", Alt: "A chocolate cake with piped cream on a white cake stand"},
-	"shop-flowers":    {Name: "shop-flowers", Alt: "Bouquets of roses and potted flowers outside a flower shop"},
-	"book-salon":      {Name: "book-salon", Alt: "A bright beauty salon with round mirrors and styling chairs"},
-	"book-cleaning":   {Name: "book-cleaning", Alt: "A gloved hand holding a cleaning spray bottle", Right: true},
-	"book-safari":     {Name: "book-safari", Alt: "A camel caravan crossing golden desert dunes"},
-	"book-yacht":      {Name: "book-yacht", Alt: "A white motor yacht on clear blue water"},
-	"quote-villa":     {Name: "quote-villa", Alt: "A modern white villa with a pool"},
-	"quote-skyline":   {Name: "quote-skyline", Alt: "The Dubai skyline with Burj Khalifa at sunrise"},
-	"quote-meeting":   {Name: "quote-meeting", Alt: "Two consultants giving each other a high five at a desk with papers and a laptop"},
-	"deliver-courier": {Name: "deliver-courier", Alt: "A courier on a red scooter with a delivery box, riding through the city at night"},
-}
-
-// examplePhoto is the photo on each template's card.
-var examplePhoto = map[string]string{
-	"store-uae":         "shop-boutique",
-	"booking-uae":       "book-salon",
-	"home-service-uae":  "book-cleaning",
-	"reservation-uae":   "book-safari",
-	"quote-portal-uae":  "quote-meeting",
-	"listings-uae":      "quote-villa",
-	"delivery-tracking": "deliver-courier",
-}
-
-// exampleJob is the job of the business each template does, as the
-// landing page groups them.
+// exampleJob is what the owner does with each template, as the landing
+// page and the gallery group them, in their words.
 var exampleJob = map[string]string{
-	"store-uae":         "Sell products",
-	"booking-uae":       "Take bookings",
-	"home-service-uae":  "Take bookings",
-	"reservation-uae":   "Take bookings",
-	"quote-portal-uae":  "Send quotes",
-	"listings-uae":      "Send quotes",
-	"delivery-tracking": "Deliver",
+	"store-uae":         "I sell products",
+	"booking-uae":       "I take bookings",
+	"home-service-uae":  "I take bookings",
+	"reservation-uae":   "I take bookings",
+	"quote-portal-uae":  "I send quotes",
+	"listings-uae":      "I send quotes",
+	"delivery-tracking": "I deliver",
 }
 
-// sitePath is one of the three jobs on the landing page: what the owner
-// wants to do, and the templates that do it.
-type sitePath struct {
-	ID, N, Title, Promise string
-	Suits, Includes       []string
-	Photo                 photo
-	Extra                 []photo
-	Demos                 []galleryCard
+// demoName names each demo by the business it runs, for links on the
+// landing page.
+var demoName = map[string]string{
+	"store-uae":        "Perfume shop demo",
+	"booking-uae":      "Salon demo",
+	"home-service-uae": "Home cleaning demo",
+	"reservation-uae":  "Desert safari demo",
+	"quote-portal-uae": "Business setup demo",
+	"listings-uae":     "Property broker demo",
 }
+
+// sitePath is one of the three ways in on the landing page: what the owner
+// does, and the demos that show it.
+type sitePath struct {
+	ID, Title, Text string
+	Screen          screen
+	Demos           []demoLink
+}
+
+type demoLink struct{ Label, URL string }
 
 func (s *Site) sitePaths(cards []galleryCard) []sitePath {
 	byName := map[string]galleryCard{}
 	for _, c := range cards {
 		byName[c.Name] = c
 	}
-	pick := func(names ...string) []galleryCard {
-		var out []galleryCard
+	pick := func(names ...string) []demoLink {
+		var out []demoLink
 		for _, n := range names {
 			if c, ok := byName[n]; ok {
-				out = append(out, c)
+				out = append(out, demoLink{Label: demoName[n], URL: c.DemoURL + "/"})
 			}
 		}
 		return out
 	}
 	return []sitePath{
-		{ID: "sell", N: "01", Title: "Sell products", Promise: "A shop that takes cards and cash on delivery, so orders stop living in your DMs.",
-			Suits:    []string{"Perfume and fashion", "Electronics", "Cakes and flowers to order"},
-			Includes: []string{"Cart and checkout", "Sizes and colours", "Discount codes", "Order-ahead dates"},
-			Photo:    photos["shop-boutique"], Extra: []photo{photos["shop-cake"], photos["shop-flowers"]}, Demos: pick("store-uae")},
-		{ID: "book", N: "02", Title: "Take bookings", Promise: "Customers pick a free time and pay a deposit; your calendar fills itself.",
-			Suits:    []string{"Salons and spas", "Cleaning and AC", "Safaris, yachts and rentals"},
-			Includes: []string{"Deposits", "Reminders", "Staff calendar"},
-			Photo:    photos["book-salon"], Extra: []photo{photos["book-safari"], photos["book-yacht"]}, Demos: pick("booking-uae", "home-service-uae", "reservation-uae")},
-		{ID: "quote", N: "03", Title: "Send quotes", Promise: "Quote online, get accepted and paid a deposit, then share documents in a private portal.",
-			Suits:    []string{"Business setup and PRO", "Accountants and planners", "Real-estate brokers"},
-			Includes: []string{"Online deposits", "Client portal", "Viewing requests"},
-			Photo:    photos["quote-meeting"], Extra: []photo{photos["quote-villa"], photos["quote-skyline"]}, Demos: pick("quote-portal-uae", "listings-uae")},
+		{ID: "sell", Title: "I sell products", Screen: screens["store-ar"], Demos: pick("store-uae"),
+			Text: "A shop with a cart and checkout for a perfume shop, a boutique or cakes ordered days ahead. Customers pay by card or cash on delivery."},
+		{ID: "book", Title: "I take bookings", Screen: screens["booking-uae"], Demos: pick("booking-uae", "home-service-uae", "reservation-uae"),
+			Text: "Customers pick a free time and pay a deposit, for a salon, a cleaning company or a desert safari."},
+		{ID: "quote", Title: "I send quotes", Screen: screens["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
+			Text: "Clients ask for a quote, accept it and pay a deposit online, for a business setup firm or a property broker."},
 	}
+}
+
+// suits joins the kinds of business a template suits into one sentence
+// part: "beauty salons and barbers, spas and clinics".
+func suits(kinds []string) string {
+	out := ""
+	for i, k := range kinds {
+		r := []rune(k)
+		if len(r) > 1 && unicode.IsUpper(r[0]) && unicode.IsLower(r[1]) {
+			r[0] = unicode.ToLower(r[0])
+		}
+		if i > 0 {
+			out += ", "
+		}
+		out += string(r)
+	}
+	return out
 }

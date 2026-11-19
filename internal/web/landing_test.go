@@ -12,15 +12,15 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Get orders, bookings and payments online", "Sell products", "Take bookings", "Send quotes", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Take orders and bookings on your own website", "استقبل الطلبات والحجوزات", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
 	}
-	// The photos are served from the binary, cached for good under a versioned URL.
+	// The screenshots are served from the binary, cached for good under a versioned URL.
 	i := strings.Index(page, "/static/img/")
 	if i < 0 {
-		t.Fatal("landing has no photos")
+		t.Fatal("landing has no screenshots")
 	}
 	src := page[i : i+strings.IndexByte(page[i:], '"')]
 	r, _ = http.Get(e.base + strings.ReplaceAll(src, "&amp;", "&"))

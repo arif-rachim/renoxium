@@ -1,23 +1,19 @@
-# Photo credits
+# Image credits
 
-All photos come from Unsplash and are used under the [Unsplash License](https://unsplash.com/license):
-free for commercial use, no permission or attribution required (it may not be used to sell the
-photos unaltered or to build a competing photo service). Photographer names could not be read
-from here (unsplash.com pages are behind a bot check); each photo's page names its author.
+All images on the public site pages are screenshots of Renoxium demo templates, taken from the
+demos the server provisions at startup (`demo-<example>` apps) with Chromium at a 390x844 phone
+viewport (device scale 2) and stored as WebP, 600 pixels wide. The demo banner is hidden in the
+screenshots and, where it covered the content, the floating WhatsApp button too. Product and
+listing photos are the demos' own placeholders.
 
-Each photo is stored at 400, 800 and 1600 pixels wide (WebP, cropped to 3:2). Edits: cropping,
-resizing, and blurring small text so no business name is readable (salon sign, yacht name).
-
-| Files | Subject | Source |
-| --- | --- | --- |
-| shop-boutique-*.webp | Clothing boutique | https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5 |
-| shop-cake-*.webp | Chocolate cake on a stand | https://images.unsplash.com/photo-1578985545062-69928b1d9587 |
-| shop-flowers-*.webp | Flower shop front (cropped to remove a chalkboard) | https://images.unsplash.com/photo-1487070183336-b863922373d4 |
-| book-salon-*.webp | Beauty salon interior (sign blurred) | https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6 |
-| book-cleaning-*.webp | Gloved hand with a spray bottle | https://images.unsplash.com/photo-1563453392212-326f5e854473 |
-| book-safari-*.webp | Camel caravan on desert dunes | https://images.unsplash.com/photo-1489493585363-d69421e0edd3 |
-| book-yacht-*.webp | Motor yacht (name blurred) | https://images.unsplash.com/photo-1567899378494-47b22a2ae96a |
-| quote-villa-*.webp | Modern villa with pool | https://images.unsplash.com/photo-1613490493576-7fde63acd811 |
-| quote-skyline-*.webp | Dubai skyline with Burj Khalifa | https://images.unsplash.com/photo-1512453979798-5ea266f8880c |
-| quote-meeting-*.webp | Two consultants at a desk | https://images.unsplash.com/photo-1600880292203-757bb62b4baf |
-| deliver-courier-*.webp | Courier on a scooter at night | https://images.unsplash.com/photo-1617347454431-f49d7ff5c3b1 |
+| File | Screenshot of |
+| --- | --- |
+| screen-store-product.webp | store-uae: the Royal Oud product page |
+| screen-store-home-ar.webp | store-uae: the shop's home page in Arabic |
+| screen-booking-slots.webp | booking-uae: a service page with free times |
+| screen-home-service.webp | home-service-uae: the home cleaning booking form with arrival windows |
+| screen-reservation.webp | reservation-uae: the desert safari page with departures |
+| screen-quote-portal.webp | quote-portal-uae: the home page with packages |
+| screen-listing.webp | listings-uae: a property listing page |
+| screen-delivery.webp | delivery-tracking: a delivery on the live map. Map data © OpenStreetMap contributors (ODbL), tiles by openstreetmap.org, attribution visible in the image |
+| screen-admin-calendar.webp | booking-uae: the owner's admin panel, bookings calendar day view (1280x800 desktop, cropped to the calendar, 1400 pixels wide). The bookings shown were added to a local copy of the demo for the screenshot |
