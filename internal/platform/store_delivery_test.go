@@ -5,19 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"testing"
-
-	"github.com/dop251/goja"
 
 	"github.com/arif-rachim/renoxium/examples"
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
 )
-
-// cartDeliveryRE finds the cart page's delivery rule in its inline script.
-var cartDeliveryRE = regexp.MustCompile(`var del=([^;]+?),tot=sub\+del;`)
 
 // The store-uae delivery fee: free_delivery_over 0 or empty means no
 // free-delivery threshold, so the flat fee is always charged; a threshold
@@ -67,30 +61,24 @@ func TestStoreUAEDeliveryFee(t *testing.T) {
 				return r
 			}
 
-			// Cart: run the page's own delivery rule with what /api/products gives it.
-			m := cartDeliveryRE.FindStringSubmatch(req(platform.TestRequestInput{Path: "/cart"}).Body)
-			if m == nil {
-				t.Fatal("no delivery rule in the cart script")
+			req(platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": "Fatima", "email": "fatima@mail.ae", "password": "fatima password"}})
+
+			// Cart: the page's own script, with the cart in the browser's storage, shows delivery and total.
+			cartPage := req(platform.TestRequestInput{Path: "/cart", UserEmail: "fatima@mail.ae"}).Body
+			vm := pageScript(t, p, app, "fatima@mail.ae", cartPage, "rxCart()",
+				`var __cart = `+c.cart+`; function rxCart() { return __cart; } function rxSave(c) { __cart = c; }`)
+			wantDel := fmt.Sprintf("AED %.2f", c.want)
+			if c.want == 0 {
+				wantDel = "Free"
 			}
-			vm := goja.New()
-			vm.Set("d", map[string]any{"free_delivery_over": c.over, "delivery_fee": 15.0})
-			vm.Set("sub", c.sub)
-			v, err := vm.RunString(m[1])
-			if err != nil {
-				t.Fatalf("cart rule %q: %v", m[1], err)
+			if got := text(t, vm, "delivery"); got != wantDel {
+				t.Errorf("cart shows delivery %q, want %q", got, wantDel)
 			}
-			if got := v.ToFloat(); got != c.want {
-				t.Errorf("cart delivery for %v with threshold %v = %v, want %v (rule %s)", c.sub, c.over, got, c.want, m[1])
-			}
-			if c.over == nil { // an empty field reaches the browser as "" or null
-				vm.Set("d", map[string]any{"free_delivery_over": "", "delivery_fee": 15.0})
-				if v, _ := vm.RunString(m[1]); v.ToFloat() != c.want {
-					t.Errorf(`cart delivery with "" threshold = %v, want %v`, v.ToFloat(), c.want)
-				}
+			if got, want := text(t, vm, "total"), fmt.Sprintf("AED %.2f", c.sub+c.want); got != want {
+				t.Errorf("cart shows total %q, want %q", got, want)
 			}
 
 			// Checkout: the order row stores what the shopper is charged.
-			req(platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": "Fatima", "email": "fatima@mail.ae", "password": "fatima password"}})
 			r := req(platform.TestRequestInput{Method: "POST", Path: "/checkout", UserEmail: "fatima@mail.ae", Form: map[string]string{
 				"cart": c.cart, "name": "Fatima", "phone": "+971501234567", "address": "Villa 3, Al Barsha", "emirate": "Dubai", "payment": "cod"}})
 			if r.Status != 303 || r.Location != "/orders/1?placed=1" {
