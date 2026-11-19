@@ -130,7 +130,8 @@ var all = map[string]Example{
 		"and leave departures empty; party rental = items with mode range (stock = pieces owned) and a delivery extra. Keep the scripts. " +
 		"Not possible on the platform, so not in the example: later automatic charges of a saved card, WhatsApp messages to customers.", JSON: reservationUAE},
 	"store-uae": {Name: "store-uae", Description: "A complete online store for the UAE, ready to customise: catalog with photos and categories, cart, " +
-		"AED prices including 5% VAT, delivery fee with a free-delivery threshold, checkout with card payment (Stripe) or cash on delivery, " +
+		"AED prices including 5% VAT, a delivery fee (store.delivery_fee) with an optional free-delivery threshold (store.free_delivery_over; " +
+		"set it to 0 or leave it empty for a flat fee on every order), checkout with card payment (Stripe) or cash on delivery, " +
 		"orders for signed-in shoppers (email or WhatsApp sign-in), printable invoices (a UAE tax invoice once the store's TRN is set), " +
 		"discount codes, product options such as sizes with their own price and stock (variants table), English and Arabic (right to left). " +
 		"For made-to-order goods (cakes, flowers, catering) set store.preorder_days: shoppers then choose a delivery or pickup date that many days ahead. " +
