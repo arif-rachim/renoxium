@@ -55,3 +55,5 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | tour-hero.webp | https://images.unsplash.com/photo-1489493585363-d69421e0edd3 (camel caravan on dunes) | Unsplash License | 2000 px wide, colour toned down |
 | tour-story.webp | https://images.unsplash.com/photo-1549944850-84e00be4203b (camels resting at a desert camp) | Unsplash License | 4:5 crop, colour toned down |
 | party-majlis-tent.webp | https://images.unsplash.com/photo-1784749464954-3603b21a7a0d (outdoor majlis lounge under a canopy) | Unsplash License | 4:5 crop, 960 px wide |
+| home-hero.webp | https://images.unsplash.com/photo-1600210492486-724fe5c67fb0 (sunlit living room) | Unsplash License | 2000 px wide; the book cover on the side table blurred |
+| home-story.webp | https://images.unsplash.com/photo-1584622650111-993a426fbf0a (bathroom vanity) | Unsplash License | 4:5 crop of the vanity, 960 px wide |

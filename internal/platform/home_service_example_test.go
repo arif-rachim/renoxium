@@ -92,7 +92,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 	}
 
 	home := req(platform.TestRequestInput{Path: "/"})
-	for _, want := range []string{"Bayti Home Services", "Home cleaning", "AED 40.00", "Pest control", "Arabian Ranches · + AED 25.00", `dir="ltr"`} {
+	for _, want := range []string{"Bayti Home Services", "Home cleaning", "AED 40.00", "Pest control", "<span>Arabian Ranches</span><span class=\"price\">+ AED 25.00</span>", `dir="ltr"`} {
 		if !strings.Contains(home.Body, want) {
 			t.Fatalf("home lacks %q: %s", want, home.Body)
 		}
@@ -102,7 +102,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 		!strings.Contains(ar.Body, `href="/s/1?lang=ar"`) {
 		t.Fatal("arabic home")
 	}
-	if r := req(platform.TestRequestInput{Path: "/s/1"}); r.Status != 200 || !strings.Contains(r.Body, "Materials and equipment (+ AED 10.00 / hour)") ||
+	if r := req(platform.TestRequestInput{Path: "/s/1"}); r.Status != 200 || !strings.Contains(r.Body, "Materials and equipment<span class=\"hint\">+ AED 10.00 per hour</span>") ||
 		!strings.Contains(r.Body, `<option value="`+day+`">`) || strings.Contains(r.Body, `<option value="`+sunday.Format("2006-01-02")+`">`) {
 		t.Fatalf("service page: %d %s", r.Status, r.Body)
 	}
@@ -380,7 +380,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 		t.Fatalf("daily job: %v %+v\n%s", err, job, logText(job))
 	}
 	list := as(platform.TestRequestInput{Path: "/bookings"})
-	m := regexp.MustCompile(`href="/bookings/(\d+)">Booking #\d+</a><span>Home cleaning</span><span class="muted">` + nextWeek + ` 10:00<`).FindStringSubmatch(list.Body)
+	m := regexp.MustCompile(`href="/bookings/(\d+)"><span class="o-id">Booking #\d+</span>.*\n<span class="o-meta"><span>Home cleaning</span><span><time datetime="` + nextWeek + `">[^<]*</time> <span class="num">10:00–`).FindStringSubmatch(list.Body)
 	if m == nil {
 		t.Fatalf("no repeat visit on %s: %s", nextWeek, list.Body)
 	}
@@ -422,7 +422,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 	if x := book(f); !strings.HasSuffix(x.Location, "?placed=1&lang=ar") {
 		t.Fatalf("arabic booking: %+v", x)
 	} else if o := as(platform.TestRequestInput{Path: x.Location}); !strings.Contains(o.Body, "تنظيف الكنب بالشامبو") || !strings.Contains(o.Body, "البرشاء") ||
-		!strings.Contains(o.Body, `dir="rtl"`) || !strings.Contains(o.Body, "AED 140.00") {
+		!strings.Contains(o.Body, `dir="rtl"`) || !strings.Contains(o.Body, "140.00 د.إ") {
 		t.Fatalf("arabic booking page: %s", o.Body)
 	}
 }
@@ -594,7 +594,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 		t.Fatalf("business settings: %+v", x)
 	}
 	q := "/checkout?service=1&qty=3&zone=5&date=" + day + "&slot=16:00&repeat=weekly"
-	if x := as(platform.TestRequestInput{Path: q}); !strings.Contains(x.Body, `value="auto"> Pay automatically: card charged for each visit, every week`) {
+	if x := as(platform.TestRequestInput{Path: q}); !strings.Contains(x.Body, `value="auto"><span>Pay automatically: card charged for each visit, every week`) {
 		t.Fatalf("no automatic payment offered: %s", x.Body)
 	}
 	if x := as(platform.TestRequestInput{Path: strings.Replace(q, "weekly", "once", 1)}); strings.Contains(x.Body, `value="auto"`) {
@@ -622,7 +622,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 	visitOn := func(date string) string {
 		t.Helper()
 		list := as(platform.TestRequestInput{Path: "/bookings"})
-		m := regexp.MustCompile(`href="/bookings/(\d+)">Booking #\d+</a><span>Home cleaning</span><span class="muted">` + date + ` 16:00<`).FindStringSubmatch(list.Body)
+		m := regexp.MustCompile(`href="/bookings/(\d+)"><span class="o-id">Booking #\d+</span>.*\n<span class="o-meta"><span>Home cleaning</span><span><time datetime="` + date + `">[^<]*</time> <span class="num">16:00–`).FindStringSubmatch(list.Body)
 		if m == nil {
 			t.Fatalf("no visit on %s: %s", date, list.Body)
 		}

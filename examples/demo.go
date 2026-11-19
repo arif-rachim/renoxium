@@ -44,7 +44,9 @@ var demoImageSets = map[string][]DemoImageSet{
 			"Everyday Makeup Workshop": {"image": "booking-makeup-class.webp"},
 		}},
 	},
-	"home-service-uae": {{Table: "services", Key: "name", Rows: map[string]map[string]string{
+	"home-service-uae": {{Table: "business", Key: "name", Rows: map[string]map[string]string{
+		"Bayti Home Services": {"hero_image": "home-hero.webp", "story_image": "home-story.webp"},
+	}}, {Table: "services", Key: "name", Rows: map[string]map[string]string{
 		"Home cleaning":                       {"image": "home-cleaning.webp"},
 		"Deep cleaning (1-bedroom apartment)": {"image": "home-deep-cleaning.webp"},
 		"Sofa shampoo cleaning":               {"image": "home-sofa.webp"},
