@@ -46,3 +46,30 @@ func TestLandingAndLegalPages(t *testing.T) {
 		t.Fatal("dashboard for signed-in owners")
 	}
 }
+
+// Directory listings (ChatGPT apps) need a support page and a domain
+// verification token served on /.well-known/openai-apps-challenge.
+func TestSupportAndOpenAIChallenge(t *testing.T) {
+	e := newEnv(t)
+	r, _ := http.Get(e.base + "/.well-known/openai-apps-challenge")
+	if read(t, r); r.StatusCode != 404 {
+		t.Fatalf("challenge without token: %d", r.StatusCode)
+	}
+	e.site.OpenAIAppsChallenge = "tok_abc123"
+	r, _ = http.Get(e.base + "/.well-known/openai-apps-challenge")
+	if p := read(t, r); r.StatusCode != 200 || p != "tok_abc123" || !strings.HasPrefix(r.Header.Get("Content-Type"), "text/plain") {
+		t.Fatalf("challenge: %d %q %s", r.StatusCode, p, r.Header.Get("Content-Type"))
+	}
+	e.site.Legal = web.Legal{Email: "help@renoxium.test"}
+	r, _ = http.Get(e.base + "/support")
+	p := read(t, r)
+	for _, want := range []string{"Support", "mailto:help@renoxium.test", e.base + "/mcp", `href="/privacy"`, `href="/terms"`, `href="/connect"`} {
+		if r.StatusCode != 200 || !strings.Contains(p, want) {
+			t.Fatalf("support: %d, missing %q", r.StatusCode, want)
+		}
+	}
+	r, _ = http.Get(e.base + "/")
+	if !strings.Contains(read(t, r), `href="/support"`) {
+		t.Fatal("no support link in the footer")
+	}
+}

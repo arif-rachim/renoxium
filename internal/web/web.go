@@ -71,6 +71,10 @@ type Site struct {
 	// Legal fills the company details on /privacy and /terms.
 	Legal Legal
 
+	// OpenAIAppsChallenge is the token OpenAI gives to verify the domain of
+	// a ChatGPT app; /.well-known/openai-apps-challenge answers it. Empty: 404.
+	OpenAIAppsChallenge string
+
 	// Operators are the emails allowed into /operator (confirmed accounts only).
 	Operators []string
 

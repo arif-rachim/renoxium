@@ -47,6 +47,7 @@ func main() {
 			"       renoxium [flags] suspend APP REASON  take an app offline (a running server notices within 30s)\n"+
 			"       renoxium [flags] unsuspend APP       bring it back\n"+
 			"       renoxium [flags] plan EMAIL PLAN     give an account the free, pro or business plan without payment\n"+
+			"       renoxium [flags] reviewer EMAIL [APP] create or reset an account for a directory's reviewers, with an example store\n"+
 			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
 			"       renoxium version                     print the commit this binary was built from\n\nflags:\n")
 		flag.PrintDefaults()
@@ -59,6 +60,9 @@ func main() {
 		case "version":
 			fmt.Println(buildVersion())
 			os.Exit(0)
+		}
+		if args[0] == "reviewer" {
+			os.Exit(reviewerCommand(*dataDir, *appsDomain, args[1:]))
 		}
 		os.Exit(adminCommand(*dataDir, args))
 	}
@@ -169,6 +173,7 @@ func main() {
 			"billing_webhook_secret_set", site.Billing.WebhookSecret != "")
 	}
 	site.AbuseEmail = *abuseEmail
+	site.OpenAIAppsChallenge = strings.TrimSpace(os.Getenv("OPENAI_APPS_CHALLENGE"))
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !p.ServeApp(w, r) {
