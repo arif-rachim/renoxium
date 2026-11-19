@@ -218,6 +218,9 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 	}
 
 	host := &scriptHost{st: st, p: p, rid: rid, noMoney: user == nil}
+	if isLiveTest(r.Context()) {
+		host.readOnly, host.liveTest = true, true
+	}
 	defer host.runDeferred(r.Context()) // after release: on_payment needs a slot of its own
 	release, err := p.acquireSlot(r.Context(), st)
 	if err != nil {
@@ -425,6 +428,9 @@ type scriptHost struct {
 	// without asking the person first, so the platform makes sure they
 	// cannot change data, send messages or call other services.
 	readOnly bool
+	// liveTest marks a test_request GET to live: read-only like a
+	// read_only tool, so an agent's test never changes the live app.
+	liveTest bool
 	// http.fetch calls and time spent waiting on them in this run.
 	fetches   int
 	fetchWait time.Duration
@@ -461,6 +467,15 @@ func (h *scriptHost) mayRedirect(target string) bool {
 var errNoMoney = errors.New("payments.refund, capture, release and cancel_subscription only work in a request of a signed-in visitor " +
 	`(a route with "auth": "user"), a job, on_payment or on_admin_change; not in public MCP tools or requests without a signed-in visitor`)
 
+var errLiveTest = errors.New("test_request on live is read-only: it cannot change data, send messages or call other services; test changes on preview")
+
+func (h *scriptHost) readOnlyErr() error {
+	if h.liveTest {
+		return errLiveTest
+	}
+	return errReadOnlyTool
+}
+
 var errReadOnlyTool = errors.New("this tool is marked read_only, so it cannot change data, send messages or call other services; remove read_only from the tool if it must")
 
 const maxDBCalls = 200
@@ -489,7 +504,7 @@ func (h *scriptHost) Exec(ctx context.Context, q string, args []any) (int64, int
 		return 0, 0, err
 	}
 	if h.readOnly {
-		return 0, 0, errReadOnlyTool
+		return 0, 0, h.readOnlyErr()
 	}
 	return h.st.db.Exec(ctx, q, args)
 }
@@ -510,7 +525,7 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return nil, err
 	}
 	if h.readOnly && fn != "payments.get" && fn != "realtime.token" {
-		return nil, errReadOnlyTool
+		return nil, h.readOnlyErr()
 	}
 	switch fn {
 	case "payments.checkout":

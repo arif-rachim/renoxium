@@ -84,7 +84,7 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 	}
 
 	// Live never takes a POST, and nothing is published yet.
-	if _, errText := call(t, s, "test_request", map[string]any{"app": "jack-tasks", "stage": "live", "method": "POST", "path": "/tasks"}); !strings.Contains(errText, "only allowed on preview") {
+	if _, errText := call(t, s, "test_request", map[string]any{"app": "jack-tasks", "stage": "live", "method": "POST", "path": "/tasks"}); !strings.Contains(errText, "only GET requests may go to live") {
 		t.Fatalf("live POST: %q", errText)
 	}
 	// Another user's app is not reachable.

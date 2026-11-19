@@ -28,8 +28,8 @@ import (
 
 // TestRequestInput is a request an agent sends to its own app.
 type TestRequestInput struct {
-	Stage  string              `json:"stage,omitempty" jsonschema:"preview (default) or live; live accepts only GET so tests never change live data"`
-	Method string              `json:"method,omitempty" jsonschema:"GET (default) or POST"`
+	Stage  string              `json:"stage,omitempty" jsonschema:"preview (default) or live; live accepts only GET, run read-only, so tests never change the live app"`
+	Method string              `json:"method,omitempty" jsonschema:"GET (default) or POST; POST only to the preview"`
 	Path   string              `json:"path,omitempty" jsonschema:"path with optional query string, e.g. /products/2 or /search?q=oud; required unless job or admin is set"`
 	Form   map[string]string   `json:"form,omitempty" jsonschema:"form fields for a POST, sent as application/x-www-form-urlencoded"`
 	JSON   any                 `json:"json,omitempty" jsonschema:"JSON body for a POST instead of form (sent as application/json)"`
@@ -42,9 +42,15 @@ type TestRequestInput struct {
 	Admin *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
 }
 
+// liveTestKey marks the context of a test_request GET to live, whose
+// script runs read-only (see scriptHost.liveTest).
+type liveTestKey struct{}
+
+func isLiveTest(ctx context.Context) bool { v, _ := ctx.Value(liveTestKey{}).(bool); return v }
+
 // TestFile is a file sent with a test request.
 type TestFile struct {
-	Name   string `json:"name" jsonschema:"file name, e.g. licence.jpg"`
+	Name   string `json:"name" jsonschema:"file name, e.g. photo.jpg"`
 	Type   string `json:"type,omitempty" jsonschema:"Content-Type of the part; the platform ignores it and detects the type from the content"`
 	Base64 string `json:"base64" jsonschema:"file content, base64-encoded; at most 10 MB"`
 }
@@ -105,9 +111,12 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	case method != http.MethodGet && method != http.MethodPost:
 		return TestResponse{}, errors.New("method must be GET or POST")
 	case stage == Live && method != http.MethodGet:
-		return TestResponse{}, errors.New("POST is only allowed on preview, so tests never change live data")
+		return TestResponse{}, errors.New("only GET requests may go to live; send POST and other requests to the preview (stage preview), so tests never change the live app")
 	case !strings.HasPrefix(in.Path, "/") || strings.HasPrefix(in.Path, "//"):
 		return TestResponse{}, errors.New("path must start with /")
+	case stage == Live && strings.HasPrefix(in.Path, AuthPrefix):
+		// Sign-in links (email confirmation, password reset, sign-out) change visitor accounts even on GET.
+		return TestResponse{}, errors.New("sign-in pages can only be tested on preview")
 	}
 
 	var body *bytes.Reader
@@ -157,6 +166,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 		body, ctype = bytes.NewReader([]byte(form.Encode())), "application/x-www-form-urlencoded"
 	default:
 		body = bytes.NewReader(nil)
+	}
+	if stage == Live {
+		ctx = context.WithValue(ctx, liveTestKey{}, true)
 	}
 	// Sign-in pages live on the stage's sign-in host; a test request goes
 	// straight there, as a visitor's browser would after the redirect.
@@ -252,8 +264,8 @@ type Patch struct {
 	BaseVersion     int                         `json:"base_version,omitempty" jsonschema:"the version this patch was written against; the patch is refused if a newer version exists. Omit to patch the newest version."`
 	Templates       map[string]string           `json:"templates,omitempty" jsonschema:"templates to add or replace, by name"`
 	Scripts         map[string]string           `json:"scripts,omitempty" jsonschema:"scripts to add or replace, by name"`
-	DeleteTemplates []string                    `json:"delete_templates,omitempty"`
-	DeleteScripts   []string                    `json:"delete_scripts,omitempty"`
+	DeleteTemplates []string                    `json:"delete_templates,omitempty" jsonschema:"names of templates to remove"`
+	DeleteScripts   []string                    `json:"delete_scripts,omitempty" jsonschema:"names of scripts to remove"`
 	Routes          []appdef.Route              `json:"routes,omitempty" jsonschema:"if set, replaces the whole route list"`
 	Tools           []appdef.Tool               `json:"tools,omitempty" jsonschema:"if set, replaces the whole MCP tool list"`
 	Jobs            []appdef.Job                `json:"jobs,omitempty" jsonschema:"if set, replaces the whole job list"`
@@ -262,7 +274,7 @@ type Patch struct {
 	Tables          []appdef.Table              `json:"tables,omitempty" jsonschema:"tables to add, or columns to add to existing tables (matched by name); existing columns are kept, and a calendar given here replaces the table's calendar"`
 	Seed            map[string][]map[string]any `json:"seed,omitempty" jsonschema:"seed rows for new tables, by table name"`
 	Lib             map[string]string           `json:"lib,omitempty" jsonschema:"lib entries (shared script code) to add or replace, by name"`
-	DeleteLib       []string                    `json:"delete_lib,omitempty"`
+	DeleteLib       []string                    `json:"delete_lib,omitempty" jsonschema:"names of lib entries to remove"`
 	OnAdminChange   *string                     `json:"on_admin_change,omitempty" jsonschema:"if set, replaces on_admin_change; empty turns it off"`
 }
 

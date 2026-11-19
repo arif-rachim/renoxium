@@ -2,7 +2,6 @@ package platform_test
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -188,7 +187,7 @@ func TestReservationUAEExample(t *testing.T) {
 	// A rental: 2 cars for 4 days at 90 = 720, paid on the day, AED 1000 security deposit a car at handover.
 	car := func(from, to, qty int) map[string]string {
 		return map[string]string{"item": "4", "start": dubaiDay(from), "end": dubaiDay(to), "qty": fmt.Sprint(qty), "name": "Amna", "phone": "+971501234567",
-			"notes": "Licence 1234567", "payment": "later"}
+			"notes": "Pick-up at the hotel lobby", "payment": "later"}
 	}
 	if r := book(car(3, 7, 2)); r.Location != "/reservations/2?placed=1" {
 		t.Fatalf("rental: %+v", r)
@@ -440,8 +439,8 @@ func TestReservationUAETools(t *testing.T) {
 	}
 }
 
-// Rentals with a security deposit as a card hold, refunds on cancellation, private driving licence and passport uploads,
-// and the emails the owner's changes in the admin panel send.
+// Rentals with a security deposit as a card hold, refunds on cancellation, documents checked in person at handover
+// (nothing is uploaded online), and the emails the owner's changes in the admin panel send.
 func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	p := reservationApp(t)
 	ctx := context.Background()
@@ -504,16 +503,6 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 		}
 		return b.String()
 	}
-	upload := func(email string) string {
-		t.Helper()
-		r := req(platform.TestRequestInput{Method: "POST", Path: platform.UploadPath, UserEmail: email,
-			Files: map[string]platform.TestFile{"file": {Name: "licence.jpg", Type: "image/jpeg", Base64: base64.StdEncoding.EncodeToString(jpegBytes(t))}}})
-		var u struct{ ID string }
-		if r.Status != 200 || json.Unmarshal([]byte(r.Body), &u) != nil || u.ID == "" {
-			t.Fatalf("upload: %+v", r)
-		}
-		return u.ID
-	}
 	job := func() string {
 		t.Helper()
 		r, err := p.TestRequest(ctx, "sahara", platform.TestRequestInput{Job: "daily"})
@@ -532,16 +521,29 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 		return a.Available
 	}
 
-	// The car's page and checkout explain the hold and ask for documents; a tour does not; party rentals need no documents.
-	has("car page", req(platform.TestRequestInput{Path: "/item/4"}).Body, "AED 1000.00", "Refundable: held on your card, not charged",
-		"Driving licence and passport or Emirates ID needed")
-	if r := req(platform.TestRequestInput{Path: "/item/7"}); strings.Contains(r.Body, "Driving licence") || !strings.Contains(r.Body, "held on your card") {
+	// The car's page and checkout explain the hold and say the documents are checked at handover, with nothing to upload;
+	// a tour does not mention documents; party rentals need no documents.
+	noUpload := func(what, body string) {
+		t.Helper()
+		for _, w := range []string{"data-rx-upload", "upload.js", `type="file"`, "/documents", "licence_file", "id_file", "assport", "Emirates ID", "Driving licence"} {
+			if strings.Contains(body, w) {
+				t.Errorf("%s has %q", what, w)
+			}
+		}
+	}
+	bring := "Please bring the documents this rental needs when you collect it"
+	carPage := req(platform.TestRequestInput{Path: "/item/4"}).Body
+	has("car page", carPage, "AED 1000.00", "Refundable: held on your card, not charged", bring+"; they are checked at handover.")
+	noUpload("car page", carPage)
+	if r := req(platform.TestRequestInput{Path: "/item/7"}); strings.Contains(r.Body, bring) || !strings.Contains(r.Body, "held on your card") {
 		t.Error("tent page")
 	}
-	has("checkout of a car", as("GET", "/checkout?item=4&start="+dubaiDay(3)+"&end="+dubaiDay(5)+"&qty=1", nil).Body,
-		"Refundable security deposit, held on your card (not charged)", "AED 1000.00", `<script src="/_rx/upload.js"></script>`,
-		`name="licence_file" data-rx-upload`, `name="id_file" data-rx-upload`, "held on your card from 6 days before the start")
-	if co := as("GET", "/checkout?item=3&when=4_"+dubaiDay(5)+"&adults=2", nil).Body; strings.Contains(co, "data-rx-upload") || strings.Contains(co, "upload.js") {
+	carCheckout := as("GET", "/checkout?item=4&start="+dubaiDay(3)+"&end="+dubaiDay(5)+"&qty=1", nil).Body
+	has("checkout of a car", carCheckout,
+		"Refundable security deposit, held on your card (not charged)", "AED 1000.00", "<legend>Documents at handover</legend>",
+		bring+". They are checked in person at handover; nothing is uploaded online.", "held on your card from 6 days before the start")
+	noUpload("checkout of a car", carCheckout)
+	if co := as("GET", "/checkout?item=3&when=4_"+dubaiDay(5)+"&adults=2", nil).Body; strings.Contains(co, "Documents at handover") || strings.Contains(co, bring) {
 		t.Error("a tour asks for documents")
 	}
 
@@ -551,9 +553,15 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	}
 	has("confirmation with the deposit link", mails(), `"Reservation #1 confirmed: Nissan Sunny"`, "\n"+showDay(dubaiDay(3))+" – "+showDay(dubaiDay(5))+" (",
 		"Refundable security deposit: AED 1000.00, held on your card and not charged. Authorise it here: https://sahara--preview.renoxium.test/reservations/1\n",
-		"Please upload your driving licence and passport before the handover: https://sahara--preview.renoxium.test/reservations/1\n")
-	has("reservation 1", as("GET", "/reservations/1", nil).Body, "Not authorised yet.", `action="/reservations/1/deposit"`,
-		"Authorise the deposit on my card: <span class=\"price\">AED 1000.00</span>", "Please upload your driving licence", `action="/reservations/1/documents"`)
+		"\n"+bring+".\n\nYour voucher: https://sahara--preview.renoxium.test/reservations/1/voucher\n")
+	if m := mails(); strings.Contains(m, "upload") || strings.Contains(m, "licence") || strings.Contains(m, "assport") {
+		t.Errorf("confirmation asks for an upload or an ID document: %s", m)
+	}
+	r1 := as("GET", "/reservations/1", nil).Body
+	has("reservation 1", r1, "Not authorised yet.", `action="/reservations/1/deposit"`,
+		"Authorise the deposit on my card: <span class=\"price\">AED 1000.00</span>", `<h2 id="docs-h">Documents at handover</h2>`,
+		bring+". They are checked in person at handover; nothing is uploaded online.")
+	noUpload("reservation 1", r1)
 	r := as("POST", "/reservations/1/deposit", nil)
 	if !strings.Contains(req(platform.TestRequestInput{Path: r.Location}).Body, "Hold 1000.00 AED on your card") {
 		t.Fatalf("hold page: %+v", r)
@@ -563,7 +571,8 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	}
 	has("held deposit", as("GET", "/reservations/1?deposit=1", nil).Body, "the security deposit is held on your card", "Held on your card until")
 	has("voucher with the hold", as("GET", "/reservations/1/voucher", nil).Body,
-		"<dt>Refundable security deposit, held on your card (not charged)</dt><dd>AED 1000.00<span>Held on your card until", "Documents still needed")
+		"<dt>Refundable security deposit, held on your card (not charged)</dt><dd>AED 1000.00<span>Held on your card until",
+		"<dt>Documents at handover</dt><dd>"+bring+"; they are checked at handover.</dd>")
 	has("hold email", mails(), `"Security deposit held for reservation #1"`)
 	if r := as("GET", "/reservations/1", nil); strings.Contains(r.Body, `action="/reservations/1/deposit"`) {
 		t.Error("deposit offered again once held")
@@ -573,8 +582,9 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 		t.Fatalf("release: %s %v\n%s", a.Body, a.Admin.Row, logText(a))
 	}
 	has("released", as("GET", "/reservations/1", nil).Body, "Released. Nothing was charged.")
-	has("arabic reservation", as("GET", "/reservations/1?lang=ar", nil).Body, `dir="rtl"`, "تم الإفراج عنه. لم يتم خصم أي مبلغ.", "رخصة القيادة وجواز السفر")
-	has("arabic voucher", as("GET", "/reservations/1/voucher?lang=ar", nil).Body, "تأمين مسترد، يُحجز على بطاقتك (دون خصم)", "المستندات مطلوبة")
+	has("arabic reservation", as("GET", "/reservations/1?lang=ar", nil).Body, `dir="rtl"`, "تم الإفراج عنه. لم يتم خصم أي مبلغ.", "المستندات عند الاستلام",
+		"يرجى إحضار المستندات التي يتطلبها هذا الإيجار عند الاستلام. نتحقق منها شخصياً عند التسليم، ولا يُرفع أي شيء عبر الإنترنت.")
+	has("arabic voucher", as("GET", "/reservations/1/voucher?lang=ar", nil).Body, "تأمين مسترد، يُحجز على بطاقتك (دون خصم)", "المستندات عند الاستلام")
 	has("release email", mails(), `to amna@mail.ae, "Security deposit released for reservation #1"`, "The hold of AED 1000.00 on your card is released")
 
 	// 2. A Nissan Patrol (deposit AED 3000): the owner takes a damage charge of AED 750; more than the deposit is refused.
@@ -674,43 +684,33 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	}
 
 	customer = "dana@mail.ae"
-	// 6. Documents: private uploads, checked to be the customer's own.
-	mine, theirs := upload(customer), upload("other@mail.ae")
-	if r := book(4, 20, 21, "later", map[string]string{"licence_file": theirs}); r.Location != "/item/4?error=error_document" {
-		t.Fatalf("someone else's licence at checkout: %+v", r)
+	// 6. Documents: nothing is uploaded online. Upload fields sent anyway are ignored and stored nowhere, there is no
+	// documents route, and the owner is told to check the documents at handover.
+	if r := book(4, 20, 21, "later", map[string]string{"licence_file": "pf_00000000000000000000000000000000", "id_file": "x"}); r.Location != "/reservations/6?placed=1" {
+		t.Fatalf("rental with documents to check at handover: %+v", r)
 	}
-	if r := book(4, 20, 21, "later", map[string]string{"licence_file": mine}); r.Location != "/reservations/6?placed=1" {
-		t.Fatalf("rental with a licence: %+v", r)
+	r6 := as("GET", "/reservations/6", nil).Body
+	has("reservation 6", r6, bring+". They are checked in person at handover; nothing is uploaded online.")
+	noUpload("reservation 6", r6)
+	if r := as("POST", "/reservations/6/documents", map[string]string{"id_file": "x"}); r.Status != 404 {
+		t.Fatalf("documents route still answers: %+v", r)
 	}
-	has("licence only", as("GET", "/reservations/6", nil).Body, `href="/_rx/private/`+mine+`"`, "Please upload your driving licence")
-	if r := as("POST", "/reservations/6/documents", map[string]string{"id_file": theirs}); r.Location != "/reservations/6?error=error_document" {
-		t.Fatalf("someone else's passport: %+v", r)
-	}
-	has("refused upload", as("GET", "/reservations/6?error=error_document", nil).Body, "That document could not be used. Please upload it again.")
-	if r := req(platform.TestRequestInput{Method: "POST", Path: "/reservations/6/documents", Form: map[string]string{"id_file": theirs}, UserEmail: "other@mail.ae"}); r.Status != 404 {
-		t.Fatalf("someone else's reservation: %+v", r)
-	}
-	passport := upload(customer)
-	if r := as("POST", "/reservations/6/documents", map[string]string{"id_file": passport}); r.Location != "/reservations/6?docs=1" {
-		t.Fatalf("passport: %+v", r)
-	}
-	has("documents received", as("GET", "/reservations/6?docs=1", nil).Body, "your documents are saved", "Documents received", `href="/_rx/private/`+passport+`"`)
-	has("voucher with documents", as("GET", "/reservations/6/voucher", nil).Body, "<dt>Driving licence and passport</dt><dd>Documents received")
-	if logs, _ := p.Logs("sahara", logFilterAll()); countMessages(logs, `to the owner, "Documents received for #6: Nissan Sunny, `+dubaiDay(20)+`, Amna"`) == 0 {
-		t.Error("owner not told about the documents")
-	}
+	has("voucher 6", as("GET", "/reservations/6/voucher", nil).Body, "<dt>Documents at handover</dt><dd>"+bring+"; they are checked at handover.</dd>")
+	has("owner notice of a rental", mails(), "\nDocuments: to check at handover\n")
 
 	// 7. The owner's other changes: confirming a reservation and marking a no-show email the customer.
 	if r := as("POST", "/book", map[string]string{"item": "3", "when": "4_" + dubaiDay(6), "adults": "1", "name": "Amna", "phone": "+971501234567", "payment": "card"}); r.Location == "" {
 		t.Fatalf("tour: %+v", r)
 	}
 	a = admin(7, map[string]any{"status": "confirmed"})
-	if a.Body != "confirmation emailed" || a.Admin.Row["licence_file"] != nil {
+	if _, ok := a.Admin.Row["licence_file"]; a.Body != "confirmation emailed" || ok {
 		t.Fatalf("owner confirms: %s %v", a.Body, a.Admin.Row)
 	}
 	has("owner confirmation", mails(), `to dana@mail.ae, "Reservation #7 confirmed: Sunset Yacht Trip"`)
 	a = admin(6, map[string]any{"status": "no_show"})
-	if a.Body != "no-show emailed" || a.Admin.Row["licence_file"] != mine || a.Admin.Row["id_file"] != passport {
+	_, licence := a.Admin.Row["licence_file"]
+	_, idFile := a.Admin.Row["id_file"]
+	if a.Body != "no-show emailed" || licence || idFile || a.Admin.Row["documents_required"] == nil {
 		t.Fatalf("no-show: %s %v", a.Body, a.Admin.Row)
 	}
 	has("no-show email", mails(), `to dana@mail.ae, "Reservation #6: marked as no-show"`)
