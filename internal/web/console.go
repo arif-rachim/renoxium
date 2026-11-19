@@ -420,7 +420,8 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		qv.Del("c")
 		qv.Del("page")
 		qv.Set("cols", strings.Join(picked, ","))
-		http.Redirect(w, r, "?"+qv.Encode(), http.StatusSeeOther)
+		// An absolute path: Go resolves "?..." against the parent directory.
+		http.Redirect(w, r, r.URL.Path+"?"+qv.Encode(), http.StatusSeeOther)
 		return
 	}
 	q := platform.ListQuery{Search: qv.Get("q"), Page: pageParam(r), Sort: qv.Get("sort"), Asc: qv.Get("dir") == "asc"}

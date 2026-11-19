@@ -1663,5 +1663,11 @@
       "daily_at": "20:00",
       "timezone": "Asia/Dubai"
     }
-  ]
+  ],
+  "brand": {
+    "table": "business",
+    "name": "name",
+    "name_ar": "name_ar",
+    "color": "brand_color"
+  }
 }
