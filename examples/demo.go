@@ -64,19 +64,21 @@ var demoImageSets = map[string][]DemoImageSet{
 	"delivery-tracking": {{Table: "shop", Key: "name", Rows: map[string]map[string]string{
 		"Al Noor Flowers": {"hero_image": "delivery-hero.webp", "story_image": "delivery-story.webp"},
 	}}},
-	"listings-uae": {{Table: "listings", Key: "reference", Rows: map[string]map[string]string{
-		"MH-1001": {"image1": "listing-living-room.webp", "image2": "listing-kitchen.webp", "image3": "listing-bedroom.webp"},
-		"MH-1002": {"image1": "listing-apartment-1.webp", "image2": "listing-kitchen.webp"},
-		"MH-1003": {"image1": "listing-apartment-2.webp", "image2": "listing-bedroom.webp"},
-		"MH-1004": {"image1": "listing-villa-1.webp", "image2": "listing-living-room.webp"},
-		"MH-1005": {"image1": "listing-burj-view.webp", "image2": "listing-apartment-3.webp"},
-		"MH-1006": {"image1": "listing-townhouse.webp", "image2": "listing-kitchen.webp"},
-		"MH-1007": {"image1": "listing-villa-2.webp", "image2": "listing-bedroom.webp"},
-		"MH-1008": {"image1": "listing-office.webp"},
+	"listings-uae": {{Table: "agency", Key: "name", Rows: map[string]map[string]string{
+		"Marsa Homes": {"hero_image": "listings-hero.webp", "story_image": "listings-story.webp"},
+	}}, {Table: "listings", Key: "reference", Rows: map[string]map[string]string{
+		"MH-1001": {"image1": "listing-living-room.webp", "image2": "listing-kitchen.webp", "image3": "listing-bedroom.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1002": {"image1": "listing-apartment-1.webp", "image2": "listing-kitchen.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1003": {"image1": "listing-apartment-2.webp", "image2": "listing-bedroom.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1004": {"image1": "listing-villa-1.webp", "image2": "listing-living-room.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1005": {"image1": "listing-burj-view.webp", "image2": "listing-apartment-3.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1006": {"image1": "listing-townhouse.webp", "image2": "listing-kitchen.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1007": {"image1": "listing-villa-2.webp", "image2": "listing-bedroom.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1008": {"image1": "listing-office.webp", "permit_qr": "listings-permit-qr.webp"},
 		"MH-1009": {"image1": "listing-villa-3.webp"},
-		"MH-1010": {"image1": "listing-apartment-3.webp", "image2": "listing-bedroom.webp"},
-		"MH-1011": {"image1": "listing-apartment-1.webp", "image2": "listing-living-room.webp"},
-		"MH-1012": {"image1": "listing-retail.webp"},
+		"MH-1010": {"image1": "listing-apartment-3.webp", "image2": "listing-bedroom.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1011": {"image1": "listing-apartment-1.webp", "image2": "listing-living-room.webp", "permit_qr": "listings-permit-qr.webp"},
+		"MH-1012": {"image1": "listing-retail.webp", "permit_qr": "listings-permit-qr.webp"},
 	}}},
 }
 

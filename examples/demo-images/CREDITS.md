@@ -49,3 +49,6 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | listing-retail.webp | https://images.unsplash.com/photo-1497366216548-37526070297c | Unsplash License | resized |
 | delivery-hero.webp | https://images.unsplash.com/photo-1563241527-3004b7be0ffd | Unsplash License | 4:5 crop, bouquet for the florist demo banner |
 | delivery-story.webp | https://images.unsplash.com/photo-1457089328109-e5d9bd499191 | Unsplash License | 4:5 crop, florist story image |
+| listings-hero.webp | https://images.unsplash.com/photo-1512453979798-5ea266f8880c (Dubai skyline over Sheikh Zayed Road at dawn) | Unsplash License | 2000 px wide; two developer signs on towers under construction blurred |
+| listings-story.webp | https://images.unsplash.com/photo-1597659840241-37e2b9c2f55f (Burj Khalifa at night from below) | Unsplash License | 4:5 crop, 1040 px wide |
+| listings-permit-qr.webp | Generated for the demo; the QR code reads "Sample permit QR code for the Marsa Homes demo. Not a real permit." | CC0 1.0 | none |
