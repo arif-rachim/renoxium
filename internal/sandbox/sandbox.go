@@ -172,7 +172,23 @@ func (g *Goja) CheckLib(lib []Lib, src string) error {
 
 // Run implements Sandbox.
 func (g *Goja) Run(ctx context.Context, src string, req Request, host Host) (Response, error) {
-	return g.run(ctx, libOf(host), src, req, host)
+	st := statsFrom(ctx)
+	if st == nil {
+		return g.run(ctx, libOf(host), src, req, host)
+	}
+	// In process there is no worker of its own to measure CPU in: only
+	// wall time is known.
+	if st.Started != nil {
+		st.Started()
+	}
+	began := time.Now()
+	resp, err := g.run(ctx, libOf(host), src, req, host)
+	st.Wall = time.Since(began)
+	var se *ScriptError
+	if errors.As(err, &se) {
+		st.Stopped = stopReason(se.Message)
+	}
+	return resp, err
 }
 
 func (g *Goja) run(ctx context.Context, lib []Lib, src string, req Request, host Host) (Response, error) {

@@ -33,6 +33,9 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		}
 		signIn = true
 	}
+	mw := &meterWriter{ResponseWriter: w}
+	defer func() { p.meterRequest(app, stageName, mw.n) }()
+	w = mw
 	if p.cfg.PublicScheme == "https" {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 	}
@@ -216,12 +219,12 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 
 	host := &scriptHost{st: st, p: p, rid: rid, noMoney: user == nil}
 	defer host.runDeferred(r.Context()) // after release: on_payment needs a slot of its own
-	release, ok := p.acquireSlot(r.Context(), st.app)
-	if !ok {
-		return failure(http.StatusServiceUnavailable, "too many requests running at once for this app; the request waited 3s and gave up")
+	release, err := p.acquireSlot(r.Context(), st)
+	if err != nil {
+		return failure(http.StatusServiceUnavailable, err.Error())
 	}
 	defer release()
-	resp, err := p.sb.Run(r.Context(), st.def.Scripts[route.Script], req, host)
+	resp, err := p.runScript(r.Context(), st, route.Method+" "+route.Path, st.def.Scripts[route.Script], req, host)
 	if err != nil {
 		var se *sandbox.ScriptError
 		if errors.As(err, &se) {
@@ -375,28 +378,6 @@ func (p *Platform) allowIntake(app string) bool {
 	}
 	w.count++
 	return w.count <= intakePerMinute
-}
-
-// acquireSlot waits up to 3 seconds for a script slot of the app's owner
-// and one of the app itself. The owner cap stops one account from filling
-// every worker by spreading slow scripts over many apps.
-func (p *Platform) acquireSlot(ctx context.Context, app string) (release func(), ok bool) {
-	ownerSlots := p.slotsFor("owner:"+p.ownerOf(app), p.cfg.ScriptsPerOwner)
-	appSlots := p.slotsFor("app:"+app, p.cfg.ScriptsPerApp)
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	select {
-	case ownerSlots <- struct{}{}:
-	case <-ctx.Done():
-		return nil, false
-	}
-	select {
-	case appSlots <- struct{}{}:
-		return func() { <-appSlots; <-ownerSlots }, true
-	case <-ctx.Done():
-		<-ownerSlots
-		return nil, false
-	}
 }
 
 func (p *Platform) slotsFor(key string, n int) chan struct{} {

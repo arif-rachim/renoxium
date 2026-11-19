@@ -190,6 +190,13 @@ func main() {
 	jobsEvery, _ := time.ParseDuration(os.Getenv("JOBS_CHECK_EVERY")) // default 30s
 	go p.RunJobs(context.Background(), jobsEvery)
 	go p.RunTraffic(context.Background(), time.Minute)
+	go p.RunUsage(context.Background()) // resource meter, per app and hour
+	// Funnel events for steps owners took before they were recorded.
+	go func() {
+		if err := p.BackfillFunnel(context.Background()); err != nil {
+			slog.Error("backfill funnel events", "err", err)
+		}
+	}()
 	// Template demos: one public app per gallery example, brought up to
 	// date at every start and put back to seed data every hour.
 	go func() {

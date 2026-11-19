@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"runtime/metrics"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -54,8 +55,15 @@ func serveWorker(stdin *os.File, stdout *os.File, heapLimit int64, timeout time.
 		case "check":
 			reply = finish(nil, g.CheckLib(m.Lib, m.Src))
 		case "run":
+			runHeapPeak.Store(heapBytes())
+			cpu0, ok0 := processCPU()
 			resp, err := g.run(context.Background(), m.Lib, m.Src, *m.Req, &proxyHost{in: in, out: out})
+			cpu1, ok1 := processCPU()
 			reply = finish(&resp, err)
+			if ok0 && ok1 {
+				reply.CPUUS, reply.CPUOK = max(int64((cpu1-cpu0)/time.Microsecond), 0), true
+			}
+			reply.HeapPeak = max(runHeapPeak.Load(), heapBytes())
 		default:
 			reply = message{Type: "done", Error: "unknown request " + m.Type}
 		}
@@ -101,7 +109,9 @@ func heapWatch(limit int64) func(func(string)) func() {
 				case <-done:
 					return
 				case <-t.C:
-					if heapBytes() <= limit {
+					h := heapBytes()
+					notePeak(h)
+					if h <= limit {
 						continue
 					}
 					// The heap figure includes garbage not yet collected, so an
@@ -123,6 +133,18 @@ func heapWatch(limit int64) func(func(string)) func() {
 			}
 		}()
 		return func() { close(done) }
+	}
+}
+
+// runHeapPeak is the largest heap seen during the current run.
+var runHeapPeak atomic.Int64
+
+func notePeak(h int64) {
+	for {
+		old := runHeapPeak.Load()
+		if h <= old || runHeapPeak.CompareAndSwap(old, h) {
+			return
+		}
 	}
 }
 
