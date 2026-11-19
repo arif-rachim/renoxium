@@ -137,6 +137,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerLanding()
 	s.registerStaff()
 	s.registerDomain()
+	s.registerDeleteApp()
 	s.registerAlerts()
 	s.registerConnections()
 	s.registerAbuse()
@@ -1111,6 +1112,27 @@ your app can send it data, including your customers' details.</p>
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="check"><button>Check now</button></form>{{end}}
 <form method="post" style="margin-top:16px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Remove domain</button></form>{{end}}{{end}}
 </div></div>{{template "appbottom"}}{{end}}
+
+{{define "admin_delete"}}{{template "apptop" .}}<div class="settings">
+<div class="card"><h1>Export this app first</h1><p class="muted">A zip file with the app's definition, its live data and the list of its files. Keep it before you delete anything.</p>
+<a class="button secondary" href="/apps/{{.App}}/export">Download export</a></div>
+<form class="card danger-zone" method="post" action="/apps/{{.App}}/delete" style="margin-top:16px"><h1>Delete app for good</h1>
+<div class="warnbox" role="alert"><p><strong>This cannot be undone.</strong> Renoxium cannot bring this app back, not even on request.</p>
+<p>Deleting <strong>{{.App}}</strong> removes at once:</p><ul>
+<li>the website{{with .Info.LiveURL}} at <strong>{{.}}</strong>{{end}}; your customers will get "not found"</li>
+{{range .Losses}}<li><strong>{{.Count}}</strong> {{.Label}}</li>{{end}}
+<li>every version, uploaded file, staff member, notification and custom domain</li></ul>
+<p>Customers who signed in lose their accounts and order history. The address stays reserved for your account for 90 days. Your Stripe account and the money in it are not changed.</p></div>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+{{if .Running}}<p class="error">{{.Running}} customer subscription(s) are still running. Cancel them in <a href="/apps/{{.App}}/payments">Payments</a> first, so nobody keeps being charged.</p>
+{{else}}<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">To confirm, type the app's name: <strong>{{.App}}</strong></label>
+<input id="confirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="{{.App}}" data-name="{{.App}}">
+<label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
+<button class="danger" id="delete-btn" disabled>Delete {{.App}} for good</button>
+<script>(function(){var i=document.getElementById("confirm"),b=document.getElementById("delete-btn");function f(){b.disabled=i.value.trim()!==i.dataset.name}i.addEventListener("input",f);f()})()</script>{{end}}</form>
+<style>.warnbox{border:1px solid var(--danger,#b42318);background:color-mix(in srgb,var(--danger,#b42318) 8%,transparent);border-radius:12px;padding:12px 16px;margin:0 0 16px}
+.warnbox ul{margin:6px 0 10px;padding-left:20px}.warnbox p{margin:6px 0}button.danger[disabled]{opacity:.45;cursor:not-allowed}</style>
+</div>{{template "appbottom"}}{{end}}
 
 {{define "admin_staff"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Staff</h1><p class="muted">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p>
