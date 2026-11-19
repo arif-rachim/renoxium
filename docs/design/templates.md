@@ -264,6 +264,7 @@ Then `.skip` link, `.bar`, `.site-head`, `<main id="main">` as in store-uae `top
 ### template `css`: the shared block (copy verbatim, then append the template's own components below a `/* <Template> components */` comment)
 ```html
 <style>
+[hidden]{display:none!important}
 /* Renoxium template design system: shared base. The theme (brand colour, font, logo) comes from theme() in lib and sits on <html>. */
 :root{color-scheme:light;--brand:#334155;--on-brand:#fff;--brand-text:#334155;
 --paper:#fff;--ink:color-mix(in oklab,var(--brand) 14%,#121212);--ink-2:color-mix(in oklab,var(--ink) 74%,#fff);
