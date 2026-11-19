@@ -41,7 +41,7 @@ const (
 
 func (p *Platform) idHost(app, stageName string) string {
 	label := app
-	if stageName == Preview {
+	if stageName == Preview && !p.IsDemo(app) {
 		label += "--preview"
 	}
 	return label + idLabelSuffix + "." + p.cfg.AppsDomain
@@ -100,6 +100,9 @@ func (p *Platform) serveAuthApp(w http.ResponseWriter, r *http.Request, st *stag
 		q.Set("state", state)
 		if st.name == Preview && len(p.cfg.PreviewKey) > 0 {
 			q.Set("pv", p.previewToken(st.app, time.Now().Add(previewLinkTTL))) // the preview's sign-in host is private too
+		}
+		if key, _ := r.Context().Value(demoKey{}).(string); key != "" {
+			q.Set(demoKeyParam, key) // one demo inbox for both hosts
 		}
 		// A POST (a form from an old page) becomes a GET of the page: what
 		// was typed on the app's host is not passed on.

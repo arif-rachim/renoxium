@@ -12,7 +12,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Your online store, built in a chat.", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Your business online, built in a chat.", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}

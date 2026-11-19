@@ -130,6 +130,8 @@ type Platform struct {
 	suspended   map[string]bool // apps taken offline
 
 	adminNotices sync.Map // app + "\x00" + email -> failed on_admin_change notice
+
+	demoBox demoInbox // messages template demos would have sent (demo.go)
 }
 
 type stage struct {
@@ -347,7 +349,7 @@ func (p *Platform) dbPath(app, stageName string) string {
 }
 
 func (p *Platform) host(app, stageName string) string {
-	if stageName == Preview {
+	if stageName == Preview && !p.IsDemo(app) { // a demo's preview has the plain address
 		return app + "--preview." + p.cfg.AppsDomain
 	}
 	return app + "." + p.cfg.AppsDomain
@@ -356,7 +358,7 @@ func (p *Platform) host(app, stageName string) string {
 // previewURL is where people open a preview: the owner's dashboard link
 // when previews are private, else the preview host itself.
 func (p *Platform) previewURL(app string) string {
-	if len(p.cfg.PreviewKey) > 0 {
+	if len(p.cfg.PreviewKey) > 0 && !p.IsDemo(app) {
 		return p.cfg.SiteURL + "/apps/" + app + "/preview"
 	}
 	return p.URL(app, Preview)
@@ -380,7 +382,7 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if !appNameRE.MatchString(name) || strings.Contains(name, "--") {
 		return AppInfo{}, fmt.Errorf("app name %q is not allowed: use 3-40 characters, lowercase letters, digits and single hyphens, starting with a letter", name)
 	}
-	if reserved[name] {
+	if reserved[name] || strings.HasPrefix(name, DemoPrefix) {
 		return AppInfo{}, fmt.Errorf("app name %q is reserved; choose a name that includes the business name", name)
 	}
 	var count int
@@ -520,24 +522,12 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	defer p.change.Unlock()
 
 	// Build the preview database first; a failed migration leaves no new version.
-	p.dropStage(name, Preview)
-	// Preview uploads belong to the throwaway preview data; they are never
-	// copied to or from live.
-	if err := p.dropPrivateFiles(name, Preview); err != nil {
+	migrations, problem, err := p.rebuildPreview(name, def)
+	if err != nil {
 		return ApplyResult{}, err
 	}
-	prev := p.dbPath(name, Preview)
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		os.Remove(prev + suffix)
-	}
-	if _, err := os.Stat(p.dbPath(name, Live)); err == nil {
-		if err := tenantdb.Snapshot(p.dbPath(name, Live), prev); err != nil {
-			return ApplyResult{}, fmt.Errorf("copy live data to preview: %w", err)
-		}
-	}
-	migrations, err := tenantdb.Migrate(prev, def.Tables, def.Seed)
-	if err != nil {
-		return ApplyResult{Problems: []string{"database migration failed on preview: " + err.Error()}}, nil
+	if problem != "" {
+		return ApplyResult{Problems: []string{problem}}, nil
 	}
 
 	var n int
@@ -587,6 +577,32 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 		}
 	}
 	return res, nil
+}
+
+// rebuildPreview replaces an app's preview data with a copy of live data
+// (or an empty database before the first publish) migrated to def, seed rows
+// included. problem explains a failed migration. The caller holds p.change.
+func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []string, problem string, err error) {
+	p.dropStage(name, Preview)
+	// Preview uploads belong to the throwaway preview data; they are never
+	// copied to or from live.
+	if err := p.dropPrivateFiles(name, Preview); err != nil {
+		return nil, "", err
+	}
+	prev := p.dbPath(name, Preview)
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		os.Remove(prev + suffix)
+	}
+	if _, err := os.Stat(p.dbPath(name, Live)); err == nil {
+		if err := tenantdb.Snapshot(p.dbPath(name, Live), prev); err != nil {
+			return nil, "", fmt.Errorf("copy live data to preview: %w", err)
+		}
+	}
+	migrations, err = tenantdb.Migrate(prev, def.Tables, def.Seed)
+	if err != nil {
+		return nil, "database migration failed on preview: " + err.Error(), nil
+	}
+	return migrations, "", nil
 }
 
 // Publish makes a stored version live. version 0 means the current preview

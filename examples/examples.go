@@ -31,8 +31,56 @@ var (
 // Example is one complete app definition.
 type Example struct {
 	Name        string
-	Description string
+	Description string // for building agents: what the example does and how to adapt it
 	JSON        []byte
+	// Gallery puts the example in the public template gallery with a live
+	// demo. Nil keeps it for agents only.
+	Gallery *GalleryInfo
+}
+
+// GalleryInfo is how the template gallery presents an example to business
+// owners: plain words, no technical terms.
+type GalleryInfo struct {
+	Title   string   // e.g. "Salon and class booking"
+	Summary string   // one or two sentences
+	For     []string // kinds of business it suits, e.g. "Beauty salons"
+	Order   int      // position in the gallery, lowest first
+}
+
+var gallery = map[string]GalleryInfo{
+	"store-uae": {Order: 1, Title: "Online store",
+		Summary: "A shop with a catalog, cart and checkout: card payment or cash on delivery, AED prices with VAT, discount codes, sizes and colours, invoices, in English and Arabic.",
+		For:     []string{"Perfume and fashion shops", "Electronics and accessories", "Cakes and flowers to order"}},
+	"booking-uae": {Order: 2, Title: "Appointments and classes",
+		Summary: "Customers pick a service, a staff member and a free time, or enrol in a class with limited seats; deposits by card, reminders and a daily schedule for you.",
+		For:     []string{"Beauty salons and barbers", "Spas and clinics", "Academies and tutors"}},
+	"home-service-uae": {Order: 3, Title: "Home services",
+		Summary: "Bookings by area and arrival window, crews dispatched from their phones, live status for the customer, repeat visits and card or cash payment.",
+		For:     []string{"Cleaning", "AC servicing and pest control", "Handyman and movers"}},
+	"reservation-uae": {Order: 4, Title: "Tours and rentals",
+		Summary: "Seats on dated departures or items rented by the day, with deposits, extras, vouchers, document uploads and automatic refunds on cancellation.",
+		For:     []string{"Desert safaris and yacht trips", "Car rental", "Party and event rentals"}},
+	"quote-portal-uae": {Order: 5, Title: "Quotes and client portal",
+		Summary: "Clients send an enquiry, you send a quote, they accept and pay a deposit online, then follow progress and upload their documents in a private portal.",
+		For:     []string{"Business setup and PRO services", "Accounting firms", "Event planners and photographers"}},
+	"listings-uae": {Order: 6, Title: "Property listings",
+		Summary: "Search homes to buy or rent, listing pages with permit numbers, and viewing requests that land in your calendar with one lane per agent.",
+		For:     []string{"Real-estate brokers", "Property agents", "Car dealers"}},
+	"delivery-tracking": {Order: 7, Title: "Live delivery tracking",
+		Summary: "Your courier shares their location from their phone and the customer follows the delivery on a live map.",
+		For:     []string{"Restaurants and grocers", "Couriers", "Any business that delivers"}},
+}
+
+func init() {
+	for name, g := range gallery {
+		e, ok := all[name]
+		if !ok {
+			panic("examples: gallery entry for unknown example " + name)
+		}
+		g := g
+		e.Gallery = &g
+		all[name] = e
+	}
 }
 
 var all = map[string]Example{
@@ -125,5 +173,23 @@ func All() []Example {
 		out = append(out, e)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// Gallery returns the examples shown in the public template gallery, in
+// gallery order.
+func Gallery() []Example {
+	var out []Example
+	for _, e := range all {
+		if e.Gallery != nil {
+			out = append(out, e)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Gallery.Order != out[j].Gallery.Order {
+			return out[i].Gallery.Order < out[j].Gallery.Order
+		}
+		return out[i].Name < out[j].Name
+	})
 	return out
 }

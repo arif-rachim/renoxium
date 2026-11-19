@@ -97,7 +97,7 @@ func TestAdminPanel(t *testing.T) {
 	}
 
 	// Overview and lists.
-	if code, page := get(alice, "/apps/al-noor"); code != 200 || !strings.Contains(page, "Products") || !strings.Contains(page, "1 rows") {
+	if code, page := get(alice, "/apps/al-noor"); code != 200 || !strings.Contains(page, "Products") || !strings.Contains(page, "1 row<") {
 		t.Fatalf("overview: %d %s", code, page)
 	}
 	if code, page := get(alice, "/apps/al-noor/t/orders"); code != 200 || !strings.Contains(page, "Mariam") {

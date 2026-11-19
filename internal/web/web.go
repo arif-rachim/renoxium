@@ -132,6 +132,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerAlerts()
 	s.registerConnections()
 	s.registerAbuse()
+	s.registerGallery()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.Monitor != nil {
 			if err := s.Monitor.Healthy(); err != nil {
@@ -321,7 +322,15 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 	if u.Verified {
 		shared, _ = s.platform.StaffApps(u.Email)
 	}
-	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": apps, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r), "Plan": plan, "Shared": shared})
+	var cards, sharedCards []appCard
+	for _, a := range apps {
+		cards = append(cards, s.appCard(r.Context(), a))
+	}
+	for _, a := range shared {
+		sharedCards = append(sharedCards, s.appCard(r.Context(), a))
+	}
+	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": cards, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r), "Plan": plan,
+		"Shared": sharedCards, "AppLimit": platform.AppsPerPlan[s.accounts.Plan(u.ID)]})
 }
 
 func (s *Site) signupForm(w http.ResponseWriter, r *http.Request) {
@@ -710,35 +719,63 @@ func (l *limiter) allow(key string) bool {
 // --- templates ---
 
 var pages = template.Must(template.New("").Parse(`
-{{define "top"}}{{template "head" .}}<main>{{end}}
-{{define "wide"}}{{template "head" .}}<main class="wide">{{end}}
+{{define "top"}}{{template "head" .}}<body>{{template "nav"}}<main>{{end}}
+{{define "wide"}}{{template "head" .}}<body>{{template "nav"}}<main class="wide">{{end}}
+{{define "auth"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/">Renoxium</a><nav aria-label="Main"><a href="/templates">Templates</a><a href="/connect">Connect</a></nav></div></header><main>{{end}}
+{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/">Renoxium</a><nav aria-label="Main"><a href="/">Your apps</a><a href="/templates">Templates</a><a href="/billing">Plan</a><a href="/account">Account</a><a href="/connect">Help</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.}} · Renoxium</title><style>
-:root{color-scheme:light dark;--fg:#16181d;--muted:#5d6370;--bg:#fafafa;--card:#fff;--line:#e3e5ea;--accent:#2f5bea}
-@media (prefers-color-scheme:dark){:root{--fg:#eceef2;--muted:#a1a7b3;--bg:#121418;--card:#1b1e24;--line:#2c3039;--accent:#7f9cff}}
-*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg)}
-main{max-width:440px;margin:48px auto;padding:0 16px}main.wide{max-width:960px;margin-top:24px}
-.crumbs{font-size:14px;margin-bottom:12px}.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}td a{font-weight:600}
-textarea{width:100%;min-height:96px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
-textarea.json{font-family:ui-monospace,monospace;font-size:14px}
-.help{margin:4px 0 0;font-size:13px}.check{display:flex;gap:8px;align-items:center;margin-top:12px}.check input{width:auto}
-.ok{color:#2e7d32}.note{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:12px 0}.note ul{margin:0 0 8px;padding-inline-start:20px}.field-error{color:#c62828;font-size:14px;margin-top:4px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
-.bar form{display:flex;gap:8px}.bar input{width:220px}.bar button,.bar .button{margin-top:0}.button{display:inline-block;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
-button.danger{background:transparent;color:#c62828;border:1px solid #c62828}.pager{display:flex;gap:12px;margin-top:12px;font-size:14px}
-.connect h2{font-size:18px;margin:24px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}.plan{border:1px solid var(--line);border-radius:12px;padding:16px}
-.plan h2{margin:0 0 4px;font-size:18px}.plan .price{font-size:20px;font-weight:700;margin:0}.plan ul{padding-inline-start:18px;font-size:14px}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0}.tile{border:1px solid var(--line);border-radius:12px;padding:12px}
-.tile .big{font-size:20px;font-weight:700;margin:2px 0}form.inline{display:flex;gap:6px;align-items:center}form.inline button{margin:0;padding:6px 10px}form.inline select,form.inline input{width:auto;padding:6px 8px}
-.report{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.report.done{opacity:.6}ul.plain{list-style:none;padding:0}ul.plain li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
-h1{font-size:22px;margin:0 0 16px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}label{display:block;font-size:14px;margin:12px 0 4px}
-input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
-button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
-button.secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}.row{display:flex;gap:8px}.error{color:#c62828}
-code{font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all}
-ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
+<title>{{.}} · Renoxium</title>{{template "fonts"}}<style>
+:root{color-scheme:light dark;--fg:#0f2a2a;--muted:#4d6563;--bg:#eef3f1;--card:#fff;--line:#d3dfdb;--accent:#0e6f66;--accent-ink:#fff;--accent-soft:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--live:#1f8a4c;--bad:#b3261e;--radius:14px}
+@media (prefers-color-scheme:dark){:root{--fg:#e3eeeb;--muted:#93a9a5;--bg:#0b1615;--card:#11201e;--line:#21403b;--accent:#3fc2b2;--accent-ink:#06201d;--accent-soft:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--live:#4cc88a;--bad:#ff8a80}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;font:16px/1.55 "Readex Pro",system-ui,sans-serif;color:var(--fg);background:var(--bg)}
+a{color:var(--accent);text-underline-offset:2px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bar-top{background:var(--card);border-bottom:1px solid var(--line)}.bar-top .in{max-width:1120px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:8px 24px;flex-wrap:wrap}
+.logo{font-weight:700;font-size:19px;color:var(--fg);text-decoration:none;letter-spacing:-.01em;margin-inline-end:auto}
+.bar-top nav{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:15px}.bar-top nav a{color:var(--fg);text-decoration:none;padding:4px 0}.bar-top nav a:hover{color:var(--accent)}
+main{max-width:600px;margin:32px auto 64px;padding:0 20px}main.wide{max-width:1120px}body.auth main{max-width:440px;margin-top:56px}
+.crumbs{font-size:14px;margin:0 0 14px;color:var(--muted)}.crumbs a{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}.card+.card{margin-top:16px}
+h1{font-size:24px;line-height:1.25;margin:0 0 14px;font-weight:600;letter-spacing:-.01em}h2{font-size:18px;margin:0 0 10px;font-weight:600}
+p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}ul{padding-inline-start:20px}
+label{display:block;font-size:14px;font-weight:500;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit}
+textarea{min-height:96px}textarea.json{font-family:ui-monospace,monospace;font-size:14px}
+button,.button{display:inline-block;margin-top:18px;padding:11px 18px;border:1px solid var(--accent);border-radius:10px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;line-height:1.3}
+button.secondary,.button.secondary{background:transparent;color:var(--fg);border-color:var(--line)}button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+.scroll{overflow-x:auto;margin:0 -4px}table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:start;font-weight:500;color:var(--muted);font-size:13px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{text-align:start;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}tbody tr:hover{background:var(--accent-soft)}td a{font-weight:600}
+.help{margin:4px 0 0;font-size:13px}.check{display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:400}.check input{width:auto}
+.ok{color:var(--live)}.error{color:var(--bad)}.field-error{color:var(--bad);font-size:14px;margin-top:4px}
+.note{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:12px 0;background:var(--card)}.note ul{margin:0 0 8px;padding-inline-start:20px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:14px}
+.bar form{display:flex;gap:8px}.bar input{width:220px}.bar button,.bar .button{margin-top:0}
+.pager{display:flex;gap:14px;margin-top:14px;font-size:14px;align-items:center}
+.connect h2{font-size:18px;margin:28px 0 8px}.connect li{margin:4px 0;overflow-wrap:anywhere}.connect p{overflow-wrap:anywhere}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}.plan{border:1px solid var(--line);border-radius:12px;padding:16px}
+.plan h2{margin:0 0 4px;font-size:18px}.plan .price{font-size:20px;font-weight:600;margin:0}.plan ul{padding-inline-start:18px;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:8px 0 12px}.tile{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)}
+.tile .big{font-size:22px;font-weight:600;margin:2px 0;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+form.inline{display:flex;gap:6px;align-items:center}form.inline button{margin:0;padding:6px 10px}form.inline select,form.inline input{width:auto;padding:6px 8px}
+.report{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.report.done{opacity:.6}
+ul.plain{list-style:none;padding:0}ul.plain li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.thumb{display:block;max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin:4px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--fg);white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.live::before{background:var(--live)}.pill.wait{background:var(--sun-soft);border-color:transparent}.pill.wait::before{background:var(--sun)}
+.pill.plain::before{display:none}
+.tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.tables a{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--fg)}
+.tables a:hover{border-color:var(--accent)}.tables strong{display:block;font-weight:500}.tables span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media (max-width:640px){main{margin-top:20px}.card{padding:18px}.bar input{width:100%}.bar form{flex:1}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style></head>{{end}}
+{{define "fonts"}}<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">{{end}}
 {{define "bottom"}}</main></body></html>{{end}}
 
-{{define "welcome"}}{{template "top" "Welcome"}}<div class="card"><h1>Renoxium</h1>
+{{define "welcome"}}{{template "auth" "Welcome"}}<div class="card"><h1>Renoxium</h1>
 <p>Build and run your online store by chatting with ChatGPT or Claude.</p>
 <p class="muted">Add this connector address to your agent:</p><p><code>{{.MCP}}</code></p>
 <p><a href="/connect">How to connect ChatGPT or Claude</a></p>
@@ -753,30 +790,60 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <label for="contact">Your email (optional, if you want an answer)</label><input id="contact" name="contact" type="email" value="{{.Contact}}">
 <button>Send report</button></form>{{template "bottom"}}{{end}}
 
-{{define "dashboard"}}{{template "top" "Your apps"}}<div class="card"><h1>Your apps</h1>
-<p class="muted">Signed in as {{.User.Email}} · Plan: <a href="/billing">{{.Plan}}</a> · <a href="/account">Account</a></p>
-{{if not .User.Verified}}<form method="post" action="/verify/resend"><p class="muted">Confirm your email so you can reset your password if you forget it. <input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin-top:4px">Send the link again</button></p></form>{{end}}
-{{if .Shared}}<p class="muted">Shared with you: {{range $i, $a := .Shared}}{{if $i}}, {{end}}<a href="/apps/{{$a.App}}">{{$a.App}}</a>{{end}}</p>{{end}}
-{{if .Apps}}<ul>{{range .Apps}}<li><a href="/apps/{{.App}}">{{.App}}</a> <span class="muted">live v{{.LiveVersion}}, preview v{{.PreviewVersion}}</span></li>{{end}}</ul>
-{{else}}<p>No apps yet. Ask your agent: "Build me an online store for my products."</p>{{end}}
-<p class="muted">Connector address for your agent:</p><p><code>{{.MCP}}</code> · <a href="/connect">how to connect</a></p>
-<form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Sign out</button></form></div>{{template "bottom"}}{{end}}
+{{define "dashboard"}}{{template "wide" "Your apps"}}<style>
+.dash{display:grid;gap:24px}@media(min-width:900px){.dash{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
+.head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:16px}.head h1{margin:0}
+.apps{display:grid;gap:16px}@media(min-width:640px){.apps{grid-template-columns:1fr 1fr}}
+.app{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:12px}
+.app h2{font-size:20px;margin:0}.app h2 a{color:var(--fg);text-decoration:none}.app h2 a:hover{color:var(--accent)}
+.app .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap}.app .host{font-size:14px;color:var(--muted);overflow-wrap:anywhere;margin:2px 0 0}
+.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-block:1px solid var(--line);padding:12px 0;margin:0}
+.figs div{min-width:0}.figs dt{font-size:12.5px;color:var(--muted)}.figs dd{margin:0;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.figs dd.bad{color:var(--bad)}
+.app .acts{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;font-size:15px}.app .acts .button{margin:0;padding:8px 14px}
+.draft{font-size:14px;color:var(--muted);margin:0}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:24px}.empty h2{font-size:20px}
+.side .card{padding:20px}.side h2{font-size:16px}.side ol{padding-inline-start:20px;margin:0 0 12px;font-size:15px}.side li{margin:4px 0}
+.side input{font-size:13.5px;font-family:ui-monospace,monospace;background:var(--bg)}
+.say{background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:15px;margin:8px 0 0}
+</style>
+<div class="head"><h1>Your apps</h1><p class="muted" style="margin:0">{{.User.Email}} · <a href="/billing">{{.Plan}} plan</a>, {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} · <a href="/account">Account</a></p></div>
+{{if not .User.Verified}}<form class="note" method="post" action="/verify/resend" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>Confirm your email to publish apps and to reset your password if you forget it.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0">Send the link again</button></form>{{end}}
+<div class="dash"><div>
+{{if .Apps}}<div class="apps">{{range .Apps}}{{template "app_card" .}}{{end}}</div>
+{{else}}<div class="empty"><h2>No apps yet</h2><p>Connect Renoxium to ChatGPT or Claude, then ask for what you need. Your assistant starts from a finished template and shows you a preview before anything goes live.</p>
+<p class="say">"Build me an online store for my perfume shop in Dubai."</p><p class="say">"Make a booking site for my salon with three stylists."</p>
+<p style="margin-top:16px"><a href="/templates">See the templates you can start from</a></p></div>{{end}}
+{{if .Shared}}<h2 style="margin:28px 0 12px">Shared with you</h2><div class="apps">{{range .Shared}}{{template "app_card" .}}{{end}}</div>{{end}}
+</div><aside class="side"><div class="card"><h2>Build or change an app</h2>
+<ol><li>Add Renoxium to your AI assistant once, with this address:</li></ol>
+<input readonly value="{{.MCP}}" aria-label="Connector address" onfocus="this.select()">
+<ol start="2"><li>Ask for a new app or a change.</li><li>Check the preview, then publish.</li></ol>
+<p class="muted" style="margin:0"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></div>
+<div class="card"><h2>Start from a template</h2><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates</a></div>
+<form method="post" action="/logout" style="margin-top:12px"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0;width:100%">Sign out</button></form></aside></div>{{template "bottom"}}{{end}}
 
-{{define "signup"}}{{template "top" "Create account"}}<form class="card" method="post" action="/signup"><h1>Create your account</h1>
+{{define "app_card"}}<article class="app"><div class="top"><div><h2><a href="/apps/{{.App}}">{{.App}}</a></h2>{{if .LiveVersion}}<p class="host">{{.Host}}</p>{{end}}</div>
+<span class="pill {{.Status}}">{{.StatusText}}</span></div>
+{{if .LiveVersion}}<dl class="figs"><div><dt>Sales, 30 days</dt><dd>{{if .SalesCount}}{{.Sales}}{{else}}None yet{{end}}</dd></div><div><dt>Customers</dt><dd>{{.Visitors}}</dd></div>
+<div><dt>Recent errors</dt><dd{{if .Errors}} class="bad"{{end}}>{{.Errors}}</dd></div></dl>
+{{else}}<p class="draft">Preview version {{.PreviewVersion}} is ready to check. Publish it when you are happy and it goes live at {{.Host}}.</p>{{end}}
+<div class="acts"><a class="button" href="/apps/{{.App}}">Manage</a>{{if .LiveVersion}}<a href="{{.LiveURL}}/">Open site</a>{{end}}<a href="/apps/{{.App}}/preview">Preview</a></div></article>{{end}}
+
+{{define "signup"}}{{template "auth" "Create account"}}<form class="card" method="post" action="/signup"><h1>Create your account</h1>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
 <button>Create account</button><p class="muted" style="margin-top:16px">Already have an account? <a href="/login?next={{.Next}}">Sign in</a></p></form>{{template "bottom"}}{{end}}
 
-{{define "login"}}{{template "top" "Sign in"}}<form class="card" method="post" action="/login"><h1>Sign in to Renoxium</h1>
+{{define "login"}}{{template "auth" "Sign in"}}<form class="card" method="post" action="/login"><h1>Sign in to Renoxium</h1>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
 <button>Sign in</button><p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "bottom"}}{{end}}
 
-{{define "consent"}}{{template "top" "Allow access"}}<form class="card" method="post" action="/oauth/authorize"><h1>Allow {{.Client}}?</h1>
+{{define "consent"}}{{template "auth" "Allow access"}}<form class="card" method="post" action="/oauth/authorize"><h1>Allow {{.Client}}?</h1>
 <p><strong>{{.Client}}</strong> wants to create, change and publish your Renoxium apps, and read their logs.</p>
 {{with .Warning}}<p class="error"><strong>Warning:</strong> {{.}}</p>{{end}}
 <p>After you allow, you return to <code>{{.RedirectHost}}</code>. Only allow if you just connected Renoxium in your agent and you recognise this address.</p>
@@ -785,28 +852,55 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 {{range $k, $v := .Params}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}
 <div class="row"><button name="decision" value="allow">Allow</button><button class="secondary" name="decision" value="deny">Cancel</button></div></form>{{template "bottom"}}{{end}}
 
-{{define "admin_app"}}{{template "wide" .Info.App}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>{{.Info.App}}</h1>
-<p><a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a> <span class="muted">live version {{.Info.LiveVersion}}</span></p>
-<p class="muted">Preview (version {{.Info.PreviewVersion}}): <a href="{{.Info.PreviewURL}}">{{.Info.PreviewURL}}</a></p>
-{{if and .IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<p><a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>
-<span class="muted">Check the preview first; you confirm on the next page.</span></p>{{end}}
-{{if .Tables}}<h1 style="margin-top:24px">Data</h1><ul>{{range .Tables}}<li><a href="/apps/{{$.Info.App}}/t/{{.Name}}">{{.Label}}</a> <span class="muted">{{.Rows}} rows</span></li>{{end}}</ul>
-{{else}}<p>{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app to manage its data here.{{end}}</p>{{end}}
-{{if .Sales}}<h1 style="margin-top:24px">Card sales</h1><div class="tiles">{{range .Sales}}<div class="tile"><div class="muted">{{.Label}}</div>
+{{define "demo_note"}}<p class="note" style="border:1px dashed var(--accent);background:var(--accent-soft)">
+This is the owner's admin panel of a template demo, shown read-only. In your own app you add, change and delete here, on your phone or computer. The data is public and deleted every hour.</p>{{end}}
+
+{{define "demo_admin_app"}}{{template "wide" .App}}<p class="crumbs"><a href="/templates">Templates</a></p>
+<div style="display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:16px"><div><h1 style="margin:0 0 4px;font-size:28px">{{.App}}</h1><span class="pill plain">Owner's admin panel, read-only</span></div>
+<a class="button secondary" style="margin:0" href="{{.DemoURL}}/">Open the demo site</a></div>{{template "demo_note"}}
+<h2 style="margin:20px 0 10px">Your data</h2>{{if .Tables}}<div class="tables">{{range .Tables}}<a href="/apps/{{$.App}}/t/{{.Name}}"><strong>{{.Label}}</strong><span>{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</span></a>{{end}}</div>{{end}}
+<div class="card" style="margin-top:24px"><h2>In your own app you also get</h2><p class="muted">Card sales and refunds, staff access, scheduled reports by email, new orders on WhatsApp, your own domain and your customers' accounts.</p>
+<div class="row"><a class="button" style="margin-top:4px" href="/signup">Create your account</a><a class="button secondary" style="margin-top:4px" href="/connect">Connect ChatGPT or Claude</a></div></div>{{template "bottom"}}{{end}}
+
+{{define "admin_app"}}{{template "wide" .Info.App}}<style>
+.ahead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:20px}.ahead h1{margin:0 0 4px;font-size:28px}
+.ahead .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ahead .acts .button{margin:0}
+.agrid{display:grid;gap:20px}@media(min-width:900px){.agrid{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
+.sec{margin-bottom:24px}.sec>h2{margin:0 0 10px}
+.side .card{padding:18px 20px}.side h2{font-size:16px;margin-bottom:8px}
+.addr{margin:0}.addr dt{font-size:13px;color:var(--muted);margin-top:10px}.addr dt:first-child{margin-top:0}.addr dd{margin:0;overflow-wrap:anywhere;font-size:15px}
+.links{list-style:none;padding:0;margin:0}.links li{border-top:1px solid var(--line)}.links li:first-child{border-top:0}
+.links a{display:flex;justify-content:space-between;gap:12px;padding:10px 0;text-decoration:none;color:var(--fg)}.links a:hover strong{color:var(--accent)}
+.links strong{font-weight:500}.links span{font-size:13.5px;color:var(--muted);text-align:end}
+.errs{list-style:none;padding:0;margin:0}.errs li{padding:10px 0;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}.errs li:first-child{border-top:0}
+</style>
+<p class="crumbs"><a href="/">Your apps</a></p>
+<div class="ahead"><div><h1>{{.Info.App}}</h1><span class="pill {{.Status}}">{{.StatusText}}</span></div>
+<div class="acts">{{if .Info.LiveVersion}}<a class="button secondary" href="{{.Info.LiveURL}}/">Open site</a>{{end}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>
+{{if and .IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}</div></div>
+<div class="agrid"><div>
+{{if .Sales}}<section class="sec"><h2>Card sales</h2><div class="tiles">{{range .Sales}}<div class="tile"><div class="muted">{{.Label}}</div>
 <div class="big">{{$.Currency}} {{printf "%.2f" .Amount}}</div><div class="muted">{{.Count}} payment{{if ne .Count 1}}s{{end}}</div></div>{{end}}</div>
-<p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p>{{end}}
-{{if .IsOwner}}<h1 style="margin-top:24px">Payments</h1><p><a href="/apps/{{.Info.App}}/payments">Stripe and payments</a> <span class="muted">connect Stripe to take card payments</span></p>
-<h1 style="margin-top:24px">Staff</h1><p><a href="/apps/{{.Info.App}}/staff">People who help you run this app</a></p>
-{{with .Jobs}}<h1 style="margin-top:24px">Scheduled jobs</h1><div class="scroll"><table><thead><tr><th>Job</th><th>Runs</th><th>Last run</th><th>Next run</th></tr></thead><tbody>
+<p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p></section>{{end}}
+<section class="sec"><h2>Your data</h2>{{if .Tables}}<div class="tables">{{range .Tables}}<a href="/apps/{{$.Info.App}}/t/{{.Name}}"><strong>{{.Label}}</strong><span>{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</span></a>{{end}}</div>
+{{else}}<div class="card"><p style="margin:0">{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app to manage its products, orders and bookings here. Until then, check it in the preview.{{end}}</p></div>{{end}}</section>
+{{if .Problems}}<section class="sec"><h2>Recent errors</h2><div class="card"><p class="muted">Ask your assistant to "check the Renoxium logs and fix the errors".</p><ul class="errs">{{range .Problems}}<li><span class="muted">{{.Time}}</span><br>{{.Message}}</li>{{end}}</ul></div></section>{{end}}
+{{if .IsOwner}}{{with .Jobs}}<section class="sec"><h2>Scheduled jobs</h2><div class="card"><div class="scroll"><table><thead><tr><th>Job</th><th>Runs</th><th>Last run</th><th>Next run</th></tr></thead><tbody>
 {{range .}}<tr><td>{{.Name}}</td><td>{{.Schedule}}</td><td>{{if .Status}}{{.LastRun.UTC.Format "2 Jan 15:04"}} UTC · {{if eq .Status "ok"}}<span class="ok">ok</span>{{else}}<span class="error">{{.Message}}</span>{{end}}{{else}}not yet{{end}}</td><td>{{if not .NextRun.IsZero}}{{.NextRun.UTC.Format "2 Jan 15:04"}} UTC{{end}}</td></tr>{{end}}
-</tbody></table></div>{{end}}
-{{with .MCPURL}}<h1 style="margin-top:24px">AI assistants</h1><p>Shoppers can add your shop to ChatGPT or Claude as a connector with this address, then ask about your products: <code>{{.}}</code></p>{{end}}
-<h1 style="margin-top:24px">Connections</h1><p><a href="/apps/{{.Info.App}}/connections">Other sites and API keys</a> <span class="muted">this app may use</span></p>
-<h1 style="margin-top:24px">Notifications</h1><p><a href="/apps/{{.Info.App}}/notifications">Get new orders on WhatsApp</a> <span class="muted">as well as by email</span></p>
-<h1 style="margin-top:24px">Domain</h1><p><a href="/apps/{{.Info.App}}/domain">Use your own domain</a> <span class="muted">such as www.yourshop.com</span></p>{{else}}<p class="muted" style="margin-top:24px">You have staff access to this app.</p>{{end}}
-{{if .Info.LiveVersion}}<h1 style="margin-top:24px">Visitors</h1><p><a href="/apps/{{.Info.App}}/visitors">Visitor accounts</a> <span class="muted">{{.Visitors}} signed up</span></p>{{end}}
-{{if .Problems}}<h1 style="margin-top:24px">Recent errors</h1><p class="muted">Ask your agent to "check the Renoxium logs and fix the errors".</p><ul>{{range .Problems}}<li><span class="muted">{{.Time}}</span> {{.Message}}</li>{{end}}</ul>{{end}}
-</div>{{template "bottom"}}{{end}}
+</tbody></table></div></div></section>{{end}}{{end}}
+</div><aside class="side">
+<div class="card"><h2>Addresses</h2><dl class="addr">{{if .Info.LiveVersion}}<dt>Your site</dt><dd><a href="{{.Info.LiveURL}}/">{{.Info.LiveURL}}</a></dd>{{end}}
+<dt>Preview, version {{.Info.PreviewVersion}}</dt><dd><a href="/apps/{{.Info.App}}/preview">Open the private preview</a></dd>
+{{with .MCPURL}}<dt>For customers' AI assistants</dt><dd><input readonly value="{{.}}" aria-label="Address for AI assistants" onfocus="this.select()" style="font:13px ui-monospace,monospace;padding:8px 10px;margin-top:4px"></dd>{{end}}</dl></div>
+{{if .IsOwner}}<div class="card"><h2>Settings</h2><ul class="links">
+<li><a href="/apps/{{.Info.App}}/payments"><strong>Payments</strong><span>Stripe, refunds</span></a></li>
+<li><a href="/apps/{{.Info.App}}/notifications"><strong>Notifications</strong><span>orders on WhatsApp</span></a></li>
+<li><a href="/apps/{{.Info.App}}/staff"><strong>Staff</strong><span>people who help you</span></a></li>
+<li><a href="/apps/{{.Info.App}}/domain"><strong>Domain</strong><span>www.yourshop.com</span></a></li>
+<li><a href="/apps/{{.Info.App}}/connections"><strong>Connections</strong><span>other sites, API keys</span></a></li>
+{{if .Info.LiveVersion}}<li><a href="/apps/{{.Info.App}}/visitors"><strong>Customer accounts</strong><span>{{.Visitors}} signed up</span></a></li>{{end}}
+</ul></div>{{else}}<div class="card"><p class="muted" style="margin:0">You have staff access to this app.</p>{{if .Info.LiveVersion}}<ul class="links" style="margin-top:8px"><li><a href="/apps/{{.Info.App}}/visitors"><strong>Customer accounts</strong><span>{{.Visitors}} signed up</span></a></li></ul>{{end}}</div>{{end}}
+</aside></div>{{template "bottom"}}{{end}}
 
 {{define "publish"}}{{template "top" "Publish"}}<p class="crumbs"><a href="/apps/{{.Info.App}}">{{.Info.App}}</a></p>
 <form class="card" method="post" action="/apps/{{.Info.App}}/publish"><h1>{{if .Rollback}}Roll back{{else}}Publish{{end}} version {{.Version}}?</h1>
@@ -816,11 +910,11 @@ ul{padding-left:20px}a{color:var(--accent)}</style></head><body>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
 <button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "bottom"}}{{end}}
 
-{{define "admin_list"}}{{template "wide" .Label}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
+{{define "admin_list"}}{{template "wide" .Label}}<p class="crumbs">{{if .Demo}}<a href="/templates">Templates</a>{{else}}<a href="/">Your apps</a>{{end}} / <a href="/apps/{{.App}}">{{.App}}</a></p>{{if .Demo}}{{template "demo_note"}}{{end}}<div class="card">
 {{if .HasCalendar}}<p style="display:flex;gap:16px"><strong>List</strong><a href="/apps/{{.App}}/t/{{.Table}}/calendar">Calendar</a></p>{{end}}
 <div class="bar"><h1 style="margin:0">{{.Label}} <span class="muted">({{.Total}})</span></h1>
 <form method="get"><input name="q" value="{{.Query}}" placeholder="Search" aria-label="Search"><button class="secondary">Search</button></form>
-<a class="button" href="/apps/{{.App}}/t/{{.Table}}/new">Add</a></div>
+{{if not .Demo}}<a class="button" href="/apps/{{.App}}/t/{{.Table}}/new">Add</a>{{end}}</div>
 {{with .Notice}}<p class="error">{{.}}</p>{{end}}{{if .Cells}}<div class="scroll"><table><thead><tr>{{range .Columns}}<th>{{.Label}}</th>{{end}}</tr></thead><tbody>
 {{range $i, $row := .Cells}}<tr>{{range $j, $v := $row}}<td>{{if eq $j 0}}<a href="/apps/{{$.App}}/t/{{$.Table}}/{{index $.IDs $i}}">{{$v}}</a>{{else}}{{$v}}{{end}}</td>{{end}}</tr>{{end}}
 </tbody></table></div>
@@ -1002,8 +1096,8 @@ your app can send it data, including your customers' details.</p>
 {{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
 {{else}}<p>{{if .Query}}Nobody matches "{{.Query}}".{{else}}No visitor accounts yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
 
-{{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>
-<form class="card" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>
+{{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>{{if .Demo}}{{template "demo_note"}}{{end}}
+<form class="card" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>{{if .Demo}}<fieldset disabled style="border:0;padding:0;margin:0">{{end}}
 {{if .Saved}}<p class="ok">Saved.</p>{{end}}{{with .Notice}}<p class="error">{{.}}</p>{{end}}{{if .HasErrors}}<p class="error">Check the highlighted fields.{{with .Error}} {{.}}{{end}}</p>{{end}}
 {{with .Created}}<p class="muted">Created {{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}
@@ -1019,20 +1113,20 @@ your app can send it data, including your customers' details.</p>
 {{else if eq .Input "textarea"}}<textarea id="f-{{.Name}}" name="{{.Name}}"{{if eq .Type "json"}} class="json"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
 {{else}}<input id="f-{{.Name}}" name="{{.Name}}" type="{{.Input}}" value="{{.Value}}"{{if eq .Type "real"}} step="any"{{end}}{{if eq .Type "integer"}} step="1"{{end}}{{if .Required}} required{{end}}>{{end}}{{end}}
 {{with .Help}}<p class="muted help">{{.}}</p>{{end}}{{with .Error}}<p class="field-error">{{.}}</p>{{end}}{{end}}
-<button>Save</button></form>
-{{if .ID}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
+{{if .Demo}}</fieldset>{{else}}<button>Save</button>{{end}}</form>
+{{if and .ID (not .Demo)}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
 {{template "bottom"}}{{end}}
 
 {{define "connect"}}{{template "wide" "Connect"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
 {{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{template "bottom"}}{{end}}
 
-{{define "forgot"}}{{template "top" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
+{{define "forgot"}}{{template "auth" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
 <p class="muted">Enter your email and we will send you a link to choose a new password.</p>
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required>
 <button>Send the link</button></form>{{template "bottom"}}{{end}}
 
-{{define "reset"}}{{template "top" "New password"}}<form class="card" method="post" action="/reset"><h1>Choose a new password</h1>
+{{define "reset"}}{{template "auth" "New password"}}<form class="card" method="post" action="/reset"><h1>Choose a new password</h1>
 {{with .Email}}<p class="muted">For {{.}}</p>{{end}}{{with .Error}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="token" value="{{.Token}}">
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>

@@ -83,7 +83,7 @@ func TestBilling(t *testing.T) {
 	if p := page(); !strings.Contains(p, "Current plan: <strong>Free</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
 		t.Fatalf("free page: %s", p)
 	}
-	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `Plan: <a href="/billing">Free</a>`) {
+	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Free plan</a>`) {
 		t.Fatal("dashboard plan")
 	}
 

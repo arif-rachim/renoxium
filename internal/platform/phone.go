@@ -128,6 +128,8 @@ func (p *Platform) sendPhoneCode(w http.ResponseWriter, r *http.Request, st *sta
 func (p *Platform) sendCode(ctx context.Context, st *stage, phone, code string) error {
 	if st.name == Preview {
 		p.event(st, "whatsapp", "info", "", fmt.Sprintf("not sent from preview: sign-in code %s for %s", code, phone))
+		p.demoDeliver(ctx, st, DemoMessage{Kind: "whatsapp", To: phone, Subject: "Sign-in code",
+			Text: "Your sign-in code is " + code + ". It works for 10 minutes."})
 		return nil
 	}
 	if !p.allowDurable("wa-day:"+st.app, p.cfg.Daily.WhatsAppPerApp, 24*time.Hour) || !p.allowDurable("wa-day", p.cfg.Daily.WhatsApp, 24*time.Hour) {

@@ -8,7 +8,7 @@ import { person, signUp, signIn, signOut, email, waitEmail, linkIn, fake, PASSWO
 test('public pages answer', async ({ browser }) => {
   const { page } = await person(browser);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Your online store, built in a chat.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Your business online, built in a chat\./ })).toBeVisible();
   await expect(page.locator('#pricing')).toContainText('AED 99');
   await page.getByRole('navigation').getByRole('link', { name: 'Connect' }).click();
   await expect(page.locator('.connect h1').first()).toBeVisible();

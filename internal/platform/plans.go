@@ -30,7 +30,7 @@ var planCache sync.Map // owner -> cachedPlan
 // planOf is the owner's plan, cached for 30 seconds. Without a plan lookup
 // configured every owner counts as paying, so nothing is limited or charged.
 func (p *Platform) planOf(owner string) string {
-	if p.cfg.OwnerPlan == nil {
+	if p.cfg.OwnerPlan == nil || owner == DemoOwner {
 		return planBusiness
 	}
 	if c, ok := planCache.Load(owner); ok && time.Since(c.(cachedPlan).at) < 30*time.Second {

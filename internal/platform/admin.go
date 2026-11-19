@@ -19,7 +19,7 @@ const AdminPageSize = 50
 // Tables returns the tables of an app's live version, or nil if it has not
 // been published yet.
 func (p *Platform) Tables(app string) ([]appdef.Table, error) {
-	st, err := p.loadStage(app, Live)
+	st, err := p.loadStage(app, p.AdminStage(app))
 	if err != nil || st == nil {
 		return nil, err
 	}
@@ -27,7 +27,16 @@ func (p *Platform) Tables(app string) ([]appdef.Table, error) {
 }
 
 func (p *Platform) liveTable(app, table string) (*stage, appdef.Table, error) {
-	return p.stageTable(app, Live, table)
+	return p.stageTable(app, p.AdminStage(app), table)
+}
+
+// AdminStage is the stage the admin panel shows: live, or for a template
+// demo (which has no live stage) its public preview.
+func (p *Platform) AdminStage(app string) string {
+	if p.IsDemo(app) {
+		return Preview
+	}
+	return Live
 }
 
 // stageTable finds a table of a stage. The admin panel uses live only;

@@ -82,7 +82,7 @@ test('staff: invite, sign in, edit data; no payments, staff or publishing; remov
   const staff = await person(browser);
   await signUp(staff.page, staffEmail);
   await staff.page.goto('/');
-  await expect(staff.page.locator('body')).toContainText(`Shared with you: ${shop.app}`);
+  await expect(staff.page.getByRole('heading', { name: 'Shared with you' })).toBeVisible();
   await staff.page.getByRole('link', { name: shop.app, exact: true }).click();
   await expect(staff.page.locator('body')).toContainText('You have staff access to this app.');
   await staff.page.goto(`/apps/${shop.app}/t/orders`);

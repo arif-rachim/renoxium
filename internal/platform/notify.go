@@ -75,6 +75,7 @@ func (p *Platform) notifyOwner(ctx context.Context, st *stage, arg any) (any, er
 func (p *Platform) mailOwner(ctx context.Context, st *stage, subject, text string) {
 	if st.name == Preview {
 		p.event(st, "email", "info", "", fmt.Sprintf("not sent from preview: to the owner, %q\n%s", subject, text))
+		p.demoDeliver(ctx, st, DemoMessage{Kind: "email", To: "the business owner", Subject: subject, Text: text})
 		return
 	}
 	if p.cfg.OwnerEmail == nil || p.cfg.Mailer == nil {

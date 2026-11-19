@@ -60,7 +60,7 @@ type calStatus struct{ Name, Class string }
 // adminCalendar shows the rows of a table with calendar metadata as a day
 // (lanes by group, along a time axis) or a week (seven columns).
 func (s *Site) adminCalendar(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.member(w, r)
+	_, app, demo, ok := s.viewer(w, r)
 	if !ok {
 		return
 	}
@@ -120,6 +120,7 @@ func (s *Site) adminCalendar(w http.ResponseWriter, r *http.Request) {
 		"Toggle": link(view, day, !all), "All": all, "Hidden": strings.Join(t.Calendar.HideStatus, ", "),
 		"Capped": res.Capped, "Limit": platform.CalendarLimit, "Statuses": statuses, "Empty": len(items) == 0,
 		"AddLink": "/apps/" + app + "/t/" + table + "/new?back=" + url.QueryEscape(self),
+		"Demo":    demo,
 	}
 	if view == "day" {
 		lanes, hours, height := dayView(items, day.Format(time.DateOnly))
@@ -434,13 +435,13 @@ main.wide{max-width:1280px}.tabs{display:flex;gap:16px;margin:-8px 0 16px;font-s
 @media (max-width:640px){.day{display:block}.day .axis,.timed .h{display:none}.lane>*{border-left:0;padding:0}.lane h2{margin-top:12px}.timed{height:auto!important}
 .timed .ev{position:static;width:auto!important;height:auto!important;margin-bottom:4px}.week{grid-template-columns:1fr}.week .d{min-height:0}.ranges{display:none}.week .copy{display:block}}
 </style>
-<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
+<p class="crumbs">{{if .Demo}}<a href="/templates">Templates</a>{{else}}<a href="/">Your apps</a>{{end}} / <a href="/apps/{{.App}}">{{.App}}</a></p>{{if .Demo}}{{template "demo_note"}}{{end}}<div class="card">
 <h1>{{.Label}}</h1>
 <nav class="tabs"><a href="/apps/{{.App}}/t/{{.Table}}">List</a><a href="{{.Self}}" aria-current="page">Calendar</a></nav>
 <div class="calbar"><a class="button secondary{{if eq .View "day"}} on{{end}}" href="{{.DayLink}}">Day</a><a class="button secondary{{if eq .View "week"}} on{{end}}" href="{{.WeekLink}}">Week</a>
 <a class="button secondary" href="{{.Prev}}" aria-label="Previous" rel="prev">‹</a><a class="button secondary" href="{{.Today}}">Today</a><a class="button secondary" href="{{.Next}}" aria-label="Next" rel="next">›</a>
 <form method="get"><input type="hidden" name="view" value="{{.View}}">{{if .All}}<input type="hidden" name="all" value="1">{{end}}<input type="date" name="date" value="{{.Date}}" aria-label="Date" onchange="this.form.submit()"><button class="secondary">Go</button></form>
-<a class="button" href="{{.AddLink}}">Add</a></div>
+{{if not .Demo}}<a class="button" href="{{.AddLink}}">Add</a>{{end}}</div>
 <p><strong>{{.Title}}</strong>{{with .Hidden}} · <a href="{{$.Toggle}}">{{if $.All}}Hide {{.}}{{else}}Show {{.}}{{end}}</a>{{end}}</p>
 {{if .Capped}}<p class="note">Showing the first {{.Limit}} items only. Use the day view to see the rest.</p>{{end}}
 {{with .Statuses}}<div class="legend">{{range .}}<span class="{{.Class}}">{{.Name}}</span>{{end}}</div>{{end}}
