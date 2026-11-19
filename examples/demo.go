@@ -24,7 +24,7 @@ type DemoImageSet struct {
 
 var demoImageSets = map[string][]DemoImageSet{
 	"store-uae": {{Table: "store", Key: "name", Rows: map[string]map[string]string{
-		"Al Noor Perfumes": {"hero_image": "store-hero.webp"},
+		"Al Noor Perfumes": {"hero_image": "store-hero.webp", "story_image": "store-story.webp"},
 	}}, {Table: "products", Key: "name", Rows: map[string]map[string]string{
 		"Royal Oud":    {"image": "store-royal-oud.webp"},
 		"White Musk":   {"image": "store-white-musk.webp"},

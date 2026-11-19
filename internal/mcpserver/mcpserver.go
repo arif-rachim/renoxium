@@ -32,7 +32,10 @@ How to work:
    then change the seed rows of its store, products, variants (sizes or colours, each with an optional own price and its own stock; leave it empty when products have no options) and texts tables (and the styling if the user wants) and keep the scripts.
    Product photos: upload_file, then put the url in the products.image seed. Owners can edit everything later in the admin panel.
    Branding: the finished examples' settings table (store-uae: store) has brand_color (hex, e.g. #5C2A3D), font (modern, classic
-   or rounded; each pairs a Latin and an Arabic face) and logo (image). Ask the owner for their brand colour and logo and set them
+   or rounded; each pairs a Latin and an Arabic face) and logo (image). store-uae also has two luxury fonts, heritage (Arabian
+   luxury: ivory, fine serif, gold hairlines) and atelier (modern black and white), which switch the shop to a luxury layout
+   with a full-width banner photo (hero_image) and a story line (story, story_ar, story_image); use them for perfume, oud,
+   jewellery and fashion. Ask the owner for their brand colour and logo and set them
    there instead of editing the CSS; button text turns white or dark by itself and every page follows.
    For other UAE businesses start from the matching finished example instead, change its seed rows and keep its scripts:
    booking-uae (salons, spas, barbers, academies, tutors), home-service-uae (cleaning, AC, pest control, handyman, movers),
