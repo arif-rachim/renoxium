@@ -57,3 +57,11 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | party-majlis-tent.webp | https://images.unsplash.com/photo-1784749464954-3603b21a7a0d (outdoor majlis lounge under a canopy) | Unsplash License | 4:5 crop, 960 px wide |
 | home-hero.webp | https://images.unsplash.com/photo-1600210492486-724fe5c67fb0 (sunlit living room) | Unsplash License | 2000 px wide; the book cover on the side table blurred |
 | home-story.webp | https://images.unsplash.com/photo-1584622650111-993a426fbf0a (bathroom vanity) | Unsplash License | 4:5 crop of the vanity, 960 px wide |
+| quote-hero.webp | https://commons.wikimedia.org/wiki/File:Dubai_skyline_unsplash.jpg (Business Bay at night, Robert Bock, first published on Unsplash) | CC0 1.0 | 2000 px wide, the sign on one tower blurred |
+| quote-story.webp | https://wordpress.org/photos/photo/468654c9a0/ (Skyscraper in Business Bay, Dubai; WordPress Photo Directory) | CC0 1.0 | resized to 900 x 1200 |
+| quote-mainland.webp | https://stocksnap.io/photo/table-chairs-7OPWOSQFXS (Benjamin Child, via Openverse) | CC0 1.0 | 3:2 crop |
+| quote-free-zone.webp | https://images.rawpixel.com/editor_1024/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvaXMxODM5Ny1pbWFnZS1rd3lzYWJqOC5qcGc.jpg ("Dubai Buildings", rawpixel public domain, via Openverse) | CC0 1.0 | resized |
+| quote-golden-visa.webp | https://stocksnap.io/photo/work-bag-96E1A8F1CB (Alejandro Escamilla, via Openverse) | CC0 1.0 | 3:2 crop |
+| quote-licence-renewal.webp | https://stocksnap.io/photo/office-desk-QFLSQDYET6 (Snappa.io, via Openverse) | CC0 1.0 | the laptop maker logo blurred |
+| quote-vat.webp | https://images.rawpixel.com/editor_1024/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvcHg3MDg0OTEtaW1hZ2Uta3d5b3J3MHMuanBn.jpg (calculator and pen, rawpixel public domain, via Openverse) | CC0 1.0 | 3:2 crop |
+| quote-bookkeeping.webp | https://images.rawpixel.com/editor_1024/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvcHgxMTA5OTI4LWltYWdlLWt3dnc5cGM1LmpwZw.jpg ("Accountant", rawpixel public domain, via Openverse) | CC0 1.0 | 3:2 crop, the receipt text blurred |

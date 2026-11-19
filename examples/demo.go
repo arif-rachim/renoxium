@@ -66,6 +66,16 @@ var demoImageSets = map[string][]DemoImageSet{
 		"Arabic Majlis Tent 5 x 5 m":            {"image": "party-majlis-tent.webp"},
 		"Bouncy Castle 4 x 4 m":                 {"image": "party-bouncy-castle.webp"},
 	}}},
+	"quote-portal-uae": {{Table: "business", Key: "name", Rows: map[string]map[string]string{
+		"Bayan Business Setup": {"hero_image": "quote-hero.webp", "story_image": "quote-story.webp"},
+	}}, {Table: "packages", Key: "name", Rows: map[string]map[string]string{
+		"Mainland LLC company setup": {"image": "quote-mainland.webp"},
+		"Free-zone company setup":    {"image": "quote-free-zone.webp"},
+		"Golden Visa application":    {"image": "quote-golden-visa.webp"},
+		"Trade licence renewal":      {"image": "quote-licence-renewal.webp"},
+		"VAT registration":           {"image": "quote-vat.webp"},
+		"Monthly bookkeeping":        {"image": "quote-bookkeeping.webp"},
+	}}},
 	"delivery-tracking": {{Table: "shop", Key: "name", Rows: map[string]map[string]string{
 		"Al Noor Flowers": {"hero_image": "delivery-hero.webp", "story_image": "delivery-story.webp"},
 	}}},
