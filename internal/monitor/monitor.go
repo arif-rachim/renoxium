@@ -26,8 +26,17 @@ var (
 	DiskCriticalPercent = 3.0     // /healthz fails below this
 	BackupMaxAge        = 26 * time.Hour
 	ErrorSpike          = 200 // live server errors across all apps in one check
-	ownerEvery          = 24 * time.Hour
-	operatorEvery       = 6 * time.Hour
+	// One app causing more than ContentionShare of all worker waits over
+	// ContentionWindow, in at least ContentionMinutes separate minutes and
+	// with at least ContentionMinWait of waiting in all, is sustained
+	// contention. MemKillSpike memory kills of one app in the window alert too.
+	ContentionWindow  = 15 // minutes
+	ContentionShare   = 0.30
+	ContentionMinWait = 10 * time.Second
+	ContentionMinutes = 3
+	MemKillSpike      = 5
+	ownerEvery        = 24 * time.Hour
+	operatorEvery     = 6 * time.Hour
 )
 
 // Monitor checks the server every Interval.
@@ -178,12 +187,53 @@ func (m *Monitor) Check(ctx context.Context) {
 		m.operatorAlert("errors", msg, strings.Join(lines, "\n"))
 	}
 	m.ownerAlerts(errs)
+	problems = append(problems, m.resourceAlerts()...)
 
 	m.mu.Lock()
 	s.Alerts = m.status.Alerts
 	s.Problems = problems
 	m.status = s
 	m.mu.Unlock()
+}
+
+// resourceAlerts names an app that makes the others wait for a script
+// worker, or whose scripts keep hitting the memory limit.
+func (m *Monitor) resourceAlerts() []string {
+	c := m.Platform.RecentContention(ContentionWindow)
+	var problems []string
+	link := func(app string) string { return m.SiteURL + "/operator/resources/" + app }
+	if c.Wait >= ContentionMinWait {
+		apps := make([]string, 0, len(c.Caused))
+		for app := range c.Caused {
+			apps = append(apps, app)
+		}
+		sort.Strings(apps)
+		for _, app := range apps {
+			share := float64(c.Caused[app]) / float64(c.Wait.Microseconds())
+			if share <= ContentionShare || c.Active[app] < ContentionMinutes {
+				continue
+			}
+			msg := fmt.Sprintf("%s caused %.0f%% of script worker waits in the last %d minutes", app, 100*share, c.Minutes)
+			problems = append(problems, msg)
+			m.operatorAlert("contention:"+app, msg, fmt.Sprintf(
+				"Other apps waited %s in all for a script worker over the last %d minutes; while they waited, %s held workers for %.0f%% of that time, in %d of those minutes.\n\n"+
+					"See what it runs and throttle or suspend it if needed: %s",
+				c.Wait.Round(time.Millisecond), c.Minutes, app, 100*share, c.Active[app], link(app)))
+		}
+	}
+	kills := make([]string, 0, len(c.MemKills))
+	for app := range c.MemKills {
+		kills = append(kills, app)
+	}
+	sort.Strings(kills)
+	for _, app := range kills {
+		if n := c.MemKills[app]; n >= MemKillSpike {
+			msg := fmt.Sprintf("%s: %d scripts stopped at the memory limit in the last %d minutes", app, n, c.Minutes)
+			problems = append(problems, msg)
+			m.operatorAlert("memkills:"+app, msg, fmt.Sprintf("Each memory kill stops a script and can restart a worker, which other apps wait for.\n\nSee the app's resource page: %s", link(app)))
+		}
+	}
+	return problems
 }
 
 // ownerAlerts emails an owner on their app's first error, then at most once

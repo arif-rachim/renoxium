@@ -73,6 +73,7 @@ func (p *Platform) StartAlertPhone(ctx context.Context, app, raw string) error {
 	if err := p.cfg.WhatsApp.SendCode(ctx, phone, code); err != nil {
 		return errors.New("WhatsApp did not accept this number; check it and try again")
 	}
+	p.meterAdd(app, Live, mWhatsApp, 1)
 	if p.cfg.OwnerPlan != nil {
 		p.addUsage(owner, "whatsapp")
 	}
@@ -135,6 +136,8 @@ func (p *Platform) whatsappOwner(st *stage, subject string) {
 		if err := p.cfg.WhatsAppNotices.SendNotice(ctx, a.Phone, st.app, subject); err != nil {
 			slog.Error("whatsapp owner notice", "app", st.app, "err", err)
 			p.event(st, "whatsapp", "error", "", "a WhatsApp notice to the owner could not be delivered; Renoxium has logged the reason")
+			return
 		}
+		p.meterAdd(st.app, st.name, mWhatsApp, 1)
 	}()
 }

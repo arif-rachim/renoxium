@@ -231,9 +231,9 @@ func (p *Platform) runJob(ctx context.Context, st *stage, j appdef.Job, schedule
 	start := time.Now()
 	host := &scriptHost{st: st, p: p, rid: rid}
 	defer host.runDeferred(ctx) // on_payment runs from money calls, after the slot is released
-	release, ok := p.acquireSlot(ctx, st.app)
-	if !ok {
-		err := errors.New("no script worker was free; the job runs again at its next time")
+	release, err := p.acquireSlot(ctx, st)
+	if err != nil {
+		err = fmt.Errorf("%v; the job runs again at its next time", err)
 		p.event(st, "server", "warn", rid, "job "+j.Name+" skipped: "+err.Error())
 		return "", err
 	}
@@ -241,8 +241,11 @@ func (p *Platform) runJob(ctx context.Context, st *stage, j appdef.Job, schedule
 	req := sandbox.Request{Method: "JOB", Path: "/_rx/jobs/" + j.Name, Origin: p.URL(st.app, st.name),
 		Body:   map[string]any{"job": j.Name, "scheduled_at": scheduled.UTC().Format("2006-01-02 15:04:05")},
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}, FormAll: map[string][]string{}}
-	resp, err := p.sb.Run(ctx, st.def.Scripts[j.Script], req, host)
+	resp, err := p.runScript(ctx, st, "job "+j.Name, st.def.Scripts[j.Script], req, host)
 	took := time.Since(start).Round(time.Microsecond)
+	jc := p.meter.counters(st.app, st.name)
+	jc.add(mJobs, 1)
+	jc.add(mJobUS, time.Since(start).Microseconds())
 	if err != nil {
 		var se *sandbox.ScriptError
 		if errors.As(err, &se) {

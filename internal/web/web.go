@@ -77,7 +77,8 @@ type Site struct {
 	// Billing charges accounts for Renoxium plans.
 	Billing Billing
 
-	growth growthCache // operator funnel figures (growth.go)
+	growth  growthCache // operator funnel figures (growth.go)
+	resFees resFees     // card fees per app for /operator/resources (resources.go)
 
 	// StripeWebhookSecret verifies events posted to /stripe/webhook.
 	StripeWebhookSecret string
@@ -128,6 +129,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerBilling()
 	s.registerAccount()
 	s.registerOperator()
+	s.registerResources()
 	s.registerLanding()
 	s.registerStaff()
 	s.registerDomain()
@@ -726,7 +728,7 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "top"}}{{template "head" .}}<body>{{template "nav"}}<main>{{end}}
 {{define "wide"}}{{template "head" .}}<body>{{template "nav"}}<main class="wide">{{end}}
 {{define "auth"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a href="/connect">Connect</a></nav></div></header><main>{{end}}
-{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{end}}
+{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
 {{define "appbottom"}}</main></div></body></html>{{end}}
 {{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}"><div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
 <nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
@@ -987,7 +989,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="tile"><div class="muted">WhatsApp codes</div><div class="big">{{.Stats.WhatsAppCodes}}</div><div class="muted">this month, all accounts</div></div>
 {{with .Health}}<div class="tile"><div class="muted">Server</div><div class="big">{{.DiskFreeGB}} GB free</div><div class="muted">of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
 </div>{{with .Health}}{{with .Alerts}}<details><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}<p class="muted">Card fees collected and subscription payments are in the Stripe Dashboard (Connect, Collected fees; Billing, Subscriptions).</p>
-<form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button><a href="#growth" style="margin-inline-start:auto">Growth: funnel and unit economics</a></form></div>
+<form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button><a href="/operator/resources" style="margin-inline-start:auto">Resources: heavy and unprofitable apps</a><a href="#growth">Growth: funnel and unit economics</a></form></div>
 
 {{if .Reports}}<div class="card" style="margin-top:16px"><h1>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h1>
 {{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>

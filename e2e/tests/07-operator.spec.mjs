@@ -66,6 +66,24 @@ test('operator panel', async ({ browser }) => {
   await report.getByRole('button', { name: 'Mark handled' }).click();
   await expect(page.locator('.report.done', { hasText: 'Operator test report' })).toBeVisible();
 
+  // Resources: the shop's use of the server, its page and a throttle the owner is told about.
+  expect((await shop.page.request.get('/operator/resources')).status()).toBe(404);
+  await page.goto('/operator');
+  await page.getByRole('link', { name: 'Resources: heavy and unprofitable apps' }).click();
+  await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toBeVisible();
+  await expect(page.locator('.tile').getByText('Workers busy now')).toBeVisible();
+  await page.goto('/operator/resources/' + shop.app + '?window=7d');
+  await expect(page.getByRole('heading', { name: shop.app, exact: true })).toBeVisible();
+  await expect(page.getByText('Script time per hour')).toBeVisible();
+  await page.fill('#t-reason', 'e2e throttle');
+  await page.getByRole('button', { name: 'Throttle', exact: true }).click();
+  await expect(page.locator('.notice')).toContainText('Throttled');
+  await shop.page.goto('/apps/' + shop.app);
+  await expect(shop.page.locator('.note.throttle')).toContainText('e2e throttle');
+  await page.getByRole('button', { name: 'End throttle now' }).click();
+  await expect(page.locator('table').last()).toContainText('unthrottle');
+  await page.goto('/operator');
+
   // Back to Free removes the grant.
   await page.fill('input[name=q]', shop.email);
   await page.getByRole('button', { name: 'Search' }).click();

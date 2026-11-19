@@ -104,5 +104,7 @@ func (p *Platform) mailOwner(ctx context.Context, st *stage, subject, text strin
 	if err := p.cfg.Mailer.Send(ctx, email.Message{To: addr, Subject: "[" + st.app + "] " + subject, Text: text + link, Tag: "owner_notice", FromName: "Renoxium"}); err != nil {
 		slog.Error("owner email", "app", st.app, "err", err)
 		p.event(st, "email", "error", "", "the owner could not be emailed; Renoxium has logged the reason")
+		return
 	}
+	p.meterAdd(st.app, st.name, mEmails, 1)
 }

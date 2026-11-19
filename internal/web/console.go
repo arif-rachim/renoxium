@@ -29,6 +29,7 @@ type shellLink struct {
 type appShell struct {
 	App, Title, Status, StatusText, SiteURL string
 	Demo, IsOwner                           bool
+	Throttle                                string // the operator's throttle notice, while it lasts
 	Main, Data, Business, Settings          []shellLink
 }
 
@@ -58,6 +59,9 @@ func (s *Site) shell(u accounts.User, app, title, current string, demo bool) app
 	}
 	if demo {
 		return sh
+	}
+	if t, ok := s.platform.ThrottleOf(app); ok {
+		sh.Throttle = t.Notice()
 	}
 	if sh.IsOwner {
 		sh.Business = append(sh.Business, link("Payments", base+"/payments"))

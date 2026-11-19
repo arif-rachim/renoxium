@@ -228,6 +228,18 @@ func (p *Platform) SuspendedOwners(ctx context.Context) (map[string]bool, error)
 // since a time, in minor units per currency. It reads the live database of
 // every app that takes cards, so callers should cache the answer.
 func (p *Platform) CardFees(ctx context.Context, since time.Time) (map[string]int64, error) {
+	byApp, err := p.CardFeesByApp(ctx, since)
+	out := map[string]int64{}
+	for _, fees := range byApp {
+		for cur, n := range fees {
+			out[cur] += n
+		}
+	}
+	return out, err
+}
+
+// CardFeesByApp is CardFees per app: app -> currency -> minor units.
+func (p *Platform) CardFeesByApp(ctx context.Context, since time.Time) (map[string]map[string]int64, error) {
 	rows, err := p.db.QueryContext(ctx, `SELECT a.name FROM apps a JOIN payment_accounts pa ON pa.app = a.name
 		WHERE pa.charges_enabled = 1 AND a.live_version > 0 AND a.owner != ?`, DemoOwner)
 	if err != nil {
@@ -241,7 +253,7 @@ func (p *Platform) CardFees(ctx context.Context, since time.Time) (map[string]in
 		}
 	}
 	rows.Close()
-	out := map[string]int64{}
+	out := map[string]map[string]int64{}
 	for _, name := range names {
 		if ctx.Err() != nil {
 			return out, ctx.Err()
@@ -260,7 +272,10 @@ func (p *Platform) CardFees(ctx context.Context, since time.Time) (map[string]in
 			var cur string
 			var fee int64
 			if list.Scan(&cur, &fee) == nil {
-				out[cur] += fee
+				if out[name] == nil {
+					out[name] = map[string]int64{}
+				}
+				out[name][cur] += fee
 			}
 		}
 		list.Close()

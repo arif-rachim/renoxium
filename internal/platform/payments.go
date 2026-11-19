@@ -382,14 +382,14 @@ func (p *Platform) runHook(ctx context.Context, st *stage, body map[string]any) 
 		q.add(func(ctx context.Context) { p.runHook(ctx, st, body) })
 		return
 	}
-	release, ok := p.acquireSlot(ctx, st.app)
-	if !ok {
-		p.event(st, "payment", "error", "", "on_payment script not run: the app is too busy")
+	release, err := p.acquireSlot(ctx, st)
+	if err != nil {
+		p.event(st, "payment", "error", "", "on_payment script not run: "+err.Error())
 		return
 	}
 	rid := newRequestID()
 	host := &scriptHost{st: st, p: p, rid: rid}
-	_, err := p.sb.Run(ctx, st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
+	_, err = p.runScript(ctx, st, "hook on_payment", st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}}, host)
 	release()
 	host.runDeferred(ctx)

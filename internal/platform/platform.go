@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -136,6 +137,10 @@ type Platform struct {
 	demoURLs sync.Map      // "app/file" -> address of a demo photo already uploaded (demodata.go)
 
 	funnelSeen sync.Map // owner + "\x00" + kind -> first event already recorded (growth.go)
+
+	meter           meter                       // resources used per app stage and hour (meter.go)
+	throttles       atomic.Pointer[throttleSet] // operator throttles (throttle.go)
+	throttleLoading atomic.Bool
 }
 
 type stage struct {
@@ -334,6 +339,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := pl.ensureMeterTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return pl, nil
 }
 
@@ -341,6 +350,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 func (p *Platform) Close() {
 	p.bg.Wait()
 	p.flushTraffic()
+	p.flushMeter(true)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, st := range p.stages {

@@ -361,6 +361,7 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) er
 		p.event(st, "email", "error", "", "an email could not be sent; Renoxium has logged the reason")
 		return errors.New("the email could not be sent")
 	}
+	p.meterAdd(st.app, st.name, mEmails, 1)
 	return nil
 }
 

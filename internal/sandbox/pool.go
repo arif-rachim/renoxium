@@ -139,13 +139,33 @@ func (p *Pool) spawn() (*worker, error) {
 	return w, nil
 }
 
-func (p *Pool) acquire(ctx context.Context) (*worker, error) {
+func (p *Pool) acquire(ctx context.Context, st *RunStats) (*worker, error) {
 	select {
 	case w := <-p.idle:
 		return w, nil
+	default:
+	}
+	if st != nil && st.Queued != nil {
+		st.Queued()
+	}
+	start := time.Now()
+	select {
+	case w := <-p.idle:
+		if st != nil {
+			st.QueueWait += time.Since(start)
+		}
+		return w, nil
 	case <-ctx.Done():
+		if st != nil {
+			st.QueueWait += time.Since(start)
+		}
 		return nil, fmt.Errorf("all script workers are busy: %w", ctx.Err())
 	}
+}
+
+// Busy reports how many workers are running a script now, of how many.
+func (p *Pool) Busy() (busy, total int) {
+	return max(p.cfg.Workers-len(p.idle), 0), p.cfg.Workers
 }
 
 // release returns a healthy worker, or replaces a dead one.
@@ -195,6 +215,10 @@ type message struct {
 	Error        string           `json:"error,omitempty"`
 	ScriptError  string           `json:"script_error,omitempty"`
 	Response     *wireResponse    `json:"response,omitempty"`
+	// What a run cost, measured by the worker (see RunStats).
+	CPUUS    int64 `json:"cpu_us,omitempty"`
+	CPUOK    bool  `json:"cpu_ok,omitempty"`
+	HeapPeak int64 `json:"heap_peak,omitempty"`
 }
 
 type wireResponse struct {
@@ -326,7 +350,11 @@ func (p *Pool) exchange(ctx context.Context, msg message, host Host) (message, e
 }
 
 func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (message, error) {
-	w, err := p.acquire(ctx)
+	var stats *RunStats
+	if msg.Type == "run" {
+		stats = statsFrom(ctx)
+	}
+	w, err := p.acquire(ctx, stats)
 	if err != nil {
 		return message{}, err
 	}
@@ -336,6 +364,26 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 	}
 	healthy := false
 	defer func() { p.release(w, healthy) }()
+	var final *message // the worker's "done" answer, for stats
+	if stats != nil {
+		if stats.Started != nil {
+			stats.Started()
+		}
+		began := time.Now()
+		defer func() {
+			stats.Wall = time.Since(began)
+			if final != nil && final.CPUOK {
+				// The worker measures itself; a broken worker could lie, so
+				// its figure never exceeds what the run could have used.
+				stats.CPU = min(time.Duration(final.CPUUS)*time.Microsecond, stats.Wall)
+				stats.CPUKnown = true
+			}
+			if final != nil {
+				stats.HeapPeak = final.HeapPeak
+				stats.Stopped = stopReason(final.ScriptError)
+			}
+		}()
+	}
 
 	// The parent enforces the limits a misbehaving worker cannot be trusted
 	// to enforce on itself: a hard deadline and resident memory.
@@ -376,6 +424,9 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 
 	fail := func(err error) (message, error) {
 		if why := killedFor(); why != "" {
+			if stats != nil {
+				stats.Restarted, stats.Stopped = true, stopReason(why)
+			}
 			return message{}, &ScriptError{Message: "script stopped: " + why}
 		}
 		return message{}, fmt.Errorf("sandbox worker failed: %w", err)
@@ -391,12 +442,16 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 		switch m.Type {
 		case "query":
 			reply := message{Type: "result"}
+			t0 := time.Now()
 			if host == nil {
 				reply.Error = "no database here"
 			} else if rows, err := host.Query(ctx, m.SQL, m.Args); err != nil {
 				reply.Error = err.Error()
 			} else {
 				reply.Rows = rows
+			}
+			if stats != nil {
+				stats.HostDB += time.Since(t0)
 			}
 			err := send(w.in, reply)
 			if errors.Is(err, errTooLarge) {
@@ -407,12 +462,16 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 			}
 		case "exec":
 			reply := message{Type: "result"}
+			t0 := time.Now()
 			if host == nil {
 				reply.Error = "no database here"
 			} else if n, id, err := host.Exec(ctx, m.SQL, m.Args); err != nil {
 				reply.Error = err.Error()
 			} else {
 				reply.RowsAffected, reply.LastInsertID = n, id
+			}
+			if stats != nil {
+				stats.HostDB += time.Since(t0)
 			}
 			if err := send(w.in, reply); err != nil {
 				return fail(err)
@@ -441,6 +500,7 @@ func (p *Pool) exchangeOnce(ctx context.Context, msg message, host Host) (messag
 			if killedFor() != "" {
 				return fail(nil)
 			}
+			final = &m
 			healthy = true
 			if m.ScriptError != "" {
 				return message{}, &ScriptError{Message: m.ScriptError}
