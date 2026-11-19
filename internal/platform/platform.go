@@ -134,6 +134,8 @@ type Platform struct {
 	demoBox  demoInbox     // messages template demos would have sent (demo.go)
 	traffic  trafficBuffer // visits counted in memory until the next write (traffic.go)
 	demoURLs sync.Map      // "app/file" -> address of a demo photo already uploaded (demodata.go)
+
+	funnelSeen sync.Map // owner + "\x00" + kind -> first event already recorded (growth.go)
 }
 
 type stage struct {
@@ -328,6 +330,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := pl.ensureGrowthTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return pl, nil
 }
 
@@ -432,6 +438,7 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if err := tx.Commit(); err != nil {
 		return AppInfo{}, err
 	}
+	p.funnel(owner, FunnelApp, name, "")
 	return p.Info(name)
 }
 
@@ -655,6 +662,7 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 		return PublishResult{}, err
 	}
 	p.dropStage(name, Live)
+	p.funnel(p.ownerOf(name), FunnelPublish, name, guessTemplate(def))
 	return PublishResult{LiveVersion: version, LiveURL: p.URL(name, Live), Migrations: migrations}, nil
 }
 

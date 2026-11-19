@@ -71,7 +71,7 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 	waUsed, waQuota := s.platform.WhatsAppUsage(u.ID)
 	stUsed, stQuota := s.platform.StorageUsage(u.ID)
 	fetchUsed, fetchQuota := s.platform.FetchUsage(u.ID)
-	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": s.csrfToken(w, r),
+	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": s.csrfToken(w, r), "Prices": accounts.PlanPriceAED,
 		"Apps": len(apps), "Limit": platform.AppsPerPlan[b.Plan], "Fee": platform.FreePlanFeePercent,
 		"Paying": b.Plan != accounts.PlanFree, "PeriodEnd": formatDate(b.PeriodEnd),
 		"WAUsed": waUsed, "WAQuota": waQuota, "StorageMB": stUsed >> 20, "StorageQuotaMB": stQuota >> 20,

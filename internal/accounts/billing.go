@@ -90,10 +90,21 @@ func (s *Store) GrantPlan(userID, plan string) error {
 	if plan == PlanFree {
 		status = ""
 	}
-	_, err := s.db.Exec(`INSERT INTO billing (user_id, plan, status, updated_at) VALUES (?, ?, ?, ?)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO billing (user_id, plan, status, updated_at) VALUES (?, ?, ?, ?)
 		ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, status = excluded.status, subscription = '', period_end = 0,
-		cancel_at_period_end = 0, updated_at = excluded.updated_at`, userID, plan, status, s.now().UTC().Format(time.RFC3339))
-	return err
+		cancel_at_period_end = 0, updated_at = excluded.updated_at`, userID, plan, status, s.now().UTC().Format(time.RFC3339)); err != nil {
+		return err
+	}
+	// A grant replaces any subscription: the account no longer pays.
+	if err := s.endPaid(tx, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetSubscription records the subscription state that decides the plan.
@@ -102,9 +113,28 @@ func (s *Store) SetSubscription(userID string, b Billing) error {
 	if !b.PeriodEnd.IsZero() {
 		end = b.PeriodEnd.Unix()
 	}
-	_, err := s.db.Exec(`UPDATE billing SET plan = ?, status = ?, subscription = ?, period_end = ?, cancel_at_period_end = ?, updated_at = ?
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE billing SET plan = ?, status = ?, subscription = ?, period_end = ?, cancel_at_period_end = ?, updated_at = ?
 		WHERE user_id = ?`, b.Plan, b.Status, b.Subscription, end, b.CancelAtPeriodEnd, s.now().UTC().Format(time.RFC3339), userID)
-	return err
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		// Paid periods feed churn and retention on the operator page.
+		if b.Plan != PlanFree && b.Status != StatusGranted {
+			err = s.recordPaid(tx, userID, b.Plan)
+		} else {
+			err = s.endPaid(tx, userID)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // ChangePassword sets a new password after checking the current one. It
@@ -141,7 +171,8 @@ func (s *Store) ChangePassword(userID, current, next string) error {
 	return tx.Commit()
 }
 
-// DeleteUser removes an account and everything stored for it here.
+// DeleteUser removes an account and everything stored for it here, except
+// its anonymous paid periods (see PaidPeriods).
 func (s *Store) DeleteUser(userID string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -155,6 +186,11 @@ func (s *Store) DeleteUser(userID string) error {
 		if _, err := tx.Exec(q, userID); err != nil {
 			return err
 		}
+	}
+	// The account's paid periods stay, closed: they hold no personal data
+	// and a deleted paying account is churn.
+	if err := s.endPaid(tx, userID); err != nil {
+		return err
 	}
 	return tx.Commit()
 }

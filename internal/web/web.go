@@ -77,6 +77,8 @@ type Site struct {
 	// Billing charges accounts for Renoxium plans.
 	Billing Billing
 
+	growth growthCache // operator funnel figures (growth.go)
+
 	// StripeWebhookSecret verifies events posted to /stripe/webhook.
 	StripeWebhookSecret string
 
@@ -985,7 +987,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="tile"><div class="muted">WhatsApp codes</div><div class="big">{{.Stats.WhatsAppCodes}}</div><div class="muted">this month, all accounts</div></div>
 {{with .Health}}<div class="tile"><div class="muted">Server</div><div class="big">{{.DiskFreeGB}} GB free</div><div class="muted">of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
 </div>{{with .Health}}{{with .Alerts}}<details><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}<p class="muted">Card fees collected and subscription payments are in the Stripe Dashboard (Connect, Collected fees; Billing, Subscriptions).</p>
-<form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button></form></div>
+<form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button><a href="#growth" style="margin-inline-start:auto">Growth: funnel and unit economics</a></form></div>
 
 {{if .Reports}}<div class="card" style="margin-top:16px"><h1>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h1>
 {{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>
@@ -1002,7 +1004,8 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <td>{{if .LiveVersion}}v{{.LiveVersion}}{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}ready{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
 <td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
 {{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason" style="width:140px"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}
-</tbody></table></div></div>{{template "bottom"}}{{end}}
+</tbody></table></div></div>
+{{with .Growth}}{{template "growth" .}}{{else}}<div class="card" style="margin-top:16px"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "bottom"}}{{end}}
 
 {{define "account"}}{{template "top" "Account"}}<p class="crumbs"><a href="/">Your apps</a></p>
 <div class="card"><h1>Account</h1><p>{{.User.Email}} {{if .User.Verified}}<span class="ok">confirmed</span>{{else}}<span class="muted">not confirmed</span>{{end}}</p>
@@ -1030,9 +1033,9 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <p class="muted">Change plan, update your card, download invoices or cancel.</p>
 {{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>
 <div class="plans"><form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="pro">
-<h2>Pro</h2><p class="price">AED 99 <span class="muted">/ month</span></p><ul><li>3 apps</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>20,000 external API calls a month</li><li>Your own domain</li><li>2 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
+<h2>Pro</h2><p class="price">AED {{index .Prices "pro"}} <span class="muted">/ month</span></p><ul><li>3 apps</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>20,000 external API calls a month</li><li>Your own domain</li><li>2 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
 <form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
-<h2>Business</h2><p class="price">AED 299 <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>100,000 external API calls a month</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
+<h2>Business</h2><p class="price">AED {{index .Prices "business"}} <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>100,000 external API calls a month</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
 <p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
 {{define "admin_connections"}}{{template "top" "Connections"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>

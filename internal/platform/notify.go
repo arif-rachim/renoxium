@@ -68,6 +68,11 @@ func (p *Platform) notifyOwner(ctx context.Context, st *stage, arg any) (any, er
 	}
 	p.mailOwner(ctx, st, in.Subject, in.Text)
 	p.whatsappOwner(st, in.Subject)
+	if st.name == Live {
+		// Templates notify the owner of each new order, booking, lead or
+		// enquiry: the first one is the owner's first customer activity.
+		p.funnel(p.ownerOf(st.app), FunnelActivity, st.app, "notice")
+	}
 	return map[string]any{"sent": st.name == Live}, nil
 }
 
