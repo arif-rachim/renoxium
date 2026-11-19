@@ -131,8 +131,9 @@ type Platform struct {
 
 	adminNotices sync.Map // app + "\x00" + email -> failed on_admin_change notice
 
-	demoBox  demoInbox // messages template demos would have sent (demo.go)
-	demoURLs sync.Map  // "app/file" -> address of a demo photo already uploaded (demodata.go)
+	demoBox  demoInbox     // messages template demos would have sent (demo.go)
+	traffic  trafficBuffer // visits counted in memory until the next write (traffic.go)
+	demoURLs sync.Map      // "app/file" -> address of a demo photo already uploaded (demodata.go)
 }
 
 type stage struct {
@@ -323,12 +324,17 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := pl.ensureTrafficTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return pl, nil
 }
 
 // Close releases every open database.
 func (p *Platform) Close() {
 	p.bg.Wait()
+	p.flushTraffic()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, st := range p.stages {

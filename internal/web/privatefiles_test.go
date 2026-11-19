@@ -77,7 +77,7 @@ func TestOwnerOpensVisitorFilesInThePanel(t *testing.T) {
 	if _, page := get(owner, "/apps/rana-cars/t/bookings/1"); !strings.Contains(page, `href="/apps/rana-cars/files/`+id+`"`) || !strings.Contains(page, "licence__delete") {
 		t.Fatalf("form has no file link: %s", page)
 	}
-	if _, page := get(owner, "/apps/rana-cars/visitors"); !strings.Contains(page, "<td>1</td>") {
+	if _, page := get(owner, "/apps/rana-cars/visitors"); !strings.Contains(page, `data-label="Files">1</td>`) {
 		t.Fatalf("visitors page has no file count: %s", page)
 	}
 	resp, body := get(owner, "/apps/rana-cars/files/"+id)

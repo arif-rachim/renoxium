@@ -184,6 +184,7 @@ func main() {
 	go mon.Run(context.Background())
 	jobsEvery, _ := time.ParseDuration(os.Getenv("JOBS_CHECK_EVERY")) // default 30s
 	go p.RunJobs(context.Background(), jobsEvery)
+	go p.RunTraffic(context.Background(), time.Minute)
 	// Template demos: one public app per gallery example, brought up to
 	// date at every start and put back to seed data every hour.
 	go func() {

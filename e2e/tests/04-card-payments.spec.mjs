@@ -105,7 +105,7 @@ test('a card payment: 2% fee on Free, webhook marks it paid, owner told by email
   await shop.page.goto(`/apps/${shop.app}/payments`);
   await expect(shop.page.locator('tbody')).toContainText(ref);
   await shop.page.goto(`/apps/${shop.app}`);
-  await expect(shop.page.locator('.tiles').first()).toContainText('AED 110.00');
+  await expect(shop.page.locator('.kpis')).toContainText('AED 110.00');
 });
 
 test('declined card, back to the shop, pay again later', async ({ browser }) => {

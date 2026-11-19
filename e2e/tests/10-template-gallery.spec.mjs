@@ -51,9 +51,9 @@ test('template gallery and demos', async ({ browser }) => {
   await page.goto('/templates');
   await page.locator('.tcard', { hasText: 'Appointments and classes' }).getByRole('link', { name: "Owner's admin panel" }).click();
   await expect(page.locator('body')).toContainText('read-only');
-  await page.getByRole('link', { name: /Services/ }).click();
+  await page.locator('.tables').getByRole('link', { name: /Services/ }).click();
   await expect(page.getByRole('link', { name: 'Add', exact: true })).toHaveCount(0);
-  await page.locator('table a').first().click();
+  await page.locator('tbody td.id a').first().click();
   await expect(page.locator('fieldset[disabled]')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
   await page.goto('/apps/demo-booking-uae/t/bookings/calendar');

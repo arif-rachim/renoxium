@@ -22,7 +22,7 @@ type VisitorRow struct {
 
 // Visitors lists one page of an app's live visitor accounts, newest first.
 func (p *Platform) Visitors(ctx context.Context, app, search string, page int) ([]VisitorRow, int, error) {
-	st, err := p.loadStage(app, Live)
+	st, err := p.loadStage(app, p.AdminStage(app))
 	if err != nil || st == nil {
 		return nil, 0, err
 	}
@@ -88,6 +88,7 @@ func (p *Platform) DeleteVisitor(ctx context.Context, app string, id int64, by s
 // running stage. Call it periodically.
 func (p *Platform) Cleanup(ctx context.Context) {
 	p.cleanDurable()
+	p.cleanTraffic()
 	p.forgetLive("")
 	// Domain claims nobody proved within a week are dropped.
 	p.db.Exec(`DELETE FROM custom_domains WHERE status = 'verify' AND created_at < datetime('now', '-7 days')`)

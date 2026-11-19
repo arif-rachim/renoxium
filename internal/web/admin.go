@@ -3,7 +3,6 @@ package web
 import (
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/appdef"
-	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/files"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
@@ -131,114 +129,6 @@ func (s *Site) isOwnerOf(u accounts.User, app string) bool {
 	return s.platform.CheckOwner(u.ID, app) == nil
 }
 
-func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
-	u, app, demo, ok := s.viewer(w, r)
-	if !ok {
-		return
-	}
-	info, err := s.platform.Info(app)
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-	tables, err := s.platform.Tables(app)
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-	type tableRow struct {
-		Name  string
-		Label string
-		Rows  int
-	}
-	var rows []tableRow
-	for _, t := range tables {
-		_, total, err := s.platform.AdminList(r.Context(), app, t.Name, "", 1)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		rows = append(rows, tableRow{Name: t.Name, Label: tableLabel(t), Rows: total})
-	}
-	if demo {
-		render(w, http.StatusOK, "demo_admin_app", map[string]any{"App": app, "Tables": rows, "DemoURL": info.LiveURL,
-			"Example": strings.TrimPrefix(app, platform.DemoPrefix)})
-		return
-	}
-	problems, _ := s.platform.Logs(app, applog.Filter{Stage: platform.Live, Level: "error", Limit: 10})
-	_, visitors, _ := s.platform.Visitors(r.Context(), app, "", 1)
-	currency, sales, _ := s.platform.Sales(r.Context(), app)
-	status, statusText := appStatus(info)
-	render(w, http.StatusOK, "admin_app", map[string]any{"Info": info, "Tables": rows, "Problems": problems, "Visitors": visitors, "Sales": sales, "Currency": currency,
-		"IsOwner": s.isOwnerOf(u, app), "MCPURL": s.platform.LiveMCPURL(app), "Jobs": s.platform.JobStates(app), "Status": status, "StatusText": statusText})
-}
-
-type column struct {
-	Name, Label string
-}
-
-func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
-	u, app, demo, ok := s.viewer(w, r)
-	if !ok {
-		return
-	}
-	table := r.PathValue("table")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	q := r.URL.Query().Get("q")
-	t, err := s.table(app, table)
-	if err != nil {
-		notFound(w, err)
-		return
-	}
-	rows, total, err := s.platform.AdminList(r.Context(), app, table, q, page)
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-	cols := []column{{Name: "id", Label: "#"}}
-	for i, c := range t.Columns {
-		if i == 5 {
-			break
-		}
-		cols = append(cols, column{Name: c.Name, Label: columnLabel(c)})
-	}
-	cols = append(cols, column{Name: "created_at", Label: "Created"})
-	isOwner := s.isOwnerOf(u, app)
-	types := map[string]string{}
-	for _, c := range t.Columns {
-		types[c.Name] = c.Type
-	}
-	var cells [][]string
-	var ids []int64
-	for _, row := range rows {
-		var line []string
-		for _, c := range cols {
-			if types[c.Name] == "file" {
-				name := s.privateFileName(app, row[c.Name])
-				if !isOwner && name != "" && name != "(file deleted)" {
-					name = "Document" // staff do not see visitors' documents, not even their names
-				}
-				line = append(line, short(name))
-				continue
-			}
-			line = append(line, short(display(row[c.Name], types[c.Name])))
-		}
-		cells = append(cells, line)
-		ids = append(ids, row["id"].(int64))
-	}
-	pages := int(math.Ceil(float64(total) / platform.AdminPageSize))
-	render(w, http.StatusOK, "admin_list", map[string]any{
-		"App": app, "Table": table, "Label": tableLabel(t), "Columns": cols, "Cells": cells, "IDs": ids,
-		"Total": total, "Query": q, "Page": page, "Pages": pages, "Prev": page - 1, "Next": page + 1,
-		"HasCalendar": t.Calendar != nil,
-		"Notice":      s.hookNotice(r, app),
-		"Demo":        demo,
-	})
-}
-
 type field struct {
 	Name, Label, Help, Type, Input, Value, Error string
 	Options                                      []string
@@ -346,7 +236,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
 		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name), "Notice": s.hookNotice(r, app),
-		"Demo": s.platform.IsDemo(app),
+		"Demo": s.platform.IsDemo(app), "Shell": s.shell(u, app, tableLabel(t), "/apps/"+app+"/t/"+t.Name, s.platform.IsDemo(app)),
 	})
 }
 
@@ -524,27 +414,6 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 		next = back
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
-}
-
-func (s *Site) adminVisitors(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.member(w, r)
-	if !ok {
-		return
-	}
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	q := r.URL.Query().Get("q")
-	list, total, err := s.platform.Visitors(r.Context(), app, q, page)
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-	render(w, http.StatusOK, "admin_visitors", map[string]any{
-		"App": app, "Visitors": list, "Total": total, "Query": q, "Page": page,
-		"Pages": int(math.Ceil(float64(total) / platform.AdminPageSize)), "Prev": page - 1, "Next": page + 1, "CSRF": s.csrfToken(w, r),
-	})
 }
 
 func (s *Site) adminDeleteVisitor(w http.ResponseWriter, r *http.Request) {

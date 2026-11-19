@@ -60,7 +60,7 @@ type calStatus struct{ Name, Class string }
 // adminCalendar shows the rows of a table with calendar metadata as a day
 // (lanes by group, along a time axis) or a week (seven columns).
 func (s *Site) adminCalendar(w http.ResponseWriter, r *http.Request) {
-	_, app, demo, ok := s.viewer(w, r)
+	u, app, demo, ok := s.viewer(w, r)
 	if !ok {
 		return
 	}
@@ -121,6 +121,7 @@ func (s *Site) adminCalendar(w http.ResponseWriter, r *http.Request) {
 		"Capped": res.Capped, "Limit": platform.CalendarLimit, "Statuses": statuses, "Empty": len(items) == 0,
 		"AddLink": "/apps/" + app + "/t/" + table + "/new?back=" + url.QueryEscape(self),
 		"Demo":    demo,
+		"Shell":   s.shell(u, app, tableLabel(t), "/apps/"+app+"/t/"+table, demo),
 	}
 	if view == "day" {
 		lanes, hours, height := dayView(items, day.Format(time.DateOnly))
@@ -418,8 +419,8 @@ var calendarPages = template.Must(template.Must(pages.Clone()).Parse(`
 {{define "cal_item"}}<a class="ev {{.Class}}" href="{{.Link}}"{{if .Height}} style="top:{{.Top}}px;height:{{.Height}}px;left:{{.Left}}%;width:{{.Width}}%"{{end}}>
 {{with .Time}}<span class="t">{{.}}</span> {{end}}{{with .Range}}<span class="t">{{.}}</span> {{end}}<span class="n">{{.Title}}</span>{{with .Status}} <span class="s">{{.}}</span>{{end}}{{if .ShowLane}}<span class="l">{{.Lane}}</span>{{end}}</a>{{end}}
 
-{{define "admin_calendar"}}{{template "wide" .Title}}<style>
-main.wide{max-width:1280px}.tabs{display:flex;gap:16px;margin:-8px 0 16px;font-size:15px}.tabs a{text-decoration:none;padding-bottom:2px}.tabs [aria-current]{font-weight:700;color:var(--fg);border-bottom:2px solid var(--accent)}
+{{define "admin_calendar"}}{{template "apptop" .}}<style>
+.tabs{display:flex;gap:16px;margin:-8px 0 16px;font-size:15px}.tabs a{text-decoration:none;padding-bottom:2px}.tabs [aria-current]{font-weight:700;color:var(--fg);border-bottom:2px solid var(--accent)}
 .calbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.calbar .button,.calbar button{margin:0;padding:8px 12px;font-size:15px}.calbar .secondary{background:transparent;color:var(--fg);border:1px solid var(--line)}
 .calbar a.on{background:var(--accent);color:#fff;border-color:var(--accent)}.calbar form{display:flex;gap:6px}.calbar input{width:auto;padding:7px 8px}
 .legend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;font-size:13px}.legend span{padding:2px 8px;border-radius:10px;background:color-mix(in srgb,var(--c) 18%,var(--card));border:1px solid var(--c)}
@@ -435,7 +436,7 @@ main.wide{max-width:1280px}.tabs{display:flex;gap:16px;margin:-8px 0 16px;font-s
 @media (max-width:640px){.day{display:block}.day .axis,.timed .h{display:none}.lane>*{border-left:0;padding:0}.lane h2{margin-top:12px}.timed{height:auto!important}
 .timed .ev{position:static;width:auto!important;height:auto!important;margin-bottom:4px}.week{grid-template-columns:1fr}.week .d{min-height:0}.ranges{display:none}.week .copy{display:block}}
 </style>
-<p class="crumbs">{{if .Demo}}<a href="/templates">Templates</a>{{else}}<a href="/">Your apps</a>{{end}} / <a href="/apps/{{.App}}">{{.App}}</a></p>{{if .Demo}}{{template "demo_note"}}{{end}}<div class="card">
+<div class="card">
 <h1>{{.Label}}</h1>
 <nav class="tabs"><a href="/apps/{{.App}}/t/{{.Table}}">List</a><a href="{{.Self}}" aria-current="page">Calendar</a></nav>
 <div class="calbar"><a class="button secondary{{if eq .View "day"}} on{{end}}" href="{{.DayLink}}">Day</a><a class="button secondary{{if eq .View "week"}} on{{end}}" href="{{.WeekLink}}">Week</a>
@@ -451,5 +452,5 @@ main.wide{max-width:1280px}.tabs{display:flex;gap:16px;margin:-8px 0 16px;font-s
 <div class="timed"{{if $.Hours}} style="height:{{$.AxisHeight}}px"{{end}}>{{range $.Hours}}<div class="h" style="top:{{.Top}}px"></div>{{end}}{{range .Timed}}{{template "cal_item" .}}{{end}}</div></section>{{end}}</div>{{end}}
 {{else}}{{with .Ranges}}<div class="ranges">{{range .}}<div style="grid-column:{{.ColStart}} / span {{.ColSpan}}">{{template "cal_item" .}}</div>{{end}}</div>{{end}}
 <div class="week">{{range .Days}}<div class="d{{if .Today}} today{{end}}"><h2><a href="{{.Link}}">{{.Label}}</a></h2>{{range .Items}}<div{{if .Range}} class="copy"{{end}}>{{template "cal_item" .}}</div>{{end}}</div>{{end}}</div>{{end}}
-</div>{{template "bottom"}}{{end}}
+</div>{{template "appbottom"}}{{end}}
 `))
