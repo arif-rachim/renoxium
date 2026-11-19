@@ -53,7 +53,7 @@ func renderLanding(w http.ResponseWriter, data map[string]any) {
 // (Readex Pro) for English and Arabic, and real screenshots of the demos.
 var landingPages = template.Must(template.New("").Parse(`
 {{define "lhead"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.}}</title><meta name="description" content="Websites for UAE small businesses that take orders, bookings and payments, built by describing your business to ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
+<title>{{.}}</title><meta name="description" content="Orders, bookings and payments for UAE small businesses in one place, from your own website to your customers' AI assistants, built by describing your business to ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
 <meta name="theme-color" content="#13203a">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
@@ -100,7 +100,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 
 {{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}<style>
 .hero{padding:clamp(32px,6vw,80px) 0 0}
-.sign{display:grid;grid-template-columns:1fr 1px 1fr;column-gap:clamp(32px,4vw,64px);align-items:start;font-size:clamp(34px,4.3vw,60px)}
+.sign{display:grid;grid-template-columns:1fr 1px 1fr;column-gap:clamp(32px,4vw,64px);align-items:start;font-size:clamp(30px,3.3vw,48px)}
 .sign .en{line-height:1.08;letter-spacing:-.03em}
 .sign .ar{font-size:.9em;line-height:1.4;letter-spacing:0;text-align:right;font-weight:600}
 .sign .rule{align-self:stretch;background:var(--gold)}
@@ -149,8 +149,8 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 {{template "nav" "home"}}
 <main id="main">
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
-<h1 id="hero-h" class="sign"><span class="en">Take orders and bookings on your own website, not in WhatsApp.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">استقبل الطلبات والحجوزات على موقعك الخاص، لا في واتساب.</span></h1>
-<p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds the site from a finished UAE template and hosts it, with card payments, cash on delivery and prices in AED with VAT.</p>
+<h1 id="hero-h" class="sign"><span class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span></h1>
+<p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h">
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -168,7 +168,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 </ol></div>
 <figure class="chat">
 <p class="me">Make a booking site for Lamsa, my salon in Jumeirah. Haircuts, colour and nails, three stylists.</p>
-<p class="me" lang="ar">وأريد عربون ٥٠ درهم عند الحجز</p>
+<p class="me" lang="ar">وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز</p>
 <p class="used">Used Renoxium</p>
 <p class="reply">Done. Customers pick a service, a stylist and a free time, and pay a AED 50 deposit by card. I tested every page. Your private preview is at lamsa.renoxium.app; check it on your phone, then tell me to publish.</p>
 <p class="me">Close on Fridays until 2pm.</p>
@@ -210,7 +210,8 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h">Questions owners ask</h2><div class="faq">
 <details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
 <details><summary>Which AI assistant do I need?</summary><p>ChatGPT (a paid plan with developer mode) or Claude, with your own account. You add Renoxium to it once; the <a href="/connect">connect page</a> shows the steps.</p></details>
-<details><summary>I already sell on WhatsApp and Instagram. Why a site?</summary><p>Keep chatting with customers there. The site answers the price and availability questions for you, takes the order, booking or deposit, and puts it in one list, so nothing gets lost in a chat. Share its link in your bio and your replies.</p></details>
+<details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
+<details><summary>Can my customers use ChatGPT or Claude to order?</summary><p>They can add your business to ChatGPT or Claude and ask about your products, prices and free times. To book or pay, the assistant sends them to the right page of your site.</p></details>
 <details><summary>What if the assistant makes a mistake?</summary><p>Changes always go to a private preview first, and only you can publish. If something slips through, roll back to an earlier version from your panel; live data is backed up before every publish.</p></details>
 <details><summary>Do I need Stripe?</summary><p>Only for card payments. Cash on delivery and pay at the venue work without it. When you connect Stripe, payments go straight to your own Stripe account.</p></details>
 <details><summary>Can I use my own domain?</summary><p>Yes, on Pro and Business, for example www.yourshop.ae. On Free your site lives at yourname.renoxium.app.</p></details>

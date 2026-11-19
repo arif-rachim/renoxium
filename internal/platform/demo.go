@@ -38,7 +38,8 @@ import (
 //     emails a business would send.
 //
 // Everyone shares one demo database, so ResetDemos puts it back to the
-// template's seed rows every hour.
+// template's seed rows every hour (with demo photos and a schedule around
+// today, see demodata.go).
 const (
 	DemoOwner     = "rx_demo"
 	DemoPrefix    = "demo-"
@@ -63,9 +64,10 @@ func (p *Platform) IsDemo(app string) bool {
 func (p *Platform) DemoURL(example string) string { return p.URL(DemoApp(example), Preview) }
 
 // EnsureDemos creates a demo for each example that has none and applies
-// the example's current definition to demos that run an older one, which
-// also resets their data. Unchanged demos are left alone. It is called at
-// startup, so a new or changed template is in the gallery after a deploy.
+// the example's current definition to demos that run an older one. Every
+// demo's data is reset: seed rows, then its demo photos and a schedule
+// around today (demodata.go). It is called at startup, so a new or changed
+// template is in the gallery after a deploy.
 func (p *Platform) EnsureDemos(ctx context.Context, list []examples.Example) error {
 	var errs []error
 	for _, ex := range list {
@@ -104,7 +106,9 @@ func (p *Platform) ensureDemo(ctx context.Context, ex examples.Example) error {
 			a, errA := json.Marshal(cur)
 			b, errB := json.Marshal(def)
 			if errA == nil && errB == nil && bytes.Equal(a, b) {
-				return nil
+				// Unchanged: only its data is renewed, so the schedule
+				// is about today again after a restart.
+				return p.resetDemo(name)
 			}
 		}
 	}
@@ -116,7 +120,7 @@ func (p *Platform) ensureDemo(ctx context.Context, ex examples.Example) error {
 		return errors.New(strings.Join(res.Problems, "; "))
 	}
 	p.demoBox.clear(name)
-	return nil
+	return p.demoData(ctx, name)
 }
 
 // createDemo registers a demo app. Unlike CreateApp it takes a reserved
@@ -147,9 +151,10 @@ func (p *Platform) createDemo(name string) error {
 	return nil
 }
 
-// ResetDemos puts every demo's data back to its template's seed rows:
-// visitors' bookings, orders, accounts, sessions and uploads are removed,
-// and so are the demo inboxes.
+// ResetDemos puts every demo's data back to its template's seed rows, plus
+// its demo photos and a fresh schedule around today: visitors' bookings,
+// orders, accounts, sessions and uploads are removed, and so are the demo
+// inboxes.
 func (p *Platform) ResetDemos(ctx context.Context) error {
 	rows, err := p.db.QueryContext(ctx, `SELECT name FROM apps WHERE owner = ? ORDER BY name`, DemoOwner)
 	if err != nil {
@@ -189,6 +194,9 @@ func (p *Platform) resetDemo(name string) error {
 		return err
 	} else if problem != "" {
 		return errors.New(problem)
+	}
+	if err := p.demoData(context.Background(), name); err != nil {
+		return err
 	}
 	p.demoBox.clear(name)
 	p.forgetLive(name)
