@@ -727,11 +727,11 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/">Your apps</a><a href="/templates">Templates</a><a href="/billing">Plan</a><a href="/account">Account</a><a href="/connect">Help</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}} · Renoxium</title>{{template "icons"}}{{template "fonts"}}<style>
-:root{color-scheme:light dark;--brand:#1B2F5B;--fg:#0f2a2a;--muted:#4d6563;--bg:#eef3f1;--card:#fff;--line:#d3dfdb;--accent:#0e6f66;--accent-ink:#fff;--accent-soft:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--live:#1f8a4c;--bad:#b3261e;--radius:14px}
-@media (prefers-color-scheme:dark){:root{--brand:#E8EDF7;--fg:#e3eeeb;--muted:#93a9a5;--bg:#0b1615;--card:#11201e;--line:#21403b;--accent:#3fc2b2;--accent-ink:#06201d;--accent-soft:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--live:#4cc88a;--bad:#ff8a80}}
+:root{color-scheme:light dark;--brand:#13203a;--fg:#13203a;--muted:#4b5870;--bg:#eef1f5;--card:#fff;--line:#d6dce5;--accent:#13203a;--accent-ink:#fff;--accent-soft:#e6ebf3;--gold:#b8892e;--sun:#b8892e;--sun-soft:#f5ecd9;--live:#1e8a50;--bad:#b3261e;--radius:14px}
+@media (prefers-color-scheme:dark){:root{--brand:#e7ecf4;--fg:#e7ecf4;--muted:#a3afc4;--bg:#0b1424;--card:#121d33;--line:#263552;--accent:#e7ecf4;--accent-ink:#0b1424;--accent-soft:#1b2a47;--gold:#d2a955;--sun:#d2a955;--sun-soft:#3a2f17;--live:#5fd394;--bad:#ff8a80}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.55 "Readex Pro",system-ui,sans-serif;color:var(--fg);background:var(--bg)}
-a{color:var(--accent);text-underline-offset:2px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+a{color:var(--accent);text-decoration-color:var(--muted);text-underline-offset:3px}a:hover{text-decoration-color:var(--gold);text-decoration-thickness:2px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .bar-top{background:var(--card);border-bottom:1px solid var(--line)}.bar-top .in{max-width:1120px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:8px 24px;flex-wrap:wrap}
 .logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:20px;color:var(--brand);text-decoration:none;letter-spacing:-.01em;margin-inline-end:auto}.logo .mark{height:26px;width:auto;flex:none}
 .bar-top nav{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:15px}.bar-top nav a{color:var(--fg);text-decoration:none;padding:4px 0}.bar-top nav a:hover{color:var(--accent)}
@@ -743,7 +743,7 @@ p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}ul{padding-inline-sta
 label{display:block;font-size:14px;font-weight:500;margin:14px 0 6px}
 input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit}
 textarea{min-height:96px}textarea.json{font-family:ui-monospace,monospace;font-size:14px}
-button,.button{display:inline-block;margin-top:18px;padding:11px 18px;border:1px solid var(--accent);border-radius:10px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;line-height:1.3}
+button,.button{display:inline-block;margin-top:18px;padding:11px 18px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;line-height:1.3}
 button.secondary,.button.secondary{background:transparent;color:var(--fg);border-color:var(--line)}button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
 .scroll{overflow-x:auto;margin:0 -4px}table{border-collapse:collapse;width:100%;font-size:14px}
 th{text-align:start;font-weight:500;color:var(--muted);font-size:13px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
