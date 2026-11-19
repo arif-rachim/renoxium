@@ -14,6 +14,9 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | store-white-musk.webp | https://images.unsplash.com/photo-1733660227131-0fd47f7ad3ad (Simply Mersah) | Unsplash License | 4:5 crop |
 | store-amber-night.webp | https://images.unsplash.com/photo-1733660227163-01bc46e0d7d7 (Simply Mersah) | Unsplash License | 4:5 crop |
 | store-oud-gift-set.webp | https://images.unsplash.com/photo-1738414808975-201966230c59 (attar bottle in sunlight) | Unsplash License | 4:5 crop |
+| booking-hero.webp | https://images.unsplash.com/photo-1507652313519-d4e9174996dd (stone bathtub with a palm) | Unsplash License | 1800 px wide |
+| booking-story.webp | https://images.unsplash.com/photo-1590439471364-192aa70c0b53 (bath salt, brush, towel and soap) | Unsplash License | 4:5 crop |
+| booking-braiding-class.webp | https://images.unsplash.com/photo-1626954079979-ec4f7b05e032 (braided bun with hairpins) | Unsplash License | 4:5 crop |
 | booking-haircut.webp | https://images.unsplash.com/photo-1562322140-8baeececf3df | Unsplash License | resized |
 | booking-hair-colour.webp | https://images.unsplash.com/photo-1522337360788-8b13dee7a37e | Unsplash License | resized |
 | booking-manicure.webp | https://images.unsplash.com/photo-1632345031435-8727f6897d53 | Unsplash License | the lamp sticker, maker logo and jar label blurred |

@@ -64,7 +64,7 @@ func TestBookingUAEExample(t *testing.T) {
 			t.Errorf("arabic home lacks %q", want)
 		}
 	}
-	if r := req(platform.TestRequestInput{Path: "/s/1"}); r.Status != 200 || !strings.Contains(r.Body, "Includes VAT") || !strings.Contains(r.Body, `<option value="1">Layla</option>`) ||
+	if r := req(platform.TestRequestInput{Path: "/s/1"}); r.Status != 200 || !strings.Contains(r.Body, "Includes VAT") || !strings.Contains(r.Body, `<input type="radio" name="staff" value="1"><span>Layla</span>`) ||
 		strings.Contains(r.Body, "Maryam") || !strings.Contains(r.Body, "Sign in to book") {
 		t.Fatalf("service page: %d %s", r.Status, r.Body)
 	}
@@ -202,7 +202,7 @@ func TestBookingUAEExample(t *testing.T) {
 			t.Fatalf("enrolment %d: %+v", i, r)
 		}
 	}
-	if c := req(platform.TestRequestInput{Path: "/c/2"}); !strings.Contains(c.Body, "1 seats left") || !strings.Contains(c.Body, "Ages 8 to 12") || !strings.Contains(c.Body, "Every Sunday") {
+	if c := req(platform.TestRequestInput{Path: "/c/2"}); !strings.Contains(c.Body, "1 seat left") || !strings.Contains(c.Body, "Ages 8 to 12") || !strings.Contains(c.Body, "Every Sunday") {
 		t.Fatalf("class page: %s", c.Body)
 	}
 	r = other(platform.TestRequestInput{Method: "POST", Path: "/enrol", Form: enrol("Hind", "card")})
@@ -245,10 +245,10 @@ func TestBookingUAEExample(t *testing.T) {
 	if r := other(platform.TestRequestInput{Method: "POST", Path: "/bookings/1/cancel"}); r.Status != 404 {
 		t.Fatalf("cancelling someone else's booking: %+v", r)
 	}
-	if r := other(platform.TestRequestInput{Path: "/bookings"}); strings.Contains(r.Body, "Booking #1 ") || strings.Contains(r.Body, "Haircut") || !strings.Contains(r.Body, "Hind") {
+	if r := other(platform.TestRequestInput{Path: "/bookings"}); strings.Contains(r.Body, ">Booking #1<") || strings.Contains(r.Body, "Haircut") || !strings.Contains(r.Body, "Hind") {
 		t.Fatal("someone else's booking listed")
 	}
-	if r := as(platform.TestRequestInput{Path: "/bookings"}); !strings.Contains(r.Body, "Booking #1 ") || !strings.Contains(r.Body, "Booking #2 ") || strings.Contains(r.Body, "Hind") {
+	if r := as(platform.TestRequestInput{Path: "/bookings"}); !strings.Contains(r.Body, ">Booking #1<") || !strings.Contains(r.Body, ">Booking #2<") || strings.Contains(r.Body, "Hind") {
 		t.Fatal("own bookings list")
 	}
 	if r := req(platform.TestRequestInput{Path: "/bookings"}); r.Status != 303 || !strings.HasPrefix(r.Location, "/_rx/auth/login") {
@@ -494,7 +494,7 @@ func TestBookingUAERefundsAndSubscriptions(t *testing.T) {
 	if c := req(platform.TestRequestInput{Path: "/c/1"}); !strings.Contains(c.Body, "AED 400.00 per month") || !strings.Contains(c.Body, "6 seats left") {
 		t.Fatalf("monthly class page: %s", c.Body)
 	}
-	if c := as(platform.TestRequestInput{Path: "/c/1?lang=ar"}); !strings.Contains(c.Body, "ادفع شهرياً بالبطاقة: AED 400.00 شهرياً") {
+	if c := as(platform.TestRequestInput{Path: "/c/1?lang=ar"}); !strings.Contains(c.Body, "ادفع شهرياً بالبطاقة: 400.00 د.إ شهرياً") {
 		t.Errorf("Arabic monthly payment option: %s", c.Body)
 	}
 	enrol := as(platform.TestRequestInput{Method: "POST", Path: "/enrol", Form: map[string]string{"class": "1", "participant": "Amal", "name": "Mona", "phone": "+971501234567", "payment": "card"}})

@@ -32,6 +32,9 @@ var demoImageSets = map[string][]DemoImageSet{
 		"Oud Gift Set": {"image": "store-oud-gift-set.webp"},
 	}}},
 	"booking-uae": {
+		{Table: "business", Key: "name", Rows: map[string]map[string]string{
+			"Lamsa Beauty Lounge": {"hero_image": "booking-hero.webp", "story_image": "booking-story.webp"},
+		}},
 		{Table: "services", Key: "name", Rows: map[string]map[string]string{
 			"Haircut & Blow-dry":      {"image": "booking-haircut.webp"},
 			"Root Colour":             {"image": "booking-hair-colour.webp"},
@@ -42,6 +45,7 @@ var demoImageSets = map[string][]DemoImageSet{
 		}},
 		{Table: "classes", Key: "name", Rows: map[string]map[string]string{
 			"Everyday Makeup Workshop": {"image": "booking-makeup-class.webp"},
+			"Kids' Braiding Club":      {"image": "booking-braiding-class.webp"},
 		}},
 	},
 	"home-service-uae": {{Table: "business", Key: "name", Rows: map[string]map[string]string{
