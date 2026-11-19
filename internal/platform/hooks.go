@@ -163,7 +163,7 @@ func (p *Platform) AdminNotice(app, by string) string {
 // TestAdminInput is a change to a preview row made as the admin panel does.
 type TestAdminInput struct {
 	Action string         `json:"action" jsonschema:"insert, update or delete"`
-	Table  string         `json:"table"`
+	Table  string         `json:"table" jsonschema:"the preview table to change"`
 	ID     int64          `json:"id,omitempty" jsonschema:"row id, for update and delete"`
 	Values map[string]any `json:"values,omitempty" jsonschema:"column values; on update, columns left out keep their current value, as in the admin panel form"`
 	By     string         `json:"by,omitempty" jsonschema:"email of the owner or staff member, given to the script as req.body.by; default owner@example.com"`

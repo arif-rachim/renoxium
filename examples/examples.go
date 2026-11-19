@@ -120,8 +120,8 @@ var all = map[string]Example{
 		"read-only MCP tools, English and Arabic (right to left). " +
 		"Security deposit: with business.deposit_hold_enabled it is a card hold the customer authorises on the reservation page from 6 days before the start " +
 		"(holds last about 7 days; the daily job emails the link), and at the return the owner sets reservations.deposit_action to release, or to capture with a " +
-		"damage_amount; with it off, the deposit is collected at handover. Rentals in the category Cars, or items with needs_documents, ask for the driving licence " +
-		"and passport as private uploads (at checkout or later on the reservation page; the owner opens them in the admin panel). An on_admin_change hook emails " +
+		"damage_amount; with it off, the deposit is collected at handover. Rentals in the category Cars, or items with needs_documents, tell the customer to bring " +
+		"the documents the rental needs: they are checked in person at handover and nothing is uploaded online. An on_admin_change hook emails " +
 		"the customer when the owner confirms, changes dates, marks a no-show or cancels (refunding the payment and releasing the hold). Shared helpers are in lib. " +
 		"Dates: the seeded departures have no date; they repeat on weekdays (departures.weekdays: daily, or e.g. fri,sat) at departures.time, so the sample is always in the future. " +
 		"For a one-off departure set departures.date to YYYY-MM-DD (UAE local date) and leave weekdays empty. " +

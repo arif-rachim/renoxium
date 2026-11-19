@@ -19,7 +19,7 @@ const MaxSize = 1 << 20
 type App struct {
 	Tables    []Table                     `json:"tables,omitempty" jsonschema:"database tables; every table automatically gets id and created_at columns"`
 	Templates map[string]string           `json:"templates,omitempty" jsonschema:"named Go html/template sources; may contain any HTML, CSS and browser JavaScript"`
-	Scripts   map[string]string           `json:"scripts,omitempty" jsonschema:"named server-side JavaScript sources, each defining function handle(req)"`
+	Scripts   map[string]string           `json:"scripts,omitempty" jsonschema:"named server-side JavaScript sources, each defining function handle(req): the app's own code, run only inside this app's sandbox on renoxium.com when a visitor uses the app; saving them does not run them"`
 	Routes    []Route                     `json:"routes" jsonschema:"HTTP routes served by the app"`
 	OnPayment string                      `json:"on_payment,omitempty" jsonschema:"script run when a payment started with payments.checkout is paid, fails or expires; req.body holds the payment"`
 	Seed      map[string][]map[string]any `json:"seed,omitempty" jsonschema:"rows inserted into a table when that table is first created, keyed by table name"`
@@ -65,16 +65,16 @@ type Tool struct {
 	Name        string      `json:"name" jsonschema:"lowercase name, e.g. search_products"`
 	Description string      `json:"description" jsonschema:"what the tool does and when to use it, for the AI assistant that calls it"`
 	Script      string      `json:"script" jsonschema:"script that handles the call"`
-	Params      []ToolParam `json:"params,omitempty"`
+	Params      []ToolParam `json:"params,omitempty" jsonschema:"the arguments the tool takes"`
 	ReadOnly    bool        `json:"read_only,omitempty" jsonschema:"true when the tool only reads data (search, details); assistants then call it without asking the user first"`
 }
 
 // ToolParam is one argument of a Tool.
 type ToolParam struct {
-	Name        string `json:"name"`
+	Name        string `json:"name" jsonschema:"argument name, e.g. query"`
 	Type        string `json:"type" jsonschema:"string, number, integer or boolean"`
-	Description string `json:"description,omitempty"`
-	Required    bool   `json:"required,omitempty"`
+	Description string `json:"description,omitempty" jsonschema:"what the argument is, for the assistant that calls the tool"`
+	Required    bool   `json:"required,omitempty" jsonschema:"the argument must be given"`
 }
 
 // Job is a script run on a schedule on the live app, with no visitor. The
@@ -82,7 +82,7 @@ type ToolParam struct {
 // {job, scheduled_at}. Set Every or DailyAt, not both.
 type Job struct {
 	Name     string `json:"name" jsonschema:"lowercase name, e.g. cancel_unpaid"`
-	Script   string `json:"script"`
+	Script   string `json:"script" jsonschema:"name of the script the job runs"`
 	Every    string `json:"every,omitempty" jsonschema:"run repeatedly, e.g. 15m, 1h or 6h (Go duration; at least 1m, 5m on the Free plan)"`
 	DailyAt  string `json:"daily_at,omitempty" jsonschema:"run once a day at this local time, HH:MM, e.g. 08:00"`
 	Timezone string `json:"timezone,omitempty" jsonschema:"IANA time zone for daily_at; default Asia/Dubai"`
@@ -127,9 +127,9 @@ const MaxTools = 20
 
 // Table is a tenant database table.
 type Table struct {
-	Name    string   `json:"name"`
+	Name    string   `json:"name" jsonschema:"lowercase table name, e.g. orders"`
 	Label   string   `json:"label,omitempty" jsonschema:"name shown to the owner in the admin panel, e.g. Orders; defaults to the table name"`
-	Columns []Column `json:"columns"`
+	Columns []Column `json:"columns" jsonschema:"the table's columns besides id and created_at"`
 	// Calendar adds a day and week schedule of the table to the admin panel.
 	Calendar *Calendar `json:"calendar,omitempty" jsonschema:"show this table to the owner as a day and week schedule too, e.g. bookings by staff"`
 }
@@ -137,10 +137,10 @@ type Table struct {
 // Column is a table column. Type is one of text, integer, real, boolean,
 // datetime, json or image; an image column holds the URL of an uploaded file.
 type Column struct {
-	Name     string `json:"name"`
+	Name     string `json:"name" jsonschema:"lowercase column name, e.g. customer_name"`
 	Type     string `json:"type" jsonschema:"one of: text, integer, real, boolean, datetime, json, image (holds the url returned by upload_file), file (holds the id of a visitor's private upload from /_rx/upload)"`
-	Required bool   `json:"required,omitempty"`
-	Unique   bool   `json:"unique,omitempty"`
+	Required bool   `json:"required,omitempty" jsonschema:"the column may not be empty (NOT NULL), set when the table is created"`
+	Unique   bool   `json:"unique,omitempty" jsonschema:"no two rows may have the same value, set when the table is created"`
 	// Admin panel only; they do not change the database.
 	Label   string   `json:"label,omitempty" jsonschema:"name shown to the owner in the admin panel, e.g. Customer name; defaults to the column name"`
 	Help    string   `json:"help,omitempty" jsonschema:"one short sentence shown under the field in the admin panel"`

@@ -533,18 +533,18 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		return as(email, "POST", fmt.Sprintf("/quotes/%d/documents", quote), form)
 	}
 	q5 = as(client, "GET", "/quotes/5", nil).Body
-	has("quote without documents", q5, "No documents yet", `src="/_rx/upload.js"`, `data-rx-upload`, `action="/quotes/5/documents"`, `<option value="emirates_id">Emirates ID</option>`)
-	passport := upload(client, "passport.jpg")
-	if r := attach(client, 5, map[string]string{"label": "passport", "file": passport}); r.Location != "/quotes/5?done=done_document" {
-		t.Fatalf("attach a passport copy: %+v\n%s", r, logText(r))
+	has("quote without documents", q5, "No documents yet", `src="/_rx/upload.js"`, `data-rx-upload`, `action="/quotes/5/documents"`, `<option value="signed_form">Signed form</option>`)
+	passport := upload(client, "photo.jpg")
+	if r := attach(client, 5, map[string]string{"label": "document", "file": passport}); r.Location != "/quotes/5?done=done_document" {
+		t.Fatalf("attach a document: %+v\n%s", r, logText(r))
 	}
 	q5 = as(client, "GET", "/quotes/5?done=done_document", nil).Body
-	has("quote with a document", q5, "Your document is attached", "Passport copy", "passport.jpg", `href="/_rx/private/`+passport+`"`)
-	has("document notice to the owner", mails(), `to the owner, "New document on quote #5 from Fatima Al Marri: Passport copy"`, "passport.jpg", "Client documents (quote number 5)")
+	has("quote with a document", q5, "Your document is attached", "Document", "photo.jpg", `href="/_rx/private/`+passport+`"`)
+	has("document notice to the owner", mails(), `to the owner, "New document on quote #5 from Fatima Al Marri: Document"`, "photo.jpg", "Client documents (quote number 5)")
 	// Someone else's upload, a made-up id or someone else's quote are refused; the same file twice is stored once.
 	omarFile := upload("omar@mail.ae", "omar-id.jpg")
 	for _, file := range []string{omarFile, "nope", ""} {
-		if r := attach(client, 5, map[string]string{"label": "emirates_id", "file": file}); r.Location != "/quotes/5?error=error_document" {
+		if r := attach(client, 5, map[string]string{"label": "signed_form", "file": file}); r.Location != "/quotes/5?error=error_document" {
 			t.Fatalf("attach file %q: %+v", file, r)
 		}
 	}
@@ -552,19 +552,19 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	if r := attach("omar@mail.ae", 5, map[string]string{"label": "other", "file": omarFile}); r.Status != 404 {
 		t.Fatalf("documents on someone else's quote: %+v", r)
 	}
-	if r := attach(client, 5, map[string]string{"label": "passport", "file": passport}); r.Location != "/quotes/5?done=done_document" {
+	if r := attach(client, 5, map[string]string{"label": "document", "file": passport}); r.Location != "/quotes/5?done=done_document" {
 		t.Fatalf("the same file again: %+v", r)
 	}
 	// The owner sees the documents in the admin panel (here: 18 more rows added there), up to 20 per quote.
 	doc := admin(platform.TestAdminInput{Action: "update", Table: "documents", ID: 1, Values: map[string]any{}})
-	if doc.Body != "nothing to do" || doc.Admin.Row["file"] != passport || doc.Admin.Row["label"] != "passport" || doc.Admin.Row["quote_id"] != int64(5) {
+	if doc.Body != "nothing to do" || doc.Admin.Row["file"] != passport || doc.Admin.Row["label"] != "document" || doc.Admin.Row["quote_id"] != int64(5) {
 		t.Fatalf("document in the admin panel: %s %v", doc.Body, doc.Admin.Row)
 	}
 	for i := 0; i < 18; i++ {
 		admin(platform.TestAdminInput{Action: "insert", Table: "documents", Values: map[string]any{"quote_id": 5, "file": fmt.Sprintf("added-%d", i), "label": "other"}})
 	}
-	licence := upload(client, "licence.jpg")
-	if r := attach(client, 5, map[string]string{"label": "trade_licence", "file": licence}); r.Location != "/quotes/5?done=done_document" {
+	form := upload(client, "form.jpg")
+	if r := attach(client, 5, map[string]string{"label": "signed_form", "file": form}); r.Location != "/quotes/5?done=done_document" {
 		t.Fatalf("the 20th document: %+v", r)
 	}
 	last := upload(client, "one-more.jpg")
@@ -572,7 +572,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		t.Fatalf("the 21st document: %+v", r)
 	}
 	q5 = as(client, "GET", "/quotes/5?lang=ar", nil).Body
-	has("full quote in Arabic", q5, "الرخصة التجارية", "licence.jpg", "وصل هذا العرض إلى الحد الأقصى للمستندات", "الملف لم يعد متاحاً")
+	has("full quote in Arabic", q5, "نموذج موقّع", "form.jpg", "وصل هذا العرض إلى الحد الأقصى للمستندات", "الملف لم يعد متاحاً")
 	hasNot("full quote", q5, `action="/quotes/5/documents"`, "one-more.jpg")
 
 	// ---- Cancelling a quote paid by card (quote 4: 630 + 945 on preview): refunded only when refund_on_cancel is ticked.
