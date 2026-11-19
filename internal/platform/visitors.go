@@ -89,6 +89,7 @@ func (p *Platform) DeleteVisitor(ctx context.Context, app string, id int64, by s
 func (p *Platform) Cleanup(ctx context.Context) {
 	p.cleanDurable()
 	p.cleanTraffic()
+	p.cleanMeter()
 	p.forgetLive("")
 	// Domain claims nobody proved within a week are dropped.
 	p.db.Exec(`DELETE FROM custom_domains WHERE status = 'verify' AND created_at < datetime('now', '-7 days')`)

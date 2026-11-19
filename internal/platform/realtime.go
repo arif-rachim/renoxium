@@ -195,6 +195,9 @@ func (p *Platform) realtimePublish(st *stage, arg any) (any, error) {
 		return nil, fmt.Errorf("realtime.publish: more than %d messages a minute for this app", livePublishPerMinute)
 	}
 	n := p.live.publish(st.app+"/"+st.name, st.app+"/"+st.name+"/"+in.Channel, data)
+	c := p.meter.counters(st.app, st.name)
+	c.add(mRTMessages, 1)
+	c.add(mRTDelivered, int64(n))
 	return map[string]any{"delivered": n}, nil
 }
 
@@ -243,6 +246,9 @@ func (p *Platform) serveLive(w http.ResponseWriter, r *http.Request, st *stage) 
 		return
 	}
 	defer p.live.unsubscribe(appStage, key, c)
+	p.meterMax(st.app, st.name, mRTPeak, int64(p.LiveSubscribers(st.app, st.name)))
+	opened := time.Now()
+	defer func() { p.meterAdd(st.app, st.name, mRTConnSec, int64(time.Since(opened).Seconds())) }()
 
 	rc := http.NewResponseController(w)
 	rc.SetWriteDeadline(time.Time{}) // the server's write timeout would end the stream

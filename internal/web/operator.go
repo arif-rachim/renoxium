@@ -10,14 +10,13 @@ import (
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
-// Monthly plan prices in AED, for the revenue estimate on the operator page.
-var planPrices = map[string]int{accounts.PlanPro: 99, accounts.PlanBusiness: 299}
-
 func (s *Site) registerOperator() {
 	s.mux.HandleFunc("GET /operator", s.operatorPage)
 	s.mux.HandleFunc("POST /operator/plan", s.operatorPlan)
 	s.mux.HandleFunc("POST /operator/suspend", s.operatorSuspend)
 	s.mux.HandleFunc("POST /operator/abuse/{id}/resolve", s.operatorResolve)
+	s.mux.HandleFunc("POST /operator/growth", s.operatorGrowth)
+	s.mux.HandleFunc("GET /operator/growth.csv", s.operatorGrowthCSV)
 }
 
 // operator returns the signed-in operator. Anyone else gets 404, so the page
@@ -59,7 +58,7 @@ func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
 	stats, _ := s.platform.Stats()
 	mrr := 0
 	for plan, n := range paying {
-		mrr += planPrices[plan] * n
+		mrr += accounts.PlanPriceAED[plan] * n
 	}
 	users, _ := s.accounts.Users(q, 100)
 	appSearch := q
@@ -89,8 +88,15 @@ func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
 	if s.Monitor != nil {
 		health = s.Monitor.Status()
 	}
-	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": s.csrfToken(w, r), "Accounts": total, "PerPlan": perPlan,
-		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open})
+	csrf := s.csrfToken(w, r)
+	growth, err := s.growthView(r, paying)
+	if err != nil {
+		slog.Error("operator growth figures", "err", err)
+	} else {
+		growth.CSRF = csrf
+	}
+	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": csrf, "Accounts": total, "PerPlan": perPlan,
+		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open, "Growth": growth})
 }
 
 func (s *Site) operatorPlan(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +114,7 @@ func (s *Site) operatorPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	platform.ForgetPlan(user)
+	s.forgetGrowth()
 	slog.Info("operator granted plan", "operator", op.Email, "user", user, "plan", plan)
 	http.Redirect(w, r, "/operator?q="+r.PostFormValue("q"), http.StatusSeeOther)
 }
@@ -136,6 +143,7 @@ func (s *Site) operatorSuspend(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	s.forgetGrowth()
 	slog.Warn("operator changed app", "operator", op.Email, "app", app, "action", r.PostFormValue("action"))
 	http.Redirect(w, r, "/operator?q="+r.PostFormValue("q"), http.StatusSeeOther)
 }

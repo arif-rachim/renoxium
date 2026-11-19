@@ -68,6 +68,11 @@ func (p *Platform) notifyOwner(ctx context.Context, st *stage, arg any) (any, er
 	}
 	p.mailOwner(ctx, st, in.Subject, in.Text)
 	p.whatsappOwner(st, in.Subject)
+	if st.name == Live {
+		// Templates notify the owner of each new order, booking, lead or
+		// enquiry: the first one is the owner's first customer activity.
+		p.funnel(p.ownerOf(st.app), FunnelActivity, st.app, "notice")
+	}
 	return map[string]any{"sent": st.name == Live}, nil
 }
 
@@ -99,5 +104,7 @@ func (p *Platform) mailOwner(ctx context.Context, st *stage, subject, text strin
 	if err := p.cfg.Mailer.Send(ctx, email.Message{To: addr, Subject: "[" + st.app + "] " + subject, Text: text + link, Tag: "owner_notice", FromName: "Renoxium"}); err != nil {
 		slog.Error("owner email", "app", st.app, "err", err)
 		p.event(st, "email", "error", "", "the owner could not be emailed; Renoxium has logged the reason")
+		return
 	}
+	p.meterAdd(st.app, st.name, mEmails, 1)
 }

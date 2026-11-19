@@ -384,6 +384,7 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	h.fetchWait += took
 	h.mu.Unlock()
 	p.spend("fetch-wait:"+owner, int(took.Milliseconds()), 1<<30, time.Minute)
+	p.meterAdd(st.app, st.name, mFetches, 1)
 	if p.cfg.OwnerPlan != nil {
 		p.addUsage(owner, "fetch")
 	}

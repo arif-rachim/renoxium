@@ -145,6 +145,7 @@ func (p *Platform) sendCode(ctx context.Context, st *stage, phone, code string) 
 		p.event(st, "whatsapp", "error", "", "a WhatsApp sign-in code could not be delivered; Renoxium has logged the reason")
 		return err
 	}
+	p.meterAdd(st.app, st.name, mWhatsApp, 1)
 	return nil
 }
 

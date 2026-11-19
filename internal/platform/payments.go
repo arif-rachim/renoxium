@@ -337,6 +337,9 @@ func (p *Platform) afterStatusChange(ctx context.Context, st *stage, id, event s
 	pm := list[0]
 	p.event(st, "payment", "info", "", fmt.Sprintf("payment %s for %s is %s", id, pm.Reference, event))
 	if event == "paid" && pm.minor > 0 {
+		if st.name == Live {
+			p.funnel(p.ownerOf(st.app), FunnelActivity, st.app, "card")
+		}
 		subject := fmt.Sprintf("Payment received: %s %.2f for %s", strings.ToUpper(pm.Currency), pm.Amount, pm.Reference)
 		p.whatsappOwner(st, subject)
 		p.mailOwner(ctx, st, subject,
@@ -379,14 +382,14 @@ func (p *Platform) runHook(ctx context.Context, st *stage, body map[string]any) 
 		q.add(func(ctx context.Context) { p.runHook(ctx, st, body) })
 		return
 	}
-	release, ok := p.acquireSlot(ctx, st.app)
-	if !ok {
-		p.event(st, "payment", "error", "", "on_payment script not run: the app is too busy")
+	release, err := p.acquireSlot(ctx, st)
+	if err != nil {
+		p.event(st, "payment", "error", "", "on_payment script not run: "+err.Error())
 		return
 	}
 	rid := newRequestID()
 	host := &scriptHost{st: st, p: p, rid: rid}
-	_, err := p.sb.Run(ctx, st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
+	_, err = p.runScript(ctx, st, "hook on_payment", st.def.Scripts[st.def.OnPayment], sandbox.Request{Method: http.MethodPost, Path: "/_rx/payment", Body: body, Origin: p.URL(st.app, st.name),
 		Params: map[string]string{}, Query: map[string]string{}, Form: map[string]string{}}, host)
 	release()
 	host.runDeferred(ctx)

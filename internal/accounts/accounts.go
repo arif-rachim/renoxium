@@ -105,6 +105,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := s.ensureGrowth(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -469,6 +473,9 @@ func (s *Store) ExchangeCode(code, clientID, redirectURI, verifier string) (Toke
 	}
 	t, err := s.issue(tx, clientID, userID, scope)
 	if err != nil {
+		return Tokens{}, err
+	}
+	if err := s.recordAgent(tx, userID); err != nil {
 		return Tokens{}, err
 	}
 	return t, tx.Commit()
