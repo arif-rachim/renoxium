@@ -87,12 +87,13 @@ test('agent adds a job, a host and a key; the owner is told what to do; the job 
   expect(applied.owner_actions.join('\n')).toContain(`/apps/${app}/connections`);
 
   // Jobs never run on preview by themselves; the agent runs one.
-  const run = await agent.call('test_request', { app, job: 'tick' });
+  const run = await agent.call('run_job_on_preview', { app, job: 'tick' });
   expect(run.status).toBe(200);
   expect(run.body).toBe('tick 1');
   expect(run.logs.map((l) => l.message).join('\n')).toMatch(/job tick -> ok/);
-  await expect(agent.call('test_request', { app, job: 'nope' })).rejects.toThrow(/no job/);
-  await expect(agent.call('test_request', { app, stage: 'live', job: 'tick' })).rejects.toThrow(/only be run by hand on preview/);
+  await expect(agent.call('run_job_on_preview', { app, job: 'nope' })).rejects.toThrow(/no job/);
+  // run_job_on_preview has no stage: jobs never run on live by hand.
+  await expect(agent.call('run_job_on_preview', { app, job: 'tick', stage: 'live' })).rejects.toThrow();
 
   // Before the owner allows the host, the script is told why it cannot call out.
   const quote = await agent.call('test_request', { app, path: '/quote' });

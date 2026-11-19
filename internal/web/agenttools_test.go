@@ -153,3 +153,38 @@ func toStrings(v any) []string {
 	}
 	return out
 }
+
+// Jobs and admin-panel changes are tested through tools of their own, each
+// on preview only; test_request no longer takes them.
+func TestAgentRunsJobAndChangesRowOnPreview(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "noor@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	ex, _ := call(t, s, "get_example", map[string]any{"name": "store-uae"})
+	call(t, s, "create_app", map[string]any{"app": "noor-shop"})
+	if applied, _ := call(t, s, "apply_change", map[string]any{"app": "noor-shop", "definition": ex["definition"]}); applied["ok"] != true {
+		t.Fatalf("apply: %v", applied)
+	}
+	out, errText := call(t, s, "run_job_on_preview", map[string]any{"app": "noor-shop", "job": "daily_report"})
+	if errText != "" || out["body"] != "no orders today" {
+		t.Fatalf("run_job_on_preview: %v %s", out, errText)
+	}
+	if _, errText := call(t, s, "run_job_on_preview", map[string]any{"app": "noor-shop", "job": "nope"}); errText == "" {
+		t.Fatal("an unknown job ran")
+	}
+	if _, errText := call(t, s, "run_job_on_preview", map[string]any{"app": "noor-shop", "job": "daily_report", "stage": "live"}); errText == "" {
+		t.Fatal("run_job_on_preview took a stage")
+	}
+	out, errText = call(t, s, "change_preview_row", map[string]any{"app": "noor-shop", "action": "update", "table": "products", "id": 2, "values": map[string]any{"price": 99}})
+	if errText != "" || out["admin"].(map[string]any)["row"].(map[string]any)["price"] != float64(99) {
+		t.Fatalf("change_preview_row: %v %s", out, errText)
+	}
+	// test_request takes only a visitor's request.
+	if _, errText := call(t, s, "test_request", map[string]any{"app": "noor-shop", "job": "daily_report"}); errText == "" {
+		t.Fatal("test_request accepted job")
+	}
+	if _, errText := call(t, s, "test_request", map[string]any{"app": "noor-shop", "path": "/p/2"}); errText != "" {
+		t.Fatal(errText)
+	}
+}

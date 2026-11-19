@@ -55,7 +55,8 @@ func TestWhatReviewersRead(t *testing.T) {
 	want := map[string]struct{ readOnly, destructive, openWorld bool }{
 		"list_apps": {true, false, false}, "get_app": {true, false, false}, "get_example": {true, false, false}, "get_logs": {true, false, false},
 		"create_app": {false, false, false}, "apply_change": {false, true, true}, "patch_app": {false, true, true},
-		"upload_file": {false, false, true}, "test_request": {false, false, true}, "publish": {false, false, false},
+		"upload_file": {false, false, true}, "publish": {false, false, false},
+		"test_request": {false, true, true}, "run_job_on_preview": {false, true, true}, "change_preview_row": {false, true, true},
 	}
 	if len(res.Tools) != len(want) {
 		t.Fatalf("%d tools, want %d", len(res.Tools), len(want))
@@ -72,8 +73,18 @@ func TestWhatReviewersRead(t *testing.T) {
 		json.Unmarshal(b, &schema)
 		checkSchema(t, tool.Name, schema)
 	}
+	for _, tool := range res.Tools {
+		if tool.Name != "test_request" {
+			continue
+		}
+		b, _ := json.Marshal(tool.InputSchema)
+		if strings.Contains(string(b), `"job"`) || strings.Contains(string(b), `"admin"`) {
+			t.Error("test_request still takes job or admin: they are tools of their own")
+		}
+	}
 	says := map[string]string{"create_app": "never executed by you", "apply_change": "never executed by you", "patch_app": "never executed by you",
-		"publish": "changes nothing live", "test_request": "nothing on the live site is modified"}
+		"publish": "changes nothing live", "test_request": "nothing on the live site is modified",
+		"run_job_on_preview": "nothing on the live site is modified", "change_preview_row": "nothing on the live site is modified"}
 	for _, tool := range res.Tools {
 		if want, ok := says[tool.Name]; ok && !strings.Contains(tool.Description, want) {
 			t.Errorf("%s's description does not say %q", tool.Name, want)
