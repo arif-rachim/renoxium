@@ -203,7 +203,27 @@ RENOXIUM_LEGAL_EMAIL=privacy@renoxium.com
 ENV
 ```
 
-The texts live in `internal/web/landing.go`.
+The texts live in `internal/web/landing.go`, with `/support`, which shows the same email.
+
+### ChatGPT app directory
+
+To list Renoxium in ChatGPT's app directory, OpenAI asks for a domain check and a test account:
+
+1. In the OpenAI submission form, copy the verification token, then serve it on
+   `https://www.renoxium.com/.well-known/openai-apps-challenge`:
+
+   ```bash
+   echo 'OPENAI_APPS_CHALLENGE=the-token' | sudo tee -a /etc/renoxium/env >/dev/null && sudo systemctl restart renoxium
+   ```
+
+2. Create the reviewers' account: confirmed, on the Business plan, with the store-uae example published
+   as `reviewer-shop`. It prints a new password each time it runs; give the email and password to OpenAI.
+
+   ```bash
+   sudo /opt/renoxium/renoxium -data /var/lib/renoxium -apps-domain renoxium.app reviewer support@renoxium.com
+   ```
+
+The connector address is `https://www.renoxium.com/mcp`; the support page is `https://www.renoxium.com/support`.
 
 ### Operator panel
 

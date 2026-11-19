@@ -2,6 +2,7 @@ package web
 
 import (
 	"html/template"
+	"io"
 	"net/http"
 )
 
@@ -17,6 +18,18 @@ type Legal struct {
 func (s *Site) registerLanding() {
 	s.mux.HandleFunc("GET /privacy", s.legalPage("privacy"))
 	s.mux.HandleFunc("GET /terms", s.legalPage("terms"))
+	s.mux.HandleFunc("GET /support", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		landingPages.ExecuteTemplate(w, "support", map[string]any{"Legal": s.legalOrDefaults(), "Base": s.base, "MCP": s.base + "/mcp", "Abuse": s.AbuseEmail})
+	})
+	s.mux.HandleFunc("GET /.well-known/openai-apps-challenge", func(w http.ResponseWriter, r *http.Request) {
+		if s.OpenAIAppsChallenge == "" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		io.WriteString(w, s.OpenAIAppsChallenge)
+	})
 }
 
 func (s *Site) landingData() map[string]any {
@@ -96,7 +109,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 {{define "nav"}}<a class="skip" href="#main">Skip to content</a><header class="wrap"><nav class="top" aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links">
 <a href="/templates"{{if eq . "templates"}} aria-current="page"{{end}}>Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="btn sm" href="/signup">Create account</a></div></nav></header>{{end}}
 
-{{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer></div>{{end}}
+{{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer></div>{{end}}
 
 {{define "og"}}<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:title" content="Renoxium: your business online, built in a chat">
 <meta property="og:description" content="Orders, bookings and payments for UAE small businesses on their own website, built by describing the business to ChatGPT or Claude, in English and Arabic.">
@@ -279,6 +292,19 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <h2>How long we keep it</h2><p>As long as an account or store exists. Store owners can delete stores and their account at any time; backups that contain deleted data are overwritten within 14 days.</p>
 <h2>Your choices and rights</h2><p>Store owners can download all data of their stores and delete their account from the Account page. Anyone can ask us to access, correct or delete their personal data{{with .Legal.Email}} by writing to <a href="mailto:{{.}}">{{.}}</a>{{end}}. Renoxium uses only the cookies needed to keep you signed in and to protect forms.</p>
 <h2>Changes</h2><p>We will post changes on this page and tell store owners by email about important ones.</p></main></div></body></html>{{end}}
+
+{{define "support"}}{{template "lhead" "Support | Renoxium"}}{{template "legaltop" .}}
+<h1>Support</h1><p class="meta">Help with your Renoxium account, your apps and the Renoxium connector in ChatGPT and Claude.</p>
+<h2>Contact us</h2><p>{{with .Legal.Email}}Write to <a href="mailto:{{.}}">{{.}}</a>{{else}}Sign in and write to us from your account{{end}} with your account email and, if it is about an app, its address. We answer within two working days (UAE time), in English or Arabic.</p>
+<h2>Connect Renoxium to your AI assistant</h2><p>Add Renoxium as a connector (in ChatGPT it is listed under apps and plugins) with this address, then sign in with your Renoxium account when asked:</p>
+<p><code>{{.MCP}}</code></p><p>Step-by-step instructions for each assistant are on <a href="/connect">Connect</a>.</p>
+<h2>Common questions</h2>
+<p><b>My changes are not on my site.</b> Your assistant changes the preview only. Open the confirm link it gives you and choose Publish, signed in to Renoxium, to put the new version live.</p>
+<p><b>My assistant cannot see my apps.</b> Disconnect and connect Renoxium again in the assistant's settings, and sign in with the same email you use on Renoxium.</p>
+<p><b>Something on my site does not work.</b> Ask your assistant to read the app's log and fix it; it can see errors from your visitors' pages. You can also undo a change by publishing an earlier version in your admin panel.</p>
+<p><b>I want to stop using Renoxium.</b> On the Account page you can download all your data and delete your account. Removing the connector from your assistant ends its access right away.</p>
+<h2>More</h2><p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/abuse">Report a site</a>{{with .Abuse}} (or <a href="mailto:{{.}}">{{.}}</a>){{end}}</p></main></div>
+{{template "footer" .Legal}}</body></html>{{end}}
 
 {{define "terms"}}{{template "lhead" "Terms of Service | Renoxium"}}{{template "legaltop" .}}
 <h1>Terms of Service</h1><p class="meta">{{.Legal.Company}}{{with .Legal.Address}}, {{.}}{{end}}</p>

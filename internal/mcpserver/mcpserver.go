@@ -268,7 +268,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	type listOut struct {
 		Apps []platform.AppInfo `json:"apps"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "list_apps", Description: "List the apps owned by the signed-in user."},
+	mcp.AddTool(s, &mcp.Tool{Name: "list_apps", Title: toolAnnotations["list_apps"].Title, Annotations: toolAnnotations["list_apps"], Description: "List the apps owned by the signed-in user."},
 		func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, listOut, error) {
 			user, err := userOf(req)
 			if err != nil {
@@ -282,7 +282,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App string `json:"app" jsonschema:"app name: 3-40 lowercase letters, digits and hyphens, e.g. al-noor-perfumes"`
 	}
 
-	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Description: "Create a new, empty app. Returns its live and preview URLs."},
+	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new, empty app. Returns its live and preview URLs."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in appName) (*mcp.CallToolResult, platform.AppInfo, error) {
 			user, err := userOf(req)
 			if err != nil {
@@ -301,7 +301,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Version    int         `json:"version" jsonschema:"version of the definition returned; 0 if none yet"`
 		Definition *appdef.App `json:"definition,omitempty"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "get_app", Description: "Read an app's URLs, live and preview versions, and a stored definition."},
+	mcp.AddTool(s, &mcp.Tool{Name: "get_app", Title: toolAnnotations["get_app"].Title, Annotations: toolAnnotations["get_app"], Description: "Read an app's URLs, live and preview versions, and a stored definition."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in getAppIn) (*mcp.CallToolResult, getAppOut, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, getAppOut{}, err
@@ -325,7 +325,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App        string     `json:"app"`
 		Definition appdef.App `json:"definition" jsonschema:"the complete app definition; replaces the previous version"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "apply_change",
+	mcp.AddTool(s, &mcp.Tool{Name: "apply_change", Title: toolAnnotations["apply_change"].Title, Annotations: toolAnnotations["apply_change"],
 		Description: "Validate a complete app definition, save it as a new version and serve it on the preview URL with a copy of live data. Renders every GET route without parameters and reports failures. Live is not changed."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in applyIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -345,7 +345,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		ConfirmURL        string `json:"confirm_url,omitempty" jsonschema:"give this link to the user; the version goes live when they confirm there"`
 		Version           int    `json:"version,omitempty" jsonschema:"the version that will go live"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "publish",
+	mcp.AddTool(s, &mcp.Tool{Name: "publish", Title: toolAnnotations["publish"].Title, Annotations: toolAnnotations["publish"],
 		Description: "Ask to make a version live (also used to roll back to an earlier version). Returns confirm_url: the user opens it and confirms, then live data is backed up and additive schema changes are applied. Ask the user before calling it."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in publishIn) (*mcp.CallToolResult, publishOut, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -381,7 +381,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Name       string              `json:"name,omitempty"`
 		Definition *appdef.App         `json:"definition,omitempty" jsonschema:"a complete app definition, valid for apply_change"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "get_example",
+	mcp.AddTool(s, &mcp.Tool{Name: "get_example", Title: toolAnnotations["get_example"].Title, Annotations: toolAnnotations["get_example"],
 		Description: "List the example apps, or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed)."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in exampleIn) (*mcp.CallToolResult, exampleOut, error) {
 			if _, err := userOf(req); err != nil {
@@ -409,7 +409,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App string `json:"app"`
 		platform.Patch
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "patch_app",
+	mcp.AddTool(s, &mcp.Tool{Name: "patch_app", Title: toolAnnotations["patch_app"].Title, Annotations: toolAnnotations["patch_app"],
 		Description: "Change part of the newest app definition and apply it to preview: add or replace templates, scripts and lib entries by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. Returns the same result as apply_change."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in patchIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -423,7 +423,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App string `json:"app"`
 		platform.TestRequestInput
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "test_request",
+	mcp.AddTool(s, &mcp.Tool{Name: "test_request", Title: toolAnnotations["test_request"].Title, Annotations: toolAnnotations["test_request"],
 		Description: "Send a GET or POST request to the app's preview (or a GET to live) as a visitor would, and get the status, redirect, body and the server log of that request. Use it to test forms, routes with parameters and error cases. POST changes preview data only; preview data is a throwaway copy of live. With admin set, it changes a preview row as the owner would in the admin panel and runs on_admin_change."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in testIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -437,7 +437,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App        string `json:"app"`
 		DataBase64 string `json:"data_base64" jsonschema:"the image file content, base64-encoded (standard alphabet, padding optional)"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "upload_file",
+	mcp.AddTool(s, &mcp.Tool{Name: "upload_file", Title: toolAnnotations["upload_file"].Title, Annotations: toolAnnotations["upload_file"],
 		Description: "Upload an image for an app and get its url. Identical content is stored once and returns the same url."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in uploadIn) (*mcp.CallToolResult, platform.FileInfo, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -468,7 +468,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Note   string         `json:"note"`
 		Events []applog.Event `json:"events"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "get_logs",
+	mcp.AddTool(s, &mcp.Tool{Name: "get_logs", Title: toolAnnotations["get_logs"].Title, Annotations: toolAnnotations["get_logs"],
 		Description: "Read the app log, newest first: requests, server script errors with stack traces, script console output, and browser errors reported from visitors' pages."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in logsIn) (*mcp.CallToolResult, logsOut, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -515,4 +515,32 @@ func Handler(s *mcp.Server, verify auth.TokenVerifier, resourceMetadataURL strin
 		// host (web.Site.ServeHTTP) and every call needs an OAuth bearer token.
 		DisableLocalhostProtection: true})
 	return auth.RequireBearerToken(verify, &auth.RequireBearerTokenOptions{ResourceMetadataURL: resourceMetadataURL})(h)
+}
+
+// toolAnnotations tell assistants what each tool does to the user's apps,
+// so they can ask before changing anything (ChatGPT and Claude require them
+// for their directories). "Destructive" marks tools that can replace or
+// remove something the user has: preview data rebuilt from live, deleted
+// templates, a new live version. openWorld is set only where the call can
+// reach other services: test_request runs the app's scripts, which may call
+// external APIs the owner allowed.
+var toolAnnotations = map[string]*mcp.ToolAnnotations{
+	"list_apps":    readOnly("List your apps"),
+	"get_app":      readOnly("Read an app"),
+	"get_example":  readOnly("Get an example app"),
+	"get_logs":     readOnly("Read an app's log"),
+	"create_app":   write("Create an app", false, false, false),
+	"apply_change": write("Apply a new app version to the preview", true, false, false),
+	"patch_app":    write("Change part of an app on the preview", true, false, false),
+	"upload_file":  write("Upload an image", false, true, false),
+	"test_request": write("Test the app as a visitor", false, false, true),
+	"publish":      write("Publish a version (after the user confirms)", true, true, false),
+}
+
+func readOnly(title string) *mcp.ToolAnnotations {
+	return &mcp.ToolAnnotations{Title: title, ReadOnlyHint: true, DestructiveHint: new(false), IdempotentHint: true, OpenWorldHint: new(false)}
+}
+
+func write(title string, destructive, idempotent, openWorld bool) *mcp.ToolAnnotations {
+	return &mcp.ToolAnnotations{Title: title, DestructiveHint: &destructive, IdempotentHint: idempotent, OpenWorldHint: &openWorld}
 }
