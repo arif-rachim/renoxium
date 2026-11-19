@@ -638,3 +638,19 @@ func (p *Platform) AdminCancelSubscription(ctx context.Context, app, id string, 
 	}
 	return sub, err
 }
+
+// RunningSubscriptions counts the live app's subscriptions that will still
+// charge customers: not ended and not set to end at the period's end.
+func (p *Platform) RunningSubscriptions(ctx context.Context, app string) (int, error) {
+	st, err := p.loadStage(app, Live)
+	if err != nil || st == nil {
+		return 0, err
+	}
+	var n int
+	err = st.admin.QueryRowContext(ctx, `SELECT count(*) FROM rx_subscriptions
+		WHERE status IN ('active', 'trialing', 'past_due') AND NOT cancel_at_period_end`).Scan(&n)
+	if err != nil && strings.Contains(err.Error(), "no such table") {
+		return 0, nil
+	}
+	return n, err
+}

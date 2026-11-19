@@ -37,6 +37,7 @@ type env struct {
 	server *httptest.Server
 	base   string
 	p      *platform.Platform
+	dir    string
 }
 
 func newEnv(t *testing.T) *env {
@@ -64,7 +65,7 @@ func newEnv(t *testing.T) *env {
 	ws.AbuseEmail = "abuse@renoxium.test"
 	site = ws
 	t.Cleanup(func() { srv.Close(); p.Close(); acc.Close() })
-	return &env{t: t, server: srv, base: srv.URL, p: p, mail: mb, site: ws, acc: acc}
+	return &env{t: t, server: srv, base: srv.URL, p: p, mail: mb, site: ws, acc: acc, dir: dir}
 }
 
 // browser is a cookie-keeping client that does not follow redirects.
