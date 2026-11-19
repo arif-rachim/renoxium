@@ -1868,5 +1868,11 @@
       "script": "daily_report",
       "daily_at": "08:00"
     }
-  ]
+  ],
+  "brand": {
+    "table": "agency",
+    "name": "name",
+    "name_ar": "name_ar",
+    "color": "brand_color"
+  }
 }

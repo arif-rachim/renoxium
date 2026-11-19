@@ -1901,5 +1901,11 @@
         }
       ]
     }
-  ]
+  ],
+  "brand": {
+    "table": "business",
+    "name": "name",
+    "name_ar": "name_ar",
+    "color": "brand_color"
+  }
 }

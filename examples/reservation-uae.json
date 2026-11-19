@@ -2055,5 +2055,11 @@
       "script": "daily",
       "daily_at": "18:00"
     }
-  ]
+  ],
+  "brand": {
+    "table": "business",
+    "name": "name",
+    "name_ar": "name_ar",
+    "color": "brand_color"
+  }
 }
