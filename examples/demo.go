@@ -52,13 +52,16 @@ var demoImageSets = map[string][]DemoImageSet{
 		"Handyman":                            {"image": "home-handyman.webp"},
 		"Pest control (apartment)":            {"image": "home-pest-control.webp"},
 	}}},
-	"reservation-uae": {{Table: "items", Key: "name", Rows: map[string]map[string]string{
+	"reservation-uae": {{Table: "business", Key: "name", Rows: map[string]map[string]string{
+		"Sahara Bay Tours & Rentals": {"hero_image": "tour-hero.webp", "story_image": "tour-story.webp"},
+	}}, {Table: "items", Key: "name", Rows: map[string]map[string]string{
 		"Evening Desert Safari with BBQ Dinner": {"image": "tour-safari.webp"},
 		"Marina Dhow Dinner Cruise":             {"image": "tour-dhow.webp"},
 		"Sunset Yacht Trip":                     {"image": "tour-yacht.webp"},
 		"Nissan Sunny":                          {"image": "car-sedan.webp"},
 		"Nissan Patrol":                         {"image": "car-suv.webp"},
 		"Gold Chiavari Chair":                   {"image": "party-chairs.webp"},
+		"Arabic Majlis Tent 5 x 5 m":            {"image": "party-majlis-tent.webp"},
 		"Bouncy Castle 4 x 4 m":                 {"image": "party-bouncy-castle.webp"},
 	}}},
 	"delivery-tracking": {{Table: "shop", Key: "name", Rows: map[string]map[string]string{

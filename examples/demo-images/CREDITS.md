@@ -52,3 +52,6 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | listings-hero.webp | https://images.unsplash.com/photo-1512453979798-5ea266f8880c (Dubai skyline over Sheikh Zayed Road at dawn) | Unsplash License | 2000 px wide; two developer signs on towers under construction blurred |
 | listings-story.webp | https://images.unsplash.com/photo-1597659840241-37e2b9c2f55f (Burj Khalifa at night from below) | Unsplash License | 4:5 crop, 1040 px wide |
 | listings-permit-qr.webp | Generated for the demo; the QR code reads "Sample permit QR code for the Marsa Homes demo. Not a real permit." | CC0 1.0 | none |
+| tour-hero.webp | https://images.unsplash.com/photo-1489493585363-d69421e0edd3 (camel caravan on dunes) | Unsplash License | 2000 px wide, colour toned down |
+| tour-story.webp | https://images.unsplash.com/photo-1549944850-84e00be4203b (camels resting at a desert camp) | Unsplash License | 4:5 crop, colour toned down |
+| party-majlis-tent.webp | https://images.unsplash.com/photo-1784749464954-3603b21a7a0d (outdoor majlis lounge under a canopy) | Unsplash License | 4:5 crop, 960 px wide |

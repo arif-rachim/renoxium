@@ -86,7 +86,7 @@ func TestReservationUAEExample(t *testing.T) {
 		}
 	}
 	ar := req(platform.TestRequestInput{Path: "/?lang=ar"})
-	if !strings.Contains(ar.Body, `dir="rtl"`) || !strings.Contains(ar.Body, "سفاري صحراوي مسائي") || !strings.Contains(ar.Body, "سهارى باي") {
+	if !strings.Contains(ar.Body, `dir="rtl"`) || !strings.Contains(ar.Body, "سفاري صحراوي مسائي") || !strings.Contains(ar.Body, "صحارى باي") {
 		t.Fatal("arabic home")
 	}
 	if r := req(platform.TestRequestInput{Path: "/?c=Cars"}); strings.Contains(r.Body, "Dhow Dinner") || !strings.Contains(r.Body, "Nissan Sunny") {
@@ -97,7 +97,7 @@ func TestReservationUAEExample(t *testing.T) {
 		t.Fatalf("tour page: %d %s", r.Status, r.Body)
 	}
 	if r := req(platform.TestRequestInput{Path: "/item/4?lang=ar"}); !strings.Contains(r.Body, `name="start"`) || !strings.Contains(r.Body, "مقعد أطفال") ||
-		!strings.Contains(r.Body, "AED 1000.00") {
+		!strings.Contains(r.Body, "1000.00 د.إ") {
 		t.Fatalf("rental page: %s", r.Body)
 	}
 	if r := req(platform.TestRequestInput{Path: "/item/999"}); r.Status != 404 {
@@ -151,7 +151,7 @@ func TestReservationUAEExample(t *testing.T) {
 		t.Fatalf("after paying: %+v", paid)
 	}
 	page := as(platform.TestRequestInput{Path: "/reservations/1?placed=1"})
-	for _, want := range []string{"<strong>Confirmed</strong>", "Thank you", "Sunset Yacht Trip", "AED 740.00", "AED 35.24", "AED 148.00", "AED 592.00", "Rove Downtown", "Cancel reservation"} {
+	for _, want := range []string{">Confirmed</strong>", "Thank you", "Sunset Yacht Trip", "AED 740.00", "AED 35.24", "AED 148.00", "AED 592.00", "Rove Downtown", "Cancel reservation"} {
 		if !strings.Contains(page.Body, want) {
 			t.Errorf("reservation page lacks %q", want)
 		}
@@ -189,7 +189,7 @@ func TestReservationUAEExample(t *testing.T) {
 		t.Fatalf("rental: %+v", r)
 	}
 	rent := as(platform.TestRequestInput{Path: "/reservations/2"})
-	for _, want := range []string{"<strong>Confirmed</strong>", "Nissan Sunny – 4 days × 2", "AED 720.00", "AED 34.29", "AED 0.00", "AED 2000.00", "(4 days)"} {
+	for _, want := range []string{">Confirmed</strong>", "Nissan Sunny – 4 days × 2", "AED 720.00", "AED 34.29", "AED 0.00", "AED 2000.00", "(4 days)"} {
 		if !strings.Contains(rent.Body, want) {
 			t.Errorf("rental page lacks %q", want)
 		}
@@ -264,7 +264,7 @@ func TestReservationUAEExample(t *testing.T) {
 		t.Fatalf("pay again: %+v", r)
 	}
 	req(platform.TestRequestInput{Method: "POST", Path: r.Location, Form: map[string]string{"decision": "pay"}})
-	if o := as(platform.TestRequestInput{Path: "/reservations/5"}); !strings.Contains(o.Body, "<strong>Confirmed</strong>") || !strings.Contains(o.Body, "AED 280.00") {
+	if o := as(platform.TestRequestInput{Path: "/reservations/5"}); !strings.Contains(o.Body, ">Confirmed</strong>") || !strings.Contains(o.Body, "AED 280.00") {
 		t.Fatalf("paid again: %s", o.Body)
 	}
 
@@ -317,7 +317,7 @@ func TestReservationUAEExample(t *testing.T) {
 	if r := as(platform.TestRequestInput{Method: "POST", Path: "/reservations/3/cancel"}); r.Location != "/reservations/3?cancelled=1" {
 		t.Fatalf("cancel: %+v", r)
 	}
-	if o := as(platform.TestRequestInput{Path: "/reservations/3?cancelled=1"}); !strings.Contains(o.Body, "<strong>Cancelled</strong>") || !strings.Contains(o.Body, "is cancelled") ||
+	if o := as(platform.TestRequestInput{Path: "/reservations/3?cancelled=1"}); !strings.Contains(o.Body, ">Cancelled</strong>") || !strings.Contains(o.Body, "is cancelled") ||
 		strings.Contains(o.Body, "Cancel reservation") {
 		t.Fatalf("cancelled page: %s", o.Body)
 	}
@@ -331,7 +331,7 @@ func TestReservationUAEExample(t *testing.T) {
 	if r := as(platform.TestRequestInput{Method: "POST", Path: "/reservations/6/cancel"}); r.Location != "/reservations/6" {
 		t.Fatalf("late cancel: %+v", r)
 	}
-	if o := as(platform.TestRequestInput{Path: "/reservations/6"}); !strings.Contains(o.Body, "<strong>Confirmed</strong>") || !strings.Contains(o.Body, "Online cancellation is closed") {
+	if o := as(platform.TestRequestInput{Path: "/reservations/6"}); !strings.Contains(o.Body, ">Confirmed</strong>") || !strings.Contains(o.Body, "Online cancellation is closed") {
 		t.Fatal("late cancel changed the reservation")
 	}
 
@@ -527,7 +527,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	}
 
 	// The car's page and checkout explain the hold and ask for documents; a tour does not; party rentals need no documents.
-	has("car page", req(platform.TestRequestInput{Path: "/item/4"}).Body, "Refundable security deposit, held on your card (not charged): AED 1000.00",
+	has("car page", req(platform.TestRequestInput{Path: "/item/4"}).Body, "AED 1000.00", "Refundable: held on your card, not charged",
 		"Driving licence and passport or Emirates ID needed")
 	if r := req(platform.TestRequestInput{Path: "/item/7"}); strings.Contains(r.Body, "Driving licence") || !strings.Contains(r.Body, "held on your card") {
 		t.Error("tent page")
@@ -547,7 +547,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 		"Refundable security deposit: AED 1000.00, held on your card and not charged. Authorise it here: https://sahara--preview.renoxium.test/reservations/1\n",
 		"Please upload your driving licence and passport before the handover: https://sahara--preview.renoxium.test/reservations/1\n")
 	has("reservation 1", as("GET", "/reservations/1", nil).Body, "Not authorised yet.", `action="/reservations/1/deposit"`,
-		"Authorise the deposit on my card: AED 1000.00", "Please upload your driving licence", `action="/reservations/1/documents"`)
+		"Authorise the deposit on my card: <span class=\"price\">AED 1000.00</span>", "Please upload your driving licence", `action="/reservations/1/documents"`)
 	r := as("POST", "/reservations/1/deposit", nil)
 	if !strings.Contains(req(platform.TestRequestInput{Path: r.Location}).Body, "Hold 1000.00 AED on your card") {
 		t.Fatalf("hold page: %+v", r)
@@ -557,7 +557,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	}
 	has("held deposit", as("GET", "/reservations/1?deposit=1", nil).Body, "the security deposit is held on your card", "Held on your card until")
 	has("voucher with the hold", as("GET", "/reservations/1/voucher", nil).Body,
-		"Refundable security deposit, held on your card (not charged): AED 1000.00 · Held on your card until", "Documents still needed")
+		"<dt>Refundable security deposit, held on your card (not charged)</dt><dd>AED 1000.00<span>Held on your card until", "Documents still needed")
 	has("hold email", mails(), `"Security deposit held for reservation #1"`)
 	if r := as("GET", "/reservations/1", nil); strings.Contains(r.Body, `action="/reservations/1/deposit"`) {
 		t.Error("deposit offered again once held")
@@ -625,7 +625,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	if r := as("POST", "/reservations/3/cancel", nil); r.Location != "/reservations/3?cancelled=1" {
 		t.Fatalf("cancel 3: %+v", r)
 	}
-	has("cancelled with a hold", as("GET", "/reservations/3?cancelled=1", nil).Body, "<strong>Cancelled</strong>", "Released. Nothing was charged.", "is cancelled")
+	has("cancelled with a hold", as("GET", "/reservations/3?cancelled=1", nil).Body, ">Cancelled</strong>", "Released. Nothing was charged.", "is cancelled")
 
 	// 4. A paid tour cancelled by the customer is refunded with payments.refund.
 	r = as("POST", "/book", map[string]string{"item": "3", "when": "4_" + dubaiDay(5), "adults": "2", "name": "Amna", "phone": "+971501234567", "payment": "card"})
@@ -633,7 +633,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	if r := as("POST", "/reservations/4/cancel", nil); r.Location != "/reservations/4?cancelled=1" {
 		t.Fatalf("cancel 4: %+v", r)
 	}
-	has("refunded tour", as("GET", "/reservations/4?cancelled=1", nil).Body, "<strong>Refunded</strong>", "is cancelled. Anything you paid online is refunded")
+	has("refunded tour", as("GET", "/reservations/4?cancelled=1", nil).Body, ">Refunded</strong>", "is cancelled. Anything you paid online is refunded")
 	logs, _ := p.Logs("sahara", logFilterAll())
 	for _, want := range []string{"a script refunded AED 100.00 of the payment for res-4 (requested_by_customer)",
 		`to the owner, "Cancelled by customer #4: Sunset Yacht Trip, ` + dubaiDay(5) + `, refunded AED 100.00"`} {
@@ -678,7 +678,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 		t.Fatalf("passport: %+v", r)
 	}
 	has("documents received", as("GET", "/reservations/6?docs=1", nil).Body, "your documents are saved", "Documents received", `href="/_rx/private/`+passport+`"`)
-	has("voucher with documents", as("GET", "/reservations/6/voucher", nil).Body, "Driving licence and passport: Documents received")
+	has("voucher with documents", as("GET", "/reservations/6/voucher", nil).Body, "<dt>Driving licence and passport</dt><dd>Documents received")
 	if logs, _ := p.Logs("sahara", logFilterAll()); countMessages(logs, `to the owner, "Documents received for #6: Nissan Sunny, `+dubaiDay(20)+`, Amna"`) == 0 {
 		t.Error("owner not told about the documents")
 	}
