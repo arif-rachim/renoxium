@@ -143,6 +143,9 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	}
 	w.WriteHeader(out.status)
 	w.Write(out.body)
+	if stageName == Live || demo {
+		p.trafficHit(app, r, out)
+	}
 	return true
 }
 

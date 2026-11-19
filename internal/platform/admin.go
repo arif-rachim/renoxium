@@ -63,12 +63,31 @@ func (p *Platform) stageTable(app, stageName, table string) (*stage, appdef.Tabl
 // AdminList returns one page of a live table, newest first. A non-empty
 // search matches any text column.
 func (p *Platform) AdminList(ctx context.Context, app, table, search string, page int) (rows []map[string]any, total int, err error) {
+	return p.AdminQuery(ctx, app, table, ListQuery{Search: search, Page: page})
+}
+
+// ListQuery is what the admin panel asks of a table: a search, a page,
+// how many rows a page holds and the column to order by. Everything is
+// done in the database, so a table of any size costs one page of rows.
+type ListQuery struct {
+	Search   string
+	Page     int
+	PageSize int    // 25, 50 or 100; anything else means AdminPageSize
+	Sort     string // a column of the table, "id" or "created_at"; "" means id
+	Asc      bool   // oldest or smallest first; the default is newest first
+}
+
+// PageSizes are the page sizes the admin panel offers.
+var PageSizes = []int{25, 50, 100}
+
+// AdminQuery returns one page of a table and how many rows match.
+func (p *Platform) AdminQuery(ctx context.Context, app, table string, q ListQuery) (rows []map[string]any, total int, err error) {
 	st, t, err := p.liveTable(app, table)
 	if err != nil {
 		return nil, 0, err
 	}
 	where, args := "", []any{}
-	if search = strings.TrimSpace(search); search != "" {
+	if search := strings.TrimSpace(q.Search); search != "" {
 		var conds []string
 		for _, c := range t.Columns {
 			if c.Type == "text" || c.Type == "json" {
@@ -90,12 +109,35 @@ func (p *Platform) AdminList(ctx context.Context, app, table, search string, pag
 		return nil, 0, err
 	}
 	total = int(counted[0]["n"].(int64))
-	if page < 1 {
-		page = 1
+	size := AdminPageSize
+	if slices.Contains(PageSizes, q.PageSize) {
+		size = q.PageSize
 	}
-	args = append(args, AdminPageSize, (page-1)*AdminPageSize)
-	rows, err = st.db.Query(ctx, "SELECT * FROM "+quote(t.Name)+where+" ORDER BY id DESC LIMIT ? OFFSET ?", args)
+	page := max(q.Page, 1)
+	order := "id"
+	if q.Sort == "created_at" || hasColumn(t, q.Sort) {
+		order = quote(q.Sort)
+	}
+	dir := " DESC"
+	if q.Asc {
+		dir = " ASC"
+	}
+	orderBy := order + dir
+	if order != "id" {
+		orderBy += ", id" + dir // a stable order across pages
+	}
+	args = append(args, size, (page-1)*size)
+	rows, err = st.db.Query(ctx, "SELECT * FROM "+quote(t.Name)+where+" ORDER BY "+orderBy+" LIMIT ? OFFSET ?", args)
 	return rows, total, err
+}
+
+func hasColumn(t appdef.Table, name string) bool {
+	for _, c := range t.Columns {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // AdminGet returns one row of a live table.

@@ -611,7 +611,7 @@ type SalesPeriod struct {
 // currency (the one with the most payments). Cash on delivery is not seen
 // by the platform.
 func (p *Platform) Sales(ctx context.Context, app string) (currency string, periods []SalesPeriod, err error) {
-	st, err := p.loadStage(app, Live)
+	st, err := p.loadStage(app, p.AdminStage(app))
 	if err != nil || st == nil {
 		return "", nil, err
 	}

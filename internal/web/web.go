@@ -724,11 +724,21 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "top"}}{{template "head" .}}<body>{{template "nav"}}<main>{{end}}
 {{define "wide"}}{{template "head" .}}<body>{{template "nav"}}<main class="wide">{{end}}
 {{define "auth"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a href="/connect">Connect</a></nav></div></header><main>{{end}}
+{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{end}}
+{{define "appbottom"}}</main></div></body></html>{{end}}
+{{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}"><div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
+<nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
+{{define "navlist"}}<ul>{{range .}}<li><a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a></li>{{end}}</ul>{{end}}
+{{define "pager"}}{{if .Total}}<nav class="pager" aria-label="Pages"><span class="muted">{{.From}}–{{.To}} of {{.Of}}</span>{{if gt .Pages 1}}<span class="pages">{{if .Prev}}<a href="{{.Prev}}" rel="prev" aria-label="Previous page">‹</a>{{end}}{{range .Links}}{{if .Ellip}}<span>…</span>{{else}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}{{end}}{{if .Next}}<a href="{{.Next}}" rel="next" aria-label="Next page">›</a>{{end}}</span>{{end}}</nav>{{end}}{{end}}
+{{define "chart"}}<div class="chart">{{if .Bars}}<span class="top" aria-hidden="true">{{.Max}}</span><div class="plot" role="img" aria-label="{{.Title}}, total {{.Total}}">{{range .Bars}}<span class="b{{if .Today}} today{{end}}" tabindex="0"><i style="height:{{.Height}}%"></i><span class="tip">{{.Tip}}</span></span>{{end}}</div>
+<div class="ticks" aria-hidden="true">{{range .Ticks}}<span>{{.}}</span>{{end}}</div>
+<details class="astable"><summary>Show as a table</summary><table class="rx"><thead><tr><th>Day</th><th>Figures</th></tr></thead><tbody>{{range .Rows}}<tr><td>{{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</tbody></table></details>
+{{else}}<p class="empty">{{.Empty}}</p>{{end}}</div>{{end}}
 {{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/">Your apps</a><a href="/templates">Templates</a><a href="/billing">Plan</a><a href="/account">Account</a><a href="/connect">Help</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}} · Renoxium</title>{{template "icons"}}{{template "fonts"}}<style>
-:root{color-scheme:light dark;--brand:#13203a;--fg:#13203a;--muted:#4b5870;--bg:#eef1f5;--card:#fff;--line:#d6dce5;--accent:#13203a;--accent-ink:#fff;--accent-soft:#e6ebf3;--gold:#b8892e;--sun:#b8892e;--sun-soft:#f5ecd9;--live:#1e8a50;--bad:#b3261e;--radius:14px}
-@media (prefers-color-scheme:dark){:root{--brand:#e7ecf4;--fg:#e7ecf4;--muted:#a3afc4;--bg:#0b1424;--card:#121d33;--line:#263552;--accent:#e7ecf4;--accent-ink:#0b1424;--accent-soft:#1b2a47;--gold:#d2a955;--sun:#d2a955;--sun-soft:#3a2f17;--live:#5fd394;--bad:#ff8a80}}
+:root{color-scheme:light dark;--series:#2b4a85;--brand:#13203a;--fg:#13203a;--muted:#4b5870;--bg:#eef1f5;--card:#fff;--line:#d6dce5;--accent:#13203a;--accent-ink:#fff;--accent-soft:#e6ebf3;--gold:#b8892e;--sun:#b8892e;--sun-soft:#f5ecd9;--live:#1e8a50;--bad:#b3261e;--radius:14px}
+@media (prefers-color-scheme:dark){:root{--series:#8fb0ea;--brand:#e7ecf4;--fg:#e7ecf4;--muted:#a3afc4;--bg:#0b1424;--card:#121d33;--line:#263552;--accent:#e7ecf4;--accent-ink:#0b1424;--accent-soft:#1b2a47;--gold:#d2a955;--sun:#d2a955;--sun-soft:#3a2f17;--live:#5fd394;--bad:#ff8a80}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.55 "Readex Pro",system-ui,sans-serif;color:var(--fg);background:var(--bg)}
 a{color:var(--accent);text-decoration-color:var(--muted);text-underline-offset:3px}a:hover{text-decoration-color:var(--gold);text-decoration-thickness:2px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -768,9 +778,73 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--fg);white-space:nowrap}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.live::before{background:var(--live)}.pill.wait{background:var(--sun-soft);border-color:transparent}.pill.wait::before{background:var(--sun)}
 .pill.plain::before{display:none}
+.formcard{max-width:720px}@media(min-width:760px){.formcard{padding:28px 32px}}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .tables a{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--fg)}
 .tables a:hover{border-color:var(--accent)}.tables strong{display:block;font-weight:500}.tables span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.shell{max-width:1320px;margin:0 auto;padding:0 20px;display:grid;grid-template-columns:minmax(0,1fr);gap:24px}.sidenav{min-width:0}
+@media(min-width:1000px){.shell{grid-template-columns:232px minmax(0,1fr);gap:32px}}
+.appmain{min-width:0;max-width:none;margin:0;padding:28px 0 72px}body.app .bar-top .in{max-width:1320px}.grid2>.panel,.grid2>.panel+.panel{margin-top:0}.cur{text-transform:uppercase}
+.sidenav{padding-top:28px}
+@media(min-width:1000px){.sidenav{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding-bottom:24px}}
+.sidenav .who{margin:0 0 18px}.sidenav .who strong{display:block;font-size:17px;font-weight:600;overflow-wrap:anywhere}.sidenav .who .pill{margin-top:6px}
+.sidenav .who a.site{display:inline-block;margin-top:8px;font-size:14px}
+.sidenav h3{font-size:12px;font-weight:500;color:var(--muted);margin:18px 0 6px;letter-spacing:.02em}
+.sidenav ul{list-style:none;margin:0;padding:0}.sidenav li a{display:block;padding:7px 10px;border-radius:8px;color:var(--fg);text-decoration:none;font-size:15px;border-inline-start:3px solid transparent}
+.sidenav li a:hover{background:var(--accent-soft)}.sidenav li a[aria-current]{background:var(--card);border-inline-start-color:var(--gold);font-weight:500;box-shadow:0 1px 2px rgb(19 32 58 / .06)}
+@media(max-width:999px){.sidenav{padding-top:16px}.sidenav .who{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 10px}.sidenav .who .pill{margin:0}.sidenav .who a.site{margin:0}
+.sidenav nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}.sidenav h3{display:none}.sidenav ul{display:contents}
+.sidenav li a{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--card);font-size:14px}.sidenav li a[aria-current]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.appmain{padding-top:8px}.kpi{padding:14px}.kpi .v{font-size:22px}.pagehead h1{font-size:24px}}
+.pagehead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}.pagehead h1{margin:0;font-size:28px;line-height:1.2}
+.pagehead .sub{color:var(--muted);font-size:15px;margin:4px 0 0}.pagehead .acts{display:flex;gap:8px;flex-wrap:wrap}.pagehead .acts .button{margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}.seg a{padding:7px 12px;font-size:14px;color:var(--fg);text-decoration:none}.seg a+a{border-inline-start:1px solid var(--line)}
+.seg a[aria-current]{background:var(--fg);color:var(--bg)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}.kpi .l{font-size:13px;color:var(--muted)}
+.kpi .v{font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.2;margin:4px 0 2px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.kpi .n{font-size:13px;color:var(--muted)}
+.delta{font-size:12.5px;font-weight:500;padding:1px 7px;border-radius:999px;background:var(--bg);margin-inline-start:6px;white-space:nowrap}.delta.up{color:var(--live)}.delta.down{color:var(--bad)}
+.grid2{display:grid;gap:16px}@media(min-width:900px){.grid2{grid-template-columns:1fr 1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;min-width:0}.panel+.panel,.grid2+.panel,.panel+.grid2,.grid2+.grid2{margin-top:16px}
+.panel h2{font-size:16px;margin:0}.panel .ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}.panel .ph .muted{font-size:13px}
+.chart{position:relative}.chart .plot{display:flex;align-items:flex-end;gap:2px;height:168px;border-bottom:1px solid var(--line);background:linear-gradient(var(--line),var(--line)) top/100% 1px no-repeat}
+.chart .b{flex:1;position:relative;height:100%;display:flex;align-items:flex-end;outline:none}
+.chart .b i{display:block;width:100%;background:var(--series);border-radius:4px 4px 0 0;min-height:0}.chart .b.today i{background:var(--gold)}
+.chart .b:hover i,.chart .b:focus i{filter:brightness(1.25)}
+.chart .b .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);font-size:12.5px;line-height:1.35;padding:6px 9px;border-radius:7px;white-space:nowrap;z-index:5;pointer-events:none}
+.chart .b:hover .tip,.chart .b:focus .tip{display:block}.chart .b:first-child .tip{left:0;transform:none}.chart .b:last-child .tip{left:auto;right:0;transform:none}
+.chart .top{position:absolute;top:-9px;inset-inline-end:0;font-size:12px;color:var(--muted);background:var(--card);padding-inline-start:6px}
+.chart .ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+.chart .empty{height:168px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:10px;padding:16px}
+details.astable{margin-top:10px;font-size:13px}details.astable summary{cursor:pointer;color:var(--muted)}details.astable table{margin-top:8px}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:8px}.bars li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:14px}
+.bars .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bars .ct{font-variant-numeric:tabular-nums;color:var(--muted)}
+.bars .tr{grid-column:1/-1;height:6px;border-radius:3px;background:var(--bg)}.bars .tr i{display:block;height:100%;border-radius:3px;background:var(--series)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}.toolbar form.search{display:flex;gap:6px;flex:1;min-width:220px;max-width:420px}.toolbar form.search input{margin:0}
+.toolbar .button,.toolbar button{margin:0}.toolbar .sp{flex:1}
+details.pick{position:relative}details.pick summary{list-style:none;cursor:pointer;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:15px}details.pick summary::-webkit-details-marker{display:none}
+details.pick .menu{position:absolute;z-index:20;inset-inline-end:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:240px;max-height:60vh;overflow:auto;box-shadow:0 12px 32px -12px rgb(0 0 0 / .3)}
+details.pick .menu label{display:flex;gap:8px;align-items:center;margin:6px 0;font-weight:400}details.pick .menu input{width:auto}details.pick .menu button{width:100%;margin-top:10px}
+table.rx{border-collapse:separate;border-spacing:0;width:100%;font-size:14.5px}
+table.rx th{position:sticky;top:0;background:var(--card);z-index:1;text-align:start;font-weight:500;font-size:13px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.rx th a{color:inherit;text-decoration:none}table.rx th a:hover{color:var(--fg)}table.rx th .dir{color:var(--gold);margin-inline-start:4px}
+table.rx td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.rx tbody tr:hover td{background:var(--accent-soft)}table.rx td.id a{font-weight:600;font-variant-numeric:tabular-nums}
+table.rx td.num{font-variant-numeric:tabular-nums}table.rx img{width:40px;height:40px;object-fit:cover;border-radius:8px;display:block}
+.tablebox{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:auto;max-height:72vh}
+.tag{display:inline-block;font-size:12.5px;font-weight:500;padding:2px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.pager{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;margin-top:14px;font-size:14px}
+.pager .pages{display:flex;gap:4px;flex-wrap:wrap}.pager .pages a,.pager .pages span{min-width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);text-decoration:none;padding:0 8px}
+.pager .pages a[aria-current]{background:var(--fg);color:var(--bg);border-color:var(--fg)}.pager .pages span{border:0;background:none}
+.pager form{display:flex;gap:6px;align-items:center}.pager select{width:auto;padding:6px 8px;margin:0}
+@media(max-width:760px){.tablebox{background:none;border:0;max-height:none;overflow:visible}
+table.rx,table.rx tbody{display:block}table.rx thead{display:none}
+table.rx tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+table.rx tbody tr:hover td{background:none}
+table.rx td{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;padding:4px 0;max-width:none;white-space:normal;text-align:end}
+table.rx td::before{content:attr(data-label);color:var(--muted);font-size:13px;text-align:start;flex:none}
+table.rx td.t{grid-column:1;grid-row:1;font-weight:600;font-size:16px;text-align:start;display:block}table.rx td.t::before,table.rx td.id::before{display:none}
+table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act{justify-content:flex-end}table.rx td.act::before{display:none}}
 @media (max-width:640px){main{margin-top:20px}.card{padding:18px}.bar input{width:100%}.bar form{flex:1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head>{{end}}
@@ -857,52 +931,26 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 {{define "demo_note"}}<p class="note" style="border:1px dashed var(--accent);background:var(--accent-soft)">
 This is the owner's admin panel of a template demo, shown read-only. In your own app you add, change and delete here, on your phone or computer. The data is public and deleted every hour.</p>{{end}}
 
-{{define "demo_admin_app"}}{{template "wide" .App}}<p class="crumbs"><a href="/templates">Templates</a></p>
-<div style="display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:16px"><div><h1 style="margin:0 0 4px;font-size:28px">{{.App}}</h1><span class="pill plain">Owner's admin panel, read-only</span></div>
-<a class="button secondary" style="margin:0" href="{{.DemoURL}}/">Open the demo site</a></div>{{template "demo_note"}}
-<h2 style="margin:20px 0 10px">Your data</h2>{{if .Tables}}<div class="tables">{{range .Tables}}<a href="/apps/{{$.App}}/t/{{.Name}}"><strong>{{.Label}}</strong><span>{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</span></a>{{end}}</div>{{end}}
-<div class="card" style="margin-top:24px"><h2>In your own app you also get</h2><p class="muted">Card sales and refunds, staff access, scheduled reports by email, new orders on WhatsApp, your own domain and your customers' accounts.</p>
-<div class="row"><a class="button" style="margin-top:4px" href="/signup">Create your account</a><a class="button secondary" style="margin-top:4px" href="/connect">Connect ChatGPT or Claude</a></div></div>{{template "bottom"}}{{end}}
-
-{{define "admin_app"}}{{template "wide" .Info.App}}<style>
-.ahead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:20px}.ahead h1{margin:0 0 4px;font-size:28px}
-.ahead .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ahead .acts .button{margin:0}
-.agrid{display:grid;gap:20px}@media(min-width:900px){.agrid{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
-.sec{margin-bottom:24px}.sec>h2{margin:0 0 10px}
-.side .card{padding:18px 20px}.side h2{font-size:16px;margin-bottom:8px}
-.addr{margin:0}.addr dt{font-size:13px;color:var(--muted);margin-top:10px}.addr dt:first-child{margin-top:0}.addr dd{margin:0;overflow-wrap:anywhere;font-size:15px}
-.links{list-style:none;padding:0;margin:0}.links li{border-top:1px solid var(--line)}.links li:first-child{border-top:0}
-.links a{display:flex;justify-content:space-between;gap:12px;padding:10px 0;text-decoration:none;color:var(--fg)}.links a:hover strong{color:var(--accent)}
-.links strong{font-weight:500}.links span{font-size:13.5px;color:var(--muted);text-align:end}
-.errs{list-style:none;padding:0;margin:0}.errs li{padding:10px 0;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}.errs li:first-child{border-top:0}
-</style>
-<p class="crumbs"><a href="/">Your apps</a></p>
-<div class="ahead"><div><h1>{{.Info.App}}</h1><span class="pill {{.Status}}">{{.StatusText}}</span></div>
-<div class="acts">{{if .Info.LiveVersion}}<a class="button secondary" href="{{.Info.LiveURL}}/">Open site</a>{{end}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>
-{{if and .IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}</div></div>
-<div class="agrid"><div>
-{{if .Sales}}<section class="sec"><h2>Card sales</h2><div class="tiles">{{range .Sales}}<div class="tile"><div class="muted">{{.Label}}</div>
-<div class="big">{{$.Currency}} {{printf "%.2f" .Amount}}</div><div class="muted">{{.Count}} payment{{if ne .Count 1}}s{{end}}</div></div>{{end}}</div>
-<p class="muted">Card payments only. Cash-on-delivery orders are in your orders table.</p></section>{{end}}
-<section class="sec"><h2>Your data</h2>{{if .Tables}}<div class="tables">{{range .Tables}}<a href="/apps/{{$.Info.App}}/t/{{.Name}}"><strong>{{.Label}}</strong><span>{{.Rows}} {{if eq .Rows 1}}row{{else}}rows{{end}}</span></a>{{end}}</div>
-{{else}}<div class="card"><p style="margin:0">{{if .Info.LiveVersion}}This app has no data tables.{{else}}Publish the app to manage its products, orders and bookings here. Until then, check it in the preview.{{end}}</p></div>{{end}}</section>
-{{if .Problems}}<section class="sec"><h2>Recent errors</h2><div class="card"><p class="muted">Ask your assistant to "check the Renoxium logs and fix the errors".</p><ul class="errs">{{range .Problems}}<li><span class="muted">{{.Time}}</span><br>{{.Message}}</li>{{end}}</ul></div></section>{{end}}
-{{if .IsOwner}}{{with .Jobs}}<section class="sec"><h2>Scheduled jobs</h2><div class="card"><div class="scroll"><table><thead><tr><th>Job</th><th>Runs</th><th>Last run</th><th>Next run</th></tr></thead><tbody>
-{{range .}}<tr><td>{{.Name}}</td><td>{{.Schedule}}</td><td>{{if .Status}}{{.LastRun.UTC.Format "2 Jan 15:04"}} UTC · {{if eq .Status "ok"}}<span class="ok">ok</span>{{else}}<span class="error">{{.Message}}</span>{{end}}{{else}}not yet{{end}}</td><td>{{if not .NextRun.IsZero}}{{.NextRun.UTC.Format "2 Jan 15:04"}} UTC{{end}}</td></tr>{{end}}
-</tbody></table></div></div></section>{{end}}{{end}}
-</div><aside class="side">
-<div class="card"><h2>Addresses</h2><dl class="addr">{{if .Info.LiveVersion}}<dt>Your site</dt><dd><a href="{{.Info.LiveURL}}/">{{.Info.LiveURL}}</a></dd>{{end}}
-<dt>Preview, version {{.Info.PreviewVersion}}</dt><dd><a href="/apps/{{.Info.App}}/preview">Open the private preview</a></dd>
-{{with .MCPURL}}<dt>For customers' AI assistants</dt><dd><input readonly value="{{.}}" aria-label="Address for AI assistants" onfocus="this.select()" style="font:13px ui-monospace,monospace;padding:8px 10px;margin-top:4px"></dd>{{end}}</dl></div>
-{{if .IsOwner}}<div class="card"><h2>Settings</h2><ul class="links">
-<li><a href="/apps/{{.Info.App}}/payments"><strong>Payments</strong><span>Stripe, refunds</span></a></li>
-<li><a href="/apps/{{.Info.App}}/notifications"><strong>Notifications</strong><span>orders on WhatsApp</span></a></li>
-<li><a href="/apps/{{.Info.App}}/staff"><strong>Staff</strong><span>people who help you</span></a></li>
-<li><a href="/apps/{{.Info.App}}/domain"><strong>Domain</strong><span>www.yourshop.com</span></a></li>
-<li><a href="/apps/{{.Info.App}}/connections"><strong>Connections</strong><span>other sites, API keys</span></a></li>
-{{if .Info.LiveVersion}}<li><a href="/apps/{{.Info.App}}/visitors"><strong>Customer accounts</strong><span>{{.Visitors}} signed up</span></a></li>{{end}}
-</ul></div>{{else}}<div class="card"><p class="muted" style="margin:0">You have staff access to this app.</p>{{if .Info.LiveVersion}}<ul class="links" style="margin-top:8px"><li><a href="/apps/{{.Info.App}}/visitors"><strong>Customer accounts</strong><span>{{.Visitors}} signed up</span></a></li></ul>{{end}}</div>{{end}}
-</aside></div>{{template "bottom"}}{{end}}
+{{define "admin_app"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Overview</h1><p class="sub">{{if .Shell.Demo}}What the owner of this template sees every day.{{else if not .Shell.IsOwner}}You have staff access to this app.{{else}}How {{.Info.App}} is doing, in UAE time.{{end}}</p></div>
+<div class="acts"><nav class="seg" aria-label="Period">{{range .Periods}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
+{{if and .Shell.IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}
+{{if not .Shell.Demo}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>{{end}}</div></div>
+<div class="kpis">{{range .KPIs}}<div class="kpi"><div class="l">{{.Label}}</div><div class="v">{{.Value}}</div><div class="n">{{if .Change}}<span class="delta{{if .Up}} up{{end}}{{if .Down}} down{{end}}" title="against the {{$.Days}} days before">{{.Change}}</span> {{end}}{{.Note}}</div></div>{{end}}</div>
+<section class="panel"><div class="ph"><h2>{{.VisitorsChart.Title}}</h2><span class="muted">last {{.Days}} days · gold is today</span></div>{{template "chart" .VisitorsChart}}</section>
+<div class="grid2"><section class="panel"><div class="ph"><h2>Most viewed pages</h2><span class="muted">page views</span></div>{{if .Pages}}<ul class="bars">{{range .Pages}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul>{{else}}<p class="muted">No visits yet.</p>{{end}}</section>
+<section class="panel"><div class="ph"><h2>Where visitors come from</h2><span class="muted">page views</span></div>{{if .Sources}}<ul class="bars">{{range .Sources}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul><p class="muted" style="margin:12px 0 0">Add <code>?utm_source=instagram</code> to links you share to see each channel here.</p>{{else}}<p class="muted">No visits yet.</p>{{end}}</section></div>
+<section class="panel"><div class="ph"><h2>{{.SalesChart.Title}}</h2><span class="muted">total {{.SalesChart.Total}}</span></div>{{template "chart" .SalesChart}}</section>
+{{if .Shell.IsOwner}}<section class="panel"><div class="ph"><h2>Latest payments</h2><a href="/apps/{{.Info.App}}/payments">All payments</a></div>{{if .Recent}}<div class="tablebox" style="border:0;max-height:none"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Date</th></tr></thead><tbody>
+{{range .Recent}}<tr><td class="t" data-label="Order">{{.Reference}}</td><td data-label="Status"><span class="tag">{{.Status}}</span></td><td class="num" data-label="Amount"><span>{{printf "%.2f" .Amount}} <span class="cur">{{.Currency}}</span></span></td><td data-label="Customer">{{.CustomerEmail}}</td><td data-label="Date">{{.CreatedAt}}</td></tr>{{end}}</tbody></table></div>{{else}}<p class="muted" style="margin:0">No card payments yet. <a href="/apps/{{.Info.App}}/payments">Connect Stripe</a> to take cards; cash orders are in your tables.</p>{{end}}</section>{{end}}
+<section class="panel"><div class="ph"><h2>Your data</h2><span class="muted">tap a table to search, sort and edit</span></div><div class="tables">{{range .Tiles}}<a href="{{.Href}}"><strong>{{.Label}}</strong><span>{{.Rows}}{{with .Week}} · <b style="color:var(--live);font-weight:500">{{.}}</b>{{end}}</span></a>{{end}}</div></section>
+{{if .Problems}}<section class="panel"><div class="ph"><h2>Recent errors</h2><span class="muted">ask your assistant to "check the Renoxium logs and fix the errors"</span></div><ul class="errs" style="list-style:none;padding:0;margin:0">{{range .Problems}}<li style="padding:8px 0;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere"><span class="muted">{{.Time}}</span><br>{{.Message}}</li>{{end}}</ul></section>{{end}}
+<div class="grid2">{{if and .Shell.IsOwner .Jobs}}<section class="panel"><div class="ph"><h2>Scheduled jobs</h2></div><table class="rx"><thead><tr><th>Job</th><th>Runs</th><th>Last run</th></tr></thead><tbody>
+{{range .Jobs}}<tr><td class="t" data-label="Job">{{.Name}}</td><td data-label="Runs">{{.Schedule}}</td><td data-label="Last run">{{if .Status}}{{.LastRun.UTC.Format "2 Jan 15:04"}} UTC · {{if eq .Status "ok"}}<span class="ok">ok</span>{{else}}<span class="error">{{.Message}}</span>{{end}}{{else}}not yet{{end}}</td></tr>{{end}}</tbody></table></section>{{end}}
+<section class="panel"><div class="ph"><h2>Addresses</h2></div><dl class="addr" style="margin:0">{{with .Shell.SiteURL}}<dt class="muted" style="font-size:13px">Your site</dt><dd style="margin:0 0 10px;overflow-wrap:anywhere"><a href="{{.}}/">{{.}}</a></dd>{{end}}
+{{with .MCPURL}}<dt class="muted" style="font-size:13px">For customers' AI assistants</dt><dd style="margin:0"><input readonly value="{{.}}" aria-label="Address for AI assistants" onfocus="this.select()" style="font:13px ui-monospace,monospace;padding:8px 10px;margin-top:4px"></dd>{{end}}</dl>
+{{if .Shell.Demo}}<p style="margin:14px 0 0"><a class="button" href="/signup" style="margin:0">Create your account</a></p>{{end}}</section></div>
+{{template "appbottom"}}{{end}}
 
 {{define "publish"}}{{template "top" "Publish"}}<p class="crumbs"><a href="/apps/{{.Info.App}}">{{.Info.App}}</a></p>
 <form class="card" method="post" action="/apps/{{.Info.App}}/publish"><h1>{{if .Rollback}}Roll back{{else}}Publish{{end}} version {{.Version}}?</h1>
@@ -912,16 +960,22 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
 <button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "bottom"}}{{end}}
 
-{{define "admin_list"}}{{template "wide" .Label}}<p class="crumbs">{{if .Demo}}<a href="/templates">Templates</a>{{else}}<a href="/">Your apps</a>{{end}} / <a href="/apps/{{.App}}">{{.App}}</a></p>{{if .Demo}}{{template "demo_note"}}{{end}}<div class="card">
-{{if .HasCalendar}}<p style="display:flex;gap:16px"><strong>List</strong><a href="/apps/{{.App}}/t/{{.Table}}/calendar">Calendar</a></p>{{end}}
-<div class="bar"><h1 style="margin:0">{{.Label}} <span class="muted">({{.Total}})</span></h1>
-<form method="get"><input name="q" value="{{.Query}}" placeholder="Search" aria-label="Search"><button class="secondary">Search</button></form>
-{{if not .Demo}}<a class="button" href="/apps/{{.App}}/t/{{.Table}}/new">Add</a>{{end}}</div>
-{{with .Notice}}<p class="error">{{.}}</p>{{end}}{{if .Cells}}<div class="scroll"><table><thead><tr>{{range .Columns}}<th>{{.Label}}</th>{{end}}</tr></thead><tbody>
-{{range $i, $row := .Cells}}<tr>{{range $j, $v := $row}}<td>{{if eq $j 0}}<a href="/apps/{{$.App}}/t/{{$.Table}}/{{index $.IDs $i}}">{{$v}}</a>{{else}}{{$v}}{{end}}</td>{{end}}</tr>{{end}}
+{{define "admin_list"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>{{.Label}}</h1><p class="sub">{{.Pager.Of}} {{if eq .Total 1}}row{{else}}rows{{end}}{{if .Query}} matching "{{.Query}}"{{end}}</p></div>
+<div class="acts">{{if .HasCalendar}}<nav class="seg" aria-label="View"><a href="/apps/{{.App}}/t/{{.Table}}" aria-current="true">List</a><a href="/apps/{{.App}}/t/{{.Table}}/calendar">Calendar</a></nav>{{end}}
+{{if not .Demo}}<a class="button" href="/apps/{{.App}}/t/{{.Table}}/new">Add</a>{{end}}</div></div>
+{{with .Notice}}<p class="error">{{.}}</p>{{end}}
+<div class="toolbar"><form class="search" method="get" role="search">{{range $k, $v := .Keep}}{{if ne $k "q"}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}{{end}}{{with .ColsParam}}<input type="hidden" name="cols" value="{{.}}">{{end}}
+<input name="q" value="{{.Query}}" placeholder="Search {{.Label}}" aria-label="Search"><button class="secondary">Search</button></form><span class="sp"></span>
+<details class="pick"><summary>Columns</summary><form class="menu" method="get">{{range $k, $v := .Keep}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}
+<p class="muted" style="margin:0 0 4px">Show these columns</p>{{range .Choices}}<label><input type="checkbox" name="c" value="{{.Name}}"{{if .Shown}} checked{{end}}> {{.Label}}</label>{{end}}<button>Apply</button></form></details></div>
+{{if .Rows}}<div class="tablebox"><table class="rx"><thead><tr>{{range .Columns}}<th scope="col"{{with .SortDir}} aria-sort="{{if eq . "asc"}}ascending{{else}}descending{{end}}"{{end}}><a href="{{.SortHref}}">{{.Label}}{{with .SortDir}}<span class="dir" aria-hidden="true">{{if eq . "asc"}}↑{{else}}↓{{end}}</span>{{end}}</a></th>{{end}}</tr></thead><tbody>
+{{range .Rows}}{{$id := .ID}}<tr><td class="id" data-label="#"><a href="/apps/{{$.App}}/t/{{$.Table}}/{{$id}}" aria-label="Open row {{$id}}">#{{$id}}</a></td>{{range .Cells}}<td{{if .Title}} class="t"{{end}} data-label="{{.Label}}">{{if .Image}}<img src="{{.Image}}" alt="" loading="lazy">{{else if .Pill}}<span class="tag">{{.Pill}}</span>{{else if .Title}}<a href="/apps/{{$.App}}/t/{{$.Table}}/{{$id}}" style="color:inherit;text-decoration:none">{{if .Text}}{{.Text}}{{else}}—{{end}}</a>{{else}}{{.Text}}{{end}}</td>{{end}}</tr>{{end}}
 </tbody></table></div>
-{{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
-{{else}}<p>{{if .Query}}Nothing matches "{{.Query}}".{{else}}No rows yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+<div class="pager">{{template "pager" .Pager}}<form method="get">{{range $k, $v := .Keep}}{{if ne $k "size"}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}{{end}}{{with .ColsParam}}<input type="hidden" name="cols" value="{{.}}">{{end}}
+<label for="size" class="muted" style="margin:0;font-weight:400">Rows per page</label><select id="size" name="size" onchange="this.form.submit()">{{range .Sizes}}<option{{if eq . $.Size}} selected{{end}}>{{.}}</option>{{end}}</select><noscript><button class="secondary">Go</button></noscript></form></div>
+{{else}}<div class="panel"><p style="margin:0">{{if .Query}}Nothing matches "{{.Query}}". <a href="?">Clear the search</a>{{else}}No rows yet.{{if not .Demo}} <a href="/apps/{{.App}}/t/{{.Table}}/new">Add the first one</a>.{{end}}{{end}}</p></div>{{end}}
+{{template "appbottom"}}{{end}}
 
 {{define "operator"}}{{template "wide" "Operator"}}<p class="crumbs"><a href="/">Your apps</a></p>
 <div class="card"><h1>Renoxium operator</h1>{{with .Health}}{{range .Problems}}<p class="error">{{.}}</p>{{end}}{{end}}<div class="tiles">
@@ -1055,8 +1109,7 @@ your app can send it data, including your customers' details.</p>
 <input id="email" name="email" type="email" required><button>Add staff member</button></form>
 <p class="muted">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
-{{define "admin_payments"}}{{template "wide" "Payments"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
-<h1>Payments</h1>
+{{define "admin_payments"}}{{template "apptop" .}}<div class="pagehead"><div><h1>Payments</h1><p class="sub">Card payments through your Stripe account.</p></div></div><div class="card">
 {{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
 {{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and on the Free plan Renoxium takes {{.Fee}}% of each card payment (<a href="/billing">no fee on Pro and Business</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
 <div class="note"><p><strong>Before you start, have these ready.</strong> Stripe checks every business by law, and its form takes 15–30 minutes. In the UAE it usually asks for:</p>
@@ -1068,38 +1121,37 @@ your app can send it data, including your customers' details.</p>
 {{else}}<p>Your Stripe account is connected but not ready to take payments yet{{if .Account.DetailsSubmitted}}: Stripe is reviewing your details{{end}}.</p>
 <form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Continue Stripe setup</button></form>{{end}}
 {{with .Notice}}<p class="ok" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
-<h1 style="margin-top:24px">Recent payments</h1>
-{{if .Payments}}<div class="scroll"><table><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th><th></th></tr></thead><tbody>
-{{range .Payments}}<tr><td>{{.Reference}}</td><td>{{if eq .Status "authorized"}}card hold{{with .HoldExpiresAt}}, take by {{.}} UTC{{end}}{{else}}{{.Status}}{{end}}</td>
-<td>{{printf "%.2f" .Amount}} {{.Currency}}{{if gt .Refunded 0.0}}<br><span class="muted">{{printf "%.2f" .Refunded}} refunded</span>{{end}}</td><td>{{.CustomerEmail}}</td><td>{{.CreatedAt}}</td>
-<td>{{if gt .Refundable 0.0}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/refund" class="inline" onsubmit="return confirm('Refund this payment to the card?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+</div><div class="pagehead" style="margin:28px 0 12px"><h2 style="margin:0;font-size:20px">All payments <span class="muted" style="font-weight:400">({{.Total}})</span></h2><nav class="seg" aria-label="Status">{{range .Filters}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
+{{if .Payments}}<div class="tablebox"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th><th></th></tr></thead><tbody>
+{{range .Payments}}<tr><td class="t" data-label="Order">{{.Reference}}</td><td data-label="Status"><span class="tag">{{if eq .Status "authorized"}}card hold{{with .HoldExpiresAt}}, take by {{.}} UTC{{end}}{{else}}{{.Status}}{{end}}</span></td>
+<td class="num" data-label="Amount"><span>{{printf "%.2f" .Amount}} <span class="cur">{{.Currency}}</span></span>{{if gt .Refunded 0.0}}<br><span class="muted">{{printf "%.2f" .Refunded}} refunded</span>{{end}}</td><td data-label="Customer">{{.CustomerEmail}}</td><td data-label="Started">{{.CreatedAt}}</td>
+<td class="act">{{if gt .Refundable 0.0}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/refund" class="inline" onsubmit="return confirm('Refund this payment to the card?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Refundable}}" aria-label="Amount to refund (empty = {{printf "%.2f" .Refundable}})" style="width:7em;margin:0"> <button class="secondary" style="margin:0;padding:4px 10px">Refund</button></form>
 {{else if eq .Status "authorized"}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/capture" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Authorized}}" aria-label="Amount to take (empty = all {{printf "%.2f" .Authorized}})" style="width:7em;margin:0"> <button style="margin:0;padding:4px 10px">Capture</button></form>
 <form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/release" class="inline" onsubmit="return confirm('Release the hold? Nothing is charged.')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin:0;padding:4px 10px">Release</button></form>{{end}}</td></tr>{{end}}
-</tbody></table></div><p class="muted">Refund: leave the amount empty to refund everything that is left, or type part of it. On the Free plan Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
-{{else}}<p class="muted">No payments yet.</p>{{end}}
-{{if .Subscriptions}}<h1 style="margin-top:24px">Subscriptions</h1><div class="scroll"><table><thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Next payment</th><th>Customer</th><th></th></tr></thead><tbody>
-{{range .Subscriptions}}<tr><td>{{.Reference}}</td><td>{{.Status}}{{if .CancelAtPeriodEnd}}{{if ne .Status "canceled"}}, ends at period end{{end}}{{end}}</td>
-<td>{{printf "%.2f" .Amount}} {{.Currency}} every {{if gt .IntervalCount 1}}{{.IntervalCount}} {{.Interval}}s{{else}}{{.Interval}}{{end}}<br><span class="muted">{{.PaymentsMade}} paid</span></td>
-<td>{{if and (ne .Status "canceled") (not .CancelAtPeriodEnd)}}{{.CurrentPeriodEnd}}{{else}}—{{end}}</td><td>{{.CustomerEmail}}</td>
-<td>{{if ne .Status "canceled"}}<form method="post" action="/apps/{{$.App}}/subscriptions/{{.ID}}/cancel" class="inline" onsubmit="return confirm('Cancel this subscription?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+</tbody></table></div>{{template "pager" .Pager}}<p class="muted" style="margin-top:12px">Refund: leave the amount empty to refund everything that is left, or type part of it. On the Free plan Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
+{{else}}<div class="panel"><p class="muted" style="margin:0">{{if .Filter}}No payments with this status.{{else}}No payments yet.{{end}}</p></div>{{end}}
+{{if .Subscriptions}}<h2 style="margin:28px 0 12px;font-size:20px">Subscriptions</h2><div class="tablebox"><table class="rx"><thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Next payment</th><th>Customer</th><th></th></tr></thead><tbody>
+{{range .Subscriptions}}<tr><td class="t" data-label="Reference">{{.Reference}}</td><td data-label="Status">{{.Status}}{{if .CancelAtPeriodEnd}}{{if ne .Status "canceled"}}, ends at period end{{end}}{{end}}</td>
+<td data-label="Amount"><span>{{printf "%.2f" .Amount}} <span class="cur">{{.Currency}}</span></span> every {{if gt .IntervalCount 1}}{{.IntervalCount}} {{.Interval}}s{{else}}{{.Interval}}{{end}}<br><span class="muted">{{.PaymentsMade}} paid</span></td>
+<td data-label="Next payment">{{if and (ne .Status "canceled") (not .CancelAtPeriodEnd)}}{{.CurrentPeriodEnd}}{{else}}—{{end}}</td><td data-label="Customer">{{.CustomerEmail}}</td>
+<td class="act">{{if ne .Status "canceled"}}<form method="post" action="/apps/{{$.App}}/subscriptions/{{.ID}}/cancel" class="inline" onsubmit="return confirm('Cancel this subscription?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <select name="when" aria-label="When" style="margin:0;width:auto"><option value="period_end">At period end</option><option value="now">Now</option></select> <button class="danger" style="margin:0;padding:4px 10px">Cancel</button></form>{{end}}</td></tr>{{end}}
-</tbody></table></div><p class="muted">Cancelling never refunds a payment already made; refund it above if needed.</p>{{end}}</div>{{template "bottom"}}{{end}}
+</tbody></table></div><p class="muted" style="margin-top:12px">Cancelling never refunds a payment already made; refund it above if needed.</p>{{end}}{{template "appbottom"}}{{end}}
 
-{{define "admin_visitors"}}{{template "wide" "Visitors"}}<p class="crumbs"><a href="/">Your apps</a> / <a href="/apps/{{.App}}">{{.App}}</a></p><div class="card">
-<div class="bar"><h1 style="margin:0">Visitor accounts <span class="muted">({{.Total}})</span></h1>
-<form method="get"><input name="q" value="{{.Query}}" placeholder="Search email, number or name" aria-label="Search"><button class="secondary">Search</button></form></div>
-<p class="muted">People who created an account on your app. Passwords are never shown to anyone. Deleting an account also deletes the files that person uploaded.</p>
-{{if .Visitors}}<div class="scroll"><table><thead><tr><th>#</th><th>Email</th><th>WhatsApp</th><th>Name</th><th>Confirmed</th><th>Files</th><th>Joined</th><th></th></tr></thead><tbody>
-{{range .Visitors}}<tr><td>{{.ID}}</td><td>{{.Email}}</td><td>{{.Phone}}</td><td>{{.Name}}</td><td>{{if .Verified}}Yes{{else}}No{{end}}</td><td>{{.Files}}</td><td>{{.CreatedAt}}</td>
-<td><form method="post" action="/apps/{{$.App}}/visitors/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" style="margin:0;padding:4px 10px">Delete</button></form></td></tr>{{end}}
-</tbody></table></div>
-{{if gt .Pages 1}}<div class="pager">{{if gt .Page 1}}<a href="?q={{.Query}}&page={{.Prev}}">Newer</a>{{end}}<span class="muted">Page {{.Page}} of {{.Pages}}</span>{{if lt .Page .Pages}}<a href="?q={{.Query}}&page={{.Next}}">Older</a>{{end}}</div>{{end}}
-{{else}}<p>{{if .Query}}Nobody matches "{{.Query}}".{{else}}No visitor accounts yet.{{end}}</p>{{end}}</div>{{template "bottom"}}{{end}}
+{{define "admin_visitors"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Customer accounts</h1><p class="sub">People who signed up on your site. Passwords are never shown to anyone.</p></div></div>
+<div class="toolbar"><form class="search" method="get" role="search"><input name="q" value="{{.Query}}" placeholder="Search email, number or name" aria-label="Search"><button class="secondary">Search</button></form></div>
+{{if .Visitors}}<div class="tablebox"><table class="rx"><thead><tr><th>Name</th><th>#</th><th>Email</th><th>WhatsApp</th><th>Confirmed</th><th>Files</th><th>Joined</th><th></th></tr></thead><tbody>
+{{range .Visitors}}<tr><td class="t" data-label="Name">{{if .Name}}{{.Name}}{{else}}—{{end}}</td><td class="id" data-label="#">#{{.ID}}</td><td data-label="Email">{{.Email}}</td><td data-label="WhatsApp">{{.Phone}}</td><td data-label="Confirmed"><span class="tag">{{if .Verified}}Yes{{else}}No{{end}}</span></td><td class="num" data-label="Files">{{.Files}}</td><td data-label="Joined">{{.CreatedAt}}</td>
+<td class="act"><form method="post" action="/apps/{{$.App}}/visitors/{{.ID}}/delete" onsubmit="return confirm('Delete this account and the files this person uploaded?')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" style="margin:0;padding:5px 12px">Delete</button></form></td></tr>{{end}}
+</tbody></table></div>{{template "pager" .Pager}}
+{{else}}<div class="panel"><p style="margin:0">{{if .Query}}Nobody matches "{{.Query}}".{{else}}No customer accounts yet. They appear when people sign up on your site.{{end}}</p></div>{{end}}
+{{template "appbottom"}}{{end}}
 
-{{define "admin_form"}}{{template "top" .Label}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a> / <a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>{{if .Demo}}{{template "demo_note"}}{{end}}
-<form class="card" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>{{if .Demo}}<fieldset disabled style="border:0;padding:0;margin:0">{{end}}
+{{define "admin_form"}}{{template "apptop" .}}<p class="crumbs"><a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>
+<form class="card formcard" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>{{if .Demo}}<fieldset disabled style="border:0;padding:0;margin:0">{{end}}
 {{if .Saved}}<p class="ok">Saved.</p>{{end}}{{with .Notice}}<p class="error">{{.}}</p>{{end}}{{if .HasErrors}}<p class="error">Check the highlighted fields.{{with .Error}} {{.}}{{end}}</p>{{end}}
 {{with .Created}}<p class="muted">Created {{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}
@@ -1117,7 +1169,7 @@ your app can send it data, including your customers' details.</p>
 {{with .Help}}<p class="muted help">{{.}}</p>{{end}}{{with .Error}}<p class="field-error">{{.}}</p>{{end}}{{end}}
 {{if .Demo}}</fieldset>{{else}}<button>Save</button>{{end}}</form>
 {{if and .ID (not .Demo)}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
-{{template "bottom"}}{{end}}
+{{template "appbottom"}}{{end}}
 
 {{define "connect"}}{{template "wide" "Connect"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>

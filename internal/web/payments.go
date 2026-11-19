@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -59,10 +60,20 @@ func (s *Site) renderPayments(w http.ResponseWriter, r *http.Request, u accounts
 	if err != nil {
 		slog.Error("payment account", "app", app, "err", err)
 	}
-	list, _ := s.platform.Payments(r.Context(), app, 50)
-	subs, _ := s.platform.Subscriptions(r.Context(), app, 50)
-	render(w, status, "admin_payments", map[string]any{"App": app, "Account": pa, "Payments": list, "Subscriptions": subs,
-		"CSRF": s.csrfToken(w, r), "Fee": fee, "Notice": notice, "Error": problem})
+	filter := r.URL.Query().Get("status")
+	if !slices.Contains([]string{"", "paid", "pending", "authorized", "refunded", "released", "failed", "expired"}, filter) {
+		filter = ""
+	}
+	page := pageParam(r)
+	list, total, _ := s.platform.PaymentsPage(r.Context(), app, filter, page)
+	subs, _, _ := s.platform.SubscriptionsPage(r.Context(), app, 1)
+	var filters []shellLink
+	for _, f := range []struct{ v, l string }{{"", "All"}, {"paid", "Paid"}, {"pending", "Waiting"}, {"authorized", "Card holds"}, {"refunded", "Refunded"}} {
+		filters = append(filters, shellLink{Label: f.l, Href: "?status=" + f.v, Current: f.v == filter})
+	}
+	render(w, status, "admin_payments", map[string]any{"Shell": s.shell(u, app, "Payments", "/apps/"+app+"/payments", false),
+		"App": app, "Account": pa, "Payments": list, "Subscriptions": subs, "Total": total, "Pager": newPager(r, page, platform.AdminPageSize, total),
+		"Filters": filters, "Filter": filter, "CSRF": s.csrfToken(w, r), "Fee": fee, "Notice": notice, "Error": problem})
 }
 
 // paymentAction refunds a paid payment (all, or the amount typed), or

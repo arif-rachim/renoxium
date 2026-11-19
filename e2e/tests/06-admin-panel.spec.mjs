@@ -18,8 +18,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 test('products: add with a photo, edit, hide, search, delete; the shop follows', async () => {
   const { page } = shop;
   await page.goto(`/apps/${shop.app}`);
-  await page.getByRole('link', { name: /^Products/ }).click();
-  await expect(page.locator('h1')).toContainText('(4)');
+  await page.locator('.sidenav').getByRole('link', { name: 'Products', exact: true }).click();
+  await expect(page.locator('.pagehead .sub')).toContainText('4 rows');
 
   await page.getByRole('link', { name: 'Add' }).click();
   await page.fill('#f-name', 'Saffron Rose');
@@ -165,7 +165,9 @@ test('the owner deletes a visitor account', async ({ browser }) => {
 
   const { page } = shop;
   await page.goto(`/apps/${shop.app}/visitors?q=${encodeURIComponent(address)}`);
+  page.once('dialog', (d) => d.accept()); // the panel asks before deleting
   await page.locator('tr', { hasText: address }).getByRole('button', { name: 'Delete' }).click();
+  await page.waitForLoadState('networkidle');
   await page.goto(`/apps/${shop.app}/visitors?q=${encodeURIComponent(address)}`);
   await expect(page.locator('body')).toContainText('Nobody matches');
   // Their session ends with the account.

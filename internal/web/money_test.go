@@ -259,7 +259,7 @@ func TestAdminMoneyActions(t *testing.T) {
 		"parent": map[string]any{"subscription_details": map[string]any{"subscription": "sub_1", "metadata": meta}}})
 	_, body = page(owner)
 	subID := meta["rx_subscription"]
-	if !strings.Contains(body, "Subscriptions") || !strings.Contains(body, "300.00 aed every month") || !strings.Contains(body, "2030-03-17 17:46:40") ||
+	if !strings.Contains(body, "Subscriptions") || !strings.Contains(body, "300.00 <span class=\"cur\">aed</span></span> every month") || !strings.Contains(body, "2030-03-17 17:46:40") ||
 		!strings.Contains(body, `action="/apps/rana-cars/subscriptions/`+subID+`/cancel"`) {
 		t.Fatalf("subscriptions not listed: %s", body)
 	}
