@@ -182,6 +182,27 @@ export async function buildStore(page, agent, app, { shopName = 'E2E Perfumes', 
   return { def, applied, pub, live: appURL(app), preview: appURL(app, true) };
 }
 
+// --- A store-uae shop as a shopper uses it ---
+// addToCart opens a product from the shop's front page, picks an option
+// (a size, with its own price) when given, and adds it to the cart.
+export async function addToCart(page, live, product, { option, qty } = {}) {
+  await page.goto(live + '/');
+  await page.getByRole('link', { name: product }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: product })).toBeVisible();
+  if (option) await page.getByRole('radio', { name: option }).check();
+  if (qty) await page.getByRole('spinbutton', { name: 'Quantity' }).fill(String(qty));
+  await page.getByRole('button', { name: 'Add to cart' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Added to cart' })).toBeVisible();
+}
+// fillCheckout fills the cart page's delivery details and picks the payment.
+export async function fillCheckout(page, { phone = '0501234567', address = 'Villa 7, Street 12, Al Barsha', emirate = 'Dubai', payment } = {}) {
+  await page.getByLabel('Mobile number').fill(phone);
+  await page.getByLabel('Delivery address').fill(address);
+  await page.getByLabel('Emirate').selectOption(emirate);
+  if (payment) await page.getByRole('radio', { name: payment === 'cod' ? /^Cash on delivery/ : /^Card payment/ }).check();
+}
+export const placeOrder = (page) => page.getByRole('button', { name: 'Place order' }).click();
+
 // ownerWithStore signs a new owner up, connects an agent and publishes a store.
 export async function ownerWithStore(browser, opts = {}) {
   const owner = await person(browser);

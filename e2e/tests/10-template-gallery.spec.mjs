@@ -13,7 +13,8 @@ test('template gallery and demos', async ({ browser }) => {
 
   await page.goto('/');
   await page.getByRole('link', { name: 'Templates' }).first().click();
-  await expect(page.getByRole('heading', { name: 'Templates you can try right now' })).toBeVisible();
+  await expect(page).toHaveURL(/\/templates$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Templates', exact: true })).toBeVisible();
   for (const title of ['Online store', 'Appointments and classes', 'Home services', 'Tours and rentals', 'Quotes and client portal', 'Property listings']) {
     await expect(page.locator('.tcard', { hasText: title })).toBeVisible();
   }
@@ -51,11 +52,11 @@ test('template gallery and demos', async ({ browser }) => {
   await page.locator('.tcard', { hasText: 'Appointments and classes' }).getByRole('link', { name: "Owner's admin panel" }).click();
   await expect(page.locator('body')).toContainText('read-only');
   await page.getByRole('link', { name: /Services/ }).click();
-  await expect(page.getByRole('link', { name: 'Add' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Add', exact: true })).toHaveCount(0);
   await page.locator('table a').first().click();
   await expect(page.locator('fieldset[disabled]')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
   await page.goto('/apps/demo-booking-uae/t/bookings/calendar');
   await expect(page.getByRole('link', { name: 'Week' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Add' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Add', exact: true })).toHaveCount(0);
 });

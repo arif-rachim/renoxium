@@ -190,10 +190,12 @@ test('realtime: a courier moves the marker on the customer\'s map, and only the 
   const live = appURL(tracking);
 
   // The map library is replaced by a small stand-in, so the test needs no internet.
+  // The stand-in keeps the courier marker the page puts on the map in window.marker.
   const offlineMap = async (ctx) => {
     await ctx.route(/unpkg\.com\/leaflet.*\.js/, (r) => r.fulfill({ contentType: 'text/javascript', body:
-      `window.L={map:function(){return{setView:function(){return this},panTo:function(){}}},tileLayer:function(){return{addTo:function(){}}},
-       marker:function(p){var pos=p;return{addTo:function(){return this},setLatLng:function(q){pos=q},getLatLng:function(){return{lat:pos[0],lng:pos[1]}}}}};` }));
+      `window.L={map:function(){return{setView:function(){return this},panTo:function(){},attributionControl:{setPrefix:function(){return this}}}},
+       tileLayer:function(){return{addTo:function(){}}},divIcon:function(o){return o},
+       marker:function(p){var pos=p;return window.marker={addTo:function(){return this},setLatLng:function(q){pos=q;return this},getLatLng:function(){return{lat:pos[0],lng:pos[1]}}}}};` }));
     await ctx.route(/unpkg\.com\/leaflet.*\.css|tile\.openstreetmap\.org/, (r) => r.fulfill({ status: 200, body: '' }));
   };
   const customer = await person(browser);
@@ -204,7 +206,7 @@ test('realtime: a courier moves the marker on the customer\'s map, and only the 
   await customer.page.goto(live + '/');
   await customer.page.fill('#id', '1');
   await customer.page.fill('#code', 'abc123');
-  await customer.page.getByRole('button', { name: 'Track' }).click();
+  await customer.page.getByRole('button', { name: 'Track delivery' }).click();
   await expect(customer.page).toHaveURL(/\/track\/1\?code=ABC123/);
   await expect(customer.page.locator('#status')).toHaveText('On the way');
   expect((await customer.page.goto(live + '/track/1?code=WRONG')).status()).toBe(404);
@@ -222,7 +224,7 @@ test('realtime: a courier moves the marker on the customer\'s map, and only the 
   await expect(courier.page.locator('#info')).toContainText('Sharing: sent');
   await courier.ctx.setGeolocation({ latitude: 25.2100, longitude: 55.2800 });
   await expect.poll(() => customer.page.evaluate(() => window.marker.getLatLng().lat), { timeout: 20_000 }).toBeCloseTo(25.21, 3);
-  await expect(customer.page.locator('#seen')).toContainText('Live: updated');
+  await expect(customer.page.locator('#seen')).toContainText('Live, updated');
 
   // Delivered: the customer sees it at once and the owner is emailed.
   const t = Date.now();

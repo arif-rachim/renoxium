@@ -4,7 +4,7 @@
 // shop's own MCP for shoppers' AI assistants, and the preview's simulated checkout.
 import { test, expect } from '@playwright/test';
 import { appURL, idURL } from '../env.mjs';
-import { person, ownerWithStore, email, waitEmail, waitWhatsApp, linkIn, mcp, fake } from '../lib.mjs';
+import { person, ownerWithStore, email, waitEmail, waitWhatsApp, linkIn, mcp, fake, addToCart, fillCheckout, placeOrder } from '../lib.mjs';
 
 let shop; // one shop for the whole file
 test.beforeAll(async ({ browser }) => {
@@ -20,36 +20,28 @@ async function visitorSignUp(page, live, { name = 'Sara Shopper', address = emai
   await page.waitForURL(new RegExp(next.replace(/[?]/g, '\\?') + '$'));
   return address;
 }
-async function addToCart(page, live, product, variant) {
-  await page.goto(live + '/');
-  await page.locator('a.card', { hasText: product }).first().click();
-  if (variant) await page.locator('#variant').selectOption({ label: variant });
-  await page.locator('#add').click();
-}
-async function fillDelivery(page, payment) {
-  await page.fill('#phone', '0501234567');
-  await page.fill('#address', 'Villa 7, Street 12, Al Barsha');
-  await page.locator('#emirate').selectOption('Dubai');
-  await page.locator(`input[name=payment][value=${payment}]`).check();
-}
+const fillDelivery = (page, payment) => fillCheckout(page, { payment });
 
 test('catalogue, Arabic, product options and the badge', async ({ browser }) => {
   const { page } = await person(browser);
   await page.goto(shop.live);
   await expect(page.locator('body')).toContainText('E2E Perfumes');
-  for (const p of ['Royal Oud', 'White Musk', 'Amber Night', 'Oud Gift Set']) await expect(page.locator('a.card', { hasText: p })).toBeVisible();
+  for (const p of ['Royal Oud', 'White Musk', 'Amber Night', 'Oud Gift Set']) await expect(page.getByRole('link', { name: p })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Royal Oud' })).toContainText('AED 250.00');
   await expect(page.getByRole('link', { name: 'Made with Renoxium' })).toBeVisible(); // Free plan
 
-  await page.locator('a[href*="lang=ar"]').first().click();
+  await page.getByRole('link', { name: 'العربية' }).first().click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('body')).toContainText('عود');
-  await page.locator('a[href*="lang=en"]').first().click();
+  await expect(page.getByRole('link', { name: 'العود الملكي' })).toContainText('250.00 د.إ');
+  await page.getByRole('link', { name: 'English' }).first().click();
   await expect(page.locator('html')).not.toHaveAttribute('dir', 'rtl');
 
-  await page.locator('a.card', { hasText: 'Royal Oud' }).first().click();
-  await expect(page.locator('body')).toContainText('250');
-  await page.locator('#variant').selectOption({ label: '100 ml' });
-  await expect(page.locator('body')).toContainText('420');
+  await page.getByRole('link', { name: 'Royal Oud' }).first().click();
+  const price = page.locator('#price');
+  await expect(price).toHaveText('AED 250.00');
+  await page.getByRole('radio', { name: '100 ml' }).check();
+  await expect(price).toHaveText('AED 420.00');
 
   expect((await page.request.get(shop.live + '/p/999')).status()).toBe(404);
   const icon = await page.request.get(shop.live + '/favicon.ico');
@@ -130,22 +122,27 @@ test('sign-in with WhatsApp: code, wrong code, quota count', async ({ browser })
 test('cash on delivery: discount code, order page, emails to shopper and owner, invoice, owner sets it shipped', async ({ browser }) => {
   const { page } = await person(browser);
   const address = await visitorSignUp(page, shop.live);
-  await addToCart(page, shop.live, 'Royal Oud', '100 ml');
+  await addToCart(page, shop.live, 'Royal Oud', { option: '100 ml' });
   await addToCart(page, shop.live, 'White Musk');
   await page.goto(shop.live + '/cart');
   await expect(page.locator('body')).toContainText('Royal Oud');
   await expect(page.locator('body')).toContainText('White Musk');
+  // The cart's summary: 420 + 95, free delivery over 200, VAT 5% included.
+  await expect(page.locator('#subtotal')).toHaveText('AED 515.00');
+  await expect(page.locator('#delivery')).toHaveText('Free');
+  await expect(page.locator('#total')).toHaveText('AED 515.00');
+  await expect(page.locator('#vat')).toHaveText('AED 24.52');
 
   // A wrong discount code sends the shopper back with a message.
   await fillDelivery(page, 'cod');
-  await page.fill('#coupon', 'NOPE');
-  await page.locator('form[action="/checkout"] button').click();
+  await page.getByLabel('Discount code').fill('NOPE');
+  await placeOrder(page);
   await expect(page.locator('body')).toContainText('This discount code is not valid.');
 
   const t = Date.now();
   await fillDelivery(page, 'cod');
-  await page.fill('#coupon', 'welcome10');
-  await page.locator('form[action="/checkout"] button').click();
+  await page.getByLabel('Discount code').fill('welcome10');
+  await placeOrder(page);
   await page.waitForURL(/\/orders\/\d+\?placed=1/);
   const order = page.url().match(/\/orders\/(\d+)/)[1];
   await expect(page.locator('body')).toContainText('Confirmed, pay on delivery');
@@ -188,7 +185,7 @@ test('card payment is refused politely while Stripe is not connected', async ({ 
   await addToCart(page, shop.live, 'Amber Night');
   await page.goto(shop.live + '/cart');
   await fillDelivery(page, 'card');
-  await page.locator('form[action="/checkout"] button').click();
+  await placeOrder(page);
   await expect(page).toHaveURL(/\/cart\?error=error_payment/);
   await expect(page.locator('body')).toContainText('Card payment is not available right now.');
   expect((await fake.stripeCalls()).filter((c) => c.path === '/v1/checkout/sessions' && c.form.metadata?.rx_app === shop.app)).toHaveLength(0);
@@ -220,7 +217,7 @@ test('preview: simulated checkout pays or fails without Stripe', async () => {
     await addToCart(page, preview, 'White Musk');
     await page.goto(preview + '/cart');
     await fillDelivery(page, 'card');
-    await page.locator('form[action="/checkout"] button').click();
+    await placeOrder(page);
     await expect(page.getByRole('heading', { name: /^Pay / })).toBeVisible();
     await expect(page.locator('.note')).toContainText('simulated checkout');
     await page.getByRole('button', { name: decision }).click();
