@@ -99,9 +99,7 @@ func (p *Platform) serveAuthApp(w http.ResponseWriter, r *http.Request, st *stag
 		if st.name == Preview && len(p.cfg.PreviewKey) > 0 {
 			q.Set("pv", p.previewToken(st.app, time.Now().Add(previewLinkTTL))) // the preview's sign-in host is private too
 		}
-		if key, _ := r.Context().Value(demoKey{}).(string); key != "" {
-			q.Set(demoKeyParam, key) // one demo inbox for both hosts
-		}
+		q.Del(demoKeyParam) // inbox keys never travel to the sign-in host (see withDemoKey)
 		// A POST (a form from an old page) becomes a GET of the page: what
 		// was typed on the app's host is not passed on.
 		http.Redirect(w, r, p.IDURL(st.app, st.name)+AuthPrefix+page+"?"+q.Encode(), http.StatusSeeOther)
@@ -125,6 +123,9 @@ func (p *Platform) authCallback(w http.ResponseWriter, r *http.Request, st *stag
 		return
 	}
 	p.cookie(w, p.cookieName(authStateCookie), "", -time.Second)
+	if st.name == Preview && p.IsDemo(st.app) {
+		p.moveDemoMessages(r, st.app)
+	}
 	if err := p.startVisitorSession(r.Context(), w, st, userID); err != nil {
 		http.Error(w, "could not sign you in", http.StatusInternalServerError)
 		return
@@ -175,7 +176,11 @@ func (p *Platform) finishAuth(w http.ResponseWriter, r *http.Request, st *stage,
 		return
 	}
 	p.cookie(w, p.cookieName(authFlowCookie), "", -time.Second)
-	http.Redirect(w, r, app+AuthPrefix+"callback?code="+url.QueryEscape(code)+"&next="+url.QueryEscape(next), http.StatusSeeOther)
+	back := app + AuthPrefix + "callback?code=" + url.QueryEscape(code) + "&next=" + url.QueryEscape(next)
+	if key, _ := r.Context().Value(demoKey{}).(string); key != "" && st.name == Preview && p.IsDemo(st.app) {
+		back += "&" + demoKeyParam + "=" + key // used only if the code is accepted (authCallback)
+	}
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 // cleanAuthCodes deletes hand-over codes nobody collected.
