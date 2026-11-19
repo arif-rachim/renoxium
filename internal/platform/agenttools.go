@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -53,7 +54,7 @@ type TestResponse struct {
 	Status      int            `json:"status"`
 	ContentType string         `json:"content_type,omitempty"`
 	Location    string         `json:"location,omitempty" jsonschema:"redirect target, not followed"`
-	Body        string         `json:"body" jsonschema:"response body without the platform's telemetry script; cut at 20000 characters"`
+	Body        string         `json:"body" jsonschema:"response body without the platform's telemetry script; long <style> blocks shortened to a note of their size; cut at 20000 characters"`
 	Truncated   bool           `json:"truncated,omitempty"`
 	RequestID   string         `json:"request_id"`
 	Logs        []applog.Event `json:"logs" jsonschema:"server log events of this request, including script console output and errors"`
@@ -62,6 +63,22 @@ type TestResponse struct {
 }
 
 const maxTestBody = 20000
+
+// styleBlock matches an inline stylesheet. test_request leaves out the CSS of long ones (a design system's stylesheet can
+// fill the whole body budget) so the agent still sees the page's content.
+var styleBlock = regexp.MustCompile(`(?is)(<style[^>]*>)(.*?)(</style>)`)
+
+const maxTestStyle = 1000
+
+func shortenStyles(html string) string {
+	return styleBlock.ReplaceAllStringFunc(html, func(m string) string {
+		p := styleBlock.FindStringSubmatch(m)
+		if len(p[2]) <= maxTestStyle {
+			return m
+		}
+		return p[1] + fmt.Sprintf("/* %d bytes of CSS left out */", len(p[2])) + p[3]
+	})
+}
 
 // TestRequest sends one request to an app stage, as a visitor would.
 func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestInput) (TestResponse, error) {
@@ -208,6 +225,8 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	}
 	if !utf8.ValidString(text) {
 		text = fmt.Sprintf("(%d bytes of binary content)", w.Body.Len())
+	} else if strings.HasPrefix(out.ContentType, "text/html") {
+		text = shortenStyles(text)
 	}
 	if len(text) > maxTestBody {
 		cut := maxTestBody

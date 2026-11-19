@@ -20,7 +20,8 @@ func (s *Site) registerLanding() {
 }
 
 func (s *Site) landingData() map[string]any {
-	return map[string]any{"MCP": s.base + "/mcp", "Fee": 2, "Legal": s.legalOrDefaults(), "Cards": s.galleryCards(), "Base": s.base}
+	return map[string]any{"MCP": s.base + "/mcp", "Fee": 2, "Legal": s.legalOrDefaults(), "Paths": s.sitePaths(s.galleryCards()),
+		"Calendar": screens["admin-calendar"], "Base": s.base}
 }
 
 func (s *Site) legalOrDefaults() Legal {
@@ -47,177 +48,224 @@ func renderLanding(w http.ResponseWriter, data map[string]any) {
 	landingPages.ExecuteTemplate(w, "landing", data)
 }
 
+// The public pages share one small design system: navy ink on white with
+// mist bands, gold only for the hero rule and the Pro plan, one family
+// (Readex Pro) for English and Arabic, and real screenshots of the demos.
 var landingPages = template.Must(template.New("").Parse(brandDefines + `
 {{define "lhead"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.}}</title><meta name="description" content="Websites for UAE businesses, built by chatting with ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
-{{template "icons"}}<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>{{.}}</title><meta name="description" content="Orders, bookings and payments for UAE small businesses in one place, from your own website to your customers' AI assistants, built by describing your business to ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
+{{template "icons"}}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light dark;--brand:#1B2F5B;--ink:#0f2a2a;--soft:#4d6563;--paper:#eef3f1;--panel:#ffffff;--rule:#d3dfdb;--blue:#0e6f66;--blue-ink:#ffffff;--live:#1f8a4c;--bubble:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--deep:#0d3b37;--deep-ink:#e6f2ef}
-@media (prefers-color-scheme:dark){:root{--brand:#E8EDF7;--ink:#e3eeeb;--soft:#93a9a5;--paper:#0b1615;--panel:#11201e;--rule:#21403b;--blue:#3fc2b2;--blue-ink:#06201d;--live:#4cc88a;--bubble:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--deep:#0f2b28;--deep-ink:#e3eeeb}}
+:root{color-scheme:light dark;--paper:#ffffff;--mist:#eef1f5;--ink:#13203a;--slate:#4b5870;--gold:#b8892e;--line:#d6dce5;--on-ink:#ffffff;
+--shot-shadow:0 1px 2px rgb(19 32 58 / .08),0 24px 48px -24px rgb(19 32 58 / .45)}
+@media (prefers-color-scheme:dark){:root{--paper:#0b1424;--mist:#121d33;--ink:#e7ecf4;--slate:#a3afc4;--gold:#d2a955;--line:#263552;--on-ink:#0b1424;
+--shot-shadow:0 24px 48px -24px rgb(0 0 0 / .8)}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Readex Pro",system-ui,-apple-system,"Segoe UI",sans-serif}
-a{color:var(--blue);text-underline-offset:3px}a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:3px;border-radius:6px}
-.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0;flex-wrap:wrap}
-.logo{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:22px;color:var(--brand);text-decoration:none;letter-spacing:-.01em}.logo .mark{height:30px;width:auto;flex:none}
-nav .links{display:flex;gap:6px 20px;font-size:15px;flex-wrap:wrap}nav .links a{color:var(--ink);text-decoration:none}nav .links a:hover{color:var(--blue)}
-.btn{display:inline-block;background:var(--blue);color:var(--blue-ink);padding:13px 22px;border-radius:12px;font-weight:500;text-decoration:none;font-size:16px;border:1px solid var(--blue)}
-.btn.quiet{background:transparent;color:var(--ink);border-color:var(--rule)}
-footer a{color:var(--soft)}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Readex Pro",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--ink);text-decoration-color:var(--slate);text-decoration-thickness:1px;text-underline-offset:4px}
+a:hover{text-decoration-color:var(--gold);text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:4px}
+h1,h2,h3{font-weight:600;margin:0;text-wrap:balance}
+h2{font-size:clamp(28px,3vw,36px);line-height:1.15;letter-spacing:-.02em}
+h3{font-size:22px;line-height:1.25;letter-spacing:-.01em}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+.skip{position:absolute;left:-9999px;top:12px}.skip:focus{left:16px;z-index:20;background:var(--paper);color:var(--ink);padding:8px 14px;border:1px solid var(--ink);border-radius:8px}
+nav.top{display:flex;align-items:center;justify-content:space-between;gap:8px 20px;padding:20px 0;flex-wrap:wrap}
+.logo{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:22px;color:var(--ink);text-decoration:none;letter-spacing:-.02em}.logo .mark{height:30px;width:auto;flex:none}
+nav.top .links{display:flex;align-items:center;gap:4px 22px;font-size:15px;flex-wrap:wrap}
+nav.top .links a{color:var(--slate);text-decoration:none}nav.top .links a:hover{color:var(--ink)}
+nav.top .links a[aria-current]{color:var(--ink);text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px}
+nav.top .links a.btn{color:var(--on-ink)}
+@media(max-width:600px){nav.top .links .wide{display:none}nav.top .links{gap:4px 16px}}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 22px;border-radius:8px;font:inherit;font-weight:500;font-size:16px;line-height:1.2;text-decoration:none;cursor:pointer;background:var(--ink);color:var(--on-ink);border:1px solid var(--ink)}
+.btn:hover{background:color-mix(in srgb,var(--ink) 86%,var(--paper))}
+.btn.line{background:transparent;color:var(--ink);border-color:var(--slate)}.btn.line:hover{border-color:var(--ink);background:var(--mist)}
+.btn.sm{min-height:40px;padding:8px 16px;font-size:15px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.band{background:var(--mist)}
+.block{padding:clamp(64px,8vw,104px) 0}
+.sub{color:var(--slate);max-width:36em;margin:12px 0 0;font-size:19px;line-height:1.55}
+.shot{border-radius:22px;border:1px solid var(--line);box-shadow:var(--shot-shadow);background:var(--paper)}
+footer.site{border-top:1px solid var(--line);padding:32px 0 48px;font-size:15px;color:var(--slate);display:flex;gap:14px 24px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:var(--slate)}footer.site a:hover{color:var(--ink)}
 </style>{{end}}
 
+{{define "nav"}}<a class="skip" href="#main">Skip to content</a><header class="wrap"><nav class="top" aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links">
+<a href="/templates"{{if eq . "templates"}} aria-current="page"{{end}}>Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="btn sm" href="/signup">Create account</a></div></nav></header>{{end}}
+
+{{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer></div>{{end}}
+
 {{define "og"}}<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:title" content="Renoxium: your business online, built in a chat">
-<meta property="og:description" content="Websites for UAE businesses, built by chatting with ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, in English and Arabic.">
+<meta property="og:description" content="Orders, bookings and payments for UAE small businesses on their own website, built by describing the business to ChatGPT or Claude, in English and Arabic.">
 <meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">{{end}}
 
-{{define "landing"}}{{template "lhead" "Renoxium: your business website, built in a chat"}}<style>
-.hero{display:grid;gap:40px;padding:28px 0 72px;align-items:center}@media(min-width:960px){.hero{grid-template-columns:1.1fr 1fr;gap:56px;padding:48px 0 96px}}
-h1{margin:0 0 22px;font-weight:600;letter-spacing:-.03em;line-height:1.02;font-size:clamp(40px,6.4vw,70px)}
-h1 .ar{display:block;width:fit-content;max-width:100%;direction:rtl;font-weight:400;font-size:.5em;letter-spacing:0;line-height:1.35;color:var(--blue);margin-top:14px}
-.lede{font-size:19px;color:var(--soft);max-width:31em;margin:0 0 28px}
-.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.small{font-size:14px;color:var(--soft);margin-top:14px}
-.chat{background:var(--panel);border:1px solid var(--rule);border-radius:22px;padding:22px;display:flex;flex-direction:column;gap:10px;font-size:15.5px;box-shadow:0 30px 60px -40px rgba(13,59,55,.45)}
-.msg{max-width:88%;padding:11px 15px;border-radius:16px;line-height:1.5}
-.me{align-self:flex-end;background:var(--blue);color:var(--blue-ink);border-bottom-right-radius:5px}.me.ar{direction:rtl}
-.agent{align-self:flex-start;background:var(--bubble);border-bottom-left-radius:5px}
-.who{font-size:12.5px;color:var(--soft);margin:6px 2px -4px}.who.right{align-self:flex-end}
-.site{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--panel);font-size:14.5px}
-.site b{font-weight:600}.site .dot{width:9px;height:9px;border-radius:50%;background:var(--sun);flex:none}.site span{color:var(--soft);margin-inline-start:auto;font-size:13px}
-section{padding:72px 0;border-top:1px solid var(--rule)}
-h2{font-size:clamp(28px,3.8vw,40px);letter-spacing:-.02em;margin:0 0 14px;line-height:1.12;font-weight:600;max-width:20em}
-.sub{color:var(--soft);max-width:38em;margin:0 0 36px;font-size:18px}
-.kinds{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:18px;overflow:hidden}@media(min-width:720px){.kinds{grid-template-columns:1fr 1fr}}@media(min-width:1040px){.kinds{grid-template-columns:repeat(3,1fr)}}
-.kind{background:var(--panel);padding:22px 22px 20px;display:flex;flex-direction:column;gap:8px}
-.kind h3{margin:0;font-size:20px;font-weight:600}.kind p{margin:0;color:var(--soft);font-size:15.5px}.kind .for{font-size:14px;color:var(--ink)}
-.kind a{margin-top:auto;padding-top:6px;font-weight:500;font-size:15.5px}
-.steps{list-style:none;padding:0;margin:0;display:grid;gap:28px;counter-reset:s}@media(min-width:800px){.steps{grid-template-columns:repeat(3,1fr)}}
-.steps li{counter-increment:s;padding-top:58px;position:relative}
-.steps li::before{content:counter(s);position:absolute;top:0;left:0;font-size:40px;line-height:1;font-weight:300;color:var(--blue)}
-.steps h3{margin:0 0 6px;font-size:19px;font-weight:600}.steps p{margin:0;color:var(--soft)}.steps q{display:block;margin-top:10px;font-size:15px;color:var(--ink);quotes:"\201C" "\201D"}
-.day{background:var(--deep);color:var(--deep-ink);border-radius:24px;padding:clamp(24px,4vw,48px);display:grid;gap:32px}@media(min-width:960px){.day{grid-template-columns:.9fr 1.1fr;align-items:center}}
-.day h2{color:inherit}.day .sub{color:color-mix(in srgb,var(--deep-ink) 75%,transparent);margin-bottom:20px}
-.day ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}.day li{padding-inline-start:26px;position:relative}.day li::before{content:"";position:absolute;inset-inline-start:2px;top:.55em;width:10px;height:10px;border-radius:3px;background:var(--sun)}
-.panelmock{background:var(--panel);color:var(--ink);border-radius:18px;padding:18px;display:grid;gap:12px;font-size:14.5px}
-.panelmock .top{display:flex;justify-content:space-between;align-items:center;gap:8px}.panelmock .top b{font-size:17px;font-weight:600}
-.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;padding:3px 10px;border-radius:999px;border:1px solid var(--rule)}.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--live)}
-.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.figs div{border:1px solid var(--rule);border-radius:12px;padding:10px 12px}.figs small{display:block;color:var(--soft);font-size:12.5px}.figs b{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
-.sched{border:1px solid var(--rule);border-radius:12px;overflow:hidden}.sched div{display:grid;grid-template-columns:52px 1fr auto;gap:10px;padding:9px 12px;border-top:1px solid var(--rule);align-items:center}.sched div:first-child{border-top:0}
-.sched time{font-variant-numeric:tabular-nums;color:var(--soft)}.sched em{font-style:normal;font-size:12.5px;padding:2px 8px;border-radius:999px;background:var(--bubble)}.sched em.wait{background:var(--sun-soft)}
-.wa{background:var(--bubble);border-radius:14px 14px 14px 4px;padding:10px 12px;font-size:14px}.wa small{display:block;color:var(--soft);font-size:12px;margin-bottom:2px}
-.groups{display:grid;gap:36px 48px}@media(min-width:760px){.groups{grid-template-columns:1fr 1fr}}
-.groups h3{margin:0 0 10px;font-size:19px;font-weight:600;padding-bottom:10px;border-bottom:2px solid var(--blue);display:inline-block}
-.groups ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}.groups li strong{display:block;font-weight:500}.groups li span{color:var(--soft);font-size:15.5px}
-.prices{display:grid;gap:16px}@media(min-width:860px){.prices{grid-template-columns:repeat(3,1fr)}}
-.plan{background:var(--panel);border:1px solid var(--rule);border-radius:18px;padding:24px;display:flex;flex-direction:column}.plan.pick{border:2px solid var(--blue)}
-.plan h3{margin:0;font-size:20px;font-weight:600}.plan .for{color:var(--soft);font-size:15px;margin:4px 0 0}.amount{font-size:36px;font-weight:600;letter-spacing:-.02em;margin:12px 0 2px}.amount span{font-size:16px;font-weight:400;color:var(--soft)}
-.plan ul{padding:0;margin:16px 0 22px;list-style:none;display:grid;gap:8px;font-size:15.5px}
-.plan li{padding-inline-start:22px;position:relative}.plan li::before{content:"";position:absolute;inset-inline-start:2px;top:.55em;width:9px;height:9px;border-radius:2px;background:var(--blue);opacity:.8}
-.plan .btn{margin-top:auto;text-align:center}.note{color:var(--soft);font-size:15px;margin-top:18px;max-width:46em}
-.faq{display:grid;gap:0;max-width:820px;border-top:1px solid var(--rule)}.faq details{border-bottom:1px solid var(--rule);padding:16px 0}
-.faq summary{cursor:pointer;font-weight:500;font-size:18px;list-style:none;display:flex;justify-content:space-between;gap:16px}.faq summary::after{content:"+";color:var(--blue);font-size:22px;line-height:1}.faq details[open] summary::after{content:"\2212"}
-.faq summary::-webkit-details-marker{display:none}.faq p{margin:10px 0 0;color:var(--soft);max-width:40em}
-.end{text-align:center;padding:80px 0}.end h2{margin:0 auto 14px}.end .sub{margin:0 auto 28px}.end .cta{justify-content:center}
-footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color:var(--soft);display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
-footer .links{display:flex;gap:18px;flex-wrap:wrap}
-</style>{{template "og" .Base}}</head><body><div class="wrap">
-<nav aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links"><a href="/templates">Templates</a><a href="#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
-
-<div class="hero"><div>
-<h1>Your business online, built in a chat. <span class="ar" lang="ar">موقع عملك، جاهز من محادثة.</span></h1>
-<p class="lede">Tell ChatGPT or Claude what you sell or book. Renoxium builds the site from a finished UAE template, hosts it, and takes card payments and cash on delivery, in English and Arabic.</p>
-<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn quiet" href="/templates">Try the templates</a></div>
-<p class="small">Free to start. No code, no designer, nothing to install.</p>
-</div>
-<div class="chat" aria-label="Example conversation">
-<div class="who right">You, in ChatGPT</div>
-<div class="msg me">Make a booking site for Lamsa, my salon in Jumeirah. Haircuts, colour and nails, three stylists.</div>
-<div class="msg me ar" lang="ar">وأريد عربون ٥٠ درهم عند الحجز</div>
-<div class="who">Renoxium</div>
-<div class="msg agent">Done. Customers pick a service, a stylist and a free time, pay a AED 50 deposit by card, and get a reminder the day before. I tested every page. Check the preview, then publish.
-<div class="site"><span class="dot" aria-hidden="true"></span><b>lamsa.renoxium.app</b><span>preview ready</span></div></div>
-<div class="who right">You</div>
-<div class="msg me">Close on Fridays until 2pm.</div>
-</div></div>
-
-<section aria-labelledby="kinds"><h2 id="kinds">Start from a site that already works</h2>
-<p class="sub">Each template is a finished website with payments, customer accounts and an admin panel. Your assistant changes the names, prices and texts to yours. Open any demo and use it like a customer.</p>
-<div class="kinds">{{range $i, $c := .Cards}}{{if lt $i 6}}<div class="kind"><h3>{{.Title}}</h3><p>{{.Summary}}</p><p class="for">{{range $i, $f := .For}}{{if $i}}, {{end}}{{$f}}{{end}}</p><a href="{{.DemoURL}}/">Try the demo</a></div>{{end}}{{end}}</div>
-<p style="margin-top:20px"><a href="/templates">All templates, with the owner's admin panel of each</a></p></section>
-
-<section aria-labelledby="how"><h2 id="how">From a message to your first order</h2><p class="sub">You talk, the assistant builds, you decide what goes live.</p><ol class="steps">
-<li><h3>Connect Renoxium</h3><p>Add Renoxium to ChatGPT or Claude once and sign in. It takes two minutes.</p></li>
-<li><h3>Describe your business</h3><p>Name, what you sell or book, prices, delivery or opening hours. The assistant builds it and tests every page.</p><q>Add a gift set for AED 320.</q></li>
-<li><h3>Check, publish, sell</h3><p>Open the private preview on your phone. When you are happy, press Publish. Connect Stripe to take cards.</p></li>
-</ol></section>
-
-<section aria-labelledby="day"><div class="day"><div><h2 id="day">Run it from your phone</h2>
-<p class="sub">Every site comes with an admin panel made from your own data: products, orders, bookings, customers. Change a price yourself, or ask your assistant.</p>
-<ul><li>New orders and bookings by email and WhatsApp</li><li>A calendar for appointments, crews and rentals</li><li>Card sales today, this month and the last 30 days</li><li>Staff who can help, without seeing your payments</li><li>A daily report at closing time</li></ul></div>
-<div class="panelmock" aria-label="Example admin panel"><div class="top"><b>lamsa-salon</b><span class="pill">Live</span></div>
-<div class="figs"><div><small>Today</small><b>AED 640</b></div><div><small>Bookings</small><b>9</b></div><div><small>Customers</small><b>214</b></div></div>
-<div class="sched"><div><time>10:00</time><span>Haircut &amp; blow-dry · Mariam</span><em>Paid</em></div><div><time>11:30</time><span>Root colour · Huda</span><em>Paid</em></div><div><time>13:00</time><span>Gel manicure · Sara</span><em class="wait">Deposit due</em></div></div>
-<div class="wa"><small>WhatsApp · Renoxium</small>New booking: Classic manicure tomorrow 16:00 with Noor, AED 70.</div></div></div></section>
-
-<section aria-labelledby="built"><h2 id="built">Built in, on every plan</h2><p class="sub">The parts small businesses usually pay a developer for, already working and tested.</p><div class="groups">
-<div><h3>Getting paid</h3><ul><li><strong>Cards into your own Stripe</strong><span>Customers pay on Stripe's page; the money goes to your account.</span></li><li><strong>Cash on delivery and pay at the venue</strong><span>Works without Stripe.</span></li><li><strong>Deposits, card holds, refunds and monthly plans</strong><span>Refund from your panel in one step.</span></li><li><strong>AED with 5% VAT</strong><span>Tax invoices once you add your TRN.</span></li></ul></div>
-<div><h3>Your customers</h3><ul><li><strong>Accounts with email or a WhatsApp code</strong><span>They see their orders and bookings and pay again if a card failed.</span></li><li><strong>English and Arabic</strong><span>Right-to-left layout, switched with one tap.</span></li><li><strong>Private document uploads</strong><span>Passport or licence copies only you can open.</span></li><li><strong>Ask ChatGPT about your shop</strong><span>Customers can add your site to their AI assistant to find products.</span></li></ul></div>
-<div><h3>Running the business</h3><ul><li><strong>Admin panel on any phone</strong><span>Products, photos, orders, customers.</span></li><li><strong>Calendar</strong><span>Day and week views by stylist, crew or item.</span></li><li><strong>Staff access</strong><span>Helpers manage orders without your payments or documents.</span></li><li><strong>Notices and reports</strong><span>New orders on WhatsApp, a daily summary by email.</span></li></ul></div>
-<div><h3>Safe to change</h3><ul><li><strong>Preview first</strong><span>Every change goes to a private preview. Nothing is live until you press Publish.</span></li><li><strong>Roll back</strong><span>Go back to an earlier version; live data is backed up first.</span></li><li><strong>Your own domain</strong><span>www.yourshop.ae on Pro and Business.</span></li><li><strong>Your data stays yours</strong><span>Download everything, or delete your account and all of it.</span></li></ul></div>
+{{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}<style>
+.hero{padding:clamp(32px,6vw,80px) 0 0}
+.sign{display:grid;grid-template-columns:1fr 1px 1fr;column-gap:clamp(32px,4vw,64px);align-items:start;font-size:clamp(30px,3.3vw,48px)}
+.sign .en{line-height:1.08;letter-spacing:-.03em}
+.sign .ar{font-size:.9em;line-height:1.4;letter-spacing:0;text-align:right;font-weight:600}
+.sign .rule{align-self:stretch;background:var(--gold)}
+@media(max-width:760px){.sign{grid-template-columns:1fr;row-gap:20px}.sign .rule{height:2px;width:56px;justify-self:end}}
+.how-it{font-size:19px;line-height:1.55;color:var(--slate);max-width:40em;margin:clamp(28px,4vw,44px) 0 28px}
+.ways{display:grid;gap:64px;margin-top:clamp(64px,8vw,104px)}
+@media(min-width:900px){.ways{grid-template-columns:repeat(3,1fr);gap:48px}}
+.way .shot{width:100%;max-width:300px;aspect-ratio:600/1040;object-fit:cover;object-position:top}
+.way h2{font-size:26px;margin:32px 0 8px}
+.way p{margin:0;color:var(--slate);max-width:28em}
+.way ul{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:6px}
+.also{margin:64px 0 0;color:var(--slate);border-top:1px solid var(--line);padding-top:24px}
+.split{display:grid;gap:48px;align-items:start}@media(min-width:960px){.split{grid-template-columns:1fr 1fr;gap:80px}}
+.steps{list-style:none;padding:0;margin:40px 0 0;display:grid;gap:28px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:40px 1fr;gap:4px}
+.steps li::before{content:counter(s);font-size:24px;font-weight:600;line-height:1.2;color:var(--slate)}
+.steps h3{font-size:20px;margin:0 0 4px}.steps p{margin:0;color:var(--slate)}
+.chat{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;font-size:16px;max-width:540px}
+.chat .me{align-self:flex-end;max-width:82%;background:var(--mist);border-radius:18px;padding:10px 16px;margin:0}
+.chat .me[lang=ar]{direction:rtl}
+.chat .used{font-size:14px;color:var(--slate);margin:6px 0 -8px}
+.chat .reply{margin:0;max-width:92%}
+.chat figcaption{font-size:14px;color:var(--slate);border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.panel-shot{margin:40px 0 0}.panel-shot img{border-radius:12px;border:1px solid var(--line);width:100%}
+.panel-shot figcaption{font-size:15px;color:var(--slate);margin-top:12px;max-width:48em}
+.facts{margin:40px 0 0;display:grid;column-gap:64px}@media(min-width:900px){.facts{grid-template-columns:1fr 1fr}}
+.facts div{display:grid;grid-template-columns:minmax(150px,38%) 1fr;gap:4px 20px;padding:16px 0;border-top:1px solid var(--line)}
+@media(max-width:520px){.facts div{grid-template-columns:1fr}}
+.facts dt{font-weight:500}.facts dd{margin:0;color:var(--slate)}
+.prices{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.prices{grid-template-columns:repeat(3,1fr);gap:24px}}
+.plan{padding:28px;border:2px solid transparent;border-radius:12px;display:flex;flex-direction:column}
+.plan.pick{border-color:var(--gold);background:var(--paper)}
+@media(max-width:899px){.plan{border-color:var(--line)}.plan.pick{border-color:var(--gold)}}
+.plan h3{font-size:22px}.plan .for{color:var(--slate);font-size:16px;margin:4px 0 0}
+.amount{font-size:40px;font-weight:600;letter-spacing:-.02em;margin:20px 0 0;line-height:1.1}.amount span{font-size:16px;font-weight:400;color:var(--slate);letter-spacing:0}
+.plan ul{padding:0;margin:20px 0 28px;list-style:none;display:grid;gap:8px;font-size:16px}
+.plan .btn{margin-top:auto}.note{color:var(--slate);font-size:16px;margin:32px 0 0;max-width:48em}
+.faq{max-width:820px;margin-top:32px;border-bottom:1px solid var(--line)}
+.faq details{border-top:1px solid var(--line)}
+.faq summary{cursor:pointer;font-weight:500;font-size:19px;padding:18px 0;list-style:none;display:flex;justify-content:space-between;gap:16px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--slate);font-weight:400}.faq details[open] summary::after{content:"\2212"}
+.faq p{margin:0 0 20px;color:var(--slate);max-width:44em}
+.end .cta{margin-top:28px}
+</style>{{template "og" .Base}}</head><body>
+{{template "nav" "home"}}
+<main id="main">
+<section class="hero" aria-labelledby="hero-h"><div class="wrap">
+<h1 id="hero-h" class="sign"><span class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span></h1>
+<p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
+<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
+<div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h">
+<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
+<h2 id="{{.ID}}-h">{{.Title}}</h2><p>{{.Text}}</p>
+<ul>{{range .Demos}}<li><a href="{{.URL}}">{{.Label}}</a></li>{{end}}</ul></section>{{end}}</div>
+<p class="also">Delivering too? <a href="/templates#delivery-tracking">Live delivery tracking</a> lets customers follow the courier on a map. Or <a href="/templates">see every template</a> with its owner's admin panel.</p>
 </div></section>
 
-<section id="pricing" aria-labelledby="pricing-h"><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p><div class="prices">
-<div class="plan"><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge</li></ul><a class="btn quiet" href="/signup">Start free</a></div>
-<div class="plan pick"><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>/ month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan"><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>/ month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn quiet" href="/signup">Choose Business</a></div>
-</div><p class="note">Stripe charges its own card processing fees to your Stripe account on every plan. Building and changing your site through your AI assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></section>
+<section class="block" aria-labelledby="how-h"><div class="wrap split">
+<div><h2 id="how-h">How it works</h2><p class="sub">You describe, the assistant builds, you decide what goes live.</p>
+<ol class="steps">
+<li><div><h3>Connect Renoxium</h3><p>Add Renoxium to ChatGPT or Claude once and sign in. The <a href="/connect">connect page</a> shows the steps.</p></div></li>
+<li><div><h3>Describe your business</h3><p>Your name, what you sell or book, prices, delivery areas or opening hours, in English or Arabic. The assistant builds the site and tests every page.</p></div></li>
+<li><div><h3>Check the preview and publish</h3><p>Open the private preview on your phone. When you are happy, press Publish. Connect Stripe to take cards.</p></div></li>
+</ol></div>
+<figure class="chat">
+<p class="me">Make a booking site for Lamsa, my salon in Jumeirah. Haircuts, colour and nails, three stylists.</p>
+<p class="me" lang="ar">وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز</p>
+<p class="used">Used Renoxium</p>
+<p class="reply">Done. Customers pick a service, a stylist and a free time, and pay a AED 50 deposit by card. I tested every page. Your private preview is at lamsa.renoxium.app; check it on your phone, then tell me to publish.</p>
+<p class="me">Close on Fridays until 2pm.</p>
+<figcaption>An example conversation in ChatGPT with Renoxium connected.</figcaption></figure>
+</div></section>
 
-<section aria-labelledby="faq"><h2 id="faq">Questions owners ask</h2><div class="faq">
+<section class="block band" aria-labelledby="panel-h"><div class="wrap">
+<h2 id="panel-h">Every order and booking in one panel</h2>
+<p class="sub">Your site comes with an admin panel made from your own data. Change a price or a photo yourself, on your phone or computer, or ask your assistant.</p>
+<figure class="panel-shot"><img src="{{.Calendar.Src}}" width="{{.Calendar.W}}" height="{{.Calendar.H}}" alt="{{.Calendar.Alt}}" loading="lazy">
+<figcaption>The bookings calendar of the salon demo, one lane per stylist. <a href="/templates/booking-uae/admin">Open the demo's admin panel</a>; it is read-only.</figcaption></figure>
+</div></section>
+
+<section class="block" aria-labelledby="has-h"><div class="wrap">
+<h2 id="has-h">What every site has, on every plan</h2>
+<dl class="facts">
+<div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
+<div><dt>Cash on delivery</dt><dd>Or pay at the venue. Works without Stripe.</dd></div>
+<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div>
+<div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
+<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
+<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div>
+<div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
+<div><dt>Calendar</dt><dd>Day and week views, one lane per stylist, crew or item.</dd></div>
+<div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
+<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div>
+<div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
+<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div>
+</dl></div></section>
+
+<section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
+<h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p>
+<div class="prices">
+<div class="plan"><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
+<div class="plan pick"><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
+<div class="plan"><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
+</div><p class="note">Stripe charges its own card fees to your Stripe account on every plan. Building and changing your site through your assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></div></section>
+
+<section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h">Questions owners ask</h2><div class="faq">
 <details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
 <details><summary>Which AI assistant do I need?</summary><p>ChatGPT (a paid plan with developer mode) or Claude, with your own account. You add Renoxium to it once; the <a href="/connect">connect page</a> shows the steps.</p></details>
+<details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
+<details><summary>Can my customers use ChatGPT or Claude to order?</summary><p>They can add your business to ChatGPT or Claude and ask about your products, prices and free times. To book or pay, the assistant sends them to the right page of your site.</p></details>
 <details><summary>What if the assistant makes a mistake?</summary><p>Changes always go to a private preview first, and only you can publish. If something slips through, roll back to an earlier version from your panel; live data is backed up before every publish.</p></details>
-<details><summary>Do I need Stripe?</summary><p>Only for card payments. Cash on delivery and pay-at-the-venue work without it. When you connect Stripe, payments go straight to your own Stripe account.</p></details>
+<details><summary>Do I need Stripe?</summary><p>Only for card payments. Cash on delivery and pay at the venue work without it. When you connect Stripe, payments go straight to your own Stripe account.</p></details>
 <details><summary>Can I use my own domain?</summary><p>Yes, on Pro and Business, for example www.yourshop.ae. On Free your site lives at yourname.renoxium.app.</p></details>
 <details><summary>Who owns the customers and orders?</summary><p>You do. Download everything your site holds at any time, or delete your account and all of its data.</p></details>
-</div></section>
+</div></div></section>
 
-<section class="end"><h2>See it working before you sign up</h2><p class="sub">Book an appointment, order a perfume or request a viewing on a demo, then open the owner's panel to see what you would get.</p>
-<div class="cta"><a class="btn" href="/templates">Try the templates</a><a class="btn quiet" href="/signup">Create your account</a></div></section>
+<section class="block end" aria-labelledby="end-h"><div class="wrap">
+<h2 id="end-h">Try a demo before you sign up</h2><p class="sub">Book a haircut, order a perfume or ask for a quote on a demo, then open the owner's admin panel to see what you would get.</p>
+<div class="cta"><a class="btn" href="/templates">Try a demo</a><a class="btn line" href="/signup">Create your account</a></div></div></section>
+</main>
+{{template "footer" .Legal}}
+</body></html>{{end}}
 
-<footer><span>© {{.Legal.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer>
-</div></body></html>{{end}}
+{{define "gallery"}}{{template "lhead" "Templates | Renoxium"}}<style>
+.intro{padding:clamp(32px,5vw,64px) 0 0}.intro h1{font-size:clamp(36px,4.5vw,56px);line-height:1.08;letter-spacing:-.03em}
+.group{padding:56px 0 0}.group>h2{padding-top:28px;border-top:1px solid var(--line)}
+.cards{display:grid;gap:56px 48px;margin-top:36px}@media(min-width:720px){.cards{grid-template-columns:1fr 1fr}}@media(min-width:1040px){.cards{grid-template-columns:repeat(3,1fr)}}
+.tcard{scroll-margin-top:24px}.tcard:target h3{text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:6px}
+.tcard .shot{width:100%;max-width:280px;aspect-ratio:600/1000;object-fit:cover;object-position:top}
+.tcard h3{margin:28px 0 8px}.tcard p{margin:0 0 8px;color:var(--slate);font-size:16px}
+.tlinks{display:flex;flex-wrap:wrap;gap:6px 24px;margin:14px 0 18px}
+.prompt{font-size:15px;color:var(--slate);margin:0}
+.prompt q{display:block;margin-top:6px;padding:12px 14px;border-radius:12px;background:var(--mist);color:var(--ink);quotes:none}
+.mix{padding:72px 0 0}.mix p{color:var(--slate);max-width:40em;margin:12px 0 0}
+.yours{margin:72px 0 0;padding:56px 0 72px;border-top:1px solid var(--line)}.yours .cta{margin-top:28px}
+</style>{{template "og" .Base}}</head><body>
+{{template "nav" "templates"}}
+<main id="main" class="wrap">
+<div class="intro"><h1>Templates</h1>
+<p class="sub">Each template is a finished website for a UAE business, in English and Arabic, taking card payments or cash. Use the demo like a customer, then open the owner's admin panel. Nothing is charged or sent, and demo data is deleted every hour.</p></div>
+{{range .Groups}}<section class="group" aria-label="{{.Job}}"><h2>{{.Job}}</h2><div class="cards">{{range .Cards}}<article class="tcard" id="{{.Name}}">
+{{if .Screen.File}}<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">{{end}}
+<h3>{{.Title}}</h3><p>{{.Summary}}</p><p>For {{.Suits}}.</p>
+<div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Owner's admin panel</a></div>
+<p class="prompt">To build yours, ask your assistant:<q>{{.Prompt}}</q></p></article>{{end}}</div></section>{{end}}
+<section class="mix" aria-labelledby="mix-h"><h2 id="mix-h">Something in between?</h2><p>Start from the closest template and tell your assistant what to change: other fields on a form, your own sections and texts, your colours and photos.</p></section>
+<section class="yours" aria-labelledby="yours-h"><h2 id="yours-h">Make it yours</h2><p class="sub">Connect Renoxium to ChatGPT or Claude and ask for a template by name with your business name, services and prices. Your assistant builds your own copy; you check the preview and publish it.</p>
+<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/connect">Connect ChatGPT or Claude</a></div></section>
+</main>
+{{template "footer" .Legal}}
+</body></html>{{end}}
 
-{{define "gallery"}}{{template "lhead" "Templates · Renoxium"}}<style>
-.intro{padding:24px 0 8px}.intro h1{font-size:clamp(32px,5vw,48px);line-height:1.08;letter-spacing:-.025em;margin:0 0 14px}
-.intro p{font-size:18px;color:var(--soft);max-width:38em;margin:0}
-.cards{display:grid;gap:18px;padding:32px 0 64px}@media(min-width:760px){.cards{grid-template-columns:1fr 1fr}}@media(min-width:1040px){.cards{grid-template-columns:repeat(3,1fr)}}
-.tcard{background:var(--panel);border:1px solid var(--rule);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px}
-.tcard h2{font-size:21px;margin:0;letter-spacing:-.01em}.tcard p{margin:0;color:var(--soft);font-size:15.5px}
-.tags{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:2px 0}.tags li{font-size:13px;padding:2px 10px;border-radius:999px;background:var(--bubble);color:var(--ink)}
-.actions{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:auto;padding-top:8px}.actions .btn{padding:10px 16px;font-size:15px}
-details{font-size:14px;color:var(--soft)}details summary{cursor:pointer;color:var(--blue)}details code{display:block;margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--paper);border:1px solid var(--rule);color:var(--ink);white-space:normal;font-size:13.5px}
-.how{border-top:1px solid var(--rule);padding:40px 0 56px}.how h2{font-size:26px;margin:0 0 10px}.how p{color:var(--soft);max-width:44em;margin:0 0 16px}
-footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color:var(--soft);display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}footer .links{display:flex;gap:18px;flex-wrap:wrap}
-</style>{{template "og" .Base}}</head><body><div class="wrap">
-<nav><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links"><a href="/templates" aria-current="page">Templates</a><a href="/#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
-<div class="intro"><h1>Templates you can try right now</h1>
-<p>Every template is a finished website for a UAE business: payments, bookings, customer accounts, English and Arabic. Open the demo and use it like a customer, then look at the owner's admin panel. Nothing is charged or sent; demo data is deleted every hour.</p></div>
-<div class="cards">{{range .Cards}}<article class="tcard"><h2>{{.Title}}</h2><p>{{.Summary}}</p>
-<ul class="tags" aria-label="Suits">{{range .For}}<li>{{.}}</li>{{end}}</ul>
-<div class="actions"><a class="btn" href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Owner's admin panel</a></div>
-<details><summary>Use this template</summary><p>Connect Renoxium to ChatGPT or Claude, then ask:</p><code>{{.Prompt}}</code></details></article>{{end}}</div>
-<section class="how"><h2>Make it yours</h2><p>Connect Renoxium to ChatGPT or Claude and ask for the template by name with your business name, services and prices. Your assistant builds your own copy, you check the preview and publish it.</p>
-<a class="btn" href="/signup">Create your account</a> <a class="btn quiet" href="/connect">Connect ChatGPT or Claude</a></section>
-<footer><span>© {{.Legal.Company}}</span><div class="links"><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a store</a><a href="/login">Sign in</a></div></footer>
-</div></body></html>{{end}}
-
-{{define "legaltop"}}<style>.doc{max-width:720px;margin:0 auto;padding:8px 20px 64px}.doc h1{font-size:34px;letter-spacing:-.02em;margin:24px 0 8px}
-.doc h2{font-size:20px;margin:32px 0 8px}.doc p,.doc li{color:var(--ink)}.doc .meta{color:var(--soft)}
-.draft{background:#fff3cd;color:#5c4400;border-radius:10px;padding:12px 16px;margin:16px 0}</style></head><body><div class="wrap"><nav><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></nav></div><main class="doc">
+{{define "legaltop"}}<style>.doc{max-width:720px;padding:clamp(24px,5vw,56px) 0 72px}
+.doc h1{font-size:clamp(32px,4vw,44px);letter-spacing:-.025em;margin:0 0 8px;line-height:1.1}
+.doc h2{font-size:21px;margin:36px 0 8px;letter-spacing:-.01em}.doc .meta{color:var(--slate)}
+.draft{background:var(--mist);border-radius:12px;padding:12px 16px;margin:0 0 24px}</style></head><body>
+{{template "nav" "legal"}}<div class="wrap"><main class="doc" id="main">
 {{if not .Legal.Reviewed}}<p class="draft">Draft. This text has not yet been reviewed by a lawyer and may change.</p>{{end}}{{end}}
 
-{{define "privacy"}}{{template "lhead" "Privacy Policy · Renoxium"}}{{template "legaltop" .}}
+{{define "privacy"}}{{template "lhead" "Privacy Policy | Renoxium"}}{{template "legaltop" .}}
 <h1>Privacy Policy</h1><p class="meta">{{.Legal.Company}}{{with .Legal.Address}}, {{.}}{{end}}</p>
 <p>Renoxium is a platform that hosts online stores and other web apps that store owners build with AI assistants. This policy explains what personal data Renoxium handles, why, and the choices you have. "Store owner" means a person with a Renoxium account; "shopper" means a visitor of a store hosted on Renoxium.</p>
 <h2>Data we handle</h2><ul>
@@ -230,9 +278,9 @@ footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color
 <h2>Store owners are responsible for their stores</h2><p>For data collected by a store, the store owner decides what is collected and why, and Renoxium processes it on the owner's behalf. Shoppers should contact the store first about their orders and data.</p>
 <h2>How long we keep it</h2><p>As long as an account or store exists. Store owners can delete stores and their account at any time; backups that contain deleted data are overwritten within 14 days.</p>
 <h2>Your choices and rights</h2><p>Store owners can download all data of their stores and delete their account from the Account page. Anyone can ask us to access, correct or delete their personal data{{with .Legal.Email}} by writing to <a href="mailto:{{.}}">{{.}}</a>{{end}}. Renoxium uses only the cookies needed to keep you signed in and to protect forms.</p>
-<h2>Changes</h2><p>We will post changes on this page and tell store owners by email about important ones.</p></main></body></html>{{end}}
+<h2>Changes</h2><p>We will post changes on this page and tell store owners by email about important ones.</p></main></div></body></html>{{end}}
 
-{{define "terms"}}{{template "lhead" "Terms of Service · Renoxium"}}{{template "legaltop" .}}
+{{define "terms"}}{{template "lhead" "Terms of Service | Renoxium"}}{{template "legaltop" .}}
 <h1>Terms of Service</h1><p class="meta">{{.Legal.Company}}{{with .Legal.Address}}, {{.}}{{end}}</p>
 <p>These terms apply when you create a Renoxium account or use a store hosted on Renoxium. By creating an account you agree to them.</p>
 <h2>The service</h2><p>Renoxium lets you build web apps, such as online stores, through AI assistants you use with your own accounts (for example ChatGPT or Claude), and hosts them. AI assistants can make mistakes: check every change in the preview before you publish it.</p>
@@ -243,5 +291,5 @@ footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color
 <h2>Acceptable use</h2><p>Do not use Renoxium for illegal goods or services, fraud, phishing, malware, content that infringes others' rights, or to send spam. We may suspend a store or account that breaks these rules or that is reported and found to be harmful, and we will tell you why.</p>
 <h2>Availability and liability</h2><p>We work to keep the service running and your data safe, but the service is provided as it is, without a guarantee that it will always be available or error-free. To the extent the law allows, Renoxium is not liable for indirect losses or lost profits, and its total liability is limited to the fees you paid in the three months before the claim.</p>
 <h2>Ending</h2><p>You can delete your account at any time. We may end the service for an account with notice, or right away for serious breaches of these terms.</p>
-<h2>Law</h2><p>These terms are governed by the laws of the United Arab Emirates.{{with .Legal.Email}} Questions: <a href="mailto:{{.}}">{{.}}</a>.{{end}}</p></main></body></html>{{end}}
+<h2>Law</h2><p>These terms are governed by the laws of the United Arab Emirates.{{with .Legal.Email}} Questions: <a href="mailto:{{.}}">{{.}}</a>.{{end}}</p></main></div></body></html>{{end}}
 `))

@@ -134,6 +134,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerAbuse()
 	s.registerGallery()
 	s.registerBrand()
+	s.registerStatic()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.Monitor != nil {
 			if err := s.Monitor.Healthy(); err != nil {

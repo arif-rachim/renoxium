@@ -67,7 +67,8 @@ func TestDemoIsPublicSharedAndReset(t *testing.T) {
 	if !p.IsDemo("demo-club") || p.DemoURL("club") != "https://demo-club.renoxium.test" {
 		t.Fatalf("demo: %v %s", p.IsDemo("demo-club"), p.DemoURL("club"))
 	}
-	// Starting again with the same template keeps the demo (and its data).
+	// Starting again with the same template keeps the demo version and only
+	// renews its data.
 	info, _ := p.Info("demo-club")
 	if err := p.EnsureDemos(ctx, []examples.Example{ex}); err != nil {
 		t.Fatal(err)

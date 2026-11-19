@@ -2,7 +2,7 @@
 // unlocks (no fee, no badge, more apps, staff, domains), changes and
 // cancellation in the Customer Portal, payment trouble, back to Free.
 import { test, expect } from '@playwright/test';
-import { person, ownerWithStore, email, unique, fake, upgrade, portal, connectStripe } from '../lib.mjs';
+import { person, ownerWithStore, email, unique, fake, upgrade, portal, connectStripe, addToCart, fillCheckout, placeOrder } from '../lib.mjs';
 import { SECRETS } from '../env.mjs';
 
 test('upgrade, change plan, cancel, and what each plan allows', async ({ browser }) => {
@@ -36,14 +36,11 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
   await buyer.page.fill('#email', email('probuyer'));
   await buyer.page.fill('#password', 'buyer password 12');
   await buyer.page.getByRole('button', { name: 'Create account' }).click();
-  await buyer.page.goto(shop.live + '/');
-  await buyer.page.locator('a.card', { hasText: 'Oud Gift Set' }).first().click();
-  await buyer.page.locator('#add').click();
+  await addToCart(buyer.page, shop.live, 'Oud Gift Set');
   await buyer.page.goto(shop.live + '/cart');
-  await buyer.page.fill('#phone', '0501231234');
-  await buyer.page.fill('#address', 'Flat 1, Marina');
-  await buyer.page.locator('#emirate').selectOption('Dubai');
-  await buyer.page.locator('form[action="/checkout"] button').click();
+  await fillCheckout(buyer.page, { phone: '0501231234', address: 'Flat 1, Marina', emirate: 'Dubai' });
+  await expect(buyer.page.getByRole('radio', { name: /^Card payment/ })).toBeChecked(); // card is the default payment
+  await placeOrder(buyer.page);
   await expect(buyer.page.locator('#fee')).toHaveText('application fee: 0');
 
   // More apps, staff and a domain are now allowed.

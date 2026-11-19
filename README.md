@@ -7,7 +7,7 @@ The agent sends a declarative app definition (tables, HTML templates, server scr
 Renoxium serves it with server-side rendering, one SQLite database per app stage, and a log
 the agent can read to fix its own mistakes.
 
-Plan: [docs/plans/2026-11-15-renoxium-platform-v1.md](docs/plans/2026-11-15-renoxium-platform-v1.md)
+Plan: [docs/plans/2026-11-15-renoxium-platform-v1.md](docs/plans/2026-11-15-renoxium-platform-v1.md). Roadmap: [docs/roadmap.md](docs/roadmap.md)
 
 ## Status: thin slice
 

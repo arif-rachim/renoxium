@@ -215,7 +215,18 @@ func TestDeliveryTrackingExample(t *testing.T) {
 	if r := req(platform.TestRequestInput{Method: "POST", Path: "/courier/1/delivered", Form: key}); r.Status != 200 {
 		t.Fatalf("delivered: %+v", r)
 	}
-	if r := req(platform.TestRequestInput{Path: "/track/1?code=ABC123"}); !strings.Contains(r.Body, "Delivered") {
+	// The progress list names every status, so check the current one.
+	if r := req(platform.TestRequestInput{Path: "/track/1?code=ABC123"}); !strings.Contains(r.Body, `data-status="delivered"`) || !strings.Contains(r.Body, `<h1 id="status" aria-live="polite">Delivered</h1>`) {
 		t.Fatal("status not delivered")
+	}
+	// Arabic: the page, the status and the courier page.
+	if r := req(platform.TestRequestInput{Path: "/track/1?code=ABC123&lang=ar"}); r.Status != 200 || !strings.Contains(r.Body, `dir="rtl"`) || !strings.Contains(r.Body, "تم التوصيل") {
+		t.Fatalf("Arabic track page: %d", r.Status)
+	}
+	if r := req(platform.TestRequestInput{Path: "/track?id=1&code=ABC123&lang=ar"}); r.Location != "/track/1?code=ABC123&lang=ar" {
+		t.Fatalf("Arabic track form: %+v", r)
+	}
+	if r := req(platform.TestRequestInput{Path: "/courier/1?key=courier-demo-key-change-me&lang=ar"}); r.Status != 200 || !strings.Contains(r.Body, "تأكيد التوصيل") {
+		t.Fatalf("Arabic courier page: %d", r.Status)
 	}
 }

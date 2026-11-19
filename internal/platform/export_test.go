@@ -3,6 +3,7 @@ package platform
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 // SeedFiles records n placeholder files for an app in one transaction, so a
@@ -26,4 +27,44 @@ func SeedFiles(t *testing.T, p *Platform, app string, n int) {
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// SetDemoClock moves the time demo schedules are built around, until the
+// test ends.
+func SetDemoClock(t *testing.T, now func() time.Time) {
+	old := demoClock
+	demoClock = now
+	t.Cleanup(func() { demoClock = old })
+}
+
+// PreviewRows runs a query on an app's preview database, as platform code.
+func PreviewRows(t *testing.T, p *Platform, app, query string, args ...any) []map[string]any {
+	t.Helper()
+	st, err := p.loadStage(app, Preview)
+	if err != nil || st == nil {
+		t.Fatalf("preview of %s: %v", app, err)
+	}
+	rows, err := st.admin.Query(query, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	cols, _ := rows.Columns()
+	var out []map[string]any
+	for rows.Next() {
+		vals := make([]any, len(cols))
+		ptrs := make([]any, len(cols))
+		for i := range vals {
+			ptrs[i] = &vals[i]
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			t.Fatal(err)
+		}
+		m := map[string]any{}
+		for i, c := range cols {
+			m[c] = vals[i]
+		}
+		out = append(out, m)
+	}
+	return out
 }

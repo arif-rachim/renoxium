@@ -12,10 +12,23 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Your business online, built in a chat.", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
+	}
+	// The screenshots are served from the binary, cached for good under a versioned URL.
+	i := strings.Index(page, "/static/img/")
+	if i < 0 {
+		t.Fatal("landing has no screenshots")
+	}
+	src := page[i : i+strings.IndexByte(page[i:], '"')]
+	r, _ = http.Get(e.base + strings.ReplaceAll(src, "&amp;", "&"))
+	if read(t, r); r.StatusCode != 200 || r.Header.Get("Content-Type") != "image/webp" || !strings.Contains(r.Header.Get("Cache-Control"), "immutable") {
+		t.Fatalf("photo %s: %d %s %s", src, r.StatusCode, r.Header.Get("Content-Type"), r.Header.Get("Cache-Control"))
+	}
+	if r, _ := http.Get(e.base + "/static/img/nothing.webp"); r.StatusCode != 404 {
+		t.Fatalf("missing photo: %d", r.StatusCode)
 	}
 	r, _ = http.Get(e.base + "/privacy")
 	if p := read(t, r); r.StatusCode != 200 || !strings.Contains(p, "Draft.") || !strings.Contains(p, "Privacy Policy") {

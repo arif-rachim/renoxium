@@ -4,7 +4,7 @@
 // repeated webhooks, owner notices by email and WhatsApp, and the sales tiles.
 import { test, expect } from '@playwright/test';
 import { RENOXIUM } from '../env.mjs';
-import { person, ownerWithStore, email, waitEmail, waitWhatsApp, fake, connectStripe } from '../lib.mjs';
+import { person, ownerWithStore, email, waitEmail, waitWhatsApp, fake, connectStripe, addToCart, fillCheckout, placeOrder } from '../lib.mjs';
 
 let shop;
 test.beforeAll(async ({ browser }) => {
@@ -24,15 +24,10 @@ async function shopper(browser) {
 // orderByCard puts one White Musk (95 + 15 delivery) in the cart and goes to
 // the (fake) Stripe Checkout page.
 async function orderByCard(page) {
-  await page.goto(shop.live + '/');
-  await page.locator('a.card', { hasText: 'White Musk' }).first().click();
-  await page.locator('#add').click();
+  await addToCart(page, shop.live, 'White Musk');
   await page.goto(shop.live + '/cart');
-  await page.fill('#phone', '0507654321');
-  await page.fill('#address', 'Office 3, Tower 1, JLT');
-  await page.locator('#emirate').selectOption('Dubai');
-  await page.locator('input[name=payment][value=card]').check();
-  await page.locator('form[action="/checkout"] button').click();
+  await fillCheckout(page, { phone: '0507654321', address: 'Office 3, Tower 1, JLT', emirate: 'Dubai', payment: 'card' });
+  await placeOrder(page);
   await expect(page.getByRole('heading', { name: 'Pay 110.00 AED' })).toBeVisible();
   const ref = await page.locator('#ref').innerText();
   const session = (await fake.sessions()).find((s) => s.client_reference_id === ref && s.status === 'open');
@@ -123,7 +118,7 @@ test('declined card, back to the shop, pay again later', async ({ browser }) => 
   await expect(page.locator('body')).toContainText('Waiting for payment');
 
   // "Pay now" on the order page starts a new Checkout for the same order.
-  await page.locator(`form[action="/orders/${order}/pay"] button`).click();
+  await page.getByRole('button', { name: 'Pay now' }).click();
   await expect(page.getByRole('heading', { name: 'Pay 110.00 AED' })).toBeVisible();
   await page.getByRole('button', { name: 'Pay' }).click();
   await page.waitForURL(new RegExp(`/orders/${order}`));
@@ -170,15 +165,10 @@ test('webhooks need a valid Stripe signature', async () => {
 test('cash-on-delivery orders reach the owner on WhatsApp too; notices can be turned off', async ({ browser }) => {
   const { page } = await shopper(browser);
   const t = Date.now();
-  await page.goto(shop.live + '/');
-  await page.locator('a.card', { hasText: 'Amber Night' }).first().click();
-  await page.locator('#add').click();
+  await addToCart(page, shop.live, 'Amber Night');
   await page.goto(shop.live + '/cart');
-  await page.fill('#phone', '0507654321');
-  await page.fill('#address', 'Office 3, Tower 1, JLT');
-  await page.locator('#emirate').selectOption('Dubai');
-  await page.locator('input[name=payment][value=cod]').check();
-  await page.locator('form[action="/checkout"] button').click();
+  await fillCheckout(page, { phone: '0507654321', address: 'Office 3, Tower 1, JLT', emirate: 'Dubai', payment: 'cod' });
+  await placeOrder(page);
   await page.waitForURL(/\/orders\/\d+\?placed=1/);
   const wa = await waitWhatsApp('+971509998877', { after: t, template: 'owner_notice' });
   expect(wa.params[0]).toBe(shop.app);

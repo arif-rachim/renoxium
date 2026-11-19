@@ -96,7 +96,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	// The public pages, in two languages.
 	home := req(platform.TestRequestInput{Path: "/"})
 	has("home", home.Body, `dir="ltr"`, "Bayan Business Setup", "Mainland LLC company setup", "From AED 14500.00", "Tax and accounting", "How it works")
-	has("arabic home", req(platform.TestRequestInput{Path: "/?lang=ar"}).Body, `dir="rtl"`, "بيان لتأسيس الأعمال", "تأسيس الشركات", "ابتداءً من AED 12900.00", `href="/packages/1?lang=ar"`)
+	has("arabic home", req(platform.TestRequestInput{Path: "/?lang=ar"}).Body, `dir="rtl"`, "بيان لتأسيس الأعمال", "تأسيس الشركات", "ابتداءً من 12900.00 د.إ", `href="/packages/1?lang=ar"`)
 	pkg := req(platform.TestRequestInput{Path: "/packages/1"})
 	has("package", pkg.Body, "What is included", "DET trade licence", "plus 5% VAT", `href="/_rx/auth/login?next=%2fpackages%2f1"`)
 	hasNot("package for a guest", pkg.Body, `action="/enquiry"`)
@@ -255,7 +255,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	if _, loc := post(fatima, "/quotes/6/accept", url.Values{"name": {"Fatima"}, "agree": {"1"}}); loc != "/quotes/6?error=error_expired" {
 		t.Fatalf("accepting an expired quote: %s", loc)
 	}
-	has("expired quote", page(fatima, "/quotes/6?error=error_expired"), "This quote has expired", "<span class=\"badge\">Expired</span>")
+	has("expired quote", page(fatima, "/quotes/6?error=error_expired"), "This quote has expired", `<dd class="status s-expired">Expired</dd>`)
 
 	// Another client sees nothing of it and can do nothing with it.
 	if code, _ := get(omar, "/quotes/1"); code != 404 {
@@ -308,7 +308,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	// The owner marks the transfer paid; the client's page follows the ledger.
 	edit("quote_payments", deposit, map[string]string{"status": "paid"})
 	q1 = page(fatima, "/quotes/1")
-	has("after the deposit", q1, "<span class=\"badge\">Deposit paid</span>", "We will ask for the balance", fmt.Sprintf(`href="/quotes/1/invoice/%d"`, deposit))
+	has("after the deposit", q1, `<dd class="status s-deposit_paid">Deposit paid</dd>`, "We will ask for the balance", fmt.Sprintf(`href="/quotes/1/invoice/%d"`, deposit))
 	has("receipt email", liveMails(), unsent+"Payment received: AED 7875.00 for quote #1")
 	hasNot("after the deposit", q1, "Pay by card", "I will pay by bank transfer")
 	if q := row("quotes", 1); q["status"] != "deposit_paid" || q["paid_amount"] != "7875" {
@@ -328,7 +328,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		t.Fatalf("balance row: %v", rows)
 	}
 	edit("quote_payments", rows[0]["id"].(int64), map[string]string{"status": "paid"})
-	has("fully paid", page(fatima, "/quotes/1"), "<span class=\"badge\">Paid in full</span>", "AED 0.00")
+	has("fully paid", page(fatima, "/quotes/1"), `<dd class="status s-paid">Paid in full</dd>`, "AED 0.00")
 	if q := row("quotes", 1); q["status"] != "paid" || q["paid_amount"] != "15750" {
 		t.Fatalf("stored quote after the balance: %v", q)
 	}
@@ -396,11 +396,11 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		t.Fatalf("after paying: %+v", paid)
 	}
 	q4 = as(client, "GET", "/quotes/4?done=done_paid", nil).Body
-	has("after the deposit by card", q4, "We received your payment", "<span class=\"badge\">Deposit paid</span>", "Due now: Balance, AED 945.00")
+	has("after the deposit by card", q4, "We received your payment", `<dd class="status s-deposit_paid">Deposit paid</dd>`, "Due now: Balance, AED 945.00")
 	hasNot("after the deposit by card", q4, "did not go through")
 	pay("/quotes/4/pay", "945.00 AED", "pay")
 	q4 = as(client, "GET", "/quotes/4", nil).Body
-	has("after the balance by card", q4, "<span class=\"badge\">Paid in full</span>", "AED 1575.00")
+	has("after the balance by card", q4, `<dd class="status s-paid">Paid in full</dd>`, "AED 1575.00")
 	hasNot("after the balance by card", q4, "Pay by card")
 	if r := as(client, "POST", "/quotes/4/pay", map[string]string{"method": "card"}); r.Location != "/quotes/4?done=done_paid" {
 		t.Fatalf("paying a paid quote: %+v", r)
@@ -408,7 +408,8 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	// Card rows of quote 4 follow the three ledger rows made on live: the balance of 945 = 900 + 45 VAT.
 	has("receipt of the balance", as(client, "GET", "/quotes/4/invoice/5", nil).Body, ">900.00<", ">45.00<", "AED 945.00", "Balance: VAT registration", "Card")
 	has("emails to the client", mails(), `not sent from preview: to fatima@mail.ae, "You accepted quote #4 from Bayan Business Setup"`,
-		`not sent from preview: to fatima@mail.ae, "Payment received: AED 630.00 for quote #4"`, "/quotes/4/invoice/4")
+		"Total: AED 1575.00 including VAT\nDeposit: AED 630.00\n", `not sent from preview: to fatima@mail.ae, "Payment received: AED 630.00 for quote #4"`,
+		"We received your payment of AED 630.00 (Deposit) for: ", "/quotes/4/invoice/4")
 
 	// Privacy holds on preview too.
 	if r := as("omar@mail.ae", "GET", "/quotes/4", nil); r.Status != 404 {
@@ -419,13 +420,13 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 
 	// A new enquiry tells the owner; Arabic pages are right to left.
-	r := as("omar@mail.ae", "POST", "/enquiry", map[string]string{"name": "Omar", "phone": "+971509999999", "message": "Wedding photos in March", "lang": "ar"})
+	r := as("omar@mail.ae", "POST", "/enquiry", map[string]string{"name": "Omar", "phone": "+971509999999", "email": "omar@mail.ae", "message": "Wedding photos in March", "lang": "ar"})
 	if r.Location != "/portal?done=done_enquiry&lang=ar" {
 		t.Fatalf("enquiry on preview: %+v\n%s", r, logText(r))
 	}
 	has("notice to the owner", mails(), `to the owner, "New enquiry #2: custom request from Omar, +971509999999"`)
 	has("arabic portal", as("omar@mail.ae", "GET", r.Location, nil).Body, `dir="rtl"`, "طلب خاص", "Wedding photos in March")
-	has("arabic quote", as(client, "GET", "/quotes/5?lang=ar", nil).Body, `dir="rtl"`, "عرض سعر #5", "بانتظار ردك", "AED 2205.00")
+	has("arabic quote", as(client, "GET", "/quotes/5?lang=ar", nil).Body, `dir="rtl"`, "عرض السعر رقم 5", "بانتظار ردك", "2205.00 د.إ")
 
 	// Messages: not empty, not too long, and at most 20 a day per quote.
 	if r := as(client, "POST", "/quotes/5/message", map[string]string{"text": "  "}); r.Location != "/quotes/5?error=error_message" {
@@ -483,7 +484,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	if again := job("daily_summary"); again.Body != "1 new enquiries, 2 quotes waiting, 0 transfers pending, 0 expired" {
 		t.Fatalf("daily_summary a second time: %s", again.Body)
 	}
-	has("expired quote", as(client, "GET", "/quotes/6", nil).Body, "<span class=\"badge\">Expired</span>")
+	has("expired quote", as(client, "GET", "/quotes/6", nil).Body, `<dd class="status s-expired">Expired</dd>`)
 
 	// The owner's changes on preview, made with test_request: a new quote is emailed when it is set to sent.
 	admin := func(in platform.TestAdminInput) platform.TestResponse {
@@ -505,6 +506,16 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 	has("quote email on preview", mails(), `not sent from preview: to fatima@mail.ae, "Your quote #8 from Bayan Business Setup is ready"`, "Total: AED 4200.00", "/quotes/8\n")
 	has("the new quote", as(client, "GET", "/quotes/8", nil).Body, "Annual audit", "AED 4200.00", "Accept quote")
+	// Omar asked in Arabic: his quote email is in Arabic, with the amount and the validity date as the Arabic quote page shows them.
+	a = admin(platform.TestAdminInput{Action: "insert", Table: "quotes", By: "owner@bayan.ae", Values: map[string]any{"enquiry_id": 2, "title": "Wedding photography",
+		"status": "sent", "valid_until": "2099-03-15", "lines": `[{"name": "Full-day wedding coverage", "price": 2000}]`}})
+	if a.Body != "1 emails sent" {
+		t.Fatalf("sending the Arabic quote: %s\n%s", a.Body, logText(a))
+	}
+	has("Arabic quote email", mails(), `not sent from preview: to omar@mail.ae, "عرض السعر رقم 9 من بيان لتأسيس الأعمال جاهز"`,
+		"مرحباً Omar،\n\nعرض السعر جاهز: \u2068Wedding photography\u2069\nالإجمالي: 2100.00 د.إ شاملاً ضريبة القيمة المضافة\nصالح حتى: 15 مارس 2099\n",
+		"https://bayan--preview.renoxium.test/quotes/9?lang=ar\n")
+	has("the Arabic quote page", as("omar@mail.ae", "GET", "/quotes/9?lang=ar", nil).Body, "عرض السعر رقم 9", "2100.00 د.إ", "15 مارس 2099")
 
 	// ---- Client documents: private uploads attached to a quote, only by the client who uploaded them, at most 20 per quote.
 	upload := func(email, name string) string {
@@ -570,7 +581,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		t.Fatalf("cancel without refund: %s %v\n%s", a.Body, a.Admin.Row, logText(a))
 	}
 	q4 = as(client, "GET", "/quotes/4", nil).Body
-	has("cancelled quote", q4, "<span class=\"badge\">Cancelled</span>", "AED 630.00", "AED 945.00", `href="/quotes/4/invoice/5"`)
+	has("cancelled quote", q4, `<dd class="status s-cancelled">Cancelled</dd>`, "AED 630.00", "AED 945.00", `href="/quotes/4/invoice/5"`)
 	hasNot("cancelled quote", q4, "Refunded", "Pay by card")
 	hasNot("emails after cancelling", mails(), "Refund of")
 	a = admin(platform.TestAdminInput{Action: "update", Table: "quotes", ID: 4, Values: map[string]any{"refund_on_cancel": true}})
@@ -585,7 +596,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 		}
 	}
 	q4 = as(client, "GET", "/quotes/4", nil).Body
-	has("refunded quote", q4, "Refunded to you", "AED 1575.00", "Refunded: AED 630.00", "Refunded: AED 945.00", "<span class=\"badge\">Cancelled</span>")
+	has("refunded quote", q4, "Refunded to you", "AED 1575.00", "Refunded: AED 630.00", "Refunded: AED 945.00", `<dd class="status s-cancelled">Cancelled</dd>`)
 	hasNot("refunded quote", q4, `href="/quotes/4/invoice/5"`)
 	// The ledger keeps what was paid and what went back; saving again refunds nothing more.
 	for id, amount := range map[int64]float64{4: 630, 5: 945} {
