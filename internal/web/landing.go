@@ -21,7 +21,7 @@ func (s *Site) registerLanding() {
 
 func (s *Site) landingData() map[string]any {
 	return map[string]any{"MCP": s.base + "/mcp", "Fee": 2, "Legal": s.legalOrDefaults(), "Paths": s.sitePaths(s.galleryCards()),
-		"Calendar": screens["admin-calendar"]}
+		"Calendar": screens["admin-calendar"], "Base": s.base}
 }
 
 func (s *Site) legalOrDefaults() Legal {
@@ -51,10 +51,10 @@ func renderLanding(w http.ResponseWriter, data map[string]any) {
 // The public pages share one small design system: navy ink on white with
 // mist bands, gold only for the hero rule and the Pro plan, one family
 // (Readex Pro) for English and Arabic, and real screenshots of the demos.
-var landingPages = template.Must(template.New("").Parse(`
+var landingPages = template.Must(template.New("").Parse(brandDefines + `
 {{define "lhead"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}}</title><meta name="description" content="Orders, bookings and payments for UAE small businesses in one place, from your own website to your customers' AI assistants, built by describing your business to ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
-<meta name="theme-color" content="#13203a">
+{{template "icons"}}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -74,7 +74,7 @@ h3{font-size:22px;line-height:1.25;letter-spacing:-.01em}
 .wrap{max-width:1200px;margin:0 auto;padding:0 20px}
 .skip{position:absolute;left:-9999px;top:12px}.skip:focus{left:16px;z-index:20;background:var(--paper);color:var(--ink);padding:8px 14px;border:1px solid var(--ink);border-radius:8px}
 nav.top{display:flex;align-items:center;justify-content:space-between;gap:8px 20px;padding:20px 0;flex-wrap:wrap}
-.logo{font-weight:600;font-size:21px;color:var(--ink);text-decoration:none;letter-spacing:-.02em}
+.logo{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:22px;color:var(--ink);text-decoration:none;letter-spacing:-.02em}.logo .mark{height:30px;width:auto;flex:none}
 nav.top .links{display:flex;align-items:center;gap:4px 22px;font-size:15px;flex-wrap:wrap}
 nav.top .links a{color:var(--slate);text-decoration:none}nav.top .links a:hover{color:var(--ink)}
 nav.top .links a[aria-current]{color:var(--ink);text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px}
@@ -93,10 +93,14 @@ footer.site{border-top:1px solid var(--line);padding:32px 0 48px;font-size:15px;
 footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:var(--slate)}footer.site a:hover{color:var(--ink)}
 </style>{{end}}
 
-{{define "nav"}}<a class="skip" href="#main">Skip to content</a><header class="wrap"><nav class="top" aria-label="Main"><a class="logo" href="/">Renoxium</a><div class="links">
+{{define "nav"}}<a class="skip" href="#main">Skip to content</a><header class="wrap"><nav class="top" aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links">
 <a href="/templates"{{if eq . "templates"}} aria-current="page"{{end}}>Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="btn sm" href="/signup">Create account</a></div></nav></header>{{end}}
 
 {{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer></div>{{end}}
+
+{{define "og"}}<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:title" content="Renoxium: your business online, built in a chat">
+<meta property="og:description" content="Orders, bookings and payments for UAE small businesses on their own website, built by describing the business to ChatGPT or Claude, in English and Arabic.">
+<meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">{{end}}
 
 {{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}<style>
 .hero{padding:clamp(32px,6vw,80px) 0 0}
@@ -145,7 +149,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 .faq summary::after{content:"+";color:var(--slate);font-weight:400}.faq details[open] summary::after{content:"\2212"}
 .faq p{margin:0 0 20px;color:var(--slate);max-width:44em}
 .end .cta{margin-top:28px}
-</style></head><body>
+</style>{{template "og" .Base}}</head><body>
 {{template "nav" "home"}}
 <main id="main">
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
@@ -237,7 +241,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 .prompt q{display:block;margin-top:6px;padding:12px 14px;border-radius:12px;background:var(--mist);color:var(--ink);quotes:none}
 .mix{padding:72px 0 0}.mix p{color:var(--slate);max-width:40em;margin:12px 0 0}
 .yours{margin:72px 0 0;padding:56px 0 72px;border-top:1px solid var(--line)}.yours .cta{margin-top:28px}
-</style></head><body>
+</style>{{template "og" .Base}}</head><body>
 {{template "nav" "templates"}}
 <main id="main" class="wrap">
 <div class="intro"><h1>Templates</h1>
