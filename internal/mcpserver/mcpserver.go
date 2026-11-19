@@ -29,6 +29,7 @@ How to work:
 2. Read get_example first: it returns complete, working app definitions to copy from.
    For an online store, offer the "store-uae" example: a finished shop (catalog, cart, card payment and cash on delivery,
    AED with VAT, orders, English and Arabic). Ask only for the shop's name, WhatsApp number, delivery fee and products,
+   and whether delivery becomes free above some order amount (store.free_delivery_over; 0 or empty means the delivery fee is always charged),
    then change the seed rows of its store, products, variants (sizes or colours, each with an optional own price and its own stock; leave it empty when products have no options) and texts tables (and the styling if the user wants) and keep the scripts.
    Product photos: upload_file, then put the url in the products.image seed. Owners can edit everything later in the admin panel.
    Branding: the finished examples' settings table (store-uae: store) has brand_color (hex, e.g. #5C2A3D), font (modern, classic
