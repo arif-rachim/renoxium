@@ -47,3 +47,5 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | listing-townhouse.webp | https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3 | Unsplash License | resized |
 | listing-office.webp | https://images.unsplash.com/photo-1497366811353-6870744d04b2 | Unsplash License | resized |
 | listing-retail.webp | https://images.unsplash.com/photo-1497366216548-37526070297c | Unsplash License | resized |
+| delivery-hero.webp | https://images.unsplash.com/photo-1563241527-3004b7be0ffd | Unsplash License | 4:5 crop, bouquet for the florist demo banner |
+| delivery-story.webp | https://images.unsplash.com/photo-1457089328109-e5d9bd499191 | Unsplash License | 4:5 crop, florist story image |

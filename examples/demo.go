@@ -61,6 +61,9 @@ var demoImageSets = map[string][]DemoImageSet{
 		"Gold Chiavari Chair":                   {"image": "party-chairs.webp"},
 		"Bouncy Castle 4 x 4 m":                 {"image": "party-bouncy-castle.webp"},
 	}}},
+	"delivery-tracking": {{Table: "shop", Key: "name", Rows: map[string]map[string]string{
+		"Al Noor Flowers": {"hero_image": "delivery-hero.webp", "story_image": "delivery-story.webp"},
+	}}},
 	"listings-uae": {{Table: "listings", Key: "reference", Rows: map[string]map[string]string{
 		"MH-1001": {"image1": "listing-living-room.webp", "image2": "listing-kitchen.webp", "image3": "listing-bedroom.webp"},
 		"MH-1002": {"image1": "listing-apartment-1.webp", "image2": "listing-kitchen.webp"},
