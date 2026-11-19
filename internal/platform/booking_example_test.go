@@ -3,6 +3,7 @@ package platform_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -166,7 +167,10 @@ func TestBookingUAEExample(t *testing.T) {
 
 	// Preview never sends email: confirmations and the owner notices are in the log.
 	logs, _ := p.Logs("lamsa", logFilterAll())
-	for _, want := range []string{`not sent from preview: to fatima@mail.ae, "Your booking #1 at Lamsa Beauty Lounge"`,
+	day := weekdayOf(tomorrow) + " " + longDay(tomorrow, "en")
+	for _, want := range []string{`not sent from preview: to fatima@mail.ae, "Booking #1 confirmed: Haircut & Blow-dry on ` + day + `"`,
+		"Thank you! Booking #1 at Lamsa Beauty Lounge is confirmed.\n\nHaircut & Blow-dry\n" + day + ", 10:00 – 11:00\nWith Layla",
+		"Price: AED 150.00\nPaid online: AED 75.00\nTo pay at the venue: AED 75.00\n",
 		"https://lamsa--preview.renoxium.test/bookings/2", `to the owner, "New booking #1: Haircut & Blow-dry, `, `, Layla, AED 75.00 paid by card"`,
 		`to the owner, "New booking #2: Classic Manicure, `, `, Maryam, pay at venue AED 70.00"`} {
 		if countMessages(logs, want) == 0 {
@@ -354,6 +358,33 @@ func TestBookingUAETools(t *testing.T) {
 	if r, err := p.TestRequest(ctx, "lamsa", platform.TestRequestInput{Job: "daily_schedule"}); err != nil || r.Status != 200 || !strings.HasPrefix(r.Body, "1 appointments and ") {
 		t.Errorf("daily schedule: %v %+v", err, r)
 	}
+
+	// A booking made in Arabic is confirmed and reminded in Arabic: dates, times and amounts as on the Arabic booking page.
+	p.TestRequest(ctx, "lamsa", platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": "Noura", "email": "noura@mail.ae", "password": "noura password"}})
+	r, err = p.TestRequest(ctx, "lamsa", platform.TestRequestInput{Method: "POST", Path: "/book", UserEmail: "noura@mail.ae",
+		Form: map[string]string{"service": "3", "staff": "2", "date": tomorrow, "time": "12:00", "name": "Noura", "phone": "+971501112233", "payment": "venue", "lang": "ar"}})
+	if err != nil || r.Location != "/bookings/2?placed=1&lang=ar" {
+		t.Fatalf("Arabic booking: %v %+v", err, r)
+	}
+	if r, err := p.TestRequest(ctx, "lamsa", platform.TestRequestInput{Job: "daily_schedule"}); err != nil || !strings.Contains(r.Body, "; 1 reminders sent; ") {
+		t.Errorf("daily schedule after the Arabic booking: %v %+v", err, r)
+	}
+	ar := weekdayAr(tomorrow) + " " + longDay(tomorrow, "ar")
+	logs, _ := p.Logs("lamsa", logFilterAll())
+	for _, want := range []string{`not sent from preview: to noura@mail.ae, "تأكيد الحجز رقم 2: مانيكير كلاسيكي يوم ` + ar + `"`,
+		"شكراً لكِ! تم تأكيد الحجز رقم 2 لدى لمسة بيوتي لاونج.\n\nمانيكير كلاسيكي\n" + ar + "، من 12:00 إلى 12:30\nمع مريم",
+		"السعر: 70.00 د.إ\nالمدفوع عبر الإنترنت: 0.00 د.إ\nيُدفع في الصالون: 70.00 د.إ\n",
+		"لعرض الحجز أو إلغائه: https://lamsa--preview.renoxium.test/bookings/2?lang=ar\n\nفيلا 14، شارع الوصل، جميرا 1، دبي",
+		`to noura@mail.ae, "تذكير: مانيكير كلاسيكي غداً الساعة 12:00"`, "نذكّركِ بالحجز رقم 2 لدى لمسة بيوتي لاونج غداً."} {
+		if !anyLog(logs, want) {
+			t.Errorf("Arabic emails: missing in log: %s", want)
+		}
+	}
+	for _, e := range logs {
+		if strings.Contains(e.Message, "to noura@mail.ae") && (strings.Contains(e.Message, "درهم") || strings.Contains(e.Message, "AED")) {
+			t.Errorf("Arabic email with an English or hard-coded currency: %s", e.Message)
+		}
+	}
 }
 
 // Money after booking in the UAE booking example, on preview: a customer's
@@ -468,7 +499,8 @@ func TestBookingUAERefundsAndSubscriptions(t *testing.T) {
 	if r.Body != "changed email sent" || r.Admin.Row["end_time"] != "15:30" {
 		t.Fatalf("owner time change: %q %v\n%s", r.Body, r.Admin.Row, logText(r))
 	}
-	if !logged(`to fatima@mail.ae, "Booking #3 changed: `+weekdayOf(tomorrow)+" "+tomorrow+` at 15:00"`) || !free("3", "2", "11:00") || free("3", "2", "15:00") {
+	if !logged(`to fatima@mail.ae, "Booking #3 changed: `+weekdayOf(tomorrow)+" "+longDay(tomorrow, "en")+` at 15:00"`) ||
+		!logged(weekdayOf(tomorrow)+" "+longDay(tomorrow, "en")+", 15:00 – 15:30\nWith Maryam") || !free("3", "2", "11:00") || free("3", "2", "15:00") {
 		t.Error("owner time change: email or free times")
 	}
 	// A new staff member: the name follows; moving onto a booked time tells the owner.
@@ -587,4 +619,21 @@ func TestBookingUAERefundsAndSubscriptions(t *testing.T) {
 func weekdayOf(date string) string {
 	d, _ := time.Parse("2006-01-02", date)
 	return d.Weekday().String()
+}
+
+// longDay is a YYYY-MM-DD date as the UAE templates' pages and emails show it (their longDate helper):
+// "19 Nov 2026" in English, "19 نوفمبر 2026" in Arabic, with Western digits.
+func longDay(date, lang string) string {
+	d, _ := time.Parse("2006-01-02", date)
+	months := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+	if lang == "ar" {
+		months = []string{"يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"}
+	}
+	return fmt.Sprintf("%d %s %d", d.Day(), months[d.Month()-1], d.Year())
+}
+
+// weekdayAr is the Arabic weekday name of a YYYY-MM-DD date, as the templates show it.
+func weekdayAr(date string) string {
+	d, _ := time.Parse("2006-01-02", date)
+	return []string{"الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"}[d.Weekday()]
 }

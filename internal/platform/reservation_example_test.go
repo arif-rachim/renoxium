@@ -20,6 +20,11 @@ func dubaiDay(n int) string {
 	return time.Now().UTC().Add(4*time.Hour).AddDate(0, 0, n).Format("2006-01-02")
 }
 
+// showDay and showDayAr are a YYYY-MM-DD date as the example's pages and emails show it (showDate):
+// "Thu 19 Nov 2026" and "الخميس 19 نوفمبر 2026".
+func showDay(date string) string   { return weekdayOf(date)[:3] + " " + longDay(date, "en") }
+func showDayAr(date string) string { return weekdayAr(date) + " " + longDay(date, "ar") }
+
 func reservationApp(t *testing.T) *platform.Platform {
 	t.Helper()
 	p := newPlatform(t)
@@ -338,7 +343,8 @@ func TestReservationUAEExample(t *testing.T) {
 	// Preview never sends email: confirmations and owner notices are in the log.
 	logs, _ := p.Logs("sahara", logFilterAll())
 	for _, want := range []string{
-		`not sent from preview: to amna@mail.ae, "Your reservation #1 at Sahara Bay Tours & Rentals"`,
+		`not sent from preview: to amna@mail.ae, "Reservation #1 confirmed: Sunset Yacht Trip"`,
+		"\nSunset Yacht Trip\n" + showDay(dubaiDay(5)) + ", 17:00\n", "\n\nTotal: AED 740.00 (VAT included)\nPaid online: AED 148.00\nBalance due on the day: AED 592.00\n",
 		"https://sahara--preview.renoxium.test/reservations/2/voucher",
 		`to the owner, "New reservation #1: Sunset Yacht Trip, ` + dubaiDay(5) + ` 17:00, 3 pax, AED 740.00 (card, AED 148.00 paid)"`,
 		`to the owner, "New reservation #2: Nissan Sunny, ` + dubaiDay(3) + ` to ` + dubaiDay(7) + `, 2 x 4d, AED 720.00 (pay later)"`,
@@ -543,7 +549,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	if r := book(4, 3, 5, "later", nil); r.Location != "/reservations/1?placed=1" {
 		t.Fatalf("rental: %+v", r)
 	}
-	has("confirmation with the deposit link", mails(), `"Your reservation #1 at Sahara Bay Tours & Rentals"`,
+	has("confirmation with the deposit link", mails(), `"Reservation #1 confirmed: Nissan Sunny"`, "\n"+showDay(dubaiDay(3))+" – "+showDay(dubaiDay(5))+" (",
 		"Refundable security deposit: AED 1000.00, held on your card and not charged. Authorise it here: https://sahara--preview.renoxium.test/reservations/1\n",
 		"Please upload your driving licence and passport before the handover: https://sahara--preview.renoxium.test/reservations/1\n")
 	has("reservation 1", as("GET", "/reservations/1", nil).Body, "Not authorised yet.", `action="/reservations/1/deposit"`,
@@ -585,14 +591,15 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 		t.Fatalf("capture: %s %v\n%s", a.Body, a.Admin.Row, logText(a))
 	}
 	has("captured", as("GET", "/reservations/2", nil).Body, "AED 750.00 charged for damage; the rest of the hold is released.")
-	has("damage email", mails(), `to amna@mail.ae, "Damage charge for reservation #2"`, "we charged AED 750.00 of your security deposit of AED 3000.00")
+	has("damage email", mails(), `to amna@mail.ae, "Damage charge of AED 750.00 for reservation #2"`, "we charged AED 750.00 of your security deposit of AED 3000.00")
 	if a := admin(2, map[string]any{"damage_amount": 800}); a.Body != "nothing to do" {
 		t.Fatalf("captured twice: %s", a.Body)
 	}
 
 	customer = "badr@mail.ae"
 	// 3. A rental in 10 days: the hold would end before the return, so it is requested closer to the date.
-	if r := book(4, 10, 12, "later", nil); r.Location != "/reservations/3?placed=1" {
+	// Badr books in Arabic: the emails about this reservation are in Arabic, dates and amounts as on the Arabic pages.
+	if r := book(4, 10, 12, "later", map[string]string{"lang": "ar"}); r.Location != "/reservations/3?placed=1&lang=ar" {
 		t.Fatalf("later rental: %+v", r)
 	}
 	r3 := as("GET", "/reservations/3", nil).Body
@@ -600,10 +607,17 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	if strings.Contains(r3, `action="/reservations/3/deposit"`) {
 		t.Error("hold offered 10 days ahead")
 	}
-	if r := as("POST", "/reservations/3/deposit", nil); r.Location != "/reservations/3" {
+	if r := as("POST", "/reservations/3/deposit", nil); r.Location != "/reservations/3?lang=ar" {
 		t.Fatalf("hold 10 days ahead: %+v", r)
 	}
-	has("confirmation without the link", mails(), "We will email you a link closer to the date.")
+	arWhen := "\n" + showDayAr(dubaiDay(10)) + " – " + showDayAr(dubaiDay(12)) + " ("
+	has("Arabic confirmation without the link", mails(), `to badr@mail.ae, "تأكيد الحجز رقم 3: نيسان صني"`, "شكراً لك Amna. تم تأكيد حجزك رقم 3.\n\nنيسان صني"+arWhen,
+		"(شامل الضريبة)\nالمدفوع عبر الإنترنت: 0.00 د.إ\nالمبلغ المتبقي يوم الخدمة: ",
+		"تأمين مسترد: 1000.00 د.إ، يُحجز على بطاقتك دون خصمه. سنرسل لك رابطاً قبل الموعد بفترة قصيرة.\n",
+		"قسيمة الحجز: https://sahara--preview.renoxium.test/reservations/3/voucher?lang=ar\n")
+	if m := mails(); strings.Contains(m, " درهم") || strings.Contains(m, "AED 1000.00، ") {
+		t.Errorf("Arabic emails with a hard-coded currency: %s", m)
+	}
 	if body := job(); !strings.HasSuffix(body, "; 0 deposit links") {
 		t.Fatalf("daily job before the deposit is due: %s", body)
 	}
@@ -612,19 +626,22 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	if a.Body != "change emailed" {
 		t.Fatalf("dates changed: %s\n%s", a.Body, logText(a))
 	}
-	has("change email", mails(), `to badr@mail.ae, "Reservation #3 updated"`)
+	has("Arabic change email", mails(), `to badr@mail.ae, "تم تعديل الحجز رقم 3"`, "قمنا بتعديل حجزك رقم 3.\n\nنيسان صني\n"+showDayAr(dubaiDay(4))+" – "+showDayAr(dubaiDay(6))+" (")
 	if body := job(); !strings.HasSuffix(body, "; 1 deposit link") {
 		t.Fatalf("daily job with the deposit due: %s", body)
 	}
-	has("deposit link email", mails(), `to badr@mail.ae, "Authorise your security deposit for reservation #3"`, "https://sahara--preview.renoxium.test/reservations/3\n")
+	has("Arabic deposit link email", mails(), `to badr@mail.ae, "قم بتفويض مبلغ التأمين للحجز رقم 3"`,
+		"يرجى تفويض مبلغ التأمين المسترد وقدره 1000.00 د.إ على بطاقتك.", "https://sahara--preview.renoxium.test/reservations/3?lang=ar\n")
 	if body := job(); !strings.HasSuffix(body, "; 0 deposit links") {
 		t.Fatalf("deposit link sent twice: %s", body)
 	}
 	// The customer authorises it, then cancels inside the free-cancellation window: the hold is released.
 	pay(as("POST", "/reservations/3/deposit", nil).Location, "pay")
-	if r := as("POST", "/reservations/3/cancel", nil); r.Location != "/reservations/3?cancelled=1" {
+	if r := as("POST", "/reservations/3/cancel", nil); r.Location != "/reservations/3?cancelled=1&lang=ar" {
 		t.Fatalf("cancel 3: %+v", r)
 	}
+	has("Arabic cancellation email", mails(), `to badr@mail.ae, "تم إلغاء الحجز رقم 3"`, "مرحباً Amna، تم إلغاء حجزك رقم 3 (نيسان صني، "+showDayAr(dubaiDay(4))+" – ",
+		"\n\nالمدفوع عبر الإنترنت: 0.00 د.إ. يُعاد أي مبلغ دفعته")
 	has("cancelled with a hold", as("GET", "/reservations/3?cancelled=1", nil).Body, ">Cancelled</strong>", "Released. Nothing was charged.", "is cancelled")
 
 	// 4. A paid tour cancelled by the customer is refunded with payments.refund.
@@ -691,7 +708,7 @@ func TestReservationUAEDepositsRefundsDocuments(t *testing.T) {
 	if a.Body != "confirmation emailed" || a.Admin.Row["licence_file"] != nil {
 		t.Fatalf("owner confirms: %s %v", a.Body, a.Admin.Row)
 	}
-	has("owner confirmation", mails(), `to dana@mail.ae, "Your reservation #7 at Sahara Bay Tours & Rentals"`)
+	has("owner confirmation", mails(), `to dana@mail.ae, "Reservation #7 confirmed: Sunset Yacht Trip"`)
 	a = admin(6, map[string]any{"status": "no_show"})
 	if a.Body != "no-show emailed" || a.Admin.Row["licence_file"] != mine || a.Admin.Row["id_file"] != passport {
 		t.Fatalf("no-show: %s %v", a.Body, a.Admin.Row)

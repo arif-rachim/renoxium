@@ -408,7 +408,8 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	// Card rows of quote 4 follow the three ledger rows made on live: the balance of 945 = 900 + 45 VAT.
 	has("receipt of the balance", as(client, "GET", "/quotes/4/invoice/5", nil).Body, ">900.00<", ">45.00<", "AED 945.00", "Balance: VAT registration", "Card")
 	has("emails to the client", mails(), `not sent from preview: to fatima@mail.ae, "You accepted quote #4 from Bayan Business Setup"`,
-		`not sent from preview: to fatima@mail.ae, "Payment received: AED 630.00 for quote #4"`, "/quotes/4/invoice/4")
+		"Total: AED 1575.00 including VAT\nDeposit: AED 630.00\n", `not sent from preview: to fatima@mail.ae, "Payment received: AED 630.00 for quote #4"`,
+		"We received your payment of AED 630.00 (Deposit) for: ", "/quotes/4/invoice/4")
 
 	// Privacy holds on preview too.
 	if r := as("omar@mail.ae", "GET", "/quotes/4", nil); r.Status != 404 {
@@ -419,7 +420,7 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 
 	// A new enquiry tells the owner; Arabic pages are right to left.
-	r := as("omar@mail.ae", "POST", "/enquiry", map[string]string{"name": "Omar", "phone": "+971509999999", "message": "Wedding photos in March", "lang": "ar"})
+	r := as("omar@mail.ae", "POST", "/enquiry", map[string]string{"name": "Omar", "phone": "+971509999999", "email": "omar@mail.ae", "message": "Wedding photos in March", "lang": "ar"})
 	if r.Location != "/portal?done=done_enquiry&lang=ar" {
 		t.Fatalf("enquiry on preview: %+v\n%s", r, logText(r))
 	}
@@ -505,6 +506,16 @@ func TestQuotePortalUAEExample(t *testing.T) {
 	}
 	has("quote email on preview", mails(), `not sent from preview: to fatima@mail.ae, "Your quote #8 from Bayan Business Setup is ready"`, "Total: AED 4200.00", "/quotes/8\n")
 	has("the new quote", as(client, "GET", "/quotes/8", nil).Body, "Annual audit", "AED 4200.00", "Accept quote")
+	// Omar asked in Arabic: his quote email is in Arabic, with the amount and the validity date as the Arabic quote page shows them.
+	a = admin(platform.TestAdminInput{Action: "insert", Table: "quotes", By: "owner@bayan.ae", Values: map[string]any{"enquiry_id": 2, "title": "Wedding photography",
+		"status": "sent", "valid_until": "2099-03-15", "lines": `[{"name": "Full-day wedding coverage", "price": 2000}]`}})
+	if a.Body != "1 emails sent" {
+		t.Fatalf("sending the Arabic quote: %s\n%s", a.Body, logText(a))
+	}
+	has("Arabic quote email", mails(), `not sent from preview: to omar@mail.ae, "عرض السعر رقم 9 من بيان لتأسيس الأعمال جاهز"`,
+		"مرحباً Omar،\n\nعرض السعر جاهز: \u2068Wedding photography\u2069\nالإجمالي: 2100.00 د.إ شاملاً ضريبة القيمة المضافة\nصالح حتى: 15 مارس 2099\n",
+		"https://bayan--preview.renoxium.test/quotes/9?lang=ar\n")
+	has("the Arabic quote page", as("omar@mail.ae", "GET", "/quotes/9?lang=ar", nil).Body, "عرض السعر رقم 9", "2100.00 د.إ", "15 مارس 2099")
 
 	// ---- Client documents: private uploads attached to a quote, only by the client who uploaded them, at most 20 per quote.
 	upload := func(email, name string) string {
