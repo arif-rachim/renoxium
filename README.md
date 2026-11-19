@@ -1,3 +1,5 @@
+<p><img src="brand/renoxium-logo.svg" alt="Renoxium" height="56"></p>
+
 # Renoxium
 
 Build and host web apps for small businesses from a chat with ChatGPT, Claude or any MCP agent.
@@ -57,6 +59,10 @@ Working today:
 - Refunds, card holds and recurring payments (money actions run only in requests of a signed-in visitor, jobs, `on_payment` and `on_admin_change`, never in public MCP tools or anonymous requests; at most 60 an hour per app stage, stored across restarts): scripts call `payments.refund` (full or partial, never more than what is left; the Free plan's fee is refunded in proportion), `payments.checkout({hold: true})` with `payments.capture` / `payments.release` (authorise now, take all or part later; card holds last about 7 days), and `payments.subscribe` / `payments.subscription` / `payments.cancel_subscription` (Stripe Checkout in subscription mode on the merchant's account, weekly, monthly or yearly, Free-plan fee as `application_fee_percent`). `on_payment` gets `authorized`, `released`, `renewed`, `renewal_failed` and `subscription_cancelled` as well, once per change (webhook events are applied once per event id). The owner's Payments page lists payments and subscriptions with Refund, Capture, Release and Cancel (owner only, CSRF-checked, logged with the owner's email); money actions are limited to 60 an hour per app. Previews simulate all of it, including renewals.
 - Template gallery at `/templates`: every example with gallery words in `examples/examples.go` (title, summary, who it suits) gets a card and a live demo at `demo-<example>.<apps domain>`, created or updated at every start (`EnsureDemos`) and put back to its seed rows every hour (`ResetDemos`). Demos are apps of no account (owner `rx_demo`; app names starting with `demo-` are reserved) running on preview behaviour without the preview lock: card payments are simulated, nothing is emailed or sent on WhatsApp, `http.fetch` makes no calls and jobs do not run. What a demo would have sent (sign-in codes and links, the app's emails, owner notices) goes to a demo inbox at `/_rx/demo/inbox` that only the browser whose request caused it can read; the sign-in pages show it too. Every page carries a demo bar warning that the data is public. The owner's admin panel of a demo (`/templates/<example>/admin`) is open to everyone and read-only: lists, rows and the calendar, no forms, and every changing route still requires the owner. Adding a template: put the JSON in `examples/`, register it and give it a gallery entry (a test fails for a `-uae` example without one); the next deploy publishes its demo.
 - Apps can define public MCP tools (`tools` in the definition, backed by scripts) served at `<app>/mcp`, so shoppers can add a shop to ChatGPT or Claude and ask about its products. The store template has search_products, get_product and store_info.
+
+## Brand
+
+The logo, icons and social images are in [`brand/`](brand/README.md), with rules for using them.
 
 ## Run
 

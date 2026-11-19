@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"github.com/arif-rachim/renoxium/brand"
 	"math"
 	"sync"
 	"time"
@@ -55,6 +56,14 @@ func (p *Platform) applicationFee(app string, total int64) int64 {
 	return int64(math.Round(float64(total) * FreePlanFeePercent / 100))
 }
 
-// badge is the small notice on live pages of free-plan apps.
-const badge = `<a href="https://www.renoxium.com" target="_blank" rel="noopener" style="position:fixed;bottom:8px;inset-inline-start:8px;z-index:2147483647;` +
-	`font:12px/1.4 system-ui,sans-serif;background:#111;color:#fff;padding:4px 8px;border-radius:6px;text-decoration:none;opacity:.85">Made with Renoxium</a>`
+// badge is the small notice on live pages of free-plan apps, with the
+// Renoxium mark.
+var badge = `<a href="https://www.renoxium.com" target="_blank" rel="noopener" style="position:fixed;bottom:8px;inset-inline-start:8px;z-index:2147483647;` +
+	`display:inline-flex;align-items:center;gap:6px;font:12px/1.4 system-ui,sans-serif;background:` + brand.Navy + `;color:#fff;padding:4px 9px 4px 7px;border-radius:7px;text-decoration:none;opacity:.92">` +
+	brandMark("12px", "#fff") + `Made with Renoxium</a>`
+
+// brandMark is the Renoxium mark as inline SVG.
+func brandMark(height, fill string) string {
+	return `<svg viewBox="` + brand.MarkViewBox + `" style="height:` + height + `;width:auto;flex:none" aria-hidden="true" focusable="false"><path fill="` + fill +
+		`" fill-rule="evenodd" d="` + brand.MarkPath + `"/></svg>`
+}

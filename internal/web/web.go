@@ -133,6 +133,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerConnections()
 	s.registerAbuse()
 	s.registerGallery()
+	s.registerBrand()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.Monitor != nil {
 			if err := s.Monitor.Healthy(); err != nil {
@@ -718,20 +719,20 @@ func (l *limiter) allow(key string) bool {
 
 // --- templates ---
 
-var pages = template.Must(template.New("").Parse(`
+var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "top"}}{{template "head" .}}<body>{{template "nav"}}<main>{{end}}
 {{define "wide"}}{{template "head" .}}<body>{{template "nav"}}<main class="wide">{{end}}
-{{define "auth"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/">Renoxium</a><nav aria-label="Main"><a href="/templates">Templates</a><a href="/connect">Connect</a></nav></div></header><main>{{end}}
-{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/">Renoxium</a><nav aria-label="Main"><a href="/">Your apps</a><a href="/templates">Templates</a><a href="/billing">Plan</a><a href="/account">Account</a><a href="/connect">Help</a></nav></div></header>{{end}}
+{{define "auth"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a href="/connect">Connect</a></nav></div></header><main>{{end}}
+{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/">Your apps</a><a href="/templates">Templates</a><a href="/billing">Plan</a><a href="/account">Account</a><a href="/connect">Help</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.}} · Renoxium</title>{{template "fonts"}}<style>
-:root{color-scheme:light dark;--fg:#0f2a2a;--muted:#4d6563;--bg:#eef3f1;--card:#fff;--line:#d3dfdb;--accent:#0e6f66;--accent-ink:#fff;--accent-soft:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--live:#1f8a4c;--bad:#b3261e;--radius:14px}
-@media (prefers-color-scheme:dark){:root{--fg:#e3eeeb;--muted:#93a9a5;--bg:#0b1615;--card:#11201e;--line:#21403b;--accent:#3fc2b2;--accent-ink:#06201d;--accent-soft:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--live:#4cc88a;--bad:#ff8a80}}
+<title>{{.}} · Renoxium</title>{{template "icons"}}{{template "fonts"}}<style>
+:root{color-scheme:light dark;--brand:#1B2F5B;--fg:#0f2a2a;--muted:#4d6563;--bg:#eef3f1;--card:#fff;--line:#d3dfdb;--accent:#0e6f66;--accent-ink:#fff;--accent-soft:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--live:#1f8a4c;--bad:#b3261e;--radius:14px}
+@media (prefers-color-scheme:dark){:root{--brand:#E8EDF7;--fg:#e3eeeb;--muted:#93a9a5;--bg:#0b1615;--card:#11201e;--line:#21403b;--accent:#3fc2b2;--accent-ink:#06201d;--accent-soft:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--live:#4cc88a;--bad:#ff8a80}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.55 "Readex Pro",system-ui,sans-serif;color:var(--fg);background:var(--bg)}
 a{color:var(--accent);text-underline-offset:2px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .bar-top{background:var(--card);border-bottom:1px solid var(--line)}.bar-top .in{max-width:1120px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:8px 24px;flex-wrap:wrap}
-.logo{font-weight:700;font-size:19px;color:var(--fg);text-decoration:none;letter-spacing:-.01em;margin-inline-end:auto}
+.logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:20px;color:var(--brand);text-decoration:none;letter-spacing:-.01em;margin-inline-end:auto}.logo .mark{height:26px;width:auto;flex:none}
 .bar-top nav{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:15px}.bar-top nav a{color:var(--fg);text-decoration:none;padding:4px 0}.bar-top nav a:hover{color:var(--accent)}
 main{max-width:600px;margin:32px auto 64px;padding:0 20px}main.wide{max-width:1120px}body.auth main{max-width:440px;margin-top:56px}
 .crumbs{font-size:14px;margin:0 0 14px;color:var(--muted)}.crumbs a{color:var(--muted)}

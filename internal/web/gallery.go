@@ -35,7 +35,7 @@ func (s *Site) galleryCards() []galleryCard {
 func (s *Site) galleryPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	landingPages.ExecuteTemplate(w, "gallery", map[string]any{"Cards": s.galleryCards(), "Legal": s.legalOrDefaults()})
+	landingPages.ExecuteTemplate(w, "gallery", map[string]any{"Cards": s.galleryCards(), "Legal": s.legalOrDefaults(), "Base": s.base})
 }
 
 func galleryExample(r *http.Request) (examples.Example, bool) {

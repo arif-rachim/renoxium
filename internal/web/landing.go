@@ -20,7 +20,7 @@ func (s *Site) registerLanding() {
 }
 
 func (s *Site) landingData() map[string]any {
-	return map[string]any{"MCP": s.base + "/mcp", "Fee": 2, "Legal": s.legalOrDefaults(), "Cards": s.galleryCards()}
+	return map[string]any{"MCP": s.base + "/mcp", "Fee": 2, "Legal": s.legalOrDefaults(), "Cards": s.galleryCards(), "Base": s.base}
 }
 
 func (s *Site) legalOrDefaults() Legal {
@@ -47,26 +47,30 @@ func renderLanding(w http.ResponseWriter, data map[string]any) {
 	landingPages.ExecuteTemplate(w, "landing", data)
 }
 
-var landingPages = template.Must(template.New("").Parse(`
+var landingPages = template.Must(template.New("").Parse(brandDefines + `
 {{define "lhead"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}}</title><meta name="description" content="Websites for UAE businesses, built by chatting with ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+{{template "icons"}}<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:light dark;--ink:#0f2a2a;--soft:#4d6563;--paper:#eef3f1;--panel:#ffffff;--rule:#d3dfdb;--blue:#0e6f66;--blue-ink:#ffffff;--live:#1f8a4c;--bubble:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--deep:#0d3b37;--deep-ink:#e6f2ef}
-@media (prefers-color-scheme:dark){:root{--ink:#e3eeeb;--soft:#93a9a5;--paper:#0b1615;--panel:#11201e;--rule:#21403b;--blue:#3fc2b2;--blue-ink:#06201d;--live:#4cc88a;--bubble:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--deep:#0f2b28;--deep-ink:#e3eeeb}}
+:root{color-scheme:light dark;--brand:#1B2F5B;--ink:#0f2a2a;--soft:#4d6563;--paper:#eef3f1;--panel:#ffffff;--rule:#d3dfdb;--blue:#0e6f66;--blue-ink:#ffffff;--live:#1f8a4c;--bubble:#dcefeb;--sun:#e9a825;--sun-soft:#fbefd2;--deep:#0d3b37;--deep-ink:#e6f2ef}
+@media (prefers-color-scheme:dark){:root{--brand:#E8EDF7;--ink:#e3eeeb;--soft:#93a9a5;--paper:#0b1615;--panel:#11201e;--rule:#21403b;--blue:#3fc2b2;--blue-ink:#06201d;--live:#4cc88a;--bubble:#163a35;--sun:#f2bd4b;--sun-soft:#3a3016;--deep:#0f2b28;--deep-ink:#e3eeeb}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Readex Pro",system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:var(--blue);text-underline-offset:3px}a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:3px;border-radius:6px}
 .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
 nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0;flex-wrap:wrap}
-.logo{font-weight:700;font-size:21px;color:var(--ink);text-decoration:none;letter-spacing:-.01em}
+.logo{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:22px;color:var(--brand);text-decoration:none;letter-spacing:-.01em}.logo .mark{height:30px;width:auto;flex:none}
 nav .links{display:flex;gap:6px 20px;font-size:15px;flex-wrap:wrap}nav .links a{color:var(--ink);text-decoration:none}nav .links a:hover{color:var(--blue)}
 .btn{display:inline-block;background:var(--blue);color:var(--blue-ink);padding:13px 22px;border-radius:12px;font-weight:500;text-decoration:none;font-size:16px;border:1px solid var(--blue)}
 .btn.quiet{background:transparent;color:var(--ink);border-color:var(--rule)}
 footer a{color:var(--soft)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>{{end}}
+
+{{define "og"}}<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:title" content="Renoxium: your business online, built in a chat">
+<meta property="og:description" content="Websites for UAE businesses, built by chatting with ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, in English and Arabic.">
+<meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">{{end}}
 
 {{define "landing"}}{{template "lhead" "Renoxium: your business website, built in a chat"}}<style>
 .hero{display:grid;gap:40px;padding:28px 0 72px;align-items:center}@media(min-width:960px){.hero{grid-template-columns:1.1fr 1fr;gap:56px;padding:48px 0 96px}}
@@ -117,8 +121,8 @@ h2{font-size:clamp(28px,3.8vw,40px);letter-spacing:-.02em;margin:0 0 14px;line-h
 .end{text-align:center;padding:80px 0}.end h2{margin:0 auto 14px}.end .sub{margin:0 auto 28px}.end .cta{justify-content:center}
 footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color:var(--soft);display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
 footer .links{display:flex;gap:18px;flex-wrap:wrap}
-</style></head><body><div class="wrap">
-<nav aria-label="Main"><a class="logo" href="/">Renoxium</a><div class="links"><a href="/templates">Templates</a><a href="#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
+</style>{{template "og" .Base}}</head><body><div class="wrap">
+<nav aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links"><a href="/templates">Templates</a><a href="#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
 
 <div class="hero"><div>
 <h1>Your business online, built in a chat. <span class="ar" lang="ar">موقع عملك، جاهز من محادثة.</span></h1>
@@ -195,8 +199,8 @@ footer .links{display:flex;gap:18px;flex-wrap:wrap}
 details{font-size:14px;color:var(--soft)}details summary{cursor:pointer;color:var(--blue)}details code{display:block;margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--paper);border:1px solid var(--rule);color:var(--ink);white-space:normal;font-size:13.5px}
 .how{border-top:1px solid var(--rule);padding:40px 0 56px}.how h2{font-size:26px;margin:0 0 10px}.how p{color:var(--soft);max-width:44em;margin:0 0 16px}
 footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color:var(--soft);display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}footer .links{display:flex;gap:18px;flex-wrap:wrap}
-</style></head><body><div class="wrap">
-<nav><a class="logo" href="/">Renoxium</a><div class="links"><a href="/templates" aria-current="page">Templates</a><a href="/#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
+</style>{{template "og" .Base}}</head><body><div class="wrap">
+<nav><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links"><a href="/templates" aria-current="page">Templates</a><a href="/#pricing">Pricing</a><a href="/connect">Connect</a><a href="/login">Sign in</a></div></nav>
 <div class="intro"><h1>Templates you can try right now</h1>
 <p>Every template is a finished website for a UAE business: payments, bookings, customer accounts, English and Arabic. Open the demo and use it like a customer, then look at the owner's admin panel. Nothing is charged or sent; demo data is deleted every hour.</p></div>
 <div class="cards">{{range .Cards}}<article class="tcard"><h2>{{.Title}}</h2><p>{{.Summary}}</p>
@@ -210,7 +214,7 @@ footer{border-top:1px solid var(--rule);padding:28px 0 48px;font-size:14px;color
 
 {{define "legaltop"}}<style>.doc{max-width:720px;margin:0 auto;padding:8px 20px 64px}.doc h1{font-size:34px;letter-spacing:-.02em;margin:24px 0 8px}
 .doc h2{font-size:20px;margin:32px 0 8px}.doc p,.doc li{color:var(--ink)}.doc .meta{color:var(--soft)}
-.draft{background:#fff3cd;color:#5c4400;border-radius:10px;padding:12px 16px;margin:16px 0}</style></head><body><div class="wrap"><nav><a class="logo" href="/">Renoxium</a><div class="links"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></nav></div><main class="doc">
+.draft{background:#fff3cd;color:#5c4400;border-radius:10px;padding:12px 16px;margin:16px 0}</style></head><body><div class="wrap"><nav><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></nav></div><main class="doc">
 {{if not .Legal.Reviewed}}<p class="draft">Draft. This text has not yet been reviewed by a lawyer and may change.</p>{{end}}{{end}}
 
 {{define "privacy"}}{{template "lhead" "Privacy Policy · Renoxium"}}{{template "legaltop" .}}

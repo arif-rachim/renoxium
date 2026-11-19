@@ -369,7 +369,7 @@ pre{white-space:pre-wrap;word-break:break-word;font:inherit;margin:8px 0 0}.mute
 <style>.rx-demo-msg{border-top:1px solid #8884;padding:8px 0}.rx-demo-msg h2{font-size:16px;margin:4px 0}.rx-demo-meta{color:#777;font-size:13px;margin:0}.rx-demo-msg pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:14px;margin:4px 0 0}</style>
 {{template "messages" .}}</section>{{end}}
 {{define "banner"}}<div id="rx-demo" style="display:flex;flex-wrap:wrap;gap:2px 14px;align-items:center;justify-content:center;padding:6px 12px;background:#1b1f3b;color:#fff;font:13px/1.4 system-ui,sans-serif;text-align:center" dir="ltr" lang="en">
-<span><strong>Template demo</strong> · public data, deleted every hour. Don't enter real personal details.</span>
+<span style="display:inline-flex;align-items:center;gap:6px">{{.Mark}}<strong>Template demo</strong></span><span>Public data, deleted every hour. Don't enter real personal details.</span>
 <span><a href="` + DemoInboxPath + `" style="color:#9db4ff">Demo inbox</a> · <a href="{{.Admin}}" style="color:#9db4ff">Owner's admin panel</a> · <a href="{{.Gallery}}" style="color:#9db4ff">All templates</a></span></div>{{end}}
 `))
 
@@ -407,9 +407,10 @@ func (p *Platform) demoInboxBox(r *http.Request, app string) []byte {
 func (p *Platform) injectDemoBanner(app string, page []byte) []byte {
 	var buf bytes.Buffer
 	example := strings.TrimPrefix(app, DemoPrefix)
-	if demoPages.ExecuteTemplate(&buf, "banner", map[string]string{
+	if demoPages.ExecuteTemplate(&buf, "banner", map[string]any{
 		"Gallery": p.cfg.SiteURL + "/templates",
 		"Admin":   p.cfg.SiteURL + "/templates/" + example + "/admin",
+		"Mark":    template.HTML(brandMark("15px", "#fff")),
 	}) != nil {
 		return page
 	}
