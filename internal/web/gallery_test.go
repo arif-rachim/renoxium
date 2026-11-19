@@ -33,6 +33,12 @@ func TestTemplateGallery(t *testing.T) {
 			}
 		}
 	}
+	// Grouped by what the owner does, each with a screenshot of its demo.
+	for _, want := range []string{"I sell products", "I take bookings", "I send quotes", "I deliver", "/static/img/screen-booking.webp?v="} {
+		if !strings.Contains(page, want) {
+			t.Errorf("gallery lacks %q", want)
+		}
+	}
 	for _, path := range []string{"/", "/llms.txt"} {
 		r, _ := c.Get(e.base + path)
 		if body := read(t, r); !strings.Contains(body, "/templates") {

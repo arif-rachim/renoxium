@@ -81,7 +81,7 @@ func TestListingsUAEExample(t *testing.T) {
 	// Search filters.
 	all := get("/search")
 	check("search", all.Body, []string{"9 properties found", "Page 1 / 2", "page=2"}, []string{"MH-1009", "MH-1010", "MH-1012"})
-	check("rent", get("/search?purpose=rent").Body, []string{"MH-1002", "MH-1003", "MH-1007", "MH-1008", "MH-1011", "per year", "AED 6,500 <small>per month"},
+	check("rent", get("/search?purpose=rent").Body, []string{"MH-1002", "MH-1003", "MH-1007", "MH-1008", "MH-1011", "per year", `AED 6,500 <span class="per">per month`},
 		[]string{"MH-1001", "MH-1004", "MH-1012"})
 	check("two bedrooms", get("/search?beds=2").Body, []string{"MH-1001", "MH-1011", "2 properties found"}, []string{"MH-1010", "MH-1002"})
 	check("studio", get("/search?beds=0").Body, []string{"MH-1003", "Studio"}, []string{"MH-1008", "MH-1001"})
@@ -112,7 +112,7 @@ func TestListingsUAEExample(t *testing.T) {
 	check("listing", l.Body, []string{"Two-bedroom apartment with full marina view", "AED 2,350,000", "Permit number", "SAMPLE-7100000001", "ORN", "SAMPLE-12345",
 		"BRN", "SAMPLE-50101", "Omar Al Hashimi", `href="tel:&#43;971500000001"`, "https://wa.me/971500000001?text=Hello%2c%20I%20am%20interested%20in%20MH-1001",
 		"Request a viewing", "Ask a question", `name="listing_id" value="1"`, `name="website"`, "Marina view", "1,310 sq ft", "View on map"}, nil)
-	check("rental listing", get("/l/3").Body, []string{"AED 6,500 <small>per month", "Studio", "Furnished", "SAMPLE-7100000003", "SAMPLE-50102"}, nil)
+	check("rental listing", get("/l/3").Body, []string{"AED 6,500", `<span class="per">per month`, "Studio", "Furnished", "SAMPLE-7100000003", "SAMPLE-50102"}, nil)
 	check("off-plan listing", get("/l/6").Body, []string{"Off-plan", "Sample Developments", "Q4 2028"}, nil)
 	check("arabic listing", get("/l/1?lang=ar").Body, []string{`dir="rtl"`, "رقم التصريح", "SAMPLE-7100000001", "عمر الهاشمي", "طلب معاينة"}, nil)
 	// No permit number, sold, hidden and unknown listings have no page.
@@ -184,7 +184,7 @@ func TestListingsUAEExample(t *testing.T) {
 	bad("arabic", "/l/1?error=error_fields&lang=ar#lead", func(f map[string]string) { f["name"] = ""; f["lang"] = "ar" })
 	bad("source elsewhere", "/contact?error=error_fields#lead", func(f map[string]string) { f["name"] = ""; f["source"] = "https://evil.example/" })
 	check("error message", get("/l/1?error=error_date").Body, []string{"Please choose a viewing date"}, nil)
-	check("unknown error code", get("/l/1?error=error_nope").Body, nil, []string{`class="error"`})
+	check("unknown error code", get("/l/1?error=error_nope").Body, nil, []string{`class="alert"`})
 	// The hidden field that only robots fill in: thanked, not stored, the owner not told.
 	bad("honeypot", "/thanks?kind=viewing", func(f map[string]string) { f["website"] = "https://spam.example"; f["name"] = "Robot" })
 

@@ -92,7 +92,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 	}
 
 	home := req(platform.TestRequestInput{Path: "/"})
-	for _, want := range []string{"Bayti Home Services", "Home cleaning", "AED 40.00", "Pest control", "Arabian Ranches · + AED 25.00", `dir="ltr"`} {
+	for _, want := range []string{"Bayti Home Services", "Home cleaning", "AED 40.00", "Pest control", "<span>Arabian Ranches</span><span class=\"price\">+ AED 25.00</span>", `dir="ltr"`} {
 		if !strings.Contains(home.Body, want) {
 			t.Fatalf("home lacks %q: %s", want, home.Body)
 		}
@@ -102,7 +102,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 		!strings.Contains(ar.Body, `href="/s/1?lang=ar"`) {
 		t.Fatal("arabic home")
 	}
-	if r := req(platform.TestRequestInput{Path: "/s/1"}); r.Status != 200 || !strings.Contains(r.Body, "Materials and equipment (+ AED 10.00 / hour)") ||
+	if r := req(platform.TestRequestInput{Path: "/s/1"}); r.Status != 200 || !strings.Contains(r.Body, "Materials and equipment<span class=\"hint\">+ AED 10.00 per hour</span>") ||
 		!strings.Contains(r.Body, `<option value="`+day+`">`) || strings.Contains(r.Body, `<option value="`+sunday.Format("2006-01-02")+`">`) {
 		t.Fatalf("service page: %d %s", r.Status, r.Body)
 	}
@@ -165,7 +165,9 @@ func TestHomeServiceUAEExample(t *testing.T) {
 			t.Errorf("booking page lacks %q", want)
 		}
 	}
-	for _, want := range []string{`not sent from preview: to fatima@mail.ae, "Booking #1 confirmed: Home cleaning on ` + day + `"`,
+	dayText := weekdayOf(day)[:3] + " " + longDay(day, "en") // "Thu 19 Nov 2026", as on the booking page
+	for _, want := range []string{`not sent from preview: to fatima@mail.ae, "Booking #1 confirmed: Home cleaning on ` + dayText + `"`,
+		"Booking #1: Home cleaning\nDate: " + dayText + "\nArrival window: 10:00–12:00\nAddress: Villa 12, Street 4, Villa 12, Arabian Ranches\nTotal: AED 175.00 (Pay on completion (cash))\n",
 		"https://bayti--preview.renoxium.test/bookings/1",
 		`to the owner, "New booking #1 (cash): Home cleaning, ` + day + ` 10:00, Arabian Ranches, AED 175.00"`} {
 		if !logged(want) {
@@ -380,7 +382,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 		t.Fatalf("daily job: %v %+v\n%s", err, job, logText(job))
 	}
 	list := as(platform.TestRequestInput{Path: "/bookings"})
-	m := regexp.MustCompile(`href="/bookings/(\d+)">Booking #\d+</a><span>Home cleaning</span><span class="muted">` + nextWeek + ` 10:00<`).FindStringSubmatch(list.Body)
+	m := regexp.MustCompile(`href="/bookings/(\d+)"><span class="o-id">Booking #\d+</span>.*\n<span class="o-meta"><span>Home cleaning</span><span><time datetime="` + nextWeek + `">[^<]*</time> <span class="num">10:00–`).FindStringSubmatch(list.Body)
 	if m == nil {
 		t.Fatalf("no repeat visit on %s: %s", nextWeek, list.Body)
 	}
@@ -389,7 +391,7 @@ func TestHomeServiceUAEExample(t *testing.T) {
 		!strings.Contains(o.Body, "Pay on completion (cash)") || !strings.Contains(o.Body, "Pay by card now") || !strings.Contains(o.Body, "Every week") {
 		t.Fatalf("repeat visit: %s", o.Body)
 	}
-	for _, want := range []string{`to fatima@mail.ae, "Your next visit is booked: Home cleaning on ` + nextWeek + `"`,
+	for _, want := range []string{`to fatima@mail.ae, "Your next visit is booked: Home cleaning on ` + weekdayOf(nextWeek)[:3] + " " + longDay(nextWeek, "en") + `"`,
 		"1 repeat booked, 1 repeat skipped", fmt.Sprintf("#%s Omar (+971501234567), Pest control (apartment), %s 16:00: window full or day closed", weekly, nextWeek)} {
 		if !logged(want) {
 			t.Errorf("missing in log after the daily job: %s", want)
@@ -422,8 +424,18 @@ func TestHomeServiceUAEExample(t *testing.T) {
 	if x := book(f); !strings.HasSuffix(x.Location, "?placed=1&lang=ar") {
 		t.Fatalf("arabic booking: %+v", x)
 	} else if o := as(platform.TestRequestInput{Path: x.Location}); !strings.Contains(o.Body, "تنظيف الكنب بالشامبو") || !strings.Contains(o.Body, "البرشاء") ||
-		!strings.Contains(o.Body, `dir="rtl"`) || !strings.Contains(o.Body, "AED 140.00") {
+		!strings.Contains(o.Body, `dir="rtl"`) || !strings.Contains(o.Body, "140.00 د.إ") {
 		t.Fatalf("arabic booking page: %s", o.Body)
+	}
+	// Its confirmation email is in Arabic too, with the date, arrival window and amount as the Arabic page shows them.
+	arDay := weekdayAr(day) + " " + longDay(day, "ar")
+	for _, want := range []string{`: تنظيف الكنب بالشامبو يوم ` + arDay + `"`,
+		"شكراً لحجزك مع بيتي للخدمات المنزلية.\n\nالحجز رقم ",
+		"\nالتاريخ: " + arDay + "\nموعد الوصول: من 08:00 إلى 10:00\nالعنوان: Villa 12, Street 4, Villa 12, البرشاء\nالإجمالي: 140.00 د.إ (الدفع عند الانتهاء (نقداً))\n",
+		"?lang=ar"} {
+		if !logged(want) {
+			t.Errorf("Arabic confirmation email: missing in log: %s", want)
+		}
 	}
 }
 
@@ -499,7 +511,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 	if r.Admin == nil || r.Admin.Hook != "admin_change" || !strings.Contains(r.Body, "crew Imran Khan (AC and handyman) assigned, customer emailed") {
 		t.Fatalf("assign a crew: %+v\n%s", r, logText(r))
 	}
-	if count(`to fatima@mail.ae, "Your crew for booking #1: Imran on `+day+`"`) != 1 {
+	if count(`to fatima@mail.ae, "Your crew for booking #1: Imran on `+weekdayOf(day)[:3]+" "+longDay(day, "en")+`"`) != 1 {
 		t.Fatalf("crew email not sent:\n%s", logText(r))
 	}
 	if o := as(platform.TestRequestInput{Path: "/bookings/1"}); !strings.Contains(o.Body, `id="status">Crew assigned<`) || !strings.Contains(o.Body, "Imran Khan") {
@@ -536,7 +548,8 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 		t.Fatalf("owner cancels: %s\n%s", x.Body, logText(x))
 	}
 	if count("a script refunded AED 250.00 of the payment for booking-2 (cancelled by the business)") != 1 ||
-		count(`to fatima@mail.ae, "Booking #2 cancelled: Pest control (apartment) on `+day+`"`) != 1 ||
+		count(`to fatima@mail.ae, "Booking #2 cancelled: Pest control (apartment) on `+weekdayOf(day)[:3]+" "+longDay(day, "en")+`"`) != 1 ||
+		count("(Pest control (apartment) on "+weekdayOf(day)[:3]+" "+longDay(day, "en")+", arrival 12:00–14:00).\nAED 250.00 has been refunded to your card") != 1 ||
 		count("AED 250.00 has been refunded to your card") != 1 {
 		t.Fatal("owner cancel: refund or email missing")
 	}
@@ -594,7 +607,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 		t.Fatalf("business settings: %+v", x)
 	}
 	q := "/checkout?service=1&qty=3&zone=5&date=" + day + "&slot=16:00&repeat=weekly"
-	if x := as(platform.TestRequestInput{Path: q}); !strings.Contains(x.Body, `value="auto"> Pay automatically: card charged for each visit, every week`) {
+	if x := as(platform.TestRequestInput{Path: q}); !strings.Contains(x.Body, `value="auto"><span>Pay automatically: card charged for each visit, every week`) {
 		t.Fatalf("no automatic payment offered: %s", x.Body)
 	}
 	if x := as(platform.TestRequestInput{Path: strings.Replace(q, "weekly", "once", 1)}); strings.Contains(x.Body, `value="auto"`) {
@@ -622,7 +635,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 	visitOn := func(date string) string {
 		t.Helper()
 		list := as(platform.TestRequestInput{Path: "/bookings"})
-		m := regexp.MustCompile(`href="/bookings/(\d+)">Booking #\d+</a><span>Home cleaning</span><span class="muted">` + date + ` 16:00<`).FindStringSubmatch(list.Body)
+		m := regexp.MustCompile(`href="/bookings/(\d+)"><span class="o-id">Booking #\d+</span>.*\n<span class="o-meta"><span>Home cleaning</span><span><time datetime="` + date + `">[^<]*</time> <span class="num">16:00–`).FindStringSubmatch(list.Body)
 		if m == nil {
 			t.Fatalf("no visit on %s: %s", date, list.Body)
 		}
@@ -636,7 +649,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 	if o := as(platform.TestRequestInput{Path: second}); !strings.Contains(o.Body, "Paid by card") || strings.Contains(o.Body, "Pay by card now") || !strings.Contains(o.Body, "AED 145.00") {
 		t.Fatalf("visit paid by the renewal: %s", o.Body)
 	}
-	if count(`to fatima@mail.ae, "Your next visit is booked: Home cleaning on `+week1+`"`) != 1 {
+	if count(`to fatima@mail.ae, "Your next visit is booked: Home cleaning on `+weekdayOf(week1)[:3]+" "+longDay(week1, "en")+`"`) != 1 {
 		t.Fatal("customer not told about the next visit")
 	}
 	// The daily job books the visit after it, waiting for its charge: nothing to pay by hand or to the crew.
@@ -656,7 +669,7 @@ func TestHomeServiceUAEOwnerPhotoAndSeries(t *testing.T) {
 	if o := as(platform.TestRequestInput{Path: third}); !strings.Contains(o.Body, "Pay on completion (cash)") || !strings.Contains(o.Body, "Pay by card now") {
 		t.Fatalf("visit after a failed renewal: %s", o.Body)
 	}
-	if n := count(`to fatima@mail.ae, "Card payment failed for your visit on ` + week2 + `"`); n != 1 {
+	if n := count(`to fatima@mail.ae, "Card payment failed for your visit on ` + weekdayOf(week2)[:3] + " " + longDay(week2, "en") + `"`); n != 1 {
 		t.Fatalf("payment failed emails: %d", n)
 	}
 	if count("https://bayti--preview.renoxium.test"+third) == 0 {
