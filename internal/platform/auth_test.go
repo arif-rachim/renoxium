@@ -267,7 +267,7 @@ func TestVisitorAccounts(t *testing.T) {
 	// scripts allowed: the app's auth_login template is not used, so nothing
 	// the app's owner wrote runs where visitors type their password.
 	if w := v.do("GET", "/_rx/auth/login", nil); w.Code != 200 || strings.Contains(w.Body.String(), "Members sign in") ||
-		!strings.Contains(w.Body.String(), "You are signing in to <strong>club</strong>") ||
+		!strings.Contains(w.Body.String(), `<span class="addr" dir="ltr">club.renoxium.test</span>`) || !strings.Contains(w.Body.String(), "Secure sign-in by Renoxium") ||
 		!strings.Contains(w.Header().Get("Content-Security-Policy"), "default-src 'none'") || w.Header().Get("X-Frame-Options") != "DENY" {
 		t.Fatalf("sign-in page: %d %v %s", w.Code, w.Header(), w.Body.String())
 	}

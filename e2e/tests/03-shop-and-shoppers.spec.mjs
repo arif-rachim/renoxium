@@ -69,7 +69,7 @@ test('visitor accounts: sign-up, confirm, sign-out, sign-in, password reset', as
   const signIn = await page.goto(shop.live + '/_rx/auth/login');
   expect(page.url().startsWith(idURL(shop.app) + '/_rx/auth/login')).toBeTruthy();
   expect(signIn.headers()['content-security-policy']).toContain("default-src 'none'");
-  await expect(page.locator('body')).toContainText(`You are signing in to ${shop.app}`);
+  await expect(page.locator('body')).toContainText('Secure sign-in by Renoxium');
   await page.fill('#email', address);
   await page.fill('#password', 'wrong password 1');
   await page.getByRole('button', { name: 'Sign in' }).click();

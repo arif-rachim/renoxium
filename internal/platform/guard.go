@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"net/url"
@@ -185,14 +186,9 @@ func (p *Platform) guardPreview(w http.ResponseWriter, r *http.Request, app stri
 }
 
 func (p *Platform) previewLocked(w http.ResponseWriter, app, why string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("X-Robots-Tag", "noindex")
-	w.WriteHeader(http.StatusForbidden)
-	link := p.cfg.SiteURL + "/apps/" + app + "/preview"
-	fmt.Fprintf(w, `<!doctype html><title>Private preview</title><meta name="viewport" content="width=device-width, initial-scale=1">`+
-		`<p>%s Only the app's owner can open it: <a href="%s">open the preview from your Renoxium account</a>.</p>`,
-		why, link)
+	writeSysPage(w, http.StatusForbidden, sysPageData{Title: "Private preview", Heading: "Private preview",
+		Body: template.HTML("<p>" + template.HTMLEscapeString(why) + " Only the app's owner can open it, from their Renoxium account.</p>"),
+		Link: p.cfg.SiteURL + "/apps/" + app + "/preview", LinkText: "Open the preview from your account"})
 }
 
 // ownerVerified reports whether an app's owner has confirmed their email.
@@ -265,11 +261,8 @@ func (p *Platform) isSuspended(app string) bool {
 }
 
 func (p *Platform) suspendedPage(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(http.StatusUnavailableForLegalReasons)
-	fmt.Fprint(w, `<!doctype html><title>App suspended</title><meta name="viewport" content="width=device-width, initial-scale=1">`+
-		`<p>This app has been suspended by Renoxium.</p>`)
+	writeSysPage(w, http.StatusUnavailableForLegalReasons, sysPageData{Title: "App suspended", Heading: "This site is not available",
+		Body: "<p>This app has been suspended by Renoxium.</p>"})
 }
 
 // AbuseLink is where anyone can report an app.

@@ -192,6 +192,10 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
 	}
+	if _, pattern := s.mux.Handler(r); pattern == "" {
+		render(w, http.StatusNotFound, "notfound", nil)
+		return
+	}
 	s.mux.ServeHTTP(w, r)
 }
 
@@ -780,7 +784,7 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--fg);white-space:nowrap}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.live::before{background:var(--live)}.pill.wait{background:var(--sun-soft);border-color:transparent}.pill.wait::before{background:var(--sun)}
 .pill.plain::before{display:none}
-.formcard{max-width:720px}@media(min-width:760px){.formcard{padding:28px 32px}}
+.formcard{max-width:720px}.settings{max-width:720px}.settings .card{margin-bottom:16px}@media(min-width:760px){.formcard{padding:28px 32px}}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .tables a{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--fg)}
 .tables a:hover{border-color:var(--accent)}.tables strong{display:block;font-weight:500}.tables span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -1038,7 +1042,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <h2>Business</h2><p class="price">AED {{index .Prices "business"}} <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>100,000 external API calls a month</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
 <p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
 
-{{define "admin_connections"}}{{template "top" "Connections"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+{{define "admin_connections"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Connections</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
 <p>Your app can call other services, such as a courier or SMS service, only with your permission. Allow a site only if you trust it:
 your app can send it data, including your customers' details.</p>
@@ -1060,9 +1064,9 @@ your app can send it data, including your customers' details.</p>
 <form method="post" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="preview-off"><button class="danger">Turn off now</button></form>
 {{else}}<form method="post" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="preview-on"><button>Turn on for 2 hours</button></form>{{end}}{{end}}
 <p class="muted" style="margin-top:16px">External calls from your apps this month, preview included: {{.Used}} of {{.Quota}}.</p>
-</div>{{template "bottom"}}{{end}}
+</div></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_alerts"}}{{template "top" "Notifications"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+{{define "admin_alerts"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Notifications</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
 <p>Notices from your app, such as new orders, are emailed to <strong>{{.Email}}</strong>.</p>
 {{if not .Available}}<p class="muted">WhatsApp notices are not available on this Renoxium server yet.</p>
@@ -1076,9 +1080,9 @@ your app can send it data, including your customers' details.</p>
 {{else}}<p>WhatsApp notices go to <strong>{{.Phone.Phone}}</strong> <span class="ok">on</span></p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Turn off WhatsApp notices</button></form>{{end}}
 {{if .Available}}<p class="muted">Each WhatsApp notice counts as one of your plan's WhatsApp messages: {{.Used}} of {{.Quota}} used this month.</p>{{end}}
-</div>{{template "bottom"}}{{end}}
+</div></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_domain"}}{{template "top" "Domain"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+{{define "admin_domain"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Your own domain</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
 {{if not .Available}}<p>Custom domains are not available on this Renoxium server yet.</p>
 {{else if not .Allowed}}<p>Custom domains are included in the <a href="/billing">Pro and Business plans</a>.</p>
@@ -1100,9 +1104,9 @@ your app can send it data, including your customers' details.</p>
 </tbody></table></div>{{with .Problems}}<p class="muted">Not ready yet: {{range $i, $p := .}}{{if $i}}; {{end}}{{$p}}{{end}}</p>{{end}}
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="check"><button>Check now</button></form>{{end}}
 <form method="post" style="margin-top:16px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Remove domain</button></form>{{end}}{{end}}
-</div>{{template "bottom"}}{{end}}
+</div></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_staff"}}{{template "top" "Staff"}}<p class="crumbs"><a href="/apps/{{.App}}">{{.App}}</a></p>
+{{define "admin_staff"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Staff</h1><p class="muted">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 {{if .Staff}}<ul class="plain">{{range .Staff}}<li><span>{{.}}</span><form method="post" action="/apps/{{$.App}}/staff/remove" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.}}"><button class="secondary">Remove</button></form></li>{{end}}</ul>
@@ -1110,7 +1114,7 @@ your app can send it data, including your customers' details.</p>
 <p class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff need the <a href="/billing">Pro or Business plan</a>{{end}}.</p>
 {{if lt (len .Staff) .Limit}}<form method="post" action="/apps/{{.App}}/staff"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email address</label>
 <input id="email" name="email" type="email" required><button>Add staff member</button></form>
-<p class="muted">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>{{end}}</div>{{template "bottom"}}{{end}}
+<p class="muted">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>{{end}}</div></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_payments"}}{{template "apptop" .}}<div class="pagehead"><div><h1>Payments</h1><p class="sub">Card payments through your Stripe account.</p></div></div><div class="card">
 {{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
@@ -1190,6 +1194,8 @@ your app can send it data, including your customers' details.</p>
 <button>Save and sign in</button><p class="muted" style="margin-top:16px">You will be signed out on every other device, and agents will need to connect again.</p></form>{{template "bottom"}}{{end}}
 
 {{define "notice"}}{{template "top" .Title}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">Continue</a></p>{{end}}</div>{{template "bottom"}}{{end}}
+
+{{define "notfound"}}{{template "top" "Page not found"}}<div class="card"><h1>This page does not exist</h1><p>The address may be mistyped, or the page was moved.</p><p><a class="button" href="/">Go to Renoxium</a></p></div>{{template "bottom"}}{{end}}
 
 {{define "error"}}{{template "top" "Error"}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
 `))

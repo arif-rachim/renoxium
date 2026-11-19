@@ -366,13 +366,16 @@ var demoPages = template.Must(template.New("").Parse(`
 {{define "messages"}}{{range .}}<article class="rx-demo-msg"><p class="rx-demo-meta">{{if eq .Kind "whatsapp"}}WhatsApp{{else}}Email{{end}} to <strong>{{.To}}</strong> · {{.When}}</p>
 <h2>{{.Subject}}</h2><pre>{{.Body}}</pre></article>{{end}}{{end}}
 {{define "inbox"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>Demo inbox</title><style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui,sans-serif;max-width:720px;margin:32px auto;padding:0 16px}
-.rx-demo-msg{border:1px solid #8884;border-radius:10px;padding:12px 16px;margin:12px 0}.rx-demo-msg h2{font-size:17px;margin:4px 0}.rx-demo-meta{color:#777;font-size:14px;margin:0}
-pre{white-space:pre-wrap;word-break:break-word;font:inherit;margin:8px 0 0}.muted{color:#777}</style></head><body>
-<p><a href="/">&larr; Back to the demo</a></p><h1>Demo inbox</h1>
+<title>Demo inbox</title><style>:root{color-scheme:light dark;--fg:#111827;--muted:#5b6474;--bg:#f4f5f7;--card:#fff;--line:#dcdfe5}
+@media (prefers-color-scheme:dark){:root{--fg:#eef0f4;--muted:#a3abb9;--bg:#0f1218;--card:#181c24;--line:#2c3240}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px 16px 48px}
+.wrap{max-width:720px;margin:0 auto}h1{font-size:26px;margin:8px 0 6px}.muted{color:var(--muted);font-size:15px}a{color:var(--fg)}
+.rx-demo-msg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin:12px 0}.rx-demo-msg h2{font-size:17px;margin:4px 0}
+.rx-demo-meta{color:var(--muted);font-size:13px;margin:0}pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:15px;margin:8px 0 0}</style></head><body>
+<div class="wrap"><p><a href="/">&larr; Back to the demo</a></p><h1>Demo inbox</h1>
 <p class="muted">This demo sends nothing for real. The emails and WhatsApp messages it would have sent because of what you did in this browser appear here: sign-in codes, confirmation links, booking and order emails, and the notices the business owner would get. Everything is deleted every hour.</p>
 {{if .Messages}}{{template "messages" .Messages}}{{else}}<p>Nothing yet. Book, order or sign in on the demo, then come back.</p>{{end}}
-<p><a href="` + DemoInboxPath + `">Refresh</a></p></body></html>{{end}}
+<p><a href="` + DemoInboxPath + `">Refresh</a></p></div></body></html>{{end}}
 {{define "box"}}<section style="border:2px dashed #2f5bea;border-radius:10px;padding:8px 16px;margin:24px 0"><p style="margin:8px 0"><strong>Demo inbox</strong> — nothing is really sent. Messages for this browser:</p>
 <style>.rx-demo-msg{border-top:1px solid #8884;padding:8px 0}.rx-demo-msg h2{font-size:16px;margin:4px 0}.rx-demo-meta{color:#777;font-size:13px;margin:0}.rx-demo-msg pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:14px;margin:4px 0 0}</style>
 {{template "messages" .}}</section>{{end}}
