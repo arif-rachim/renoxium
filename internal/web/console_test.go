@@ -56,7 +56,7 @@ func TestConsoleListsAndDashboard(t *testing.T) {
 	noRedirect := *alice
 	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	r, err := noRedirect.Get(e.base + "/apps/al-noor/t/products?c=name&c=stock")
-	if err != nil || r.StatusCode != http.StatusSeeOther || !strings.Contains(r.Header.Get("Location"), "cols=name%2Cstock") {
+	if err != nil || r.StatusCode != http.StatusSeeOther || r.Header.Get("Location") != "/apps/al-noor/t/products?cols=name%2Cstock" {
 		t.Fatalf("column picker: %v %d %s", err, r.StatusCode, r.Header.Get("Location"))
 	}
 	_, page, _ = get("/apps/al-noor/t/products?cols=name,stock")

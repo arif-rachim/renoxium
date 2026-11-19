@@ -463,60 +463,42 @@ func (p *Platform) authPage(w http.ResponseWriter, r *http.Request, st *stage, s
 	if d.Link == "/" {
 		d.Link = p.URL(st.app, st.name) + "/"
 	}
+	lang := authLang(r, d.Next)
+	data := d.templateData()
+	data["lang"], data["dir"], data["t"] = lang, "ltr", authWords(lang)
+	if lang == "ar" {
+		data["dir"] = "rtl"
+	}
+	data["error"], data["title"], data["message"] = translateAuth(d.Error, lang), translateAuth(d.Title, lang), translateAuth(d.Message, lang)
+	brand, color := p.brandOf(r.Context(), st, lang)
+	home := p.URL(st.app, st.name) + "/"
+	host := strings.TrimPrefix(strings.TrimPrefix(home, "https://"), "http://")
+	host = strings.TrimSuffix(host, "/")
+	initial := host
+	if brand != "" {
+		initial = brand
+	}
+	data["brand"], data["color"], data["ink"], data["host"] = brand, color, inkOn(color), host
+	data["colorDark"], data["inkDark"] = darkVariant(color), inkOn(darkVariant(color))
+	data["initial"] = strings.ToUpper(string([]rune(initial)[:1]))
+	titles := map[string]string{"login": "sign_in", "phone": "with_whatsapp", "phone_code": "enter_code", "signup": "create_account",
+		"forgot": "forgot_title", "reset": "new_password", "logout": "sign_out"}
+	data["pageTitle"] = data["t"].(map[string]string)[titles[page]]
+	if page == "message" {
+		data["pageTitle"] = data["title"]
+	}
+	if page != "logout" { // logout is served on the app's own host
+		data["home"] = home
+		if st.name == Preview && p.IsDemo(st.app) {
+			data["demo"] = template.HTML(p.demoInboxBox(r, st.app))
+		}
+	}
 	var buf bytes.Buffer
-	if err := defaultAuthPages.ExecuteTemplate(&buf, page, d.templateData()); err != nil {
+	if err := defaultAuthPages.ExecuteTemplate(&buf, page, data); err != nil {
 		http.Error(w, "page unavailable", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	if page == "logout" { // served on the app's own host
-		w.Write(buf.Bytes())
-		return
-	}
-	out := buf.Bytes()
-	if st.name == Preview && p.IsDemo(st.app) {
-		out = insertBeforeBody(out, p.demoInboxBox(r, st.app))
-	}
-	w.Write(p.withAuthFooter(st, out))
+	w.Write(buf.Bytes())
 }
-
-var defaultAuthPages = template.Must(template.New("").Parse(`
-{{define "top"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{.}}</title>
-<style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui,sans-serif;max-width:400px;margin:48px auto;padding:0 16px}
-label{display:block;margin:12px 0 4px;font-size:14px}input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit}
-button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:#2f5bea;color:#fff;font:inherit}.error{color:#c62828}.muted{color:#777;font-size:14px}</style></head><body>{{end}}
-{{define "login"}}{{template "top" "Sign in"}}<h1>Sign in</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
-<form method="post" action="/_rx/auth/login"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}">
-<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.email}}">
-<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<button>Sign in</button></form><p class="muted"><a href="/_rx/auth/forgot">Forgot your password?</a> · <a href="/_rx/auth/signup?next={{.next}}">Create an account</a></p>
-{{if .whatsapp}}<p><a href="/_rx/auth/phone?next={{.next}}">Sign in with WhatsApp instead</a></p>{{end}}</body></html>{{end}}
-{{define "phone"}}{{template "top" "Sign in with WhatsApp"}}<h1>Sign in with WhatsApp</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
-<p class="muted">We send a 6-digit code to your WhatsApp. No password needed.</p>
-<form method="post" action="/_rx/auth/phone"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}">
-<label for="phone">WhatsApp number</label><input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+971 50 123 4567" required value="{{.phone}}">
-<button>Send code</button></form><p class="muted"><a href="/_rx/auth/login?next={{.next}}">Use email and password</a></p></body></html>{{end}}
-{{define "phone_code"}}{{template "top" "Enter the code"}}<h1>Enter the code</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
-<p class="muted">We sent a code to {{.phone}} on WhatsApp. It works for 10 minutes.</p>
-<form method="post" action="/_rx/auth/phone/verify"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}"><input type="hidden" name="phone" value="{{.phone}}">
-<label for="code">Code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
-<label for="name">Your name (first time only)</label><input id="name" name="name" autocomplete="name">
-<button>Sign in</button></form><p class="muted"><a href="/_rx/auth/phone?next={{.next}}">Send a new code</a></p></body></html>{{end}}
-{{define "signup"}}{{template "top" "Create an account"}}<h1>Create an account</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
-<form method="post" action="/_rx/auth/signup"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="next" value="{{.next}}">
-<label for="name">Name</label><input id="name" name="name" autocomplete="name" value="{{.name}}">
-<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.email}}">
-<label for="password">Password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
-<button>Create account</button></form><p class="muted">Already have an account? <a href="/_rx/auth/login?next={{.next}}">Sign in</a></p></body></html>{{end}}
-{{define "forgot"}}{{template "top" "Forgot password"}}<h1>Forgot your password?</h1>
-<form method="post" action="/_rx/auth/forgot"><input type="hidden" name="csrf" value="{{.csrf}}">
-<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><button>Send me a link</button></form></body></html>{{end}}
-{{define "reset"}}{{template "top" "New password"}}<h1>Choose a new password</h1>{{with .error}}<p class="error">{{.}}</p>{{end}}
-<form method="post" action="/_rx/auth/reset"><input type="hidden" name="csrf" value="{{.csrf}}"><input type="hidden" name="token" value="{{.token}}">
-<label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
-<button>Save and sign in</button></form></body></html>{{end}}
-{{define "logout"}}{{template "top" "Sign out"}}<h1>Sign out?</h1>
-<form method="post" action="/_rx/auth/logout"><button>Sign out</button></form></body></html>{{end}}
-{{define "message"}}{{template "top" .title}}<h1>{{.title}}</h1><p>{{.message}}</p>{{with .link}}<p><a href="{{.}}">Continue</a></p>{{end}}</body></html>{{end}}
-`))

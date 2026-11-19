@@ -500,10 +500,16 @@ func (p *Platform) servePay(w http.ResponseWriter, r *http.Request, st *stage) {
 
 var simulatedCheckout = template.Must(template.New("pay").Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Simulated checkout</title>
-<style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui,sans-serif;max-width:440px;margin:32px auto;padding:0 16px}
-.note{background:#fff3cd;color:#664d03;border-radius:8px;padding:10px 12px;font-size:14px}table{width:100%;border-collapse:collapse;margin:16px 0}
-td{padding:6px 0;border-bottom:1px solid #ddd}td.r{text-align:right}button{padding:10px 16px;border-radius:8px;border:0;font:inherit;margin:4px 8px 0 0}
-.pay{background:#2f5bea;color:#fff}.alt{background:transparent;border:1px solid #999;color:inherit}</style></head><body>
+<style>:root{color-scheme:light dark;--fg:#111827;--muted:#5b6474;--bg:#f4f5f7;--card:#fff;--line:#dcdfe5;--accent:#13203a;--on:#fff}
+@media (prefers-color-scheme:dark){:root{--fg:#eef0f4;--muted:#a3abb9;--bg:#0f1218;--card:#181c24;--line:#2c3240;--accent:#e7ecf4;--on:#0f1218}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px 16px}
+body>*{max-width:460px;margin-left:auto;margin-right:auto}h1{font-size:26px;margin:20px auto 6px;letter-spacing:-.01em}body>p{color:var(--muted)}
+.note{background:#fff3cd;color:#664d03;border-radius:12px;padding:12px 14px;font-size:14px;border:1px solid #f1d98a}
+table{width:100%;border-collapse:collapse;margin:16px auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+td{padding:12px 14px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}td.r{text-align:right;font-variant-numeric:tabular-nums}
+form{display:grid;gap:8px;margin-top:16px}button{min-height:48px;padding:12px 16px;border-radius:10px;border:1px solid var(--line);font:inherit;font-weight:600;cursor:pointer}
+.pay{background:var(--accent);color:var(--on);border-color:var(--accent)}.alt{background:var(--card);color:var(--fg)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}</style></head><body>
 <p class="note">Preview: this is a simulated checkout. No money moves. On the live app, shoppers pay on Stripe's checkout page.</p>
 {{if .hold}}<h1>Hold {{.total}} on your card</h1><p>The amount is authorised now and taken later, all or in part, or released.</p>{{else}}<h1>Pay {{.total}}</h1>{{end}}<p>Order {{.reference}}{{if ne .status "pending"}} · already {{.status}}{{end}}</p>
 <table>{{range .items}}<tr><td>{{.Name}} × {{if .Quantity}}{{.Quantity}}{{else}}1{{end}}</td><td class="r">{{printf "%.2f" .Price}}</td></tr>{{end}}</table>

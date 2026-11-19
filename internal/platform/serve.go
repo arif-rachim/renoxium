@@ -70,9 +70,8 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if st == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(w, "<!doctype html><title>Not published</title><p>This app has not been published yet.</p>")
+		writeSysPage(w, http.StatusNotFound, sysPageData{Title: "Not published", Heading: "Coming soon",
+			Body: "<p>This app has not been published yet.</p>"})
 		return true
 	}
 	if signIn {
@@ -130,7 +129,7 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	rid := newRequestID()
-	out := p.handle(st, r, rid)
+	out := browserPage(r, p.handle(st, r, rid), "/")
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")

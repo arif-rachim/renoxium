@@ -1835,5 +1835,11 @@
       "timezone": "Asia/Dubai"
     }
   ],
-  "on_admin_change": "admin_change"
+  "on_admin_change": "admin_change",
+  "brand": {
+    "table": "business",
+    "name": "name",
+    "name_ar": "name_ar",
+    "color": "brand_color"
+  }
 }

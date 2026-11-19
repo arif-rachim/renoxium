@@ -1,9 +1,7 @@
 package platform
 
 import (
-	"bytes"
 	"context"
-	"html/template"
 	"net"
 	"net/http"
 	"net/url"
@@ -178,26 +176,6 @@ func (p *Platform) finishAuth(w http.ResponseWriter, r *http.Request, st *stage,
 	}
 	p.cookie(w, p.cookieName(authFlowCookie), "", -time.Second)
 	http.Redirect(w, r, app+AuthPrefix+"callback?code="+url.QueryEscape(code)+"&next="+url.QueryEscape(next), http.StatusSeeOther)
-}
-
-var authFooter = template.Must(template.New("").Parse(
-	`<p class="muted" style="margin-top:32px">You are signing in to <strong>{{.app}}</strong> · <a href="{{.home}}">Back to {{.host}}</a></p>`))
-
-// withAuthFooter tells the visitor which app the page belongs to.
-func (p *Platform) withAuthFooter(st *stage, page []byte) []byte {
-	home := p.URL(st.app, st.name) + "/"
-	u, _ := url.Parse(home)
-	var foot bytes.Buffer
-	if authFooter.Execute(&foot, map[string]string{"app": st.app, "home": home, "host": u.Host}) != nil {
-		return page
-	}
-	at := bytes.LastIndex(page, []byte("</body>"))
-	if at < 0 {
-		return append(page, foot.Bytes()...)
-	}
-	out := append([]byte{}, page[:at]...)
-	out = append(out, foot.Bytes()...)
-	return append(out, page[at:]...)
 }
 
 // cleanAuthCodes deletes hand-over codes nobody collected.

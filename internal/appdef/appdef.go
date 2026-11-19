@@ -30,6 +30,18 @@ type App struct {
 	// Lib and OnAdminChange: shared script code and the admin-change hook.
 	Lib           map[string]string `json:"lib,omitempty" jsonschema:"shared server JavaScript by name (helper functions and constants used by several scripts); evaluated in name order before every script, job, tool and hook; must not define handle"`
 	OnAdminChange string            `json:"on_admin_change,omitempty" jsonschema:"script run right after the owner or staff adds, changes or deletes a row in the admin panel; req.body holds {action, table, id, row, before, by}"`
+	// Brand names the row the platform's own pages (sign-in, sign-up) take
+	// the business's name and colour from.
+	Brand *Brand `json:"brand,omitempty" jsonschema:"where the platform's sign-in pages read the business's name and brand colour: a settings table and its columns, read from its first row, so the owner's changes in the admin panel follow"`
+}
+
+// Brand points at the columns holding the business's name (and, if set,
+// its Arabic name) and its brand colour (#rrggbb).
+type Brand struct {
+	Table  string `json:"table" jsonschema:"table holding the business's settings, e.g. store"`
+	Name   string `json:"name" jsonschema:"text column with the business's name"`
+	NameAr string `json:"name_ar,omitempty" jsonschema:"text column with the business's Arabic name"`
+	Color  string `json:"color,omitempty" jsonschema:"text column with the brand colour as #rrggbb"`
 }
 
 // MaxLibs is how many lib entries an app may have.
@@ -336,6 +348,33 @@ func (a *App) Validate() []string {
 	if a.OnPayment != "" {
 		if _, ok := a.Scripts[a.OnPayment]; !ok {
 			add("on_payment: script %q is not defined", a.OnPayment)
+		}
+	}
+	if b := a.Brand; b != nil {
+		var bt *Table
+		for i := range a.Tables {
+			if a.Tables[i].Name == b.Table {
+				bt = &a.Tables[i]
+			}
+		}
+		if bt == nil {
+			add("brand: table %q is not defined", b.Table)
+		} else {
+			for _, c := range []string{b.Name, b.NameAr, b.Color} {
+				if c == "" {
+					continue
+				}
+				found := false
+				for _, col := range bt.Columns {
+					found = found || (col.Name == c && col.Type == "text")
+				}
+				if !found {
+					add("brand: table %q has no text column %q", b.Table, c)
+				}
+			}
+			if b.Name == "" {
+				add("brand: name is required")
+			}
 		}
 	}
 	if a.OnAdminChange != "" {

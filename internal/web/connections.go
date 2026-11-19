@@ -21,7 +21,8 @@ func (s *Site) renderConnections(w http.ResponseWriter, r *http.Request, app str
 	if t := s.platform.PreviewFetchUntil(app); time.Now().Before(t) {
 		previewUntil = t.UTC().Format("15:04")
 	}
-	render(w, status, "admin_connections", map[string]any{"App": app, "Hosts": hosts, "Secrets": secrets, "CSRF": s.csrfToken(w, r),
+	u0, _ := s.currentUser(r)
+	render(w, status, "admin_connections", map[string]any{"Shell": s.shell(u0, app, "Connections", "/apps/"+app+"/connections", false), "App": app, "Hosts": hosts, "Secrets": secrets, "CSRF": s.csrfToken(w, r),
 		"Error": errText, "Used": used, "Quota": quota, "PreviewUntil": previewUntil})
 }
 
