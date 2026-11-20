@@ -32,7 +32,7 @@ Every action is one of these twelve tools; there are no other operations:
 How to work:
 1. Ask the user only what the business needs: its name, what it sells or offers, prices, delivery fee, language. No technical questions.
 2. Call get_example. Without a name it lists the finished examples; with a name it returns one complete app definition to copy,
-   and the reference for writing app definitions. Use the matching example and change only its seed rows (business details,
+   and the reference for writing app definitions (get_example with reference_only true returns just the reference). Use the matching example and change only its seed rows (business details,
    products or services, prices, texts) and styling; keep its scripts. store-uae: shops (for made-to-order goods set
    store.preorder_days); booking-uae: salons, spas, tutors; home-service-uae: cleaning, AC, handyman; reservation-uae: tours,
    yacht trips, rentals; quote-portal-uae: business services and agencies; listings-uae: real-estate brokers.
@@ -40,7 +40,8 @@ How to work:
    (store.free_delivery_over; 0 or empty means the fee is always charged) and the products. Brand colour, font and logo go in
    the settings row (store-uae: store), not in the CSS.
 3. Call list_apps to find the user's apps. For a new app call create_app once, then apply_change with the complete definition.
-   For later changes use patch_app. For product photos call upload_file and put the returned url in the seed rows.
+   For later changes use patch_app. Before apply_change or patch_app, if this conversation does not have the reference yet,
+   call get_example with reference_only true. For product photos call upload_file and put the returned url in the seed rows.
 4. apply_change and patch_app change only the app's private preview and check every page. Use test_request to try forms and
    pages on the preview (run_job_on_preview and change_preview_row test scheduled jobs and admin-panel changes), show the user the preview_url, and call publish when they agree. publish changes nothing live: it
    returns confirm_url, and the new version goes live only when the user opens that link and confirms, signed in to Renoxium.
@@ -382,22 +383,28 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		})
 
 	type exampleIn struct {
-		Name string `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
+		Name          string `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
+		ReferenceOnly bool   `json:"reference_only,omitempty" jsonschema:"true: return only the reference for writing app definitions, e.g. before changing an existing app with patch_app"`
 	}
 	type exampleOut struct {
 		Examples   []map[string]string `json:"examples,omitempty"`
 		Name       string              `json:"name,omitempty"`
 		Definition *appdef.App         `json:"definition,omitempty" jsonschema:"a complete app definition, valid for apply_change"`
-		Reference  string              `json:"reference" jsonschema:"how app definitions are written: tables, templates, scripts, visitor accounts, payments, emails, uploads"`
+		Reference  string              `json:"reference,omitempty" jsonschema:"how app definitions are written: tables, templates, scripts, visitor accounts, payments, emails, uploads"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "get_example", Title: toolAnnotations["get_example"].Title, Annotations: toolAnnotations["get_example"],
-		Description: "List the finished example apps, or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. Reads only."},
+		Description: "List the finished example apps (names and descriptions only), or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. With reference_only true it returns only the reference. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in exampleIn) (*mcp.CallToolResult, exampleOut, error) {
 			if _, err := userOf(req); err != nil {
 				return nil, exampleOut{}, err
 			}
+			if in.ReferenceOnly {
+				return nil, exampleOut{Reference: reference}, nil
+			}
+			// The list is small: the reference comes with the chosen example,
+			// so building an app does not receive it twice.
 			if in.Name == "" {
-				out := exampleOut{Reference: reference}
+				out := exampleOut{}
 				for _, e := range examples.All() {
 					out.Examples = append(out.Examples, map[string]string{"name": e.Name, "description": e.Description})
 				}
