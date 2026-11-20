@@ -93,6 +93,7 @@ func main() {
 	// Opt-in: the hardened service needs a drop-in before Chromium can run
 	// (docs/deploy-ubuntu.md, "Screenshots for agents").
 	cfg.Chromium = os.Getenv("RENOXIUM_CHROMIUM")
+	cfg.ChromiumNoSandbox = os.Getenv("RENOXIUM_CHROMIUM_NO_SANDBOX") == "1"
 	if cfg.Chromium == "" {
 		slog.Info("RENOXIUM_CHROMIUM is not set: agents cannot take screenshots of previews")
 	}

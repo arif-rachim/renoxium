@@ -126,7 +126,7 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 	}
 	ctx, cancel := context.WithTimeout(ctx, shotTimeout)
 	defer cancel()
-	b, err := startBrowser(ctx, p.cfg.Chromium)
+	b, err := startBrowser(ctx, p.cfg.Chromium, p.cfg.ChromiumNoSandbox)
 	if err != nil {
 		return ScreenshotResult{}, err
 	}
@@ -480,9 +480,45 @@ type browser struct {
 	waiting map[int64]chan cdpMessage
 	handler func(cdpMessage)
 	done    chan struct{}
+	stderr  *tailBuffer
 }
 
-func startBrowser(ctx context.Context, chromium string) (*browser, error) {
+// why gives the end of the browser's error output, for an error message.
+func (b *browser) why() string {
+	if t := strings.TrimSpace(b.stderr.String()); t != "" {
+		lines := strings.Split(t, "\n")
+		if len(lines) > 6 {
+			lines = lines[len(lines)-6:]
+		}
+		return " (Chromium: " + strings.Join(lines, " | ") + ")"
+	}
+	return ""
+}
+
+// tailBuffer keeps the last max bytes written to it.
+type tailBuffer struct {
+	mu  sync.Mutex
+	max int
+	buf []byte
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > t.max {
+		t.buf = t.buf[len(t.buf)-t.max:]
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return string(t.buf)
+}
+
+func startBrowser(ctx context.Context, chromium string, noSandbox bool) (*browser, error) {
 	dir, err := os.MkdirTemp("", "rx-shot-")
 	if err != nil {
 		return nil, err
@@ -508,12 +544,15 @@ func startBrowser(ctx context.Context, chromium string) (*browser, error) {
 		"--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--mute-audio",
 		"--hide-scrollbars", "--force-color-profile=srgb", "--disable-dev-shm-usage",
 		"--host-resolver-rules=" + rules, "--disable-features=Translate,MediaRouter,OptimizationHints", "about:blank"}
-	if os.Geteuid() == 0 {
-		args = append(args, "--no-sandbox") // Chromium's own sandbox cannot run as root
+	if os.Geteuid() == 0 || noSandbox {
+		// Chromium's own sandbox cannot run as root, nor where user
+		// namespaces are not allowed (RENOXIUM_CHROMIUM_NO_SANDBOX).
+		args = append(args, "--no-sandbox")
 	}
 	cmd := exec.CommandContext(ctx, chromium, args...)
 	cmd.ExtraFiles = []*os.File{toBrowser, fromBrowser} // fd 3: commands in, fd 4: messages out
-	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
+	stderr := &tailBuffer{max: 4 << 10}                 // why a browser that stops stopped
+	cmd.Stdout, cmd.Stderr = io.Discard, stderr
 	cmd.Env = []string{"HOME=" + dir, "PATH=/usr/bin:/bin"}
 	if err := cmd.Start(); err != nil {
 		toBrowser.Close()
@@ -525,7 +564,7 @@ func startBrowser(ctx context.Context, chromium string) (*browser, error) {
 	}
 	toBrowser.Close()
 	fromBrowser.Close()
-	b := &browser{cmd: cmd, in: browserIn, dir: dir, waiting: map[int64]chan cdpMessage{}, done: make(chan struct{})}
+	b := &browser{cmd: cmd, in: browserIn, dir: dir, waiting: map[int64]chan cdpMessage{}, done: make(chan struct{}), stderr: stderr}
 	go b.read(browserOut)
 	return b, nil
 }
@@ -589,7 +628,7 @@ func (b *browser) call(ctx context.Context, session, method string, params any) 
 	_, err = b.in.Write(append(raw, 0))
 	b.writeMu.Unlock()
 	if err != nil {
-		return nil, fmt.Errorf("browser closed: %w", err)
+		return nil, fmt.Errorf("browser closed: %w%s", err, b.why())
 	}
 	select {
 	case m := <-ch:
@@ -598,7 +637,7 @@ func (b *browser) call(ctx context.Context, session, method string, params any) 
 		}
 		return m.Result, nil
 	case <-b.done:
-		return nil, errors.New("browser closed")
+		return nil, errors.New("browser closed" + b.why())
 	case <-ctx.Done():
 		b.mu.Lock()
 		delete(b.waiting, id)

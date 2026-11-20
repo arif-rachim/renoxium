@@ -253,6 +253,9 @@ sudo systemctl daemon-reload && sudo systemctl restart renoxium
 ```
 
 Use a node with 2 GB or more. Without `RENOXIUM_CHROMIUM` the tool tells agents that screenshots are not set up.
+If Chromium cannot start its own sandbox (the error then quotes Chromium, e.g. "No usable sandbox"; Ubuntu 24.04 restricts
+user namespaces with AppArmor), prefer allowing it over turning it off. `RENOXIUM_CHROMIUM_NO_SANDBOX=1` runs it without,
+which isolates the rendered pages less.
 
 ### WhatsApp sign-in codes (optional)
 

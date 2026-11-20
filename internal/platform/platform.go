@@ -95,6 +95,10 @@ type Config struct {
 	// Chromium is the path of a Chromium or Chrome binary for screenshots
 	// of previews (screenshot_preview). Empty turns screenshots off.
 	Chromium string
+	// ChromiumNoSandbox runs Chromium without its own sandbox, for hosts
+	// where it cannot start one (no unprivileged user namespaces). The
+	// pages it renders are then less isolated; leave it off where it works.
+	ChromiumNoSandbox bool
 }
 
 // DailyLimits caps messages sent per day, per app and over all apps.

@@ -35,7 +35,7 @@ func chromium(t *testing.T) string {
 func TestScreenshotPreview(t *testing.T) {
 	bin := chromium(t)
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
-		PreviewKey: []byte("0123456789abcdef0123456789abcdef"), Chromium: bin}, sandbox.NewGoja())
+		PreviewKey: []byte("0123456789abcdef0123456789abcdef"), Chromium: bin, ChromiumNoSandbox: true}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestScreenshotPreview(t *testing.T) {
 // A page cannot make the server's browser load internal addresses.
 func TestScreenshotBlocksOtherHosts(t *testing.T) {
 	bin := chromium(t)
-	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Chromium: bin}, sandbox.NewGoja())
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Chromium: bin, ChromiumNoSandbox: true}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
 	}
