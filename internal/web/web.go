@@ -344,8 +344,18 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 	for _, a := range shared {
 		sharedCards = append(sharedCards, s.appCard(r.Context(), a))
 	}
-	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": cards, "MCP": s.base + "/mcp", "CSRF": s.csrfToken(w, r), "Plan": plan,
-		"Shared": sharedCards, "AppLimit": platform.AppsPerPlan[s.accounts.Plan(u.ID)]})
+	live, errs, customers := 0, 0, 0
+	for _, c := range cards {
+		if c.LiveVersion > 0 {
+			live++
+		}
+		errs += c.Errors
+		customers += c.Visitors
+	}
+	csrf := s.csrfToken(w, r)
+	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": cards, "MCP": s.base + "/mcp", "CSRF": csrf, "Plan": plan,
+		"Shared": sharedCards, "AppLimit": platform.AppsPerPlan[s.accounts.Plan(u.ID)], "Live": live, "Errors": errs, "Customers": customers,
+		"Shell": s.ownerShell(u, "Your apps", "/", csrf)})
 }
 
 func (s *Site) signupForm(w http.ResponseWriter, r *http.Request) {
@@ -879,37 +889,42 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 <label for="contact">Your email (optional, if you want an answer)</label><input id="contact" name="contact" type="email" value="{{.Contact}}">
 <button>Send report</button></form>{{template "bottom"}}{{end}}
 
-{{define "dashboard"}}{{template "wide" "Your apps"}}<style>
-.dash{display:grid;gap:24px}@media(min-width:900px){.dash{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
-.head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:16px}.head h1{margin:0}
+{{define "dashboard"}}{{template "owntop" .}}{{template "owncss"}}<style>
+.dash{display:grid;gap:20px}@media(min-width:1100px){.dash{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
 .apps{display:grid;gap:16px}@media(min-width:640px){.apps{grid-template-columns:1fr 1fr}}
-.app{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:12px}
-.app h2{font-size:20px;margin:0}.app h2 a{color:var(--fg);text-decoration:none}.app h2 a:hover{color:var(--accent)}
-.app .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap}.app .host{font-size:14px;color:var(--muted);overflow-wrap:anywhere;margin:2px 0 0}
-.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-block:1px solid var(--line);padding:12px 0;margin:0}
+.app{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s,box-shadow .15s}
+.app:hover{border-color:color-mix(in srgb,var(--fg) 35%,var(--line));box-shadow:0 10px 28px -20px rgb(19 32 58 / .5)}
+.app h2{font-size:18px;margin:0}.app h2 a{color:var(--fg);text-decoration:none}.app h2 a:hover{color:var(--accent)}
+.app .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap}.app .host{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere;margin:2px 0 0}
+.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--bg);border-radius:10px;padding:12px 14px;margin:0}
 .figs div{min-width:0}.figs dt{font-size:12.5px;color:var(--muted)}.figs dd{margin:0;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.figs dd.bad{color:var(--bad)}
-.app .acts{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;font-size:15px}.app .acts .button{margin:0;padding:8px 14px}
-.draft{font-size:14px;color:var(--muted);margin:0}
-.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:24px}.empty h2{font-size:20px}
-.side .card{padding:20px}.side h2{font-size:16px}.side ol{padding-inline-start:20px;margin:0 0 12px;font-size:15px}.side li{margin:4px 0}
-.side input{font-size:13.5px;font-family:ui-monospace,monospace;background:var(--bg)}
-.say{background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:15px;margin:8px 0 0}
+.app .acts{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;font-size:14.5px;margin-top:auto}.app .acts .button{margin:0;padding:8px 14px}
+.draft{font-size:14px;color:var(--muted);margin:0;background:var(--bg);border-radius:10px;padding:12px 14px}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:28px}.empty h2{font-size:20px}
+.say{background:var(--accent-soft);border-radius:12px;padding:10px 14px;font-size:15px;margin:8px 0 0}
+.steps{list-style:none;counter-reset:s;padding:0;margin:0 0 12px;display:grid;gap:12px;font-size:14.5px}.steps li{counter-increment:s;display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start}
+.steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;background:var(--accent-soft);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.copy{display:flex;gap:6px;margin-top:8px}.copy input{font-size:13px;font-family:ui-monospace,monospace;padding:8px 10px;margin:0}.copy button{margin:0;padding:8px 12px;font-size:13px}
+.side{display:grid;gap:16px}.side .panel+.panel{margin-top:0}
 </style>
-<div class="head"><h1>Your apps</h1><p class="muted" style="margin:0">{{.User.Email}} · <a href="/billing">{{.Plan}} plan</a>, {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} · <a href="/account">Account</a></p></div>
-{{if not .User.Verified}}<form class="note" method="post" action="/verify/resend" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>Confirm your email to publish apps and to reset your password if you forget it.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0">Send the link again</button></form>{{end}}
+<div class="pagehead"><div><h1>Your apps</h1><p class="sub"><a href="/billing">{{.Plan}} plan</a> · {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} used</p></div>
+<div class="acts"><a class="button secondary" href="/templates">Browse templates</a><a class="button" href="/connect">New app</a></div></div>
+{{if not .User.Verified}}<form class="flash" method="post" action="/verify/resend" style="justify-content:space-between;align-items:center;flex-wrap:wrap"><span><strong>Confirm your email.</strong> You need it to publish apps and to reset your password if you forget it.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0">Send the link again</button></form>{{end}}
+{{if .Apps}}<div class="kpis"><div class="kpi"><div class="l">Apps</div><div class="v">{{len .Apps}}</div><div class="n">of {{.AppLimit}} on your plan</div></div>
+<div class="kpi"><div class="l">Live</div><div class="v">{{.Live}}</div><div class="n">published sites</div></div>
+<div class="kpi"><div class="l">Customers</div><div class="v">{{.Customers}}</div><div class="n">accounts across your apps</div></div>
+<div class="kpi"><div class="l">Recent errors</div><div class="v"{{if .Errors}} style="color:var(--bad)"{{end}}>{{.Errors}}</div><div class="n">on live sites</div></div></div>{{end}}
 <div class="dash"><div>
 {{if .Apps}}<div class="apps">{{range .Apps}}{{template "app_card" .}}{{end}}</div>
 {{else}}<div class="empty"><h2>No apps yet</h2><p>Connect Renoxium to ChatGPT or Claude, then ask for what you need. Your assistant starts from a finished template and shows you a preview before anything goes live.</p>
 <p class="say">"Build me an online store for my perfume shop in Dubai."</p><p class="say">"Make a booking site for my salon with three stylists."</p>
 <p style="margin-top:16px"><a href="/templates">See the templates you can start from</a></p></div>{{end}}
-{{if .Shared}}<h2 style="margin:28px 0 12px">Shared with you</h2><div class="apps">{{range .Shared}}{{template "app_card" .}}{{end}}</div>{{end}}
-</div><aside class="side"><div class="card"><h2>Build or change an app</h2>
-<ol><li>Add Renoxium to your AI assistant once, with this address:</li></ol>
-<input readonly value="{{.MCP}}" aria-label="Connector address" onfocus="this.select()">
-<ol start="2"><li>Ask for a new app or a change.</li><li>Check the preview, then publish.</li></ol>
-<p class="muted" style="margin:0"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></div>
-<div class="card"><h2>Start from a template</h2><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates</a></div>
-<form method="post" action="/logout" style="margin-top:12px"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0;width:100%">Sign out</button></form></aside></div>{{template "bottom"}}{{end}}
+{{if .Shared}}<h2 style="margin:28px 0 12px;font-size:18px">Shared with you</h2><div class="apps">{{range .Shared}}{{template "app_card" .}}{{end}}</div>{{end}}
+</div><aside class="side"><section class="panel"><div class="ph"><h2>Build or change an app</h2></div>
+<ol class="steps"><li><div>Add Renoxium to your AI assistant once, with this address:<div class="copy"><input id="mcp" readonly value="{{.MCP}}" aria-label="Connector address" onfocus="this.select()"><button type="button" class="secondary" onclick="var i=document.getElementById('mcp');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent='Copied'">Copy</button></div></div></li>
+<li><div>Ask for a new app or a change.</div></li><li><div>Check the preview, then publish.</div></li></ol>
+<p class="muted"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></section>
+<section class="panel"><div class="ph"><h2>Start from a template</h2></div><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates →</a></section></aside></div>{{template "appbottom"}}{{end}}
 
 {{define "app_card"}}<article class="app"><div class="top"><div><h2><a href="/apps/{{.App}}">{{.App}}</a></h2>{{if .LiveVersion}}<p class="host">{{.Host}}</p>{{end}}</div>
 <span class="pill {{.Status}}">{{.StatusText}}</span></div>
@@ -990,64 +1005,88 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{else}}<div class="panel"><p style="margin:0">{{if .Query}}Nothing matches "{{.Query}}". <a href="?">Clear the search</a>{{else}}No rows yet.{{if not .Demo}} <a href="/apps/{{.App}}/t/{{.Table}}/new">Add the first one</a>.{{end}}{{end}}</p></div>{{end}}
 {{template "appbottom"}}{{end}}
 
-{{define "operator"}}{{template "wide" "Operator"}}<p class="crumbs"><a href="/">Your apps</a></p>
-<div class="card"><h1>Renoxium operator</h1>{{with .Health}}{{range .Problems}}<p class="error">{{.}}</p>{{end}}{{end}}<div class="tiles">
-<div class="tile"><div class="muted">Accounts</div><div class="big">{{.Accounts}}</div><div class="muted">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
-<div class="tile"><div class="muted">Subscription revenue</div><div class="big">AED {{.MRR}}</div><div class="muted">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
-<div class="tile"><div class="muted">Apps</div><div class="big">{{.Stats.Apps}}</div><div class="muted">{{.Stats.LiveApps}} live · {{.Stats.SuspendedApps}} suspended · {{.Stats.StripeReady}} take cards</div></div>
-<div class="tile"><div class="muted">WhatsApp codes</div><div class="big">{{.Stats.WhatsAppCodes}}</div><div class="muted">this month, all accounts</div></div>
-{{with .Health}}<div class="tile"><div class="muted">Server</div><div class="big">{{.DiskFreeGB}} GB free</div><div class="muted">of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
-</div>{{with .Health}}{{with .Alerts}}<details><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}<p class="muted">Card fees collected and subscription payments are in the Stripe Dashboard (Connect, Collected fees; Billing, Subscriptions).</p>
-<form method="get" class="bar"><input name="q" value="{{.Q}}" placeholder="Email or app name" aria-label="Search"><button class="secondary">Search</button><a href="/operator/resources" style="margin-inline-start:auto">Resources: heavy and unprofitable apps</a><a href="#growth">Growth: funnel and unit economics</a></form></div>
+{{define "operator"}}{{template "owntop" .}}{{template "owncss"}}<style>
+.optable td{white-space:nowrap}.optable form.inline input{width:150px}.optable .em{max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.alerts{margin:0 0 16px}.alerts li{margin:4px 0}
+</style>
+<div class="pagehead"><div><h1>Renoxium operator</h1><p class="sub">Accounts, apps, abuse reports and growth across the platform.</p></div>
+<div class="acts"><a class="button secondary" href="/operator/resources">Resources</a><a class="button secondary" href="#growth">Growth</a></div></div>
+{{with .Health}}{{range .Problems}}<p class="flash bad error">{{.}}</p>{{end}}{{end}}
+<div class="kpis">
+<div class="kpi"><div class="l">Accounts</div><div class="v">{{.Accounts}}</div><div class="n">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
+<div class="kpi"><div class="l">Subscription revenue</div><div class="v">AED {{.MRR}}</div><div class="n">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
+<div class="kpi"><div class="l">Apps</div><div class="v">{{.Stats.Apps}}</div><div class="n">{{.Stats.LiveApps}} live · {{.Stats.SuspendedApps}} suspended · {{.Stats.StripeReady}} take cards</div></div>
+<div class="kpi"><div class="l">WhatsApp codes</div><div class="v">{{.Stats.WhatsAppCodes}}</div><div class="n">this month, all accounts</div></div>
+{{with .Health}}<div class="kpi"><div class="l">Server</div><div class="v">{{.DiskFreeGB}} GB</div><div class="n">free of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
+</div>
+{{with .Health}}{{with .Alerts}}<details class="panel alerts"><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}
+<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="Search by email or app name" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>
+<span class="sp"></span><span class="muted">Card fees and subscription payments are in the Stripe Dashboard.</span></form>
 
-{{if .Reports}}<div class="card" style="margin-top:16px"><h1>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h1>
+{{if .Reports}}<section class="panel"><div class="ph"><h2>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h2></div>
 {{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>
-{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Mark handled</button></form>{{end}}</div>{{end}}</div>{{end}}
+{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin-top:0">Mark handled</button></form>{{end}}</div>{{end}}</section>{{end}}
 
-<div class="card" style="margin-top:16px"><h1>Accounts</h1><div class="scroll"><table><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
-{{range .Users}}<tr><td><a href="/operator?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td>{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</td><td>{{.CreatedAt}}</td>
+<section class="panel"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll"><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
+{{range .Users}}<tr><td class="em"><a href="/operator?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td><span class="tag">{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</span></td><td class="muted">{{.CreatedAt}}</td>
 <td><form method="post" action="/operator/plan" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">
 <select name="plan" aria-label="Plan"><option value="free">free</option><option value="pro">pro</option><option value="business">business</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
-</tbody></table></div><p class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</p></div>
+</tbody></table></div></section>
 
-<div class="card" style="margin-top:16px"><h1>Apps</h1><div class="scroll"><table><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
-{{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td>{{.OwnerEmail}}</td>
-<td>{{if .LiveVersion}}v{{.LiveVersion}}{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}ready{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
+<section class="panel"><div class="ph"><h2>Apps</h2></div><div class="scroll"><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
+{{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
+<td>{{if .LiveVersion}}<span class="pill live">v{{.LiveVersion}}</span>{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}<span class="ok">ready</span>{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
 <td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
-{{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason" style="width:140px"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}
-</tbody></table></div></div>
-{{with .Growth}}{{template "growth" .}}{{else}}<div class="card" style="margin-top:16px"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "bottom"}}{{end}}
+{{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}
+</tbody></table></div></section>
+{{with .Growth}}{{template "growth" .}}{{else}}<div class="card" style="margin-top:16px"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "appbottom"}}{{end}}
 
-{{define "account"}}{{template "top" "Account"}}<p class="crumbs"><a href="/">Your apps</a></p>
-<div class="card"><h1>Account</h1><p>{{.User.Email}} {{if .User.Verified}}<span class="ok">confirmed</span>{{else}}<span class="muted">not confirmed</span>{{end}}</p>
-<p class="muted"><a href="/billing">Plan and billing</a></p></div>
-<form class="card" method="post" action="/account/password" style="margin-top:16px"><h1>Change password</h1>
-{{if .Changed}}<p class="ok">Password changed. Other devices and connected agents were signed out.</p>{{end}}{{with .PasswordError}}<p class="error">{{.}}</p>{{end}}
+{{define "account"}}{{template "owntop" .}}{{template "owncss"}}
+<div class="pagehead"><div><h1>Account settings</h1><p class="sub">Sign-in, your data and your account.</p></div></div>
+<div class="settings-grid">
+<section class="panel"><div class="ph"><h2>Profile</h2></div><dl class="kv"><dt>Email</dt><dd>{{.User.Email}} {{if .User.Verified}}<span class="pill live">confirmed</span>{{else}}<span class="pill wait">not confirmed</span>{{end}}</dd>
+<dt>Plan</dt><dd>{{.PlanName}} · <a href="/billing">Plan and billing</a></dd><dt>Apps</dt><dd>{{len .Apps}}</dd></dl></section>
+<form class="panel" method="post" action="/account/password"><div class="ph"><h2>Change password</h2></div>
+{{if .Changed}}<p class="flash ok">Password changed. Other devices and connected agents were signed out.</p>{{end}}{{with .PasswordError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="current">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required>
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
-<button>Change password</button><p class="muted" style="margin-top:12px">Connected agents (ChatGPT, Claude) will need to connect again.</p></form>
-<div class="card" style="margin-top:16px"><h1>Export your data</h1><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
-<a class="button" href="/account/export">Download export</a></div>
-<form class="card" method="post" action="/account/delete" style="margin-top:16px"><h1>Delete account</h1>
-<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="error">{{.}}</p>{{end}}
+<button>Change password</button><p class="fine">Connected agents (ChatGPT, Claude) will need to connect again.</p></form>
+<section class="panel"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
+<a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
+<form class="panel danger-zone" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
+<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
 <label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
-<button class="danger">Delete my account</button></form>{{template "bottom"}}{{end}}
+<button class="danger">Delete my account</button></form></div>{{template "appbottom"}}{{end}}
 
-{{define "billing"}}{{template "top" "Plan and billing"}}<p class="crumbs"><a href="/">Your apps</a></p><div class="card"><h1>Plan and billing</h1>
-<p>Current plan: <strong>{{if eq .Billing.Plan "pro"}}Pro{{else if eq .Billing.Plan "business"}}Business{{else}}Free{{end}}</strong>
-{{if .Paying}}<span class="muted">· {{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span>{{end}}</p>
-<p class="muted">Apps: {{.Apps}} of {{.Limit}} · WhatsApp sign-in codes this month: {{.WAUsed}} of {{.WAQuota}} · Image storage: {{.StorageMB}} MB of {{.StorageQuotaMB}} MB · External API calls this month: {{.FetchUsed}} of {{.FetchQuota}}</p>
-{{if not .Ready}}<p>Paid plans are not available yet.</p>
-{{else if .Paying}}<p>No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
-<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form>
-<p class="muted">Change plan, update your card, download invoices or cancel.</p>
-{{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>
-<div class="plans"><form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="pro">
-<h2>Pro</h2><p class="price">AED {{index .Prices "pro"}} <span class="muted">/ month</span></p><ul><li>3 apps</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>20,000 external API calls a month</li><li>Your own domain</li><li>2 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Pro</button></form>
-<form class="plan" method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="plan" value="business">
-<h2>Business</h2><p class="price">AED {{index .Prices "business"}} <span class="muted">/ month</span></p><ul><li>10 apps</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>100,000 external API calls a month</li><li>Your own domain</li><li>10 staff per app</li><li>No fee on card payments</li><li>No Renoxium badge</li></ul><button>Choose Business</button></form></div>
-<p class="muted">Payment is handled by Stripe. Cancel any time.</p>{{end}}</div>{{template "bottom"}}{{end}}
+{{define "billing"}}{{template "owntop" .}}{{template "owncss"}}
+<div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">Your Renoxium plan, what you have used this month, and payments.</p></div></div>
+{{with .Notice}}<p class="flash" role="status">{{.}}</p>{{end}}
+<section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
+<p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else}}/ month{{end}}</span></p>
+{{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
+{{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
+<p class="muted">No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
+{{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>{{end}}</div>
+{{if .CanManage}}<div><div class="acts"><form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form></div>
+<p class="fine" style="margin-top:8px">Change plan, update your card, download invoices or cancel.</p></div>{{end}}</div></section>
+
+<section class="panel"><div class="ph"><h2>Usage</h2><span class="muted">resets on the 1st of each month</span></div><div class="meters">
+{{range .Meters}}<div class="meter{{if .Warn}} warn{{end}}"><div class="top"><span>{{.Label}}</span><span><b>{{.Used}}{{.Unit}}</b> of {{.Quota}}{{.Unit}}</span></div><div class="tr" role="progressbar" aria-label="{{.Label}}" aria-valuenow="{{.Pct}}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{.Pct}}%"></i></div></div>{{end}}
+</div></section>
+
+<section class="panel"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
+{{if not .Ready}}<p class="flash">Paid plans are not available yet.</p>{{end}}
+<div class="tiers" style="margin-top:22px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
+<h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">AED {{.Price}} <small>/ month</small></p>
+<ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>
+{{if .Current}}<span class="is">Current plan</span>
+{{else if eq .ID "free"}}{{if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Cancel in billing</button></form>{{else}}<span class="is">Always free</span>{{end}}
+{{else if not $.Ready}}<span class="is">Not available yet</span>
+{{else if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Switch to {{.Name}}</button></form>
+{{else}}<form method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="plan" value="{{.ID}}"><button{{if not .Popular}} class="secondary"{{end}}>Choose {{.Name}}</button></form>{{end}}
+</div>{{end}}</div>
+<p class="fine">Payment is handled by Stripe. Cancel any time.</p></section>{{template "appbottom"}}{{end}}
 
 {{define "admin_connections"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Connections</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}

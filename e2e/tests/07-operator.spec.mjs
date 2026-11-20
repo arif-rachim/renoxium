@@ -23,7 +23,7 @@ test('operator panel', async ({ browser }) => {
   await page.goto('/operator');
   await expect(page.getByRole('heading', { name: 'Renoxium operator' })).toBeVisible();
   for (const tile of ['Accounts', 'Subscription revenue', 'Apps', 'WhatsApp codes', 'Server']) {
-    await expect(page.locator('.tile').getByText(tile, { exact: true })).toBeVisible();
+    await expect(page.locator('.kpi').getByText(tile, { exact: true })).toBeVisible();
   }
 
   // Search by the owner's email lists the account and its app.
