@@ -35,17 +35,27 @@ async function measure(browser, url) {
   return m;
 }
 
-test('store template stays within its performance budget on a phone', async ({ browser }) => {
-  const base = appURL('demo-store-uae');
-  // Demos come up in the background at startup.
-  await expect.poll(async () => (await fetch(base + '/').catch(() => ({ status: 0 }))).status, { timeout: 60_000 }).toBe(200).catch(() => {});
-  for (const path of ['/', '/p/1', '/?lang=ar']) {
+// Demos come up in the background at startup: wait for the demo in a browser page.
+async function demoReady(browser, base) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await expect.poll(async () => (await page.goto(base + '/').catch(() => null))?.status() || 0, { timeout: 60_000, intervals: [1000] }).toBe(200);
+  await ctx.close();
+}
+
+test('templates with the motion kit stay within the performance budget on a phone', async ({ browser }) => {
+  test.setTimeout(240_000);
+  for (const [demo, paths] of [['demo-store-uae', ['/', '/p/1', '/?lang=ar']], ['demo-booking-uae', ['/', '/s/1', '/?lang=ar']]]) {
+  const base = appURL(demo);
+  await demoReady(browser, base);
+  for (const path of paths) {
     const m = await measure(browser, base + path);
-    console.log(`perf ${path}: ${JSON.stringify(m)} budget ${JSON.stringify(BUDGET)}`);
+    console.log(`perf ${demo}${path}: ${JSON.stringify(m)} budget ${JSON.stringify(BUDGET)}`);
     if (report) continue;
     for (const k of Object.keys(BUDGET)) {
-      expect.soft(m[k], `${path} ${k}`).toBeLessThanOrEqual(BUDGET[k]);
+      expect.soft(m[k], `${demo}${path} ${k}`).toBeLessThanOrEqual(BUDGET[k]);
     }
+  }
   }
 });
 
@@ -54,6 +64,7 @@ test('store template stays within its performance budget on a phone', async ({ b
 // place, and with reduced motion nothing waits for an animation.
 test('store motion kit: drawer, search in place, Arabic and reduced motion', async ({ browser }) => {
   const base = appURL('demo-store-uae');
+  await demoReady(browser, base);
   const ctx = await browser.newContext({ ...devices['Pixel 7'] });
   await ctx.route(/^https?:\/\/(?![^/]*localhost)/, (r) => r.abort());
   const page = await ctx.newPage();

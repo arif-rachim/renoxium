@@ -459,7 +459,10 @@ reuse them for similar pieces (service grids = tiles, booking detail = pdp, book
 
 ## 8a. Motion kit (store-uae first; copy it to the other templates)
 
-store-uae carries the kit as two named templates, so `patch_app` can replace either one alone:
+store-uae and booking-uae carry the kit as two named templates, so `patch_app` can replace either one alone. **Every template
+carries the same copy** (`TestMotionKitIsTheSameEverywhere`): change the kit in all templates at once, and put a template's own
+motion in its own `css`. Parts that need a component only switch on where it exists (the cart drawer needs `rxCart` in `top`,
+the gallery needs `.gal`, in-place search needs `#results`).
 
 - `motion` (CSS, included from `head` after `css`) and `motion_js` (one inline script, included from `bottom` before `</body>`).
 - `top` adds the `js` class on `<html>` before anything paints and fires a `rxcart` event from `rxSave`; motion styles that hide
@@ -488,8 +491,10 @@ Parts:
 | Filters and search | `#results` is swapped with the server-rendered results of the new URL (no client templates), `history.pushState`/`replaceState`, `popstate` reloads the results |
 | Gallery and zoom | `products.image2`/`image3` (optional); scroll-snap carousel with dots, a `<dialog>` for full screen, tap to zoom |
 | PWA | `/manifest.webmanifest` from the store's name, brand colour and logo |
+| Choices and time slots | press feedback on `.opt`, `.day` and `.slot`; time slots pop in (`rx-pop`) as they load |
+| Print | everything waiting for a reveal is shown, the drawer is hidden |
 
-Budget (checked by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
+Budget (checked for the store and booking demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
 LCP ≤ 2.5 s, CLS ≤ 0.1, inline JS ≤ 30 KB, non-image bytes ≤ 150 KB per page.
 
 ## 9. Checklist per template
