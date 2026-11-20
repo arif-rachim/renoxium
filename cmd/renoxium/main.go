@@ -25,6 +25,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/monitor"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/sandbox"
+	"github.com/arif-rachim/renoxium/internal/seo"
 	"github.com/arif-rachim/renoxium/internal/stripe"
 	"github.com/arif-rachim/renoxium/internal/web"
 )
@@ -183,11 +184,11 @@ func main() {
 	site.AbuseEmail = *abuseEmail
 	site.OpenAIAppsChallenge = strings.TrimSpace(os.Getenv("OPENAI_APPS_CHALLENGE"))
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := seo.Compress(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !p.ServeApp(w, r) {
 			site.ServeHTTP(w, r)
 		}
-	})
+	}))
 	// Backups are checked once backup.sh is set up: its cron entry or its stamp exists.
 	_, cronErr := os.Stat("/etc/cron.d/renoxium-backup")
 	_, stampErr := os.Stat(filepath.Join(*dataDir, ".last-backup"))

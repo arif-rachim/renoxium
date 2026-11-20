@@ -139,6 +139,7 @@ type Platform struct {
 
 	adminNotices sync.Map // app + "\x00" + email -> failed on_admin_change notice
 
+	sitemaps sitemapCache  // public pages per stage (seo.go)
 	demoBox  demoInbox     // messages template demos would have sent (demo.go)
 	traffic  trafficBuffer // visits counted in memory until the next write (traffic.go)
 	demoURLs sync.Map      // "app/file" -> address of a demo photo already uploaded (demodata.go)
@@ -599,6 +600,9 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 		return res, err
 	}
 	res.Checks = p.checkRoutes(ctx, st, def)
+	for _, problem := range checkSitemap(ctx, st) {
+		res.Checks = append(res.Checks, Check{Route: "GET " + SitemapPath, Status: http.StatusInternalServerError, Error: problem})
+	}
 	if hosts, secrets, err := p.Connections(name); err == nil {
 		link := p.cfg.SiteURL + "/apps/" + name + "/connections"
 		for _, h := range hosts {

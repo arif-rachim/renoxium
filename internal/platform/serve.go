@@ -13,6 +13,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,17 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.serveMCP(w, r, st)
 		return true
 	}
+	if isSEOPath(r.URL.Path) && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+		if route, _ := st.def.Match(http.MethodGet, r.URL.Path); route == nil {
+			if !p.allow("req:"+app+":"+p.clientIP(r), requestsPerMinute, time.Minute) {
+				w.Header().Set("Retry-After", "60")
+				http.Error(w, "too many requests; try again in a minute", http.StatusTooManyRequests)
+				return true
+			}
+			p.serveSEO(w, r, st)
+			return true
+		}
+	}
 	if r.URL.Path == "/favicon.ico" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 		if route, _ := st.def.Match(http.MethodGet, r.URL.Path); route == nil {
 			// Browsers ask for it on every first visit; an app without its
@@ -148,6 +160,13 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	if out.contentType != "" {
 		h.Set("Content-Type", out.contentType)
 	}
+	// Search engines and link previews only ever see live, public pages.
+	if stageName == Live && r.Method == http.MethodGet && out.status == http.StatusOK && strings.HasPrefix(out.contentType, "text/html") {
+		if route, _ := st.def.Match(http.MethodGet, r.URL.Path); route != nil && route.Auth == "" {
+			out.body = p.seoHead(st, r, out.body)
+		}
+	}
+	h.Set("Content-Length", strconv.Itoa(len(out.body)))
 	w.WriteHeader(out.status)
 	w.Write(out.body)
 	if stageName == Live || demo {

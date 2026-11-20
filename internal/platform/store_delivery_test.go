@@ -21,6 +21,8 @@ import (
 // script) and the checkout (server script, which decides what the order is
 // charged) follow the same rule.
 func TestStoreUAEDeliveryFee(t *testing.T) {
+	// The cart drawer's script is the last one on the page, past the usual cut.
+	defer platform.SetMaxTestBody(200000)()
 	dir := t.TempDir()
 	p, err := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
 	if err != nil {

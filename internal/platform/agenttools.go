@@ -74,7 +74,9 @@ type TestResponse struct {
 	Admin *TestAdminResult `json:"admin,omitempty"`
 }
 
-const maxTestBody = 20000
+// maxTestBody is where a test response's body is cut; tests that run a page's
+// last script raise it.
+var maxTestBody = 20000
 
 // styleBlock matches an inline stylesheet. test_request leaves out the CSS of long ones (a design system's stylesheet can
 // fill the whole body budget) so the agent still sees the page's content.
