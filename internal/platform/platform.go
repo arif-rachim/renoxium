@@ -92,6 +92,9 @@ type Config struct {
 	// only a browser that opened a link from the owner's dashboard sees
 	// them. Empty leaves previews open (development and tests).
 	PreviewKey []byte
+	// Chromium is the path of a Chromium or Chrome binary for screenshots
+	// of previews (screenshot_preview). Empty turns screenshots off.
+	Chromium string
 }
 
 // DailyLimits caps messages sent per day, per app and over all apps.
@@ -138,6 +141,9 @@ type Platform struct {
 
 	funnelSeen sync.Map // owner + "\x00" + kind -> first event already recorded (growth.go)
 
+	shots    chan struct{} // browsers running for screenshots (screenshot.go)
+	testJars sync.Map      // app + "\x00" + session -> *testJar, test_request cookie jars (testsession.go)
+
 	meter           meter                       // resources used per app stage and hour (meter.go)
 	throttles       atomic.Pointer[throttleSet] // operator throttles (throttle.go)
 	throttleLoading atomic.Bool
@@ -166,9 +172,13 @@ type AppInfo struct {
 
 // Check is the result of rendering one route during ApplyChange.
 type Check struct {
-	Route  string `json:"route"`
-	Status int    `json:"status"`
-	Error  string `json:"error,omitempty"`
+	Route    string   `json:"route"`
+	Path     string   `json:"path,omitempty" jsonschema:"the path rendered, with its parameters filled from the first row of the matching table"`
+	As       string   `json:"as,omitempty" jsonschema:"who the page was rendered for, for routes that need a signed-in visitor"`
+	Status   int      `json:"status"`
+	Error    string   `json:"error,omitempty" jsonschema:"template or script error, with the template name and line"`
+	Warnings []string `json:"warnings,omitempty" jsonschema:"problems in a page that rendered, such as <no value> from a missing template key"`
+	Note     string   `json:"note,omitempty"`
 }
 
 // ApplyResult reports what ApplyChange did.
@@ -178,7 +188,7 @@ type ApplyResult struct {
 	Version    int      `json:"version,omitempty"`
 	PreviewURL string   `json:"preview_url,omitempty"`
 	Migrations []string `json:"migrations,omitempty" jsonschema:"schema changes applied to the preview database"`
-	Checks     []Check  `json:"checks,omitempty" jsonschema:"result of rendering every GET route without path parameters on preview"`
+	Checks     []Check  `json:"checks,omitempty" jsonschema:"result of rendering every GET route on preview: parameters filled from preview rows, signed-in routes as a visitor"`
 	// OwnerActions are steps only the owner can take before http.fetch works.
 	OwnerActions []string `json:"owner_actions,omitempty" jsonschema:"things the owner must do in the admin panel (allow hosts, enter API keys); tell the user and give them the link"`
 }
@@ -285,7 +295,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		cfg.ScriptsPerOwner = cfg.ScriptsPerApp
 	}
 	pl := &Platform{cfg: cfg, db: db, sb: sb, files: store,
-		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}}
+		stages: map[string]*stage{}, logs: map[string]*applog.Log{}, intake: map[string]*window{}, slots: map[string]chan struct{}{}, limits: map[string]*window{}, rids: map[string]*ridEntry{}, shots: make(chan struct{}, shotsAtOnce)}
 	if err := pl.ensureDomainTable(); err != nil {
 		db.Close()
 		return nil, err
@@ -579,14 +589,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	if err != nil {
 		return res, err
 	}
-	for _, r := range def.Routes {
-		if r.Method != http.MethodGet || r.HasParams() {
-			continue
-		}
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, r.Path, nil)
-		out := p.handle(st, req, newRequestID())
-		res.Checks = append(res.Checks, Check{Route: "GET " + r.Path, Status: out.status, Error: out.errMsg})
-	}
+	res.Checks = p.checkRoutes(ctx, st, def)
 	if hosts, secrets, err := p.Connections(name); err == nil {
 		link := p.cfg.SiteURL + "/apps/" + name + "/connections"
 		for _, h := range hosts {
@@ -608,6 +611,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 // included. problem explains a failed migration. The caller holds p.change.
 func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []string, problem string, err error) {
 	p.dropStage(name, Preview)
+	p.dropTestSessions(name)
 	// Preview uploads belong to the throwaway preview data; they are never
 	// copied to or from live.
 	if err := p.dropPrivateFiles(name, Preview); err != nil {

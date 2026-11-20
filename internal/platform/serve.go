@@ -156,7 +156,8 @@ type result struct {
 	contentType string
 	location    string
 	body        []byte
-	errMsg      string // set when the app failed; also written to the log
+	errMsg      string   // set when the app failed; also written to the log
+	warnings    []string // missing template keys, found only while checking a change (checks.go)
 }
 
 // handle runs one request against a stage and logs it.
@@ -194,7 +195,8 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 		query[k] = v[0]
 	}
 	if route.Template != "" {
-		return p.render(st, http.StatusOK, route.Template, map[string]any{"params": params, "query": query, "user": user.Map()}, rid)
+		data := map[string]any{"params": params, "query": query, "user": user.Map()}
+		return checkMissingKeys(r.Context(), p.render(st, http.StatusOK, route.Template, data, rid), route.Template, data)
 	}
 
 	req := sandbox.Request{User: user, Origin: p.URL(st.app, st.name), Method: r.Method, Path: r.URL.Path, Params: params, Query: query, Form: map[string]string{}, FormAll: map[string][]string{}}
@@ -241,7 +243,7 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 	}
 	switch {
 	case resp.Template != "":
-		return p.render(st, status, resp.Template, resp.Data, rid)
+		return checkMissingKeys(r.Context(), p.render(st, status, resp.Template, resp.Data, rid), resp.Template, resp.Data)
 	case resp.HasJSON:
 		body, err := json.Marshal(resp.JSON)
 		if err != nil {

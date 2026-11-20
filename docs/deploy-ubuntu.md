@@ -235,6 +235,25 @@ Only confirmed accounts whose email is listed in `RENOXIUM_OPERATORS` can open i
 echo 'RENOXIUM_OPERATORS=you@renoxium.com' | sudo tee -a /etc/renoxium/env >/dev/null && sudo systemctl restart renoxium
 ```
 
+### Screenshots for agents (optional)
+
+`screenshot_preview` lets a building agent see its preview pages. It runs a headless Chromium for each
+shot (about 150 MB while it runs, at most 2 at once). The browser only ever loads the preview, served
+inside Renoxium, and a few public font, script and map-tile CDNs. The hardened unit stops Chromium (its
+JIT needs writable and executable memory, and its own sandbox needs user namespaces), so it is off
+unless you add a drop-in. This drop-in has not been tried on the production unit yet: check the journal
+after the first screenshot.
+
+```bash
+sudo apt install -y chromium
+sudo mkdir -p /etc/systemd/system/renoxium.service.d
+printf '[Service]\nMemoryDenyWriteExecute=false\nRestrictNamespaces=false\nMemoryMax=1200M\n' | sudo tee /etc/systemd/system/renoxium.service.d/screenshots.conf
+echo 'RENOXIUM_CHROMIUM=/usr/bin/chromium' | sudo tee -a /etc/renoxium/env >/dev/null
+sudo systemctl daemon-reload && sudo systemctl restart renoxium
+```
+
+Use a node with 2 GB or more. Without `RENOXIUM_CHROMIUM` the tool tells agents that screenshots are not set up.
+
 ### WhatsApp sign-in codes (optional)
 
 Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.
