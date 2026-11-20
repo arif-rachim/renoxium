@@ -49,7 +49,7 @@ var demoImageSets = map[string][]DemoImageSet{
 		}},
 	},
 	"home-service-uae": {{Table: "business", Key: "name", Rows: map[string]map[string]string{
-		"Bayti Home Services": {"hero_image": "home-hero.webp", "story_image": "home-story.webp"},
+		"Bayti Home Services": {"hero_image": "home-hero.webp", "story_image": "home-story.webp", "interior_image": "home-sofa.webp"},
 	}}, {Table: "services", Key: "name", Rows: map[string]map[string]string{
 		"Home cleaning":                       {"image": "home-cleaning.webp"},
 		"Deep cleaning (1-bedroom apartment)": {"image": "home-deep-cleaning.webp"},

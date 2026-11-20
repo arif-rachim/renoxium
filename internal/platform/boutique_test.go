@@ -88,3 +88,61 @@ func TestThemeIsTheSameEverywhere(t *testing.T) {
 		}
 	}
 }
+
+// store-uae's boutique home: collections as arches, product badges and quick
+// add, a banner only for a promoted coupon, a client quote only when the
+// owner added a real one, and the luxury layout for the luxury fonts.
+func TestStoreBoutiqueTheme(t *testing.T) {
+	e := newExampleEnv(t, "store-uae", nil)
+	home := e.get("/", "").Body
+	for _, want := range []string{`data-font="boutique"`, `class="e-hero"`, "Premium perfume collection", `<em class="accent">for every moment</em>`,
+		`class="cats e-fams"`, `<span class="e-fam-name">Musk</span>`, "Featured fragrances", `<span class="e-badge">Best seller</span>`,
+		`<span class="e-badge">New</span>`, `data-add="2"`, "10% off", "With the code WELCOME10 on orders over AED", "Crafted with passion",
+		`class="site-foot b-foot"`, "--brand:#1f3a2e"} {
+		if !strings.Contains(home, want) {
+			t.Errorf("boutique store home lacks %q", want)
+		}
+	}
+	if strings.Contains(home, `data-add="1"`) {
+		t.Error("quick add offered for a product with options")
+	}
+	if strings.Contains(home, `class="e-quote"`) {
+		t.Error("a client quote is shown although none was added")
+	}
+	if ar := e.get("/?lang=ar", "").Body; !strings.Contains(ar, "مجموعة عطور فاخرة") || !strings.Contains(ar, "الأكثر مبيعاً") || !strings.Contains(ar, "مع الرمز WELCOME10") {
+		t.Error("Arabic boutique store home")
+	}
+	// In-place filtering keeps working: the collections are the .cats the motion kit swaps.
+	if f := e.get("/?c=Musk", "").Body; !strings.Contains(f, `aria-current="page"><span class="well arch">`) || strings.Contains(f, "Royal Oud</span>") {
+		t.Error("collection filter")
+	}
+
+	quiet := newExampleEnv(t, "store-uae", func(def *appdef.App) {
+		def.Seed["coupons"][0]["promote"] = 0
+		def.Seed["testimonials"] = []map[string]any{{"quote": "The oud lasts all day.", "name": "Ayesha", "active": 1}}
+	})
+	h := quiet.get("/", "").Body
+	if strings.Contains(h, `class="e-promo"`) || !strings.Contains(h, "The oud lasts all day.") || !strings.Contains(h, "— Ayesha") {
+		t.Error("promo without a promoted coupon, or the client quote")
+	}
+
+	lux := newExampleEnv(t, "store-uae", func(def *appdef.App) { def.Seed["store"][0]["font"] = "heritage" })
+	if l := lux.get("/", "").Body; strings.Contains(l, "e-hero") || !strings.Contains(l, `class="hero`) || strings.Contains(l, "b-foot") {
+		t.Error("heritage font shows boutique sections")
+	}
+}
+
+// A template that is a style block ends with it: rules added after
+// </style> are page text, and the browser ignores them.
+func TestStyleTemplatesEndWithTheirStyle(t *testing.T) {
+	for _, ex := range examples.All() {
+		var def struct{ Templates map[string]string }
+		json.Unmarshal(ex.JSON, &def)
+		for name, body := range def.Templates {
+			body = strings.TrimSpace(body)
+			if strings.HasPrefix(body, "<style") && !strings.HasSuffix(body, "</style>") {
+				t.Errorf("%s: template %s has text after </style>", ex.Name, name)
+			}
+		}
+	}
+}

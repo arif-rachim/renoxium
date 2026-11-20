@@ -58,8 +58,8 @@ func TestStoreUAEExample(t *testing.T) {
 		t.Fatal("arabic home")
 	}
 	// Arabic pages show Arabic categories and prices in dirhams, and keep the brand theme from the store settings.
-	if !strings.Contains(ar.Body, ">مسك</a>") || !strings.Contains(ar.Body, "95.00 د.إ") || !strings.Contains(ar.Body, `data-font="heritage"`) ||
-		!strings.Contains(ar.Body, "--brand:#1f1b17") {
+	if !strings.Contains(ar.Body, `<span class="e-fam-name">مسك</span>`) || !strings.Contains(ar.Body, "95.00 د.إ") || !strings.Contains(ar.Body, `data-font="boutique"`) ||
+		!strings.Contains(ar.Body, "--brand:#1f3a2e") {
 		t.Fatalf("arabic home details: %s", ar.Body)
 	}
 	if r := req(platform.TestRequestInput{Path: "/?c=Musk"}); strings.Contains(r.Body, "Royal Oud") || !strings.Contains(r.Body, "White Musk") {

@@ -100,6 +100,21 @@ A template may add a boutique layout with `{{if .theme.boutique}}`. booking-uae 
 an oval photo (`interior_image`); a "Book" button in the header and a three-column footer. A rating shows only when the owner sets
 a real `rating` and `review_count`; never seed invented reviews.
 
+home-service-uae has its own (`home_boutique`, classes `h-…`), seeded in forest green `#1F3A2E`: a split hero with a big
+headline (`headline` + `tagline_accent`, capitals in Latin script only), the label (`eyebrow`) and `intro`; service cards with a
+round icon (`services.icon`, template `icon`); highlights next to `story_image` (table `highlights`); three steps in texts
+(`step1_title` ... `step3_text`) next to `interior_image`; one customer review from table `testimonials` only when the owner adds
+a real one (empty in the seed); the areas and facts; a brand-colour closing band; header links, a "Book a visit" button and a
+three-column footer. It has no motion kit, so its boutique motion is only hover transforms.
+
+store-uae has its own (`home_boutique`, classes `e-…`), seeded in forest green `#1F3A2E`: a hero with a label (`store.eyebrow`),
+the tagline with an accent line (`tagline_accent`), `intro` and an arched `hero_image` in a gold outline; the categories as
+"families" with an arched photo (each category's first product photo), filtered in place by the motion kit; a search field and the
+products in arched cards with an optional label (`products.badge`: bestseller, new) and a quick-add button for products without
+variants (opens the cart drawer); a promo band only for a coupon the owner marks `promote` (active, not expired, not used up);
+the story next to `story_image`, with one customer quote from table `testimonials` only when the owner adds a real one (empty in
+the seed); and a three-column footer.
+
 ## 4. Type scale
 
 Sizes: 14 / 16 / 18 / 22 / 28 / 36 / 48 px (`--fs-14` ... `--fs-48`). Nothing smaller than 14px except the cart count (13px).
