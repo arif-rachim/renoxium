@@ -93,7 +93,7 @@ Rules of the luxury style:
 cream paper `#fbf6f1`, deep brown ink `#3b2a22`, the brand colour as the accent (default terracotta `#b4643f`), Gilda Display
 headings (Amiri in Arabic) and DM Sans text (IBM Plex Sans Arabic), 4px buttons in small tracked capitals, 16px photos, a small tracked label (`.eyebrow`), a short rule (`.rule`) and arrows that turn in Arabic (`.arr`).
 
-A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutique`). Five templates have one. They share these rules:
+A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutique`). Six templates have one. They share these rules:
 
 - **Density.** Sections sit 28-44px apart, and every block carries real information: numbers counted with SQL from the app's own
   tables, facts from the settings row (hours, fees, payment methods, VAT, cancellation), category chips with counts, a FAQ built
@@ -111,6 +111,7 @@ A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutiq
 | home-service-uae | `h-…` | forest green `#1F3A2E` | rounded photos with a tinted block offset behind; a speech-tab shape (one square corner) | hero with counted pills, facts strip, six compact service cards, why-us next to the three steps, reviews, areas as chips with their surcharge, FAQ, closing band, four-column footer |
 | listings-uae | `v-…` | forest green `#1F3A2E` | curved hero edge, organic about photo with a round second photo, leaf-shaped community tiles, cards with one large corner | photo hero with a floating search bar, counted numbers, about with highlights, communities with their number of homes, type chips, featured cards in a row with arrows, reviews, agents next to the valuation card, four-column footer |
 | quote-portal-uae | `s-…` | gold `#C9A14A` on navy, plain capitals instead of the serif | diagonal cuts and chamfered corners with gold hairlines | photo hero with a licence badge, highlights strip, numbers bar (services, areas, quote validity, deposit, years only when set), about with the service areas, service cards in a row with arrows, four steps, reviews, "included in every quote" and FAQ from the settings, custom-case band, four-column footer. Invoices and printouts switch back to white paper |
+| reservation-uae | `r-…` | terracotta `#B85C3C` with forest green surfaces, medium-weight sans headings instead of the serif | postcards: rounded cards in a thin cream frame, slightly tilted, a second one peeking behind; tall cards (3:4.6) for the first category | header on a dimmed backdrop photo, hero card, a search pill (category, date, guests) that really filters by availability, counted numbers, facts strip, tall cards with arrows, compact cards for the other categories with chips, extras with prices, story with highlights, three steps next to a FAQ from the settings, reviews, closing band, footer with the name large and a turning stamp |
 
 ## 4. Type scale
 

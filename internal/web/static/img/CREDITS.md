@@ -13,7 +13,7 @@ schedule every demo gets around the current day (`internal/platform/demodata.go`
 | screen-store-home-ar.webp | store-uae: the shop's home page in Arabic, scrolled to the search field and the product cards |
 | screen-booking.webp | booking-uae: the boutique home page with its hero and photo |
 | screen-home-service.webp | home-service-uae: the boutique home page with its hero and photo |
-| screen-reservation.webp | reservation-uae: the home page with its banner and photo |
+| screen-reservation.webp | reservation-uae: the boutique home page with its hero card and search box |
 | screen-quote-portal.webp | quote-portal-uae: the boutique home page in navy and gold with its hero and photo |
 | screen-listing.webp | listings-uae: the boutique home page with its hero, photo and search bar (scrolled past the announcement bar) |
 | screen-delivery.webp | delivery-tracking: a delivery on the live map, with its progress. Map data © OpenStreetMap contributors (ODbL), tiles by openstreetmap.org, attribution visible in the image |
