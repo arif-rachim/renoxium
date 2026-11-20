@@ -32,8 +32,15 @@ func TestOperatorPanel(t *testing.T) {
 	reporter := e.browser()
 	reporter.PostForm(e.base+"/abuse", url.Values{"csrf": {e.csrf(reporter, "/abuse")}, "address": {"zara-shop.renoxium.app"}, "details": {"Sells fake perfume"}})
 
-	r, _ := ops.Get(e.base + "/operator")
-	page := read(t, r)
+	// The Platform section is three pages: overview, accounts and apps.
+	page := ""
+	for _, path := range []string{"/operator", "/operator/accounts", "/operator/apps"} {
+		r, _ := ops.Get(e.base + path)
+		if r.StatusCode != 200 {
+			t.Fatalf("%s: %d", path, r.StatusCode)
+		}
+		page += read(t, r)
+	}
 	for _, want := range []string{"Accounts", ">2<", "zara@shop.ae", "zara-shop", "Sells fake perfume", "(1 open)", "AED 0"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("operator page lacks %q", want)
@@ -67,7 +74,7 @@ func TestOperatorPanel(t *testing.T) {
 	if code := serve(); code == 200 {
 		t.Fatal("suspended app still serves")
 	}
-	if r, _ := ops.Get(e.base + "/operator?q=zara"); !strings.Contains(read(t, r), "suspended: fake goods") {
+	if r, _ := ops.Get(e.base + "/operator/apps?q=zara"); !strings.Contains(read(t, r), "suspended: fake goods") {
 		t.Fatal("suspension not shown")
 	}
 	post("/operator/suspend", url.Values{"app": {"zara-shop"}, "action": {"unsuspend"}})

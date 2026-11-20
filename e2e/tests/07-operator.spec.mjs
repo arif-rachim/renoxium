@@ -21,17 +21,21 @@ test('operator panel', async ({ browser }) => {
   }
   const page = op.page;
   await page.goto('/operator');
-  await expect(page.getByRole('heading', { name: 'Renoxium operator' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Platform', exact: true })).toBeVisible();
   for (const tile of ['Accounts', 'Subscription revenue', 'Apps', 'WhatsApp codes', 'Server']) {
     await expect(page.locator('.kpi').getByText(tile, { exact: true })).toBeVisible();
   }
 
-  // Search by the owner's email lists the account and its app.
-  await page.fill('input[name=q]', shop.email);
-  await page.getByRole('button', { name: 'Search' }).click();
+  // Accounts and Apps are tabs of the same section; searching the owner's email finds the account and its app.
+  const search = async (tab) => {
+    await page.locator('.tabs').getByRole('link', { name: tab, exact: true }).click();
+    await page.fill('input[name=q]', shop.email);
+    await page.getByRole('button', { name: 'Search' }).click();
+  };
+  await search('Apps');
+  await expect(page.locator('tr', { hasText: shop.app })).toContainText('v1');
+  await search('Accounts');
   await expect(page.locator('table').first()).toContainText(shop.email);
-  const appRow = page.locator('tr', { hasText: shop.app });
-  await expect(appRow).toContainText('v1');
 
   // Give Pro without payment: the owner sees it, and it survives a billing sync.
   const userRow = page.locator('tr', { hasText: shop.email }).first();
@@ -43,8 +47,7 @@ test('operator panel', async ({ browser }) => {
   await expect.poll(async () => (await (await shop.page.request.get(shop.live)).text()).includes('Made with Renoxium'), { timeout: 40_000, intervals: [2000] }).toBe(false);
 
   // Suspend: the shop answers 451 with a notice; bring it back.
-  await page.fill('input[name=q]', shop.email);
-  await page.getByRole('button', { name: 'Search' }).click();
+  await search('Apps');
   await page.locator('tr', { hasText: shop.app }).locator('input[name=reason]').fill('e2e check');
   await page.locator('tr', { hasText: shop.app }).getByRole('button', { name: 'Suspend' }).click();
   await expect(page.locator('tr', { hasText: shop.app })).toContainText('suspended: e2e check');
@@ -69,12 +72,14 @@ test('operator panel', async ({ browser }) => {
   // Resources: the shop's use of the server, its page and a throttle the owner is told about.
   expect((await shop.page.request.get('/operator/resources')).status()).toBe(404);
   await page.goto('/operator');
-  await page.locator('.pagehead').getByRole('link', { name: 'Resources', exact: true }).click();
+  await page.locator('.sidenav').getByRole('link', { name: 'Resources', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toBeVisible();
   await expect(page.locator('.tile').getByText('Workers busy now')).toBeVisible();
   await page.goto('/operator/resources/' + shop.app + '?window=7d');
   await expect(page.getByRole('heading', { name: shop.app, exact: true })).toBeVisible();
+  await page.locator('.tabs').getByRole('link', { name: 'Per hour' }).click();
   await expect(page.getByText('Script time per hour')).toBeVisible();
+  await page.locator('.tabs').getByRole('link', { name: 'Actions' }).click();
   await page.fill('#t-reason', 'e2e throttle');
   await page.getByRole('button', { name: 'Throttle', exact: true }).click();
   await expect(page.locator('.notice')).toContainText('Throttled');
@@ -82,11 +87,16 @@ test('operator panel', async ({ browser }) => {
   await expect(shop.page.locator('.note.throttle')).toContainText('e2e throttle');
   await page.getByRole('button', { name: 'End throttle now' }).click();
   await expect(page.locator('table').last()).toContainText('unthrottle');
+  // Growth has its own address and tabs, no #growth.
+  await page.locator('.sidenav').getByRole('link', { name: 'Growth', exact: true }).click();
+  await expect(page).toHaveURL(/\/operator\/growth$/);
+  await page.locator('.tabs').getByRole('link', { name: 'Unit economics' }).click();
+  await expect(page).toHaveURL(/\/operator\/growth\/economics$/);
+  await expect(page.locator('.sidenav a[aria-current]')).toHaveText('Growth');
   await page.goto('/operator');
 
   // Back to Free removes the grant.
-  await page.fill('input[name=q]', shop.email);
-  await page.getByRole('button', { name: 'Search' }).click();
+  await search('Accounts');
   const row = page.locator('tr', { hasText: shop.email }).first();
   await row.locator('select[name=plan]').selectOption('free');
   await row.getByRole('button', { name: 'Set' }).click();

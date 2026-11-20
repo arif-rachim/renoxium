@@ -17,6 +17,8 @@ import (
 
 func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}", s.adminApp)
+	s.mux.HandleFunc("GET /apps/{app}/sales", s.adminApp)
+	s.mux.HandleFunc("GET /apps/{app}/status", s.adminApp)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}", s.adminList)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/calendar", s.adminCalendar)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}/new", s.adminForm)
@@ -38,7 +40,7 @@ func (s *Site) publishLink(app string, version int) string {
 
 // publishForm asks the owner to confirm a publish their agent asked for.
 func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
-	_, app, ok := s.owner(w, r)
+	u, app, ok := s.owner(w, r)
 	if !ok {
 		return
 	}
@@ -56,7 +58,7 @@ func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	render(w, http.StatusOK, "publish", map[string]any{"Info": info, "Version": version, "CSRF": s.csrfToken(w, r), "Rollback": version < info.LiveVersion})
+	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r), "Rollback": version < info.LiveVersion})
 }
 
 func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {

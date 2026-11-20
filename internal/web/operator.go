@@ -3,6 +3,7 @@ package web
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -11,10 +12,16 @@ import (
 )
 
 func (s *Site) registerOperator() {
-	s.mux.HandleFunc("GET /operator", s.operatorPage)
+	s.mux.HandleFunc("GET /operator", s.operatorPage("overview"))
+	s.mux.HandleFunc("GET /operator/accounts", s.operatorPage("accounts"))
+	s.mux.HandleFunc("GET /operator/apps", s.operatorPage("apps"))
 	s.mux.HandleFunc("POST /operator/plan", s.operatorPlan)
 	s.mux.HandleFunc("POST /operator/suspend", s.operatorSuspend)
 	s.mux.HandleFunc("POST /operator/abuse/{id}/resolve", s.operatorResolve)
+	s.mux.HandleFunc("GET /operator/growth", s.growthPage("funnel"))
+	s.mux.HandleFunc("GET /operator/growth/weeks", s.growthPage("weeks"))
+	s.mux.HandleFunc("GET /operator/growth/economics", s.growthPage("economics"))
+	s.mux.HandleFunc("GET /operator/growth/templates", s.growthPage("templates"))
 	s.mux.HandleFunc("POST /operator/growth", s.operatorGrowth)
 	s.mux.HandleFunc("GET /operator/growth.csv", s.operatorGrowthCSV)
 }
@@ -45,7 +52,18 @@ type operatorApp struct {
 	LiveURL    string
 }
 
-func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
+// operatorTabs are the parts of the operator's Platform section.
+func operatorTabs(tab string) []shellLink {
+	return []shellLink{{Label: "Overview", Href: "/operator", Current: tab == "overview"},
+		{Label: "Accounts", Href: "/operator/accounts", Current: tab == "accounts"},
+		{Label: "Apps", Href: "/operator/apps", Current: tab == "apps"}}
+}
+
+func (s *Site) operatorPage(tab string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) { s.operatorView(w, r, tab) }
+}
+
+func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) {
 	op, ok := s.operator(w, r)
 	if !ok {
 		return
@@ -90,15 +108,11 @@ func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
 		health = s.Monitor.Status()
 	}
 	csrf := s.csrfToken(w, r)
-	growth, err := s.growthView(r, paying)
-	if err != nil {
-		slog.Error("operator growth figures", "err", err)
-	} else {
-		growth.CSRF = csrf
-	}
 	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": csrf, "Accounts": total, "PerPlan": perPlan,
-		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open, "Growth": growth,
-		"Shell": s.ownerShell(op, "Operator", "/operator", csrf)})
+		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open,
+		"Tab": tab, "Tabs": operatorTabs(tab), "Here": map[string]string{"overview": "/operator", "accounts": "/operator/accounts", "apps": "/operator/apps"}[tab],
+		"SearchHint": map[string]string{"accounts": "Search by email", "apps": "Search by app name or owner's email"}[tab],
+		"Shell":      s.ownerShell(op, "Platform", "/operator", csrf)})
 }
 
 func (s *Site) operatorPlan(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +132,7 @@ func (s *Site) operatorPlan(w http.ResponseWriter, r *http.Request) {
 	platform.ForgetPlan(user)
 	s.forgetGrowth()
 	slog.Info("operator granted plan", "operator", op.Email, "user", user, "plan", plan)
-	http.Redirect(w, r, "/operator?q="+r.PostFormValue("q"), http.StatusSeeOther)
+	http.Redirect(w, r, "/operator/accounts?q="+url.QueryEscape(r.PostFormValue("q")), http.StatusSeeOther)
 }
 
 func (s *Site) operatorSuspend(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +161,7 @@ func (s *Site) operatorSuspend(w http.ResponseWriter, r *http.Request) {
 	}
 	s.forgetGrowth()
 	slog.Warn("operator changed app", "operator", op.Email, "app", app, "action", r.PostFormValue("action"))
-	http.Redirect(w, r, "/operator?q="+r.PostFormValue("q"), http.StatusSeeOther)
+	http.Redirect(w, r, "/operator/apps?q="+url.QueryEscape(r.PostFormValue("q")), http.StatusSeeOther)
 }
 
 func (s *Site) operatorResolve(w http.ResponseWriter, r *http.Request) {

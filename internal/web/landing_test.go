@@ -69,6 +69,23 @@ func TestLandingAndLegalPages(t *testing.T) {
 	// Signed in, / is still the dashboard.
 	c := e.browser()
 	e.signup(c, "abe@shop.ae")
+	// Signed in, every account page has the same side menu with its own entry marked; signed out, Connect and Templates stay public pages.
+	for path, title := range map[string]string{"/": "Your apps", "/templates": "Templates", "/billing": "Plan and billing", "/account": "Account settings", "/connect": "Connect and help"} {
+		r, _ := c.Get(e.base + path)
+		p := read(t, r)
+		if r.StatusCode != 200 || !strings.Contains(p, `aria-label="Account"`) || !strings.Contains(p, `<a href="`+path+`" aria-current="page">`+title+`</a>`) {
+			t.Errorf("%s signed in: %d, no side menu with %q marked", path, r.StatusCode, title)
+		}
+		if strings.Contains(p, `class="app"`) || strings.Contains(p, "\n.app{") {
+			t.Errorf("%s: a card style named .app would also style the page body", path)
+		}
+	}
+	for _, path := range []string{"/templates", "/connect"} {
+		r, _ := http.Get(e.base + path)
+		if p := read(t, r); r.StatusCode != 200 || strings.Contains(p, `aria-label="Account"`) {
+			t.Errorf("%s signed out: %d, or it shows the account menu", path, r.StatusCode)
+		}
+	}
 	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), "Your apps") {
 		t.Fatal("dashboard for signed-in owners")
 	}
