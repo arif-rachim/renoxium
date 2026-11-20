@@ -444,12 +444,12 @@ func TestQuotePortalUAEExample(t *testing.T) {
 			has("notice to the owner", mails(), `to the owner, "Message on quote #5 from Fatima Al Marri: Question 1"`)
 		}
 	}
-	if r := as(client, "POST", "/quotes/5/message", map[string]string{"text": "One more"}); r.Location != "/quotes/5?error=error_many_messages" {
+	if r := as(client, "POST", "/quotes/5/message", map[string]string{"text": "Question 21"}); r.Location != "/quotes/5?error=error_many_messages" {
 		t.Fatalf("message 21: %+v", r)
 	}
 	q5 := as(client, "GET", "/quotes/5?error=error_many_messages", nil).Body
 	has("messages", q5, "Question 20", "You sent many messages today")
-	hasNot("messages", q5, "One more")
+	hasNot("messages", q5, "Question 21") // ("One more" is a label in the motion kit's script)
 
 	// The hourly job sends what hit the daily limit, once.
 	job := func(name string) platform.TestResponse {
