@@ -3,7 +3,7 @@
 Date: 2026-11-20. Source: a session in which an agent built a ride-hailing app from
 `home-service-uae` and redesigned it through the MCP tools. These notes cover the tool
 signatures, limits and security of each priority. P1–P4 and the `css_extra` part of P7 are
-implemented. P5, P6, the rest of P7 and P8 are designs only.
+implemented, and P5 since. P6, the rest of P7 and P8 are designs only.
 
 The rules every new tool keeps:
 - A change reaches only the app's private preview. Live changes only when the owner confirms
@@ -161,34 +161,53 @@ plus a `note` for routes that were not rendered or answered 404.
     `service:1:67: {{.s.price}} prints nothing because the data has no key "price"`.
 - All bundled examples pass with no warnings.
 
-## P5. Delete and rename apps (design)
+## P5. Delete and rename apps (done)
 
 **`delete_app {app}`:**
-- Returns `confirm_url` (`/apps/<app>/delete`, which already exists in the admin panel) and
-  changes nothing.
-- The owner confirms there while signed in. The existing deletion runs: data and files are
-  removed, and the name is held for the owner for 90 days.
+- Returns `confirm_url`: the existing `/apps/<app>/delete` page. The tool changes nothing.
+- On that page the owner sees what would be lost and can export the app. They delete it by
+  typing its name and their password. Running customer subscriptions block the delete.
+- The name is held for the owner for 90 days, as before.
 
 **`rename_app {app, new_name}`:**
-- Returns `confirm_url` to `/apps/<app>/rename?to=<new_name>`.
-- Before returning, it validates `new_name` with the `create_app` rules and checks that it is
-  free and not held.
+- Checks the new name with `CheckNewName` and returns `confirm_url`
+  (`/apps/<app>/rename?to=<new_name>`). The tool changes nothing.
+- The new name follows the `create_app` rules, must be free (or held for this owner), and the
+  app must not have been renamed in the last 30 days. Template demos cannot be renamed.
 
-**On confirmation (one transaction):**
-- Move the app directory.
-- Rename the `apps` row and its `versions`.
-- Re-point the `domains` rows (live, preview and sign-in hosts).
-- Keep a `redirects` row from the old name.
+**Confirming:**
+- The owner, signed in, enters their password.
+- `RenameApp` writes in-memory traffic and resource counters first, so they move with the app.
+- Under the change lock it then:
+  - closes the stages and the log, and moves `apps/<old>` to `apps/<new>`;
+  - in one transaction, updates `apps.name` and every platform table that has an `app` column
+    (found from the schema, so tables added later are covered);
+  - moves the live and preview hosts in `domains`;
+  - records `app_renames (old -> new)` and `host_redirects` for the old live, preview and
+    sign-in hosts.
+- If the transaction fails, the directory is moved back.
+- In-memory caches are cleared. A custom domain stays the app's main address.
 
-**Old address and limits:**
-- The old host answers `301` to the same path on the new host for 1 year. Its name stays
-  reserved for the owner, like a deleted name.
-- Visitor sessions are per host, so visitors sign in again after a rename. The confirmation
-  page says so.
-- Custom domains keep working because they map to the app, not the name.
-- Stripe, jobs and realtime channels are keyed by app name, so they move in the same
-  transaction.
-- At most one rename per app per 30 days.
+**Old addresses:**
+- `ServeApp` answers `301` to the same path and query on the new host for 365 days.
+- While they redirect, nobody else can create an app with the old name. If the owner takes the
+  old name back, its redirects end.
+
+**Stripe:**
+- Payments and subscriptions created before the rename carry `rx_app = <old>` in Stripe's
+  metadata.
+- Webhooks resolve it through `app_renames` (`currentName`, chains of renames included), so a
+  checkout started before a rename, and every later subscription renewal, still reaches the
+  app. Tested.
+
+**Visitors:** sessions are per host, so signed-in customers sign in again once. The
+confirmation page says so.
+
+**Where it is:** `internal/platform/rename.go`, `internal/web/renameapp.go` (page, and "Rename
+app" in the app's Settings menu), and the tools in `internal/mcpserver`. Tests:
+`internal/platform/rename_test.go` (data, files, staff, orders, all four redirects, name hold,
+the 30-day rule, a Stripe webhook after a rename) and `internal/web/renameapp_test.go` (the
+tools only return links, a wrong password changes nothing, another account gets 404).
 
 ## P6. Locales beyond en/ar (design)
 

@@ -321,6 +321,9 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	if _, err := db.Exec(renameSchema); err != nil {
+		return nil, err
+	}
 	if err := pl.ensureLimitTable(); err != nil {
 		db.Close()
 		return nil, err
@@ -443,10 +446,12 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	// A deleted app's name stays with its last owner for a while: its
 	// address is in customers' bookmarks, search results and old emails, and
 	// must not start serving someone else's pages overnight.
-	var lastOwner string
-	if tx.QueryRow(`SELECT owner FROM released_names WHERE name = ? AND released_at > ?`, name, time.Now().Add(-NameHold).Unix()).Scan(&lastOwner) == nil && lastOwner != owner {
+	// So do the old addresses of a renamed app while they redirect.
+	if held := p.heldBy(tx, name); held != "" && held != owner {
 		return AppInfo{}, fmt.Errorf("app name %q is already taken", name)
 	}
+	// Its owner taking the name back ends the redirects from it.
+	tx.Exec(`DELETE FROM host_redirects WHERE host IN (?, ?, ?, ?)`, p.host(name, Live), p.host(name, Preview), p.idHost(name, Live), p.idHost(name, Preview))
 	if _, err := tx.Exec(`INSERT INTO apps (name, created_at, owner) VALUES (?, ?, ?)`, name, now(), owner); err != nil {
 		return AppInfo{}, fmt.Errorf("app name %q is already taken", name)
 	}

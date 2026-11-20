@@ -29,6 +29,11 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 	signIn := false // the request is for the stage's sign-in host
 	if !ok {
 		if app, stageName, ok = p.resolveID(r.Host); !ok {
+			// An old address of a renamed app: the same path on the new one.
+			if target, moved := p.renamedHost(r.Host); moved {
+				http.Redirect(w, r, p.cfg.PublicScheme+"://"+target+p.cfg.PublicPort+r.URL.RequestURI(), http.StatusMovedPermanently)
+				return true
+			}
 			return false
 		}
 		signIn = true

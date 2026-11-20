@@ -26,7 +26,7 @@ const instructions = `Renoxium builds and hosts web apps (online stores, booking
 
 Every action is one of these tools; there are no other operations:
 - read only: list_apps, get_app, get_example, get_logs
-- change the user's apps: create_app, apply_change, patch_app, edit_app, upload_file, publish
+- change the user's apps: create_app, apply_change, patch_app, edit_app, upload_file, publish, rename_app, delete_app
 - test on the private preview: test_request, create_test_visitor, screenshot_preview, run_job_on_preview, change_preview_row
 
 How to work:
@@ -52,6 +52,7 @@ How to work:
    (see a page on a phone), run_job_on_preview and change_preview_row. Show the user the preview_url, and call publish
    when they agree. publish changes nothing live: it returns confirm_url, and the new version goes live only when the user
    opens that link and confirms, signed in to Renoxium. Never say the app is live before they have confirmed.
+   rename_app and delete_app also only return a link the user confirms; ask before calling them.
 5. When something is wrong, read get_logs.
 
 App definitions: the scripts, lib, jobs and tools inside a definition are the app's own server-side code for the business's
@@ -303,6 +304,11 @@ type Options struct {
 	// changing live. The owner opens it and confirms, so text an agent read
 	// somewhere (such as a visitor-written log line) cannot publish.
 	ConfirmPublish func(app string, version int) string
+	// ConfirmRename and ConfirmDelete return the links where the owner,
+	// signed in, renames or deletes an app. The tools never do either
+	// themselves; without these the tools are not offered.
+	ConfirmRename func(app, newName string) string
+	ConfirmDelete func(app string) string
 }
 
 // New returns the MCP server with all builder tools registered.
@@ -445,6 +451,41 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			return nil, publishOut{PublishResult: platform.PublishResult{LiveVersion: info.LiveVersion, LiveURL: info.LiveURL},
 				NeedsConfirmation: true, ConfirmURL: opts.ConfirmPublish(in.App, version), Version: version}, nil
 		})
+
+	type linkOut struct {
+		NeedsConfirmation bool   `json:"needs_confirmation" jsonschema:"always true: nothing has changed yet"`
+		ConfirmURL        string `json:"confirm_url" jsonschema:"give this link to the user; the change happens only when they confirm there, signed in to Renoxium"`
+		Note              string `json:"note"`
+	}
+	if opts.ConfirmRename != nil {
+		type renameIn struct {
+			App     string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
+			NewName string `json:"new_name" jsonschema:"the new name: 3-40 lowercase letters, digits and hyphens, e.g. noor-books; it becomes the address <new_name>.<apps domain>"`
+		}
+		mcp.AddTool(s, &mcp.Tool{Name: "rename_app", Title: toolAnnotations["rename_app"].Title, Annotations: toolAnnotations["rename_app"],
+			Description: "Ask to rename an app, which changes its address. This call changes nothing: it checks the new name and returns confirm_url; the app is renamed only when the user opens that link, signed in to Renoxium, and confirms with their password. The old addresses then redirect to the new ones for a year and the name stays reserved for the user; data, versions, files, staff, payments and a custom domain stay. An app can be renamed once every 30 days. Ask the user before calling it."},
+			func(ctx context.Context, req *mcp.CallToolRequest, in renameIn) (*mcp.CallToolResult, linkOut, error) {
+				if err := owns(p, req, in.App); err != nil {
+					return nil, linkOut{}, err
+				}
+				if err := p.CheckNewName(in.App, in.NewName); err != nil {
+					return nil, linkOut{}, err
+				}
+				return nil, linkOut{NeedsConfirmation: true, ConfirmURL: opts.ConfirmRename(in.App, in.NewName),
+					Note: "Nothing has changed yet. The app is renamed when the user confirms at confirm_url."}, nil
+			})
+	}
+	if opts.ConfirmDelete != nil {
+		mcp.AddTool(s, &mcp.Tool{Name: "delete_app", Title: toolAnnotations["delete_app"].Title, Annotations: toolAnnotations["delete_app"],
+			Description: "Ask to delete an app for good. This call changes nothing: it returns confirm_url, where the user, signed in to Renoxium, sees what would be lost, can export the app, and deletes it by typing its name and their password. Ask the user before calling it, and never suggest deleting an app with customers' data unless they asked."},
+			func(ctx context.Context, req *mcp.CallToolRequest, in appName) (*mcp.CallToolResult, linkOut, error) {
+				if err := owns(p, req, in.App); err != nil {
+					return nil, linkOut{}, err
+				}
+				return nil, linkOut{NeedsConfirmation: true, ConfirmURL: opts.ConfirmDelete(in.App),
+					Note: "Nothing has changed yet. The app is deleted only if the user confirms at confirm_url."}, nil
+			})
+	}
 
 	type exampleIn struct {
 		Name          string   `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
@@ -752,6 +793,8 @@ var toolAnnotations = map[string]*mcp.ToolAnnotations{
 	"run_job_on_preview":  write("Run a scheduled job on the preview", true, false, true),
 	"change_preview_row":  write("Change a preview row as the owner", true, false, true),
 	"publish":             write("Ask to publish a version (the user confirms)", false, true, false),
+	"rename_app":          write("Ask to rename an app (the user confirms)", false, true, false),
+	"delete_app":          write("Ask to delete an app (the user confirms)", false, true, false),
 }
 
 func readOnly(title string) *mcp.ToolAnnotations {

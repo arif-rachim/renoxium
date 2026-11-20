@@ -68,3 +68,6 @@ func PreviewRows(t *testing.T, p *Platform, app, query string, args ...any) []ma
 	}
 	return out
 }
+
+// CurrentNameForTest follows renames from an old app name.
+func CurrentNameForTest(p *Platform, name string) string { return p.currentName(name) }

@@ -105,7 +105,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	}
 	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
 		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), takenLimiter: newLimiter(5, time.Hour), apiLimiter: newLimiter(30, 10*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
-	s.mcp = mcpserver.Handler(mcpserver.New(p, mcpserver.Options{ConfirmPublish: s.publishLink}), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
+	s.mcp = mcpserver.Handler(mcpserver.New(p, mcpserver.Options{ConfirmPublish: s.publishLink, ConfirmRename: s.renameLink, ConfirmDelete: s.deleteLink}), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
 	s.mux.HandleFunc("GET /{$}", s.home)
 	s.mux.HandleFunc("GET /signup", s.signupForm)
@@ -138,6 +138,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerStaff()
 	s.registerDomain()
 	s.registerDeleteApp()
+	s.registerRenameApp()
 	s.registerAlerts()
 	s.registerConnections()
 	s.registerAbuse()
@@ -1171,6 +1172,22 @@ your app can send it data, including your customers' details.</p>
 <script>(function(){var i=document.getElementById("confirm"),b=document.getElementById("delete-btn");function f(){b.disabled=i.value.trim()!==i.dataset.name}i.addEventListener("input",f);f()})()</script>{{end}}</form>
 <style>.warnbox{border:1px solid var(--danger,#b42318);background:color-mix(in srgb,var(--danger,#b42318) 8%,transparent);border-radius:12px;padding:12px 16px;margin:0 0 16px}
 .warnbox ul{margin:6px 0 10px;padding-left:20px}.warnbox p{margin:6px 0}button.danger[disabled]{opacity:.45;cursor:not-allowed}</style>
+</div>{{template "appbottom"}}{{end}}
+
+{{define "admin_rename"}}{{template "apptop" .}}<div class="settings">
+<form class="card" method="post" action="/apps/{{.App}}/rename"><h1>Rename app</h1>
+<p>The app's name is its address: <strong>{{.Info.LiveURL}}</strong>. A new name gives it a new address.</p>
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="to">New name</label><input id="to" name="to" value="{{.To}}" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="[a-z][a-z0-9-]{1,38}[a-z0-9]">
+<p class="help muted">3-40 lowercase letters, digits and hyphens. The address becomes <strong>{{if .To}}{{.To}}{{else}}new-name{{end}}.{{.Domain}}</strong>.</p>
+<div class="note"><p><strong>What changes</strong></p><ul>
+<li>The old addresses send visitors to the same page on the new ones for {{.RedirectDays}} days, and nobody else can take the old name in that time.</li>
+<li>Signed-in customers sign in again once.</li>
+<li>Data, versions, files, staff, payments and your own domain stay as they are.</li>
+<li>You can rename an app once every 30 days.</li></ul></div>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
+<button>Rename {{.App}}{{if .Ready}} to {{.To}}{{end}}</button></form>
 </div>{{template "appbottom"}}{{end}}
 
 {{define "admin_staff"}}{{template "apptop" .}}<div class="settings">
