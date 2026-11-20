@@ -3,7 +3,7 @@
 // Third-party requests (web fonts) are blocked so the numbers measure only
 // what Renoxium and the template serve. PERF_REPORT=1 only prints them.
 import { test, expect, devices } from '@playwright/test';
-import { appURL } from '../env.mjs';
+import { appURL, RENOXIUM } from '../env.mjs';
 
 const BUDGET = { lcpMs: 2500, cls: 0.1, inlineJsBytes: 30 * 1024, nonImageBytes: 150 * 1024 };
 const report = !!process.env.PERF_REPORT;
@@ -102,6 +102,51 @@ test('store motion kit: drawer, search in place, Arabic and reduced motion', asy
   await p2.goto(base + '/', { waitUntil: 'networkidle' });
   await p2.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await expect(p2.locator('.rv')).toHaveCount(0);
+  await calm.close();
+  expect(errors).toEqual([]);
+});
+
+// The site's home page: the pattern, the reveals and the tabs stay within
+// the same budget, every block is visible once scrolled past, the tabs
+// switch the kind of business, and reduced motion hides nothing.
+test('home page: budget, reveals on scroll, tabs and reduced motion', async ({ browser }) => {
+  test.setTimeout(120_000);
+  await demoReady(browser, appURL('demo-booking-uae'));
+  const m = await measure(browser, RENOXIUM + '/');
+  console.log(`perf home: ${JSON.stringify(m)} budget ${JSON.stringify(BUDGET)}`);
+  if (!report) for (const k of Object.keys(BUDGET)) expect.soft(m[k], `home ${k}`).toBeLessThanOrEqual(BUDGET[k]);
+
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/', { waitUntil: 'networkidle' });
+  // Below the fold a block waits for the visitor, then shows.
+  const price = page.locator('#pricing .plan').first();
+  await expect(price).toHaveCSS('opacity', '0');
+  await price.scrollIntoViewIfNeeded();
+  await expect(price).toHaveCSS('opacity', '1');
+  const height = await page.evaluate(() => document.documentElement.scrollHeight);
+  for (let y = 0; y < height; y += 500) { await page.evaluate((v) => scrollTo(0, v), y); await page.waitForTimeout(120); }
+  await expect(page.locator('[data-r]:not(.in)')).toHaveCount(0);
+  await expect(page.locator('[data-seq] > :not(.in)')).toHaveCount(0, { timeout: 10_000 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+
+  // Tabs: one kind of business at a time, by click and by arrow key.
+  await expect(page.getByRole('tabpanel')).toHaveCount(1);
+  await expect(page.getByRole('tabpanel')).toContainText('one lane per stylist');
+  await page.getByRole('tab', { name: 'Property brokers' }).click();
+  await expect(page.getByRole('tabpanel')).toContainText('permit number');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Business services' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel')).toContainText('accept it online');
+  await ctx.close();
+
+  const calm = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
+  const p2 = await calm.newPage();
+  await p2.goto('/', { waitUntil: 'networkidle' });
+  await expect(p2.locator('html.js')).toHaveCount(0);
+  await expect(p2.locator('#pricing .plan').first()).toHaveCSS('opacity', '1');
   await calm.close();
   expect(errors).toEqual([]);
 });

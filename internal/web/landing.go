@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 // Legal holds the company details shown on the Privacy Policy and Terms.
@@ -33,8 +34,22 @@ func (s *Site) registerLanding() {
 }
 
 func (s *Site) landingData() map[string]any {
-	return map[string]any{"MCP": s.base + "/mcp", "Fee": 2, "Legal": s.legalOrDefaults(), "Paths": s.sitePaths(s.galleryCards()),
+	cards := s.galleryCards()
+	// The pricing example: what the Free plan's fee costs on AED 10,000 of
+	// card sales, and the card sales above which Pro (AED 99) is cheaper.
+	const fee, pro = 2, 99
+	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "ProFrom": thousands(pro * 100 / fee),
+		"Legal": s.legalOrDefaults(), "Paths": s.sitePaths(cards), "Trades": s.siteTrades(cards),
 		"Calendar": screens["admin-calendar"], "Base": s.base}
+}
+
+// thousands writes n with a comma between thousands: 4950 is "4,950".
+func thousands(n int) string {
+	out := strconv.Itoa(n)
+	for i := len(out) - 3; i > 0; i -= 3 {
+		out = out[:i] + "," + out[i:]
+	}
+	return out
 }
 
 func (s *Site) legalOrDefaults() Legal {
@@ -116,7 +131,18 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">{{end}}
 
 {{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}<style>
-.hero{padding:clamp(32px,6vw,80px) 0 0}
+[hidden]{display:none!important}
+html,body{overflow-x:clip}
+@media(min-width:760px){header.wrap{position:sticky;top:0;z-index:10}
+header.wrap::before{content:"";position:absolute;inset:0 calc(50% - 50vw);z-index:-1;background:var(--paper);border-bottom:1px solid var(--line);opacity:0;transition:opacity .25s}
+.scrolled header.wrap::before{opacity:1}}
+.hero{position:relative;isolation:isolate;overflow-x:clip;padding:clamp(32px,6vw,80px) 0 0}
+.hero::before,.end::before{content:"";position:absolute;z-index:-1;pointer-events:none;
+background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M18 18H54V54H18ZM36 10.5L61.5 36L36 61.5L10.5 36ZM36 0V10.5M36 61.5V72M0 36H10.5M61.5 36H72' fill='none' stroke='%23b8892e' stroke-width='1'/%3E%3C/svg%3E")}
+.hero::before{inset:-96px 0 auto 0;height:760px;opacity:.34;-webkit-mask-image:radial-gradient(ellipse 62% 78% at 92% 4%,#000 0,transparent 72%);mask-image:radial-gradient(ellipse 62% 78% at 92% 4%,#000 0,transparent 72%)}
+.hero::after{content:"";position:absolute;z-index:-1;pointer-events:none;top:-260px;right:-8%;width:min(720px,90vw);aspect-ratio:1;border-radius:50%;
+background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transparent),transparent);animation:drift 64s ease-in-out infinite alternate}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(-14%,9%)}}
 .sign{display:grid;grid-template-columns:1fr 1px 1fr;column-gap:clamp(32px,4vw,64px);align-items:start;font-size:clamp(30px,3.3vw,48px)}
 .sign .en{line-height:1.08;letter-spacing:-.03em}
 .sign .ar{font-size:.9em;line-height:1.4;letter-spacing:0;text-align:right;font-weight:600}
@@ -125,28 +151,96 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 .how-it{font-size:19px;line-height:1.55;color:var(--slate);max-width:40em;margin:clamp(28px,4vw,44px) 0 28px}
 .ways{display:grid;gap:64px;margin-top:clamp(64px,8vw,104px)}
 @media(min-width:900px){.ways{grid-template-columns:repeat(3,1fr);gap:48px}}
-.way .shot{width:100%;max-width:300px;aspect-ratio:600/1040;object-fit:cover;object-position:top}
+.way .shot{width:100%;max-width:300px;aspect-ratio:600/1040;object-fit:cover;object-position:top;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
+@media(hover:hover){.way:hover .shot{transform:translateY(-6px)}}
 .way h2{font-size:26px;margin:32px 0 8px}
 .way p{margin:0;color:var(--slate);max-width:28em}
 .way ul{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:6px}
 .also{margin:64px 0 0;color:var(--slate);border-top:1px solid var(--line);padding-top:24px}
 .split{display:grid;gap:48px;align-items:start}@media(min-width:960px){.split{grid-template-columns:1fr 1fr;gap:80px}}
-.steps{list-style:none;padding:0;margin:40px 0 0;display:grid;gap:28px;counter-reset:s}
-.steps li{counter-increment:s;display:grid;grid-template-columns:40px 1fr;gap:4px}
-.steps li::before{content:counter(s);font-size:24px;font-weight:600;line-height:1.2;color:var(--slate)}
-.steps h3{font-size:20px;margin:0 0 4px}.steps p{margin:0;color:var(--slate)}
+.steps{list-style:none;padding:0;margin:40px 0 0;display:grid;gap:32px;counter-reset:s;position:relative}
+.steps::before{content:"";position:absolute;left:17px;top:18px;bottom:18px;width:1px;background:var(--line);transform-origin:top}
+.steps li{counter-increment:s;display:grid;grid-template-columns:36px 1fr;gap:18px;position:relative}
+.steps li::before{content:counter(s);width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--paper);display:grid;place-items:center;font-size:16px;font-weight:600;line-height:1;color:var(--ink)}
+.steps h3{font-size:20px;margin:4px 0 4px}.steps p{margin:0;color:var(--slate)}
 .chat{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;font-size:16px;max-width:540px}
 .chat .me{align-self:flex-end;max-width:82%;background:var(--mist);border-radius:18px;padding:10px 16px;margin:0}
+.band .chat .me{background:color-mix(in srgb,var(--mist) 60%,var(--line))}
 .chat .me[lang=ar]{direction:rtl}
 .chat .used{font-size:14px;color:var(--slate);margin:6px 0 -8px}
 .chat .reply{margin:0;max-width:92%}
+.chat .reply u{text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:4px}
 .chat figcaption{font-size:14px;color:var(--slate);border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
-.panel-shot{margin:40px 0 0}.panel-shot img{border-radius:12px;border:1px solid var(--line);width:100%}
+.relay{display:grid;gap:40px;margin-top:40px;align-items:start}
+@media(min-width:960px){.relay{grid-template-columns:minmax(0,540px) 1fr;gap:80px}}
+.lands{display:grid;gap:16px;max-width:460px}
+.lands .lab{margin:0;font-weight:500}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px;font-size:16px}
+.card .from{display:block;font-size:14px;color:var(--slate);margin-bottom:4px}
+.card p{margin:0}
+.slot{display:grid;grid-template-columns:auto 1fr auto;gap:4px 16px;align-items:start;border-left:3px solid var(--gold);border-radius:4px 12px 12px 4px}
+.slot .t{font-weight:600;font-variant-numeric:tabular-nums}.slot .who{color:var(--slate);font-size:15px;grid-column:2}
+.tag{font-size:13px;line-height:1;padding:5px 9px;border-radius:99px;border:1px solid var(--line);color:var(--slate);white-space:nowrap}
+.lands .fine{margin:4px 0 0;color:var(--slate);font-size:15px}
+.chans{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.chans{grid-template-columns:repeat(3,1fr);gap:24px}}
+.chan{border:1px solid var(--line);border-radius:12px;padding:24px;background:var(--paper)}
+.chan h3{font-size:20px}
+.chan dl{margin:14px 0 0;display:grid;gap:14px}
+.chan dt{font-size:14px;font-weight:500;color:var(--slate)}.chan dd{margin:2px 0 0}
+.chan .next{border-top:1px dashed var(--line);padding-top:14px}.chan .next dd{color:var(--slate)}
+.join{display:none}
+@media(min-width:900px){.join{display:grid;grid-template-columns:repeat(3,1fr);column-gap:24px;height:72px;position:relative}
+.join i{justify-self:center;width:1px;height:36px;background:var(--line);transform-origin:top}
+.join b{position:absolute;top:36px;left:calc((100% - 48px)/6);right:calc((100% - 48px)/6);height:1px;background:var(--line);transform-origin:center}
+.join u{position:absolute;top:36px;left:50%;width:1px;height:36px;background:var(--line);transform-origin:top}
+.join u::after{content:"";position:absolute;bottom:-4px;left:-4px;width:9px;height:9px;border-radius:50%;background:var(--gold)}}
+.panel-head{margin-top:56px}@media(min-width:900px){.panel-head{margin-top:20px;text-align:center}.panel-head .sub{margin-inline:auto}}
+.panel-head h3{font-size:clamp(24px,2.4vw,30px);letter-spacing:-.02em}
+.panel-shot{margin:40px 0 0}.panel-shot img{border-radius:12px;border:1px solid var(--line);width:100%;box-shadow:var(--shot-shadow)}
 .panel-shot figcaption{font-size:15px;color:var(--slate);margin-top:12px;max-width:48em}
-.facts{margin:40px 0 0;display:grid;column-gap:64px}@media(min-width:900px){.facts{grid-template-columns:1fr 1fr}}
-.facts div{display:grid;grid-template-columns:minmax(150px,38%) 1fr;gap:4px 20px;padding:16px 0;border-top:1px solid var(--line)}
-@media(max-width:520px){.facts div{grid-template-columns:1fr}}
-.facts dt{font-weight:500}.facts dd{margin:0;color:var(--slate)}
+.after{list-style:none;padding:0;margin:56px 0 0;display:grid;gap:24px;counter-reset:a}
+@media(min-width:700px){.after{grid-template-columns:1fr 1fr}}@media(min-width:1000px){.after{grid-template-columns:repeat(4,1fr);gap:32px}}
+.after li{counter-increment:a;border-top:1px solid var(--ink);padding-top:14px}
+.after li::before{content:counter(a);display:block;font-size:14px;font-weight:600;color:var(--slate);margin-bottom:6px}
+.after h4{margin:0 0 4px;font-size:18px;font-weight:600;line-height:1.3}.after p{margin:0;color:var(--slate);font-size:16px}
+.after-h{margin:64px 0 0;font-size:22px}
+.tabs{display:none;gap:8px;margin-top:32px;overflow-x:auto;padding:4px 20px 6px;margin-inline:-20px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tabbed .tabs{display:flex}
+.tabs button{flex:none;font:inherit;font-size:16px;font-weight:500;min-height:44px;padding:8px 16px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--slate);cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.tabs button:hover{color:var(--ink);border-color:var(--slate)}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.trade{display:grid;gap:32px;margin-top:40px;align-items:start}
+.trade+.trade{border-top:1px solid var(--line);padding-top:40px}.tabbed .trade+.trade{border-top:0;padding-top:0}
+@media(min-width:900px){.trade{grid-template-columns:240px 1fr;gap:72px}}
+.trade .shot{width:100%;max-width:240px;aspect-ratio:600/900;object-fit:cover;object-position:top}
+@media(max-width:899px){.trade .shot{max-width:200px}}
+.trade h3{font-size:26px}.tabbed .trade h3{position:absolute;left:-9999px}
+.trade .cols{display:grid;gap:32px}@media(min-width:640px){.trade .cols{grid-template-columns:1fr 1fr;gap:48px}}
+.trade h4{margin:0;font-size:15px;font-weight:500;color:var(--slate)}
+.trade ul{list-style:none;padding:0;margin:10px 0 0}
+.trade li{padding:13px 0;border-top:1px solid var(--line)}
+.trade .go{margin:28px 0 0;display:flex;gap:10px 24px;flex-wrap:wrap}
+.tabbed .trade:not([hidden]){animation:tabin .35s cubic-bezier(.2,.7,.2,1)}
+@keyframes tabin{from{opacity:0;transform:translateY(8px)}}
+.groups{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.groups{grid-template-columns:1fr 1fr;gap:24px}}
+.group{border:1px solid var(--line);border-radius:12px;padding:28px;display:flex;flex-direction:column}
+.group h3{font-size:22px}
+.group dl{margin:20px 0 0}
+.group dl div{display:grid;grid-template-columns:minmax(120px,34%) 1fr;gap:4px 20px;padding:13px 0;border-top:1px solid var(--line)}
+@media(max-width:520px){.group dl div{grid-template-columns:1fr}}
+.group dt{font-weight:500}.group dd{margin:0;color:var(--slate)}
+.spec{margin:20px 0 4px;background:var(--mist);border-radius:8px;padding:16px 18px;font-size:15px;display:grid;gap:10px}
+.spec .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.spec .num{font-variant-numeric:tabular-nums;font-weight:500;margin-inline-start:auto;white-space:nowrap}
+.spec .tag{background:var(--paper)}
+.spec .lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.spec .lanes b{font-weight:500;font-size:13px;color:var(--slate)}
+.spec .lanes span{display:block;background:var(--paper);border-left:3px solid var(--gold);border-radius:3px 6px 6px 3px;padding:6px 8px;font-size:13px;line-height:1.3;margin-top:6px}
+.spec .lanes span.gap{visibility:hidden}
+.spec .bi{display:flex;justify-content:space-between;gap:12px;font-size:20px;font-weight:600;letter-spacing:-.01em}
+.spec .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spec .flow i{flex:1;min-width:12px;height:1px;background:var(--slate);opacity:.5}
+.spec .dim{color:var(--slate)}
 .prices{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.prices{grid-template-columns:repeat(3,1fr);gap:24px}}
 .plan{padding:28px;border:2px solid transparent;border-radius:12px;display:flex;flex-direction:column}
 .plan.pick{border-color:var(--gold);background:var(--paper)}
@@ -155,21 +249,36 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 .amount{font-size:40px;font-weight:600;letter-spacing:-.02em;margin:20px 0 0;line-height:1.1}.amount span{font-size:16px;font-weight:400;color:var(--slate);letter-spacing:0}
 .plan ul{padding:0;margin:20px 0 28px;list-style:none;display:grid;gap:8px;font-size:16px}
 .plan .btn{margin-top:auto}.note{color:var(--slate);font-size:16px;margin:32px 0 0;max-width:48em}
+.sum{margin:32px 0 0;padding:20px 24px;border-left:3px solid var(--gold);background:var(--paper);border-radius:4px 12px 12px 4px;max-width:48em}
+.sum b{font-weight:600}
+.note+.note,.sum+.note{margin-top:16px}
 .faq{max-width:820px;margin-top:32px;border-bottom:1px solid var(--line)}
 .faq details{border-top:1px solid var(--line)}
 .faq summary{cursor:pointer;font-weight:500;font-size:19px;padding:18px 0;list-style:none;display:flex;justify-content:space-between;gap:16px}
 .faq summary::-webkit-details-marker{display:none}
 .faq summary::after{content:"+";color:var(--slate);font-weight:400}.faq details[open] summary::after{content:"\2212"}
 .faq p{margin:0 0 20px;color:var(--slate);max-width:44em}
+.end{position:relative;isolation:isolate}
+.end::before{inset:0;opacity:.3;-webkit-mask-image:radial-gradient(ellipse 55% 110% at 100% 100%,#000 0,transparent 70%);mask-image:radial-gradient(ellipse 55% 110% at 100% 100%,#000 0,transparent 70%)}
 .end .cta{margin-top:28px}
-</style>{{template "og" .Base}}</head><body>
+.js [data-r]{opacity:0;transform:translateY(12px)}
+.js [data-r].in{opacity:1;transform:none;transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0)*70ms)}
+.js [data-seq]>*{opacity:0;transform:translateY(8px)}
+.js [data-seq]>.in{opacity:1;transform:none;transition:opacity .4s ease-out,transform .4s cubic-bezier(.2,.7,.2,1)}
+.js .steps::before{transform:scaleY(0)}.js .steps.in::before{transform:none;transition:transform 1.1s cubic-bezier(.4,0,.2,1) .15s}
+.js .join i,.js .join u{transform:scaleY(0)}.js .join b{transform:scaleX(0)}.js .join u::after{opacity:0}
+.js .join.in i,.js .join.in b,.js .join.in u{transform:none;transition:transform .45s cubic-bezier(.4,0,.2,1)}
+.js .join.in b{transition-delay:.4s}.js .join.in u{transition-delay:.8s}.js .join.in u::after{opacity:1;transition:opacity .3s 1.2s}
+.js .now,.js .now *{transition:none!important}
+@media(prefers-reduced-motion:reduce){.hero::after{animation:none}.way .shot,.tabs button,header.wrap::before{transition:none}.tabbed .trade:not([hidden]){animation:none}.way:hover .shot{transform:none}}
+</style><script>(function(){var h=document.documentElement;if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches){h.classList.add("js");setTimeout(function(){if(!window.__rv)h.classList.remove("js")},3000)}})()</script>{{template "og" .Base}}</head><body>
 {{template "nav" "home"}}
 <main id="main">
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <h1 id="hero-h" class="sign"><span class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span></h1>
 <p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
-<div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h">
+<div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
 <h2 id="{{.ID}}-h">{{.Title}}</h2><p>{{.Text}}</p>
 <ul>{{range .Demos}}<li><a href="{{.URL}}">{{.Label}}</a></li>{{end}}</ul></section>{{end}}</div>
@@ -177,13 +286,13 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 </div></section>
 
 <section class="block" aria-labelledby="how-h"><div class="wrap split">
-<div><h2 id="how-h">How it works</h2><p class="sub">You describe, the assistant builds, you decide what goes live.</p>
-<ol class="steps">
+<div data-r><h2 id="how-h">How it works</h2><p class="sub">You describe, the assistant builds, you decide what goes live.</p>
+<ol class="steps" data-w>
 <li><div><h3>Connect Renoxium</h3><p>Add Renoxium to ChatGPT or Claude once and sign in. The <a href="/connect">connect page</a> shows the steps.</p></div></li>
 <li><div><h3>Describe your business</h3><p>Your name, what you sell or book, prices, delivery areas or opening hours, in English or Arabic. The assistant builds the site and tests every page.</p></div></li>
 <li><div><h3>Check the preview and publish</h3><p>Open the private preview on your phone. When you are happy, press Publish. Connect Stripe to take cards.</p></div></li>
 </ol></div>
-<figure class="chat">
+<figure class="chat" data-seq>
 <p class="me">Make a booking site for Lamsa, my salon in Jumeirah. Haircuts, colour and nails, three stylists.</p>
 <p class="me" lang="ar">وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز</p>
 <p class="used">Used Renoxium</p>
@@ -192,39 +301,96 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <figcaption>An example conversation in ChatGPT with Renoxium connected.</figcaption></figure>
 </div></section>
 
-<section class="block band" aria-labelledby="panel-h"><div class="wrap">
-<h2 id="panel-h">Every order and booking in one panel</h2>
-<p class="sub">Your site comes with an admin panel made from your own data. Change a price or a photo yourself, on your phone or computer, or ask your assistant.</p>
-<figure class="panel-shot"><img src="{{.Calendar.Src}}" width="{{.Calendar.W}}" height="{{.Calendar.H}}" alt="{{.Calendar.Alt}}" loading="lazy">
+<section class="block band" aria-labelledby="ai-h"><div class="wrap">
+<div data-r><h2 id="ai-h">Your customers can ask their own AI assistant</h2>
+<p class="sub">Every Renoxium site also answers ChatGPT and Claude with your real prices, stock and free times. The assistant sends the customer to the right page to book or pay, and the booking reaches you like any other.</p></div>
+<div class="relay">
+<figure class="chat" data-seq>
+<p class="me">Can I get a haircut at Lamsa Beauty Lounge tomorrow after 5?</p>
+<p class="used">Used Lamsa Beauty Lounge</p>
+<p class="reply">Yes. Tomorrow Layla is free at 17:30 and 18:15, and Priya at 19:00. A haircut and blow-dry takes an hour and costs AED 150; a AED 50 deposit holds your time. <u>Book with Layla at Lamsa</u></p>
+<figcaption>An example: a customer in ChatGPT with the salon added. She opens the link, picks 18:15 and pays the deposit on the salon's site.</figcaption></figure>
+<div class="lands" data-seq>
+<p class="lab">What reaches you a minute later</p>
+<div class="card"><span class="from">WhatsApp message to the owner</span><p>New booking: Haircut and blow-dry, tomorrow 18:15 with Layla. Sara A., deposit AED 50 paid by card.</p></div>
+<div class="card slot"><span class="t">18:15</span><span>Haircut and blow-dry</span><span class="tag">Confirmed</span><span class="who">Sara A. · Layla's lane in your calendar</span></div>
+<p class="fine">The same happens when she books from your website's home page or a link in your Instagram bio.</p>
+</div></div>
+</div></section>
+
+<section class="block" aria-labelledby="chan-h"><div class="wrap">
+<div data-r><h2 id="chan-h">One place behind every channel</h2>
+<p class="sub">Customers reach you in more than one way. What they order and book ends up in the same panel, whichever way they came.</p></div>
+<div class="chans">
+<article class="chan" data-r><h3>Your website</h3><dl><div><dt>Today</dt><dd>Customers browse, order, book and pay, by card or cash on delivery.</dd></div></dl></article>
+<article class="chan" data-r><h3>Customers' AI assistants</h3><dl><div><dt>Today</dt><dd>ChatGPT and Claude read your products, prices and free times, and send the customer to the page to book or pay.</dd></div><div class="next"><dt>Coming next</dt><dd>Booking and paying without leaving the chat.</dd></div></dl></article>
+<article class="chan" data-r><h3>WhatsApp</h3><dl><div><dt>Today</dt><dd>Customers sign in with a code on WhatsApp, and you get a WhatsApp message for each order.</dd></div><div class="next"><dt>Coming next</dt><dd>Customers order and book by chatting with your own WhatsApp number.</dd></div></dl></article>
+</div>
+<div class="join" data-w aria-hidden="true"><i></i><i></i><i></i><b></b><u></u></div>
+<div class="panel-head" data-r><h3 id="panel-h">Every order and booking in one panel</h3>
+<p class="sub">Your site comes with an admin panel made from your own data. Change a price or a photo yourself, on your phone or computer, or ask your assistant.</p></div>
+<figure class="panel-shot" data-r><img src="{{.Calendar.Src}}" width="{{.Calendar.W}}" height="{{.Calendar.H}}" alt="{{.Calendar.Alt}}" loading="lazy">
 <figcaption>The bookings calendar of the salon demo, one lane per stylist. <a href="/templates/booking-uae/admin">Open the demo's admin panel</a>; it is read-only.</figcaption></figure>
+<h3 class="after-h" data-r>After an order or booking comes in</h3>
+<ol class="after">
+<li data-r><h4>You are told</h4><p>A WhatsApp message and an email, with the customer's name and what they ordered.</p></li>
+<li data-r><h4>It is in your panel</h4><p>In the orders list, or in the calendar lane of the stylist, crew or agent.</p></li>
+<li data-r><h4>Your customer is told</h4><p>A confirmation by email, and for bookings a reminder the day before.</p></li>
+<li data-r><h4>You can change it</h4><p>Move, cancel or refund from the panel. The customer gets an email, and a card refund goes back at once.</p></li>
+</ol>
+</div></section>
+
+<section class="block band" aria-labelledby="trade-h"><div class="wrap" id="trades">
+<div data-r><h2 id="trade-h">Made for your kind of business</h2>
+<p class="sub">Each template is a complete, working site. You change the names, prices and photos; the booking rules and payments are already there.</p></div>
+<div class="tabs" role="tablist" aria-label="Kinds of business">{{range .Trades}}<button type="button" role="tab" id="tab-{{.ID}}" aria-controls="trade-{{.ID}}" aria-selected="false">{{.Tab}}</button>{{end}}</div>
+{{range .Trades}}<div class="trade" role="tabpanel" id="trade-{{.ID}}" aria-labelledby="tab-{{.ID}}">
+<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">
+<div><h3>{{.Tab}}</h3><div class="cols">
+<div><h4>Your customers</h4><ul>{{range .Customers}}<li>{{.}}</li>{{end}}</ul></div>
+<div><h4>You</h4><ul>{{range .Owner}}<li>{{.}}</li>{{end}}</ul></div></div>
+<p class="go"><a href="{{.DemoURL}}">Try the demo as a customer</a><a href="{{.AdminURL}}">See the owner's panel</a></p></div>
+</div>{{end}}
 </div></section>
 
 <section class="block" aria-labelledby="has-h"><div class="wrap">
-<h2 id="has-h">What every site has, on every plan</h2>
-<dl class="facts">
-<div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
+<div data-r><h2 id="has-h">What every site has, on every plan</h2></div>
+<div class="groups">
+<section class="group" data-r><h3>Take the money</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>Deposit, haircut</span><span class="num">AED 50.00</span><span class="tag">Paid</span></div><div class="row"><span class="dim">Cancelled in time</span><span class="num dim">− AED 50.00</span><span class="tag">Refunded</span></div></div>
+<dl><div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
 <div><dt>Cash on delivery</dt><dd>Or pay at the venue. Works without Stripe.</dd></div>
-<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div>
-<div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
-<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
-<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div>
-<div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
+<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div></dl></section>
+<section class="group" data-r><h3>Run the day</h3>
+<div class="spec" aria-hidden="true"><div class="lanes"><div><b>Layla</b><span>10:00 Colour</span><span>13:30 Haircut</span></div><div><b>Maryam</b><span class="gap">.</span><span>12:00 Manicure</span></div><div><b>Priya</b><span>11:00 Facial</span><span>15:00 Haircut</span></div></div></div>
+<dl><div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
 <div><dt>Calendar</dt><dd>Day and week views, one lane per stylist, crew or item.</dd></div>
 <div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
-<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div>
-<div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
-<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div>
-</dl></div></section>
+<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div></dl></section>
+<section class="group" data-r><h3>Made for the UAE</h3>
+<div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span><span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
+<dl><div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
+<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
+<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
+<section class="group" data-r><h3>You stay in control</h3>
+<div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
+<dl><div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
+<div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
+<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
+<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div></dl></section>
+</div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
-<h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p>
+<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
 <div class="prices">
-<div class="plan"><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
-<div class="plan pick"><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan"><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
-</div><p class="note">Stripe charges its own card fees to your Stripe account on every plan. Building and changing your site through your assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></div></section>
+<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
+<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
+<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
+</div>
+<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
+<p class="note">Stripe charges its own card fees to your Stripe account on every plan. Building and changing your site through your assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></div></section>
 
-<section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h">Questions owners ask</h2><div class="faq">
+<section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
 <details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
 <details><summary>Which AI assistant do I need?</summary><p>ChatGPT (a paid plan with developer mode) or Claude, with your own account. You add Renoxium to it once; the <a href="/connect">connect page</a> shows the steps.</p></details>
 <details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
@@ -235,11 +401,22 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <details><summary>Who owns the customers and orders?</summary><p>You do. Download everything your site holds at any time, or delete your account and all of its data.</p></details>
 </div></div></section>
 
-<section class="block end" aria-labelledby="end-h"><div class="wrap">
+<section class="block end" aria-labelledby="end-h"><div class="wrap" data-r>
 <h2 id="end-h">Try a demo before you sign up</h2><p class="sub">Book a haircut, order a perfume or ask for a quote on a demo, then open the owner's admin panel to see what you would get.</p>
 <div class="cta"><a class="btn" href="/templates">Try a demo</a><a class="btn line" href="/signup">Create your account</a></div></div></section>
 </main>
 {{template "footer" .Legal}}
+<script>(function(){var d=document,h=d.documentElement;window.__rv=1;
+var tabs=[].slice.call(d.querySelectorAll("[role=tab]"));
+function pick(t,f){tabs.forEach(function(x){var s=x===t;x.setAttribute("aria-selected",s?"true":"false");x.tabIndex=s?0:-1;d.getElementById(x.getAttribute("aria-controls")).hidden=!s});if(f){t.focus();t.scrollIntoView({block:"nearest",inline:"center"})}}
+tabs.forEach(function(t,i){t.addEventListener("click",function(){pick(t)});t.addEventListener("keydown",function(e){var n=tabs.length,j=e.key==="ArrowRight"?(i+1)%n:e.key==="ArrowLeft"?(i+n-1)%n:e.key==="Home"?0:e.key==="End"?n-1:-1;if(j>=0){e.preventDefault();pick(tabs[j],true)}})});
+if(tabs.length){d.getElementById("trades").classList.add("tabbed");pick(tabs[0])}
+function sc(){h.classList.toggle("scrolled",window.scrollY>8)}sc();addEventListener("scroll",sc,{passive:true});
+if(!h.classList.contains("js"))return;
+var first=true,io=new IntersectionObserver(function(es){var n=0;es.forEach(function(e){if(!e.isIntersecting)return;var t=e.target;io.unobserve(t);
+if(t.hasAttribute("data-seq")){[].forEach.call(t.children,function(c,i){setTimeout(function(){c.classList.add("in")},first?0:200+i*520)});if(first)t.classList.add("now");return}
+if(first)t.classList.add("now");else t.style.setProperty("--i",Math.min(n++,5));t.classList.add("in")});first=false},{rootMargin:"0px 0px -8% 0px",threshold:.12});
+[].forEach.call(d.querySelectorAll("[data-r],[data-w],[data-seq]"),function(x){io.observe(x)})})()</script>
 </body></html>{{end}}
 
 {{define "gallery"}}{{template "lhead" "Templates | Renoxium"}}<style>
