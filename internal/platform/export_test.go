@@ -76,6 +76,15 @@ func CurrentNameForTest(p *Platform, name string) string { return p.currentName(
 // rows in one table, so a test can build the same site.
 func DemoExtraRows(example, table string) []map[string]any { return demoExtras[example][table].rows }
 
+// SetMaxTestBody changes where a test response's body is cut and returns a
+// function that puts the old limit back, for a test that needs a page's
+// last inline script.
+func SetMaxTestBody(n int) (restore func()) {
+	old := maxTestBody
+	maxTestBody = n
+	return func() { maxTestBody = old }
+}
+
 // AgeRenames makes every rename so far look older than the wait between
 // two renames, so a test can rename an app again.
 func AgeRenames(t *testing.T, p *Platform) {

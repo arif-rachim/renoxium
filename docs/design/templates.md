@@ -484,16 +484,23 @@ Store-uae's own components (intro, cats, tiles, pdp, options, stepper, buybar, c
 collection and visit blocks) follow in its `css` template;
 reuse them for similar pieces (service grids = tiles, booking detail = pdp, booking/quote lists = orders) rather than inventing new ones.
 
-## 8a. Motion kit (store-uae first; copy it to the other templates)
+## 8a. Motion kit (all six business templates)
 
-store-uae and booking-uae carry the kit as two named templates, so `patch_app` can replace either one alone. **Every template
-carries the same copy** (`TestMotionKitIsTheSameEverywhere`): change the kit in all templates at once, and put a template's own
-motion in its own `css`. Parts that need a component only switch on where it exists (the cart drawer needs `rxCart` in `top`,
-the gallery needs `.gal`, in-place search needs `#results`).
+store-uae, booking-uae, home-service-uae, reservation-uae, listings-uae and quote-portal-uae carry the kit as two named
+templates, so `patch_app` can replace either one alone. **Every template carries the same copy**
+(`TestMotionKitIsTheSameEverywhere`): change the kit in all templates at once, and put a template's own motion in its own
+`css`. Parts that need a component only switch on where it exists (the cart drawer needs `rxCart` in `top`, the gallery needs
+`.gal`, in-place search needs `#results`). delivery-tracking does not carry it: its only navigation is the tracking form to the
+live map, with no card that leads to a detail page, so there is nothing for a transition to move. catalog and tasks are
+structure examples without a design.
 
-- `motion` (CSS, included from `head` after `css`) and `motion_js` (one inline script, included from `bottom` before `</body>`).
-- `top` adds the `js` class on `<html>` before anything paints and fires a `rxcart` event from `rxSave`; motion styles that hide
-  something until it animates are scoped to `.js`, so pages work without JavaScript.
+- `motion` (CSS, included from `head` after `css` and `boutique`) and `motion_js` (one inline script, included from every
+  branch of `bottom` right before `</body>`).
+- `top` adds the `js` class on `<html>` before anything paints (store-uae also fires a `rxcart` event from `rxSave`); motion
+  styles that hide something until it animates are scoped to `.js`, so pages work without JavaScript.
+- The script reads `.qs`, `.lang` and a few texts (`money`, `cart`, `subtotal`, `delivery`, `total`, `free`, `remove`,
+  `empty_cart`, `empty_cart_hint`, `checkout`, `continue_shopping`, `vat_included`, `qty_less`, `qty_more`, `close`): every
+  template with the kit has them in English and Arabic, also where it has no cart.
 
 Rules:
 
@@ -511,7 +518,8 @@ Parts:
 
 | Part | How |
 | --- | --- |
-| List → product transition | `@view-transition {navigation: auto}`; the tile photo and the product's first photo share `view-transition-name: pimg-<id>` |
+| List → detail transition | `@view-transition {navigation: auto}`; a card's photo frame and the detail page's frame share a `view-transition-name` (see below) |
+| Photo carried over | on a click the kit keeps the picture the card already shows (`sessionStorage.rxvt`: name and `currentSrc`); the next page, and the list on the way back, paints it behind its own photo until that one has loaded, so the transition does not land on an empty frame |
 | Luxury hero | Ken Burns zoom in CSS (`rx-kb`), parallax with the `translate` property (it does not fight the animation's `transform`) |
 | Prefetch | `<link rel=prefetch>` on `pointerover`/`touchstart` of same-origin links (not `/_rx/`, not `/checkout`) |
 | Cart drawer | `rxDrawer.open()`; totals from `/api/products` with `rxDrawer.sum()`, the same delivery rule as `deliveryFor` in lib `common` (tested in `store_delivery_test.go`); Checkout goes to `/cart` |
@@ -521,7 +529,62 @@ Parts:
 | Choices and time slots | press feedback on `.opt`, `.day` and `.slot`; time slots pop in (`rx-pop`) as they load |
 | Print | everything waiting for a reveal is shown, the drawer is hidden |
 
-Budget (checked for the store and booking demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
+List → detail transition, the rules (`TestListAndDetailShareATransitionName`, `e2e/tests/13-view-transitions.spec.mjs`):
+
+- **One focal object per card: the photo when the row has one, the title when it has none.** Both sides test the same thing
+  (`{{if .image}}`), so the list and the detail page always agree. A row never names both: a title that moved next to its
+  photo would be a second object on another path, and in the boutique cards of reservation and quote-portal the title is
+  inside the card that moves anyway.
+- **A photo's name goes on the element that carries the mask**: the one with the `border-radius` and `overflow` (or the
+  `clip-path`), written as `style="view-transition-name:<prefix>-<id>"`. Never on a photo inside a rounded frame: a snapshot
+  ignores what the ancestors clip, so the bare photo is a rectangle, the oval or pebble vanishes the moment the transition
+  starts and pops back when it ends. A photo may carry the name only when it has the radius itself (quote-portal's rows).
+- **A title's name goes on a span of its own around the text**: `<span class="vtt" style="view-transition-name:<prefix>-<id>">`
+  inside the card's title element and inside the page's `<h1>`. The kit makes `.vtt` an inline-block (it hugs the text, follows
+  the heading's alignment in English and Arabic, and changes nothing in the layout) and gives it `view-transition-class: vtt`.
+- **A name appears once per page.** Two elements with one name and the browser skips the whole transition. Use the row's id
+  and a prefix per kind of row (a service and a class with the same id are on one page); a list that shows a row twice names
+  only one of them (store's "new arrivals" are not named).
+- **Photos never stretch**: the kit sets `::view-transition-old(*), ::view-transition-new(*)` to `width:100%; height:100%;
+  object-fit:cover`, so a square card photo that grows into a 4:5 frame is cropped, as on the pages themselves. The shape
+  cross-fades from the card's mask to the detail frame's while the box grows.
+- **Text is never cropped or stretched**: `::view-transition-old(.vtt), ::view-transition-new(.vtt)` go back to `height:auto;
+  object-fit:fill`, so each snapshot keeps its own proportions and scales with the box. The old words fade out in .16 s and
+  the new ones come in from .12 s, so two sizes or two line breaks are never read on top of each other. A title that wraps
+  takes the width of its heading, not of its longest line. A browser without `view-transition-class` gets no title transition
+  (`@supports not (view-transition-class:vtt)` sets the name to `none`); the page cross-fades.
+- The header (`.site-head`) has its own name, `rx-head`, while it is on screen: it stays above the photo that moves and does
+  not flicker. Scrolled away, the script takes it out of the transition.
+- Reduced motion: `@view-transition {navigation: none}`. Browsers without cross-document view transitions just load the page.
+
+Focal objects (each name on the card and on the page it leads to). With a photo:
+
+| Template | Name | List side | Detail side |
+| --- | --- | --- | --- |
+| store-uae | `pimg-<id>` | `/`: `.tile .well`; boutique `.e-ph` | `/p/:id`: the first `.well` of the gallery |
+| booking-uae | `simg-<id>` | `/`: `.tile .well`; boutique `.b-card .well` (pebbles) | `/s/:id`: `.pdp-media .well` |
+| booking-uae | `cimg-<id>` | `/`: `.classes .well` | `/c/:id`: `.pdp-media .well` |
+| home-service-uae | `simg-<id>` | `/`: `.tile .well`; boutique `.h-ph` | `/s/:id`: `.pdp-media .well` |
+| reservation-uae | `iimg-<id>` | `/`: `.tile .well`; boutique: the tall card `.r-tall` itself and `.r-thumb` of a compact card | `/item/:id`: `.pdp-media .well` |
+| listings-uae | `limg-<id>` | `/`, `/search`, `/agents/:id`: `.tile .well` (template `card`); boutique home `.v-card-img` | `/l/:id`: `.slides` (the gallery's frame) |
+| quote-portal-uae | `kimg-<id>` | `/`: the photo in `.svc-img` (it has the radius); boutique: the card `.s-card` itself (cut corner) | `/packages/:id`: the photo in `.pkg-media` |
+
+Without a photo (a `span.vtt` around the text of the element named here):
+
+| Template | Name | List side | Detail side |
+| --- | --- | --- | --- |
+| store-uae | `pttl-<id>` | `/`: `.tname` of the tile; boutique: `.tname` of `.e-prod` | `/p/:id`: `h1` |
+| booking-uae | `sttl-<id>` | `/`: `.tname` of the tile; boutique: `.tname` of `.b-card` | `/s/:id`: `h1` |
+| booking-uae | `cttl-<id>` | `/`: `.c-name` of the class row | `/c/:id`: `h1` |
+| home-service-uae | `sttl-<id>` | `/`: `.tname` of the tile; boutique: `.tname` of `.h-card` | `/s/:id`: `h1` |
+| reservation-uae | `ittl-<id>` | `/`: `.tname` of the tile; boutique: the `strong` of `.r-tall` and of `.r-item` | `/item/:id`: `h1` |
+| listings-uae | `lttl-<id>` | `/`, `/search`, `/agents/:id`: `.tname` (template `card`); boutique home `.v-card-title` | `/l/:id`: `h1` |
+| quote-portal-uae | `kttl-<id>` | `/`: `.svc-name`; boutique `.s-card-name` | `/packages/:id`: `h1` |
+
+Always, photo or not: listings-uae's agent `.avatar` on `/` and `/l/:id` and `.avatar.lg` on `/agents/:id` share `aimg-<id>`
+(without a photo the avatar shows the agent's initial, and is still the focal object).
+
+Budget (checked for all six demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
 LCP ≤ 2.5 s, CLS ≤ 0.1, inline JS ≤ 30 KB, non-image bytes ≤ 150 KB per page.
 
 ## 9. Checklist per template
