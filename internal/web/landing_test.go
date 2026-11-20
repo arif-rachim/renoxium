@@ -12,7 +12,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", "costs AED 200 in Renoxium fees", "pass AED 4,950 a month", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
