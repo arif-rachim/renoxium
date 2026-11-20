@@ -328,7 +328,7 @@ func TestStoreShownTotalIsCharged(t *testing.T) {
 		`[{"id":4,"qty":1},{"id":1,"v":1,"qty":2},{"id":3,"qty":3}]`,
 	} {
 		page := e.get("/cart", who).Body
-		vm := pageScript(t, e.p, e.app, who, page, "rxCart()", `var __cart = `+cart+`; function rxCart() { return __cart; } function rxSave(c) { __cart = c; }`)
+		vm := pageScript(t, e.p, e.app, who, page, "cart-field", `var __cart = `+cart+`; function rxCart() { return __cart; } function rxSave(c) { __cart = c; }`)
 		shown := text(t, vm, "total")
 		saved, _ := vm.RunString(`JSON.stringify(__cart)`) // what the page puts in the order form
 		r := e.post("/checkout", who, map[string]string{"cart": saved.String(), "name": "Fatima", "phone": "+971501234567", "address": "Villa 3", "emirate": "Dubai", "payment": "cod"})
