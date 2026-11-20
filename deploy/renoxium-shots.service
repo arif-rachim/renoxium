@@ -1,0 +1,48 @@
+[Unit]
+Description=Renoxium screenshot helper (Chromium for screenshot_preview)
+After=network-online.target
+Wants=network-online.target
+Before=renoxium.service
+
+[Service]
+# A user that exists only while the service runs and owns nothing: a
+# browser that a page breaks out of finds no app data here.
+DynamicUser=yes
+RuntimeDirectory=renoxium-shots
+RuntimeDirectoryMode=0755
+ExecStart=/opt/renoxium/renoxium shot-helper /run/renoxium-shots/cdp.sock
+Environment=RENOXIUM_CHROMIUM=/usr/bin/chromium
+# The only user that may ask for a browser (checked on every connection).
+Environment=RENOXIUM_SHOT_USER=renoxium
+# Only if Chromium reports "No usable sandbox" and user namespaces cannot be
+# allowed on this host: the pages are then held by this service's limits alone.
+#Environment=RENOXIUM_CHROMIUM_NO_SANDBOX=1
+Restart=always
+RestartSec=2
+# What Chromium needs and the platform's own unit refuses: writable and
+# executable memory for its JIT, and user namespaces for its sandbox.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+# The apps' data and the platform's secrets do not exist for this service.
+InaccessiblePaths=-/var/lib/renoxium -/etc/renoxium -/opt/renoxium-deploy
+UMask=0077
+MemoryMax=1200M
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target
