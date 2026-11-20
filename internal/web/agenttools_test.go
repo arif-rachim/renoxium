@@ -24,6 +24,17 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 	if errText != "" {
 		t.Fatal(errText)
 	}
+	// The reference comes once: with the chosen example, or alone, never with the list.
+	if _, has := list["reference"]; has {
+		t.Error("the list of examples carries the reference")
+	}
+	if ref, _ := ex["reference"].(string); !strings.Contains(ref, "payments.checkout") {
+		t.Error("the example lacks the reference")
+	}
+	refOnly, _ := call(t, s, "get_example", map[string]any{"reference_only": true})
+	if ref, _ := refOnly["reference"].(string); !strings.Contains(ref, "payments.checkout") || refOnly["definition"] != nil || refOnly["examples"] != nil {
+		t.Errorf("reference_only = %v keys", len(refOnly))
+	}
 	call(t, s, "create_app", map[string]any{"app": "jack-tasks"})
 	applied, _ := call(t, s, "apply_change", map[string]any{"app": "jack-tasks", "definition": ex["definition"]})
 	if applied["ok"] != true {
