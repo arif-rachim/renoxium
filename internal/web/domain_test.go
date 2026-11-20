@@ -46,7 +46,7 @@ func TestJobsOnAppPage(t *testing.T) {
 	e.publishDef(owner, "jana-shop", &appdef.App{Templates: map[string]string{"t": "shop"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}},
 		Scripts: map[string]string{"r": `function handle(req) { return {text: 'ok'} }`},
 		Jobs:    []appdef.Job{{Name: "nightly", Script: "r", DailyAt: "21:00"}}})
-	r, _ := owner.Get(e.base + "/apps/jana-shop")
+	r, _ := owner.Get(e.base + "/apps/jana-shop/status")
 	if page := read(t, r); !strings.Contains(page, "Scheduled jobs") || !strings.Contains(page, "daily at 21:00 (Asia/Dubai)") {
 		t.Fatalf("app page: %s", page)
 	}

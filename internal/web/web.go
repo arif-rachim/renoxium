@@ -758,7 +758,11 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 <p>Describe your business to ChatGPT or Claude. Renoxium builds the website, you check the preview, and nothing goes live until you publish.</p>
 <ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
 {{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
-{{define "appbottom"}}</main></div></body></html>{{end}}
+{{define "appbottom"}}</main></div>
+<script>(function(){var m=document.querySelector(".appmain");if(!m||!("zoom" in m.style))return;
+function over(){if(m.scrollHeight>m.clientHeight+2)return true;var q=m.querySelectorAll(".bcell,.grow,.fill,.tcard"),i,e;for(i=0;i<q.length;i++){e=q[i];if(e.hasAttribute("data-long")||e.classList.contains("tablebox"))continue;if(e.scrollHeight>e.clientHeight+2)return true}return false}
+function fit(){m.style.zoom="";if(innerWidth<1000||innerHeight<600)return;var z=parseFloat(getComputedStyle(m).zoom)||1;while(z>.74&&over()){z=Math.round((z-.03)*100)/100;m.style.zoom=z}}
+fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})()</script></body></html>{{end}}
 {{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
 <nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
 {{define "tabs"}}<nav class="tabs" aria-label="Sections">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
@@ -850,7 +854,6 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .tabs{display:flex;gap:4px 24px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:-4px 0 18px}
 .tabs a{padding:8px 0 10px;margin-bottom:-1px;font-size:15px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent}.tabs a:hover{color:var(--fg)}
 .tabs a[aria-current]{color:var(--fg);font-weight:500;border-bottom-color:var(--gold)}
-.fit{max-height:calc(100vh - 350px);min-height:240px;overflow:auto}.fit thead th{position:sticky;top:0;background:var(--card);z-index:1}
 .pagehead .sub{color:var(--muted);font-size:16px;margin:6px 0 0;max-width:46em}.pagehead .acts{display:flex;gap:8px;flex-wrap:wrap}.pagehead .acts .button{margin:0}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}.seg a{padding:7px 12px;font-size:14px;color:var(--fg);text-decoration:none}.seg a+a{border-inline-start:1px solid var(--line)}
 .seg a[aria-current]{background:var(--fg);color:var(--bg)}
@@ -900,6 +903,32 @@ table.rx td::before{content:attr(data-label);color:var(--muted);font-size:13px;t
 table.rx td.t{grid-column:1;grid-row:1;font-weight:600;font-size:16px;text-align:start;display:block}table.rx td.t::before,table.rx td.id::before{display:none}
 table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act{justify-content:flex-end}table.rx td.act::before{display:none}}
 @media (max-width:640px){main{margin-top:20px}.card{padding:18px}.bar input{width:100%}.bar form{flex:1}}
+/* fit: from tablet width the console fills the screen exactly; blocks stretch into a bento and scroll inside themselves only when their data is longer */
+@media(min-width:1000px) and (min-height:600px){
+html{height:100%}body.app{height:100%;display:flex;flex-direction:column;overflow:hidden}
+body.app .bar-top{flex:none}body.app .bar-top .in{max-width:none;padding:8px 28px;min-height:56px}
+body.app .shell{flex:1 1 0;min-height:0;width:100%;max-width:none;padding:0 28px;grid-template-rows:minmax(0,1fr)}
+body.app .sidenav{position:static;height:100%;max-height:none;overflow:auto;scrollbar-width:none;padding:20px 0}
+.appmain{display:flex;flex-direction:column;height:100%;padding:20px 0;overflow:auto;scrollbar-width:thin}
+.appmain>*{flex:none}.appmain>.fill{flex:1 1 0;min-height:0;margin-bottom:0}
+.appmain>:last-child:not(.fill):not(.pager):not(script):not(style):not(.pagehead):not(.tabs){flex:1 0 auto;margin-bottom:0}
+.bento.bill{grid-template-rows:auto minmax(0,1fr)}.settings-grid.bento{align-items:stretch;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+.settings-grid.bento>:nth-child(1){grid-area:1/1}.settings-grid.bento>:nth-child(3){grid-area:2/1}.settings-grid.bento>:nth-child(2){grid-area:1/2/3/3}.settings-grid.bento>:nth-child(4){grid-area:1/3/3/4}
+.connect.fill{column-count:3;column-gap:36px;font-size:15px}.connect.fill h2{break-after:avoid;margin-top:18px}.connect.fill p,.connect.fill ul,.connect.fill ol{break-inside:avoid}.formcard,.settings{max-width:none}
+.bcell{overflow:auto;scrollbar-width:thin}
+.bento{display:grid;gap:14px;grid-auto-rows:minmax(0,1fr)}.ovw{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}.ovw .tables{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}@media(max-width:999px){.ovw{grid-template-columns:1fr}.ovw>*{grid-area:auto!important}}.bento>*{min-height:0;min-width:0;margin:0!important}
+.col{display:flex;flex-direction:column}.col>*{flex:none}.col>.grow{flex:1 1 0;min-height:0;overflow:auto;scrollbar-width:thin}
+.fill .tablebox,.tablebox.fill{max-height:none}
+.grow thead th{position:sticky;top:0;background:var(--card);z-index:1}
+.fitchart{display:flex;flex-direction:column}.fitchart>.chart{flex:1 1 0;min-height:0;display:flex;flex-direction:column;margin:0}
+.fitchart>.chart>.plot,.fitchart>.chart>.empty{flex:1 1 0;min-height:48px;height:auto}
+.tiles.grow,.kpis.grow{grid-auto-rows:minmax(0,1fr);align-content:stretch;overflow:hidden}
+}
+@media(min-width:1000px) and (min-height:600px) and (max-height:860px){.appmain{zoom:.92}}
+@media(min-width:1000px) and (min-height:600px) and (max-height:780px){.appmain{zoom:.84}body.app .sidenav{zoom:.9}}
+@media(min-width:1000px) and (min-height:600px) and (max-height:700px){.appmain{zoom:.76}body.app .sidenav{zoom:.82}}
+@media(min-width:1000px) and (max-width:1180px) and (min-height:600px){body.app .shell{grid-template-columns:200px minmax(0,1fr);gap:22px;padding:0 20px}}
+@media(max-width:999px){.bento{display:grid;gap:14px}.bento>*{min-height:150px}.fitchart>.chart>.plot{height:168px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head>{{end}}
 {{define "fonts"}}<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">{{end}}
@@ -937,6 +966,8 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 .steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;background:var(--accent-soft);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
 .copy{display:flex;gap:6px;margin-top:8px}.copy input{font-size:13px;font-family:ui-monospace,monospace;padding:8px 10px;margin:0}.copy button{margin:0;padding:8px 12px;font-size:13px}
 .side{display:grid;gap:16px}.side .panel+.panel{margin-top:0}
+@media(min-width:1100px) and (min-height:600px){.dash{grid-template-rows:minmax(0,1fr)}.dash>.bcell{display:flex;flex-direction:column;height:100%}.dash .apps{flex:1 1 auto;grid-auto-rows:minmax(210px,1fr)}.dash .empty{flex:1}
+.side{height:100%;grid-template-rows:minmax(0,1.4fr) minmax(0,1fr);overflow:hidden}.side .panel{overflow:auto;scrollbar-width:thin}}
 </style>
 <div class="pagehead"><div><h1>Your apps</h1><p class="sub"><a href="/billing">{{.Plan}} plan</a> · {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} used</p></div>
 <div class="acts"><a class="button secondary" href="/templates">Browse templates</a><a class="button" href="/connect">New app</a></div></div>
@@ -945,7 +976,7 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 <div class="kpi"><div class="l">Live</div><div class="v">{{.Live}}</div><div class="n">published sites</div></div>
 <div class="kpi"><div class="l">Customers</div><div class="v">{{.Customers}}</div><div class="n">accounts across your apps</div></div>
 <div class="kpi"><div class="l">Recent errors</div><div class="v"{{if .Errors}} style="color:var(--bad)"{{end}}>{{.Errors}}</div><div class="n">on live sites</div></div></div>{{end}}
-<div class="dash"><div>
+<div class="dash fill"><div class="bcell" data-long>
 {{if .Apps}}<div class="apps">{{range .Apps}}{{template "app_card" .}}{{end}}</div>
 {{else}}<div class="empty"><h2>No apps yet</h2><p>Connect Renoxium to ChatGPT or Claude, then ask for what you need. Your assistant starts from a finished template and shows you a preview before anything goes live.</p>
 <p class="say">"Build me an online store for my perfume shop in Dubai."</p><p class="say">"Make a booking site for my salon with three stylists."</p>
@@ -995,20 +1026,18 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="acts"><nav class="seg" aria-label="Period">{{range .Periods}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 {{if and .Shell.IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}
 {{if not .Shell.Demo}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>{{end}}</div></div>
-<div class="kpis">{{range .KPIs}}<div class="kpi"><div class="l">{{.Label}}</div><div class="v">{{.Value}}</div><div class="n">{{if .Change}}<span class="delta{{if .Up}} up{{end}}{{if .Down}} down{{end}}" title="against the {{$.Days}} days before">{{.Change}}</span> {{end}}{{.Note}}</div></div>{{end}}</div>
-<section class="panel"><div class="ph"><h2>{{.VisitorsChart.Title}}</h2><span class="muted">last {{.Days}} days · gold is today</span></div>{{template "chart" .VisitorsChart}}</section>
-<div class="grid2"><section class="panel"><div class="ph"><h2>Most viewed pages</h2><span class="muted">page views</span></div>{{if .Pages}}<ul class="bars">{{range .Pages}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul>{{else}}<p class="muted">No visits yet.</p>{{end}}</section>
-<section class="panel"><div class="ph"><h2>Where visitors come from</h2><span class="muted">page views</span></div>{{if .Sources}}<ul class="bars">{{range .Sources}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul><p class="muted" style="margin:12px 0 0">Add <code>?utm_source=instagram</code> to links you share to see each channel here.</p>{{else}}<p class="muted">No visits yet.</p>{{end}}</section></div>
-<section class="panel"><div class="ph"><h2>{{.SalesChart.Title}}</h2><span class="muted">total {{.SalesChart.Total}}</span></div>{{template "chart" .SalesChart}}</section>
-{{if .Shell.IsOwner}}<section class="panel"><div class="ph"><h2>Latest payments</h2><a href="/apps/{{.Info.App}}/payments">All payments</a></div>{{if .Recent}}<div class="tablebox" style="border:0;max-height:none"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Date</th></tr></thead><tbody>
+{{template "tabs" .Tabs}}
+{{if and .Problems (ne .Tab "status")}}<p class="flash bad"><span><strong>Recent errors:</strong> {{len .Problems}} on your site. <a href="/apps/{{.Info.App}}/status">See them</a>, then ask your assistant to check the Renoxium logs and fix them.</span></p>{{end}}
+{{if eq .Tab "sales"}}<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><section class="panel bcell"><div class="ph"><h2>Most viewed pages</h2><span class="muted">page views</span></div>{{if .Pages}}<ul class="bars">{{range .Pages}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul>{{else}}<p class="muted">No visits yet.</p>{{end}}</section><section class="panel bcell"><div class="ph"><h2>Where visitors come from</h2><span class="muted">page views</span></div>{{if .Sources}}<ul class="bars">{{range .Sources}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul><p class="muted" style="margin:12px 0 0">Add <code>?utm_source=instagram</code> to links you share to see each channel here.</p>{{else}}<p class="muted">No visits yet.</p>{{end}}</section>{{if .Shell.IsOwner}}<section class="panel bcell"><div class="ph"><h2>Latest payments</h2><a href="/apps/{{.Info.App}}/payments">All payments</a></div>{{if .Recent}}<div class="tablebox" style="border:0;max-height:none"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Date</th></tr></thead><tbody>
 {{range .Recent}}<tr><td class="t" data-label="Order">{{.Reference}}</td><td data-label="Status"><span class="tag">{{.Status}}</span></td><td class="num" data-label="Amount"><span>{{printf "%.2f" .Amount}} <span class="cur">{{.Currency}}</span></span></td><td data-label="Customer">{{.CustomerEmail}}</td><td data-label="Date">{{.CreatedAt}}</td></tr>{{end}}</tbody></table></div>{{else}}<p class="muted" style="margin:0">No card payments yet. <a href="/apps/{{.Info.App}}/payments">Connect Stripe</a> to take cards; cash orders are in your tables.</p>{{end}}</section>{{end}}
-<section class="panel"><div class="ph"><h2>Your data</h2><span class="muted">tap a table to search, sort and edit</span></div><div class="tables">{{range .Tiles}}<a href="{{.Href}}"><strong>{{.Label}}</strong><span>{{.Rows}}{{with .Week}} · <b style="color:var(--live);font-weight:500">{{.}}</b>{{end}}</span></a>{{end}}</div></section>
-{{if .Problems}}<section class="panel"><div class="ph"><h2>Recent errors</h2><span class="muted">ask your assistant to "check the Renoxium logs and fix the errors"</span></div><ul class="errs" style="list-style:none;padding:0;margin:0">{{range .Problems}}<li style="padding:8px 0;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere"><span class="muted">{{.Time}}</span><br>{{.Message}}</li>{{end}}</ul></section>{{end}}
-<div class="grid2">{{if and .Shell.IsOwner .Jobs}}<section class="panel"><div class="ph"><h2>Scheduled jobs</h2></div><table class="rx"><thead><tr><th>Job</th><th>Runs</th><th>Last run</th></tr></thead><tbody>
+{{if not .Shell.IsOwner}}<section class="panel bcell"><p class="muted">Payments are shown to the owner.</p></section>{{end}}</div>
+{{else if eq .Tab "status"}}<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))"><section class="panel bcell"><div class="ph"><h2>Recent errors</h2><span class="muted">ask your assistant to "check the Renoxium logs and fix the errors"</span></div>{{if .Problems}}<ul class="errs" style="list-style:none;padding:0;margin:0">{{range .Problems}}<li style="padding:8px 0;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere"><span class="muted">{{.Time}}</span><br>{{.Message}}</li>{{end}}</ul>{{else}}<p class="muted">No errors on your site.</p>{{end}}</section>{{if and .Shell.IsOwner .Jobs}}<section class="panel bcell"><div class="ph"><h2>Scheduled jobs</h2></div><table class="rx"><thead><tr><th>Job</th><th>Runs</th><th>Last run</th></tr></thead><tbody>
 {{range .Jobs}}<tr><td class="t" data-label="Job">{{.Name}}</td><td data-label="Runs">{{.Schedule}}</td><td data-label="Last run">{{if .Status}}{{.LastRun.UTC.Format "2 Jan 15:04"}} UTC · {{if eq .Status "ok"}}<span class="ok">ok</span>{{else}}<span class="error">{{.Message}}</span>{{end}}{{else}}not yet{{end}}</td></tr>{{end}}</tbody></table></section>{{end}}
-<section class="panel"><div class="ph"><h2>Addresses</h2></div><dl class="addr" style="margin:0">{{with .Shell.SiteURL}}<dt class="muted" style="font-size:13px">Your site</dt><dd style="margin:0 0 10px;overflow-wrap:anywhere"><a href="{{.}}/">{{.}}</a></dd>{{end}}
+<section class="panel bcell"><div class="ph"><h2>Addresses</h2></div><dl class="addr" style="margin:0">{{with .Shell.SiteURL}}<dt class="muted" style="font-size:13px">Your site</dt><dd style="margin:0 0 10px;overflow-wrap:anywhere"><a href="{{.}}/">{{.}}</a></dd>{{end}}
 {{with .MCPURL}}<dt class="muted" style="font-size:13px">For customers' AI assistants</dt><dd style="margin:0"><input readonly value="{{.}}" aria-label="Address for AI assistants" onfocus="this.select()" style="font:13px ui-monospace,monospace;padding:8px 10px;margin-top:4px"></dd>{{end}}</dl>
 {{if .Shell.Demo}}<p style="margin:14px 0 0"><a class="button" href="/signup" style="margin:0">Create your account</a></p>{{end}}</section></div>
+{{else}}<div class="kpis">{{range .KPIs}}<div class="kpi"><div class="l">{{.Label}}</div><div class="v">{{.Value}}</div><div class="n">{{if .Change}}<span class="delta{{if .Up}} up{{end}}{{if .Down}} down{{end}}" title="against the {{$.Days}} days before">{{.Change}}</span> {{end}}{{.Note}}</div></div>{{end}}</div>
+<div class="bento fill ovw"><section class="panel fitchart"><div class="ph"><h2>{{.VisitorsChart.Title}}</h2><span class="muted">last {{.Days}} days · gold is today</span></div>{{template "chart" .VisitorsChart}}</section><section class="panel bcell" style="grid-area:1/2/3/3"><div class="ph"><h2>Your data</h2><span class="muted">tap a table to search, sort and edit</span></div><div class="tables">{{range .Tiles}}<a href="{{.Href}}"><strong>{{.Label}}</strong><span>{{.Rows}}{{with .Week}} · <b style="color:var(--live);font-weight:500">{{.}}</b>{{end}}</span></a>{{end}}</div></section><section class="panel fitchart"><div class="ph"><h2>{{.SalesChart.Title}}</h2><span class="muted">total {{.SalesChart.Total}}</span></div>{{template "chart" .SalesChart}}</section></div>{{end}}
 {{template "appbottom"}}{{end}}
 
 {{define "publish"}}{{template "apptop" .}}<form class="card formcard" method="post" action="/apps/{{.Info.App}}/publish"><h1>{{if .Rollback}}Roll back{{else}}Publish{{end}} version {{.Version}}?</h1>
@@ -1027,7 +1056,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <input name="q" value="{{.Query}}" placeholder="Search {{.Label}}" aria-label="Search"><button class="secondary">Search</button></form><span class="sp"></span>
 <details class="pick"><summary>Columns</summary><form class="menu" method="get">{{range $k, $v := .Keep}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}
 <p class="muted" style="margin:0 0 4px">Show these columns</p>{{range .Choices}}<label><input type="checkbox" name="c" value="{{.Name}}"{{if .Shown}} checked{{end}}> {{.Label}}</label>{{end}}<button>Apply</button></form></details></div>
-{{if .Rows}}<div class="tablebox"><table class="rx"><thead><tr>{{range .Columns}}<th scope="col"{{with .SortDir}} aria-sort="{{if eq . "asc"}}ascending{{else}}descending{{end}}"{{end}}><a href="{{.SortHref}}">{{.Label}}{{with .SortDir}}<span class="dir" aria-hidden="true">{{if eq . "asc"}}↑{{else}}↓{{end}}</span>{{end}}</a></th>{{end}}</tr></thead><tbody>
+{{if .Rows}}<div class="tablebox fill"><table class="rx"><thead><tr>{{range .Columns}}<th scope="col"{{with .SortDir}} aria-sort="{{if eq . "asc"}}ascending{{else}}descending{{end}}"{{end}}><a href="{{.SortHref}}">{{.Label}}{{with .SortDir}}<span class="dir" aria-hidden="true">{{if eq . "asc"}}↑{{else}}↓{{end}}</span>{{end}}</a></th>{{end}}</tr></thead><tbody>
 {{range .Rows}}{{$id := .ID}}<tr><td class="id" data-label="#"><a href="/apps/{{$.App}}/t/{{$.Table}}/{{$id}}" aria-label="Open row {{$id}}">#{{$id}}</a></td>{{range .Cells}}<td{{if .Title}} class="t"{{end}} data-label="{{.Label}}">{{if .Image}}<img src="{{.Image}}" alt="" loading="lazy">{{else if .Pill}}<span class="tag">{{.Pill}}</span>{{else if .Title}}<a href="/apps/{{$.App}}/t/{{$.Table}}/{{$id}}" style="color:inherit;text-decoration:none">{{if .Text}}{{.Text}}{{else}}—{{end}}</a>{{else}}{{.Text}}{{end}}</td>{{end}}</tr>{{end}}
 </tbody></table></div>
 <div class="pager">{{template "pager" .Pager}}<form method="get">{{range $k, $v := .Keep}}{{if ne $k "size"}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}{{end}}{{with .ColsParam}}<input type="hidden" name="cols" value="{{.}}">{{end}}
@@ -1048,20 +1077,20 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="kpi"><div class="l">WhatsApp codes</div><div class="v">{{.Stats.WhatsAppCodes}}</div><div class="n">this month, all accounts</div></div>
 {{with .Health}}<div class="kpi"><div class="l">Server</div><div class="v">{{.DiskFreeGB}} GB</div><div class="n">free of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
 </div>
-{{with .Health}}{{with .Alerts}}<details class="panel alerts"><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}
-{{if .Reports}}<section class="panel"><div class="ph"><h2>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h2></div>
-{{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>
-{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin-top:0">Mark handled</button></form>{{end}}</div>{{end}}</section>{{end}}{{if not .Reports}}<p class="muted">No abuse reports.</p>{{end}}
-<p class="muted" style="margin-top:14px">Card fees and subscription payments are in the Stripe Dashboard.</p>
+<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+<section class="panel col"><div class="ph"><h2>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h2></div><div class="grow" data-long>{{if .Reports}}{{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>
+{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin-top:0">Mark handled</button></form>{{end}}</div>{{end}}{{else}}<p class="muted">No abuse reports.</p>{{end}}</div></section>
+<section class="panel col"><div class="ph"><h2>Recent alerts</h2><span class="muted">disk, backups and error spikes, checked every 5 minutes</span></div><div class="grow" data-long>{{with .Health}}{{if .Alerts}}<ul class="alerts" style="padding-inline-start:18px">{{range .Alerts}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">No alerts.</p>{{end}}{{else}}<p class="muted">Monitoring is off on this server.</p>{{end}}
+<p class="muted" style="margin-top:14px">Card fees and subscription payments are in the Stripe Dashboard.</p></div></section></div>
 {{else if eq .Tab "accounts"}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
-<section class="panel"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll fit"><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
+<section class="panel col fill"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
 {{range .Users}}<tr><td class="em"><a href="/operator/apps?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td><span class="tag">{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</span></td><td class="muted">{{.CreatedAt}}</td>
 <td><form method="post" action="/operator/plan" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">
 <select name="plan" aria-label="Plan"><option value="free">free</option><option value="pro">pro</option><option value="business">business</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
 </tbody></table></div></section>
 
 {{else}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
-<section class="panel"><div class="ph"><h2>Apps</h2></div><div class="scroll fit"><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
+<section class="panel col fill"><div class="ph"><h2>Apps</h2></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
 {{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
 <td>{{if .LiveVersion}}<span class="pill live">v{{.LiveVersion}}</span>{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}<span class="ok">ready</span>{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
 <td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
@@ -1069,21 +1098,21 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 </tbody></table></div></section>
 {{end}}{{template "appbottom"}}{{end}}
 
-{{define "operator_growth"}}{{template "owntop" .}}{{template "owncss"}}{{with .Growth}}{{template "growth" .}}{{else}}<div class="card"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "appbottom"}}{{end}}
+{{define "operator_growth"}}{{template "owntop" .}}{{template "owncss"}}{{with .Growth}}{{template "growth" .}}{{else}}<div class="card fill"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "appbottom"}}{{end}}
 
 {{define "account"}}{{template "owntop" .}}{{template "owncss"}}
 <div class="pagehead"><div><h1>Account settings</h1><p class="sub">Sign-in, your data and your account.</p></div></div>
-<div class="settings-grid">
-<section class="panel"><div class="ph"><h2>Profile</h2></div><dl class="kv"><dt>Email</dt><dd>{{.User.Email}} {{if .User.Verified}}<span class="pill live">confirmed</span>{{else}}<span class="pill wait">not confirmed</span>{{end}}</dd>
+<div class="settings-grid bento fill">
+<section class="panel bcell"><div class="ph"><h2>Profile</h2></div><dl class="kv"><dt>Email</dt><dd>{{.User.Email}} {{if .User.Verified}}<span class="pill live">confirmed</span>{{else}}<span class="pill wait">not confirmed</span>{{end}}</dd>
 <dt>Plan</dt><dd>{{.PlanName}} · <a href="/billing">Plan and billing</a></dd><dt>Apps</dt><dd>{{len .Apps}}</dd></dl></section>
-<form class="panel" method="post" action="/account/password"><div class="ph"><h2>Change password</h2></div>
+<form class="panel bcell" method="post" action="/account/password"><div class="ph"><h2>Change password</h2></div>
 {{if .Changed}}<p class="flash ok">Password changed. Other devices and connected agents were signed out.</p>{{end}}{{with .PasswordError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="current">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required>
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
 <button>Change password</button><p class="fine">Connected agents (ChatGPT, Claude) will need to connect again.</p></form>
-<section class="panel"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
+<section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
-<form class="panel danger-zone" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
+<form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
 <p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
 <label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
@@ -1092,7 +1121,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{define "billing"}}{{template "owntop" .}}{{template "owncss"}}
 <div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">Your Renoxium plan, what you have used this month, and payments.</p></div></div>
 {{with .Notice}}<p class="flash" role="status">{{.}}</p>{{end}}
-<div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
+<div class="bento fill bill"><div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
 <p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else}}/ month{{end}}</span></p>
 {{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
 {{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
@@ -1105,9 +1134,9 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{range .Meters}}<div class="meter{{if .Warn}} warn{{end}}"><div class="top"><span>{{.Label}}</span><span><b>{{.Used}}{{.Unit}}</b> of {{.Quota}}{{.Unit}}</span></div><div class="tr" role="progressbar" aria-label="{{.Label}}" aria-valuenow="{{.Pct}}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{.Pct}}%"></i></div></div>{{end}}
 </div></section>
 
-</div><section class="panel" style="margin-top:16px"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
+</div><section class="panel col"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
 {{if not .Ready}}<p class="flash">Paid plans are not available yet.</p>{{end}}
-<div class="tiers" style="margin-top:18px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
+<div class="tiers grow" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
 <h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">AED {{.Price}} <small>/ month</small></p>
 <ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>
 {{if .Current}}<span class="is">Current plan</span>
@@ -1116,7 +1145,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{else if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Switch to {{.Name}}</button></form>
 {{else}}<form method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="plan" value="{{.ID}}"><button{{if not .Popular}} class="secondary"{{end}}>Choose {{.Name}}</button></form>{{end}}
 </div>{{end}}</div>
-<p class="fine">Payment is handled by Stripe. Cancel any time.</p></section>{{template "appbottom"}}{{end}}
+<p class="fine">Payment is handled by Stripe. Cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_connections"}}{{template "apptop" .}}<div class="settings">
 <div class="card"><h1>Connections</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
@@ -1292,28 +1321,34 @@ your app can send it data, including your customers' details.</p>
 {{template "appbottom"}}{{end}}
 
 {{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
-.tcards{display:grid;gap:12px}@media(min-width:680px){.tcards{grid-template-columns:1fr 1fr}}@media(min-width:1240px){.tcards{grid-template-columns:repeat(3,1fr)}}
-.tcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:grid;grid-template-columns:76px minmax(0,1fr);gap:14px;align-items:start;scroll-margin-top:16px}
+.tcards{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:680px){.tcards{grid-template-columns:1fr 1fr}}@media(min-width:1000px){.tcards{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1180px){.tcards{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;scroll-margin-top:16px}
 .tcard:target{border-color:var(--gold)}
-.tcard img{width:76px;height:auto;aspect-ratio:600/900;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--line)}
-.tcard h3{font-size:16px;margin:0 0 2px}.tcard .job{font-size:12.5px;color:var(--muted);margin:0 0 6px}.tcard p{margin:0 0 6px;font-size:14px;line-height:1.45;color:var(--muted)}
-.tcard .tlinks{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:14px;align-items:center}
-.tcard .tlinks button{margin:0;min-height:0;padding:0;border:0;background:none;color:var(--fg);font-size:14px;font-weight:400;text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
+.tcard .pic{flex:1 1 0;min-height:56px;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
+.tcard .pic img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.tcard .tx{padding:12px 14px 14px}
+.tcard h3{font-size:16px;margin:0 0 2px}.tcard .job{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+.tcard p.sum{margin:0 0 8px;font-size:13.5px;line-height:1.45;color:var(--muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.tcard .tlinks{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13.5px;align-items:center}
+.tcard .tlinks button{margin:0;min-height:0;padding:0;border:0;background:none;color:var(--fg);font-size:13.5px;font-weight:400;text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
+.tcard.more{justify-content:center;padding:18px;background:var(--accent-soft);border-style:dashed}.tcard.more h3{font-size:17px;margin-bottom:6px}.tcard.more p{font-size:14px;color:var(--muted);margin:0 0 10px}
+@media(max-width:999px){.tcard .pic{flex:none;height:180px}}
 </style>
+<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-prompt]");if(!b)return;var t=b.getAttribute("data-prompt");if(navigator.clipboard)navigator.clipboard.writeText(t);b.textContent="Copied: paste it to your assistant"})</script>
 <div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
-<div class="tcards">{{range .Groups}}{{$job := .Job}}{{range .Cards}}<article class="tcard" id="{{.Name}}">
-{{if .Screen.File}}<img src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">{{else}}<span></span>{{end}}
-<div><h3>{{.Title}}</h3><p class="job">{{$job}}</p><p>{{.Summary}}</p>
-<div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Owner's admin panel</a><button type="button" data-prompt="{{.Prompt}}">Copy the request</button></div></div></article>{{end}}{{end}}</div>
-<p class="muted" style="margin-top:14px">Something in between? Start from the closest template and tell your assistant what to change.</p>
-<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-prompt]");if(!b)return;var t=b.getAttribute("data-prompt");if(navigator.clipboard)navigator.clipboard.writeText(t);b.textContent="Copied: paste it to your assistant"})</script>
+<div class="tcards bento fill">{{range .Groups}}{{$job := .Job}}{{range .Cards}}<article class="tcard" id="{{.Name}}">
+<div class="pic">{{if .Screen.File}}<img src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">{{end}}</div>
+<div class="tx"><h3>{{.Title}}</h3><p class="job">{{$job}}</p><p class="sum" title="{{.Summary}}">{{.Summary}}</p>
+<div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Admin panel</a><button type="button" data-prompt="{{.Prompt}}">Copy the request</button></div></div></article>{{end}}{{end}}
+<article class="tcard more"><h3>Something in between?</h3><p>Start from the closest template and tell your assistant what to change: other fields on a form, your own sections and texts, your colours and photos.</p><a href="/connect">How to connect ChatGPT or Claude</a></article></div>
 {{template "appbottom"}}{{end}}
 
-{{define "connect_body"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
+{{define "connect_body"}}<div class="card connect fill bcell">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
 {{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{end}}
-{{define "connect"}}{{if .Shell}}{{template "owntop" .}}{{template "owncss"}}<style>.connect>h1:first-child{display:none}@media(min-width:1100px){.connect{column-count:2;column-gap:44px}.connect h2{break-after:avoid;margin-top:20px}.connect p,.connect ul,.connect ol{break-inside:avoid}.connect>:nth-child(2){margin-top:0}}.connect{font-size:15px}</style>
+{{define "connect"}}{{if .Shell}}{{template "owntop" .}}{{template "owncss"}}<style>.connect>h1:first-child{display:none}@media(min-width:1400px) and (min-height:600px){.connect.fill{font-size:16.5px;line-height:1.7}}@media(min-width:1100px){.connect{column-count:2;column-gap:44px}.connect h2{break-after:avoid;margin-top:20px}.connect p,.connect ul,.connect ol{break-inside:avoid}.connect>:nth-child(2){margin-top:0}}.connect{font-size:15px}</style>
 <div class="pagehead"><div><h1>Connect and help</h1><p class="sub">Add Renoxium to ChatGPT or Claude once, then ask for a new app or a change.</p></div><div class="acts"><a class="button secondary" href="/support">Support</a></div></div>{{template "connect_body" .}}{{template "appbottom"}}{{else}}{{template "wide" "Connect"}}{{template "connect_body" .}}{{template "bottom"}}{{end}}{{end}}
 
 {{define "forgot"}}{{template "auth" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>

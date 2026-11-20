@@ -145,7 +145,7 @@ body.own .sidenav .who strong{font-size:14px;font-weight:500;overflow:hidden;tex
 .tier .badge{position:absolute;top:-11px;inset-inline-start:18px;font-size:12px;font-weight:500;padding:2px 10px;border-radius:999px;background:var(--fg);color:var(--bg)}.tier.current .badge{background:var(--gold);color:#fff}
 .tier h3{font-size:18px;margin:0}.tier .tag{border:0;background:none;padding:0;font-size:14px;color:var(--muted);white-space:normal}
 .tier .price{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 2px}.tier .price small{font-size:14px;font-weight:400;color:var(--muted)}
-.tier ul{list-style:none;padding:0;margin:10px 0 14px;font-size:14px;display:grid;gap:4px;flex:1}.tier li{display:flex;gap:8px;align-items:flex-start}
+.tier ul{list-style:none;padding:0;margin:8px 0 12px;font-size:13.5px;display:grid;gap:3px;flex:1;align-content:start}.tier li{display:flex;gap:8px;align-items:flex-start}
 .tier li::before{content:"";flex:none;width:16px;height:16px;margin-top:2px;border-radius:50%;background:var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-4.8' fill='none' stroke='%231e8a50' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
 .tier form{margin:0}.tier button,.tier .button{width:100%;margin:0;text-align:center}.tier .is{display:block;text-align:center;padding:11px;border-radius:8px;background:var(--bg);color:var(--muted);font-size:15px}
 .fine{font-size:13px;color:var(--muted);margin-top:14px}

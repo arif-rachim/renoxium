@@ -467,25 +467,26 @@ const growthTemplate = `{{define "growth"}}<style>
 .growth td.barcell{width:30%;min-width:120px}.growth td.stage{white-space:normal;min-width:260px;max-width:440px}.growth .snote{color:var(--muted);font-size:13px;line-height:1.4;margin-top:2px}
 .growth .weeks td.barcell{width:24%}.growth .weeks .gb{height:8px}
 .growth .tile .hint{font-size:13px}.growth .good{color:var(--live)}.growth .warn{color:var(--sun)}
+@media(min-width:1000px) and (min-height:600px){.growth .econ{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;overflow:hidden}.growth .econ .tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.growth td{padding-top:7px;padding-bottom:7px}.growth .snote{font-size:12px;line-height:1.3}.growth td.stage{max-width:none}}
 .growth .forms{display:flex;gap:16px 28px;flex-wrap:wrap;align-items:flex-end;margin:14px 0 12px}.growth .forms form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
 .growth .forms label{margin:0 0 4px}.growth .forms input{width:190px;padding:8px 10px}.growth .forms button{margin:0;padding:8px 14px}
 </style><div class="pagehead"><div><h1>Growth</h1><p class="sub">Owner accounts only: operators, the template demos and owners of a suspended app are left out. Figures refresh every few minutes.</p></div>
 <div class="acts"><a class="button secondary" href="/operator/growth.csv{{with .Cohort}}?cohort={{.}}{{end}}">Download funnel CSV</a></div></div>{{template "tabs" .Tabs}}
-<div class="card growth" id="growth">
+<div class="card growth fill col" id="growth">
 {{if or (eq .Tab "funnel") (eq .Tab "templates")}}<nav class="seg" aria-label="Sign-up cohort">{{range .Cohorts}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
 {{if eq .Tab "funnel"}}
-<h2>Funnel <span class="muted">· {{.Owners}} owners, {{.CohortLabel}}</span></h2>
-<div class="scroll"><table><thead><tr><th>Stage</th><th class="n">Owners</th><th></th><th class="n">Of previous</th><th class="n">Of sign-ups</th><th class="n">Median from previous</th></tr></thead><tbody>
+<h2 style="margin-top:8px">Funnel <span class="muted">· {{.Owners}} owners, {{.CohortLabel}}</span></h2>
+<div class="scroll grow"><table><thead><tr><th>Stage</th><th class="n">Owners</th><th></th><th class="n">Of previous</th><th class="n">Of sign-ups</th><th class="n">Median from previous</th></tr></thead><tbody>
 {{range .Funnel}}<tr><td class="stage">{{.Name}}{{with .Note}}<div class="snote">{{.}}</div>{{end}}</td><td class="n">{{.Count}}</td><td class="barcell"><span class="gb" style="width:{{.Width}}%"></span></td><td class="n">{{.OfPrev}}</td><td class="n">{{.OfSignups}}</td><td class="n">{{.Median}}</td></tr>{{end}}
 </tbody></table></div>
 <p class="muted">Owners: how many reached the stage. Of previous: of those who reached the stage before, the share who reached this one too.</p>
 
 {{else if eq .Tab "weeks"}}<h2 style="margin-top:0">Last 12 weeks <span class="muted">· all owners</span></h2>
-<div class="scroll"><table class="weeks"><thead><tr><th>Week of</th><th class="n">Sign-ups</th><th></th><th class="n">First publish</th><th></th><th class="n">First customer</th><th></th></tr></thead><tbody>
+<div class="scroll grow"><table class="weeks"><thead><tr><th>Week of</th><th class="n">Sign-ups</th><th></th><th class="n">First publish</th><th></th><th class="n">First customer</th><th></th></tr></thead><tbody>
 {{range .Weeks}}<tr><td>{{.Label}}</td><td class="n">{{.Signups}}</td><td class="barcell"><span class="gb" style="width:{{.SW}}%"></span></td><td class="n">{{.Published}}</td><td class="barcell"><span class="gb p" style="width:{{.PW}}%"></span></td><td class="n">{{.Activity}}</td><td class="barcell"><span class="gb a" style="width:{{.AW}}%"></span></td></tr>{{end}}
 </tbody></table></div>
 
-{{else if eq .Tab "economics"}}<h2 style="margin-top:0">Revenue and unit economics</h2><div class="tiles">
+{{else if eq .Tab "economics"}}<div class="grow econ"><div class="col"><h2 style="margin-top:0">Revenue and unit economics</h2><div class="tiles grow">
 <div class="tile"><div class="muted">MRR</div><div class="big">AED {{.E.MRR}}</div><div class="muted">Pro AED {{index .Prices "pro"}}, Business AED {{index .Prices "business"}} a month</div></div>
 <div class="tile"><div class="muted">Paying accounts</div><div class="big">{{.E.PayingAccounts}}</div><div class="muted">ARPA {{.ARPA}} a month</div></div>
 <div class="tile"><div class="muted">Logo churn, last 30 days</div><div class="big">{{.Churn}}</div><div class="muted">{{.E.Churned}} of {{.E.ChurnBase}} paying 30 days ago stopped</div></div>
@@ -493,8 +494,8 @@ const growthTemplate = `{{define "growth"}}<style>
 <div class="tile"><div class="muted">LTV</div>{{if .E.LTVKnown}}<div class="big">{{.LTV}}</div><div class="muted">ARPA × {{.E.GrossMarginPct}}% margin ÷ monthly churn</div>{{else}}<div class="big">—</div><div class="muted">{{.E.LTVWhy}}</div>{{end}}</div>
 <div class="tile"><div class="muted">CAC, last 3 months</div>{{if .E.CACKnown}}<div class="big">{{.CAC}}</div><div class="muted">marketing spend ÷ new paying accounts</div>{{else}}<div class="big">—</div><div class="muted">{{.E.CACWhy}}</div>{{end}}</div>
 <div class="tile"><div class="muted">LTV : CAC</div>{{if .E.RatioOK}}<div class="big {{if .RatioGood}}good{{else}}warn{{end}}">{{.Ratio}} : 1</div>{{else}}<div class="big">—</div>{{end}}<div class="muted hint">aim for 3 or more</div></div>
-</div>
-<div class="scroll"><table><thead><tr><th>Month</th><th class="n">Marketing spend</th><th class="n">New paying accounts</th><th class="n">CAC</th></tr></thead><tbody>
+</div></div>
+<div class="col"><h2 style="margin-top:0">Marketing spend and CAC</h2><div class="scroll grow"><table><thead><tr><th>Month</th><th class="n">Marketing spend</th><th class="n">New paying accounts</th><th class="n">CAC</th></tr></thead><tbody>
 {{range .Months}}<tr><td>{{.Label}}</td><td class="n">{{.SpendText}}</td><td class="n">{{.NewPaying}}</td><td class="n">{{.CACText}}</td></tr>{{end}}
 </tbody></table></div>
 <div class="forms"><form method="post" action="/operator/growth"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="spend"><input type="hidden" name="cohort" value="{{.Cohort}}">
@@ -502,11 +503,11 @@ const growthTemplate = `{{define "growth"}}<style>
 <div><label for="g-spend">Marketing spend (AED)</label><input id="g-spend" name="spend" inputmode="numeric" pattern="[0-9, ]+" placeholder="1500" required></div><button class="secondary">Save spend</button></form>
 <form method="post" action="/operator/growth"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="margin"><input type="hidden" name="cohort" value="{{.Cohort}}">
 <div><label for="g-margin">Gross margin (%)</label><input id="g-margin" name="margin" type="number" min="1" max="100" value="{{.E.GrossMarginPct}}" required></div><button class="secondary">Save margin</button></form></div>
-<p class="muted">MRR counts subscriptions paid through Stripe, not granted plans; ARPA leaves out card fees. LTV needs at least 5 paying accounts and at least one cancellation in the last 30 days.</p>
+<p class="muted">MRR counts subscriptions paid through Stripe, not granted plans; ARPA leaves out card fees. LTV needs at least 5 paying accounts and at least one cancellation in the last 30 days.</p></div></div>
 
-{{else}}<h2>Activation by template <span class="muted">· {{.CohortLabel}}</span></h2>
-{{if .Templates}}<div class="scroll"><table><thead><tr><th>Example the first live app came from</th><th class="n">Published</th><th class="n">Reached first customer</th></tr></thead><tbody>
+{{else}}<h2 style="margin-top:8px">Activation by template <span class="muted">· {{.CohortLabel}}</span></h2>
+{{if .Templates}}<div class="scroll grow"><table><thead><tr><th>Example the first live app came from</th><th class="n">Published</th><th class="n">Reached first customer</th></tr></thead><tbody>
 {{range .Templates}}<tr><td>{{.Template}}</td><td class="n">{{.Published}}</td><td class="n">{{.Activity}}</td></tr>{{end}}
-</tbody></table></div>{{else}}<p class="muted">Nobody in this cohort has published yet.</p>{{end}}
+</tbody></table></div>{{else}}<p class="muted grow">Nobody in this cohort has published yet.</p>{{end}}
 <p class="muted">The example is recognised by the app's table names when it is first published; "custom" means no example was close.</p>
 {{end}}</div>{{end}}`

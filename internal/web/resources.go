@@ -796,21 +796,21 @@ main.wide{max-width:1400px}.res th,.res td{padding-left:7px;padding-right:7px}
 .res .chart{margin-bottom:22px}.res .chart .plot{height:120px;gap:1px}.res .chart .b i{border-radius:1px 1px 0 0}.res h2.ch{font-size:16px;margin:4px 0 6px}
 .res .namebar{display:block;height:6px;border-radius:3px;background:var(--series)}.res pre.msg{white-space:pre-wrap;font:12.5px/1.45 ui-monospace,monospace;margin:4px 0 0;overflow-wrap:anywhere}
 .res .notice{border:1px solid var(--sun);background:var(--sun-soft);border-radius:10px;padding:10px 14px;margin:10px 0}
-.res .fit{max-height:calc(100vh - 500px)}.res .tiles{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px}.res .tile{padding:12px}
+@media(min-width:1000px) and (min-height:600px){.res .prices.grow{align-content:space-evenly}.res .fitchart>.chart>.plot{height:auto}.res .fitcharts{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(0,1fr);gap:8px 24px}.res .fitchart h2.ch{margin:0 0 6px}}.res .tiles{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px}.res .tile{padding:12px}
 </style>`
 
 const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}}{{template "owncss"}}` + resourcesCSS + `
 <div class="pagehead"><div><h1>Resources</h1><p class="sub">Which apps use the shared server most, which make other apps wait, and which cost more than they bring in. Both stages count towards an app's use; revenue comes from live only.</p></div>
 <span class="muted">measured {{.Measured}} · current hour included</span></div>
-{{template "tabs" .Tabs}}<div class="card res">
+{{template "tabs" .Tabs}}<div class="card res fill col">
 {{if eq .Tab "server"}}<div class="controls"><nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
-<h2 style="margin-top:0">Last 24 hours</h2><div class="tiles">{{range .Health}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
-<h2>Over {{.Window.Label}}</h2><div class="tiles">{{range .Totals}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
+<h2 style="margin-top:0">Last 24 hours</h2><div class="tiles grow">{{range .Health}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
+<h2>Over {{.Window.Label}}</h2><div class="tiles grow">{{range .Totals}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
 
 {{else if eq .Tab "apps"}}<div class="controls"><nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 <span class="muted">Sort by</span><nav class="seg" aria-label="Sort by">{{range .Sorts}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
 <p class="muted">{{len .Rows}} apps shown{{if .Idle}} · {{.Idle}} idle apps hidden (<a href="{{.AllHref}}">show all</a>){{else if .ShowAll}} · <a href="{{.AllHref}}">hide idle apps</a>{{end}}{{if .More}} · {{.More}} more not shown{{end}} · {{.Flagged}} flagged · sorted by {{.Sort.Label}}</p>
-<div class="scroll fit"><table><thead><tr><th>App</th><th>Script time</th><th class="n">Script</th><th class="n">CPU</th><th class="n">Share</th><th class="n">Wait caused</th><th class="n">Refused</th><th class="n" title="timeouts / memory kills">Timeouts / kills</th><th class="n">Bandwidth</th><th class="n">Storage</th><th class="n">Est. cost, AED</th><th class="n">Revenue, AED</th><th class="n">Margin, AED</th></tr></thead><tbody>
+<div class="scroll grow" data-long><table><thead><tr><th>App</th><th>Script time</th><th class="n">Script</th><th class="n">CPU</th><th class="n">Share</th><th class="n">Wait caused</th><th class="n">Refused</th><th class="n" title="timeouts / memory kills">Timeouts / kills</th><th class="n">Bandwidth</th><th class="n">Storage</th><th class="n">Est. cost, AED</th><th class="n">Revenue, AED</th><th class="n">Margin, AED</th></tr></thead><tbody>
 {{range .Rows}}<tr><td class="app"><a href="{{.Detail}}"><strong>{{.App}}</strong></a>{{if .Suspended}} <span class="error">suspended</span>{{end}}<div class="muted">{{.OwnerEmail}} · {{.Plan}}{{with .LiveURL}} · <a href="{{.}}" target="_blank" rel="noopener">live</a>{{end}}</div>{{with .Throttle}}<div class="muted bad">{{.}}</div>{{end}}
 {{range .Flags}}<span class="flag {{.Key}}" title="{{.Why}}">{{.Label}}</span>{{end}}</td>
 <td><span class="spark" aria-hidden="true">{{range .Spark}}<i style="height:{{.}}%"></i>{{end}}</span></td>
@@ -825,7 +825,7 @@ const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}
 <p class="muted">Script time is how long scripts held a worker, database calls and waiting included; CPU is measured inside the worker process (user and system time from the kernel) plus the time the server spent on the app's database calls. Wait caused: when a run had to wait for a free worker, the wait is shared out over the apps whose runs held the workers. Cost share is the app's part of all script time. Revenue: the owner's plan price for the period (paid plans only, not granted ones), split equally over the owner's live apps (all their apps if none is live), plus the Free-plan card fees of the app's own live payments (AED only).</p>
 </details>
 {{else}}<h2 style="margin-top:0" id="prices">Unit prices and fair use</h2>
-<form method="post" action="/operator/resources/prices"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><div class="prices">
+<form class="col grow" method="post" action="/operator/resources/prices"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><div class="prices grow">
 {{range .Prices}}<div><label for="p-{{.Key}}">{{.Label}} <span class="muted">({{.Unit}})</span></label><input id="p-{{.Key}}" name="{{.Key}}" inputmode="decimal" value="{{.Value}}"></div>{{end}}</div>
 <button class="secondary">Save prices</button></form>{{end}}</div>{{template "appbottom"}}{{end}}
 
@@ -834,26 +834,26 @@ const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}
 {{define "operator_resource_app"}}{{template "owntop" .}}{{template "owncss"}}` + resourcesCSS + `<p class="crumbs"><a href="/operator/usage?window={{.Window.Key}}">← Apps</a></p>
 <div class="pagehead"><div><h1>{{.App}}</h1><p class="sub">{{.Row.OwnerEmail}} · {{.Row.Plan}} plan{{if .Info.LiveVersion}} · <a href="{{.Info.LiveURL}}" target="_blank" rel="noopener">{{.Info.LiveURL}}</a> (v{{.Info.LiveVersion}}){{else}} · not published{{end}}{{with .Suspended}} · <span class="error">suspended: {{.}}</span>{{end}}</p></div>
 <nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
-{{template "tabs" .Tabs}}<div class="card res">{{if .Throttled}}<p class="notice"><strong>Throttled</strong> until {{.Throttle.Until.UTC.Format "2 Jan 15:04"}} UTC by {{.Throttle.By}}. The owner sees: {{.ThrottleNotice}}</p>{{end}}{{if eq .Tab "summary"}}
+{{template "tabs" .Tabs}}<div class="card res fill col">{{if .Throttled}}<p class="notice"><strong>Throttled</strong> until {{.Throttle.Until.UTC.Format "2 Jan 15:04"}} UTC by {{.Throttle.By}}. The owner sees: {{.ThrottleNotice}}</p>{{end}}{{if eq .Tab "summary"}}
 
 {{if .Flags}}<ul class="why">{{range .Flags}}<li><span class="flag {{.Key}}">{{.Label}}</span> {{.Why}}</li>{{end}}</ul>{{else}}<p class="muted">No flags in this period.</p>{{end}}
-<h2>Over {{.Window.Label}}</h2><div class="tiles">{{range .Tiles}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
+<h2>Over {{.Window.Label}}</h2><div class="tiles grow">{{range .Tiles}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
 {{else if eq .Tab "hours"}}<h2 style="margin-top:0">Last 7 days, per hour <span class="muted">(UTC · gold is the current hour)</span></h2>
-{{range .Charts}}<h2 class="ch">{{.Title}} <span class="muted">· total {{.Total}}</span></h2>{{template "chart" .}}{{end}}
-{{else if eq .Tab "scripts"}}<h2>Top routes, jobs and tools <span class="muted">· {{.Window.Label}}, by time held</span></h2>
+<div class="fitcharts grow">{{range .Charts}}<div class="fitchart"><h2 class="ch">{{.Title}} <span class="muted">· total {{.Total}}</span></h2>{{template "chart" .}}</div>{{end}}</div>
+{{else if eq .Tab "scripts"}}<div class="grow"><h2 style="margin-top:0">Top routes, jobs and tools <span class="muted">· {{.Window.Label}}, by time held</span></h2>
 {{if .Names}}<div class="scroll"><table><thead><tr><th>Route, job, hook or tool</th><th class="n">Runs</th><th class="n">Time</th><th class="n">Share</th><th></th><th class="n">CPU</th><th class="n">Average</th></tr></thead><tbody>
 {{range .Names}}<tr><td><code>{{.Name}}</code></td><td class="n">{{.Runs}}</td><td class="n">{{.Time}}</td><td class="n">{{.Share}}</td><td style="width:22%"><span class="namebar" style="width:{{.Width}}%"></span></td><td class="n">{{.CPU}}</td><td class="n">{{.Avg}}</td></tr>{{end}}
 </tbody></table></div>{{else}}<p class="muted">No script ran in this period.</p>{{end}}
 {{if .Stages}}<h2 style="margin-top:18px">By stage</h2><div class="scroll"><table><thead><tr><th>Stage</th><th class="n">Requests</th><th class="n">Runs</th><th class="n">Script time</th><th class="n">Worker CPU</th><th class="n">Database</th><th class="n">Sent</th><th class="n">Peak heap</th></tr></thead><tbody>
 {{range .Stages}}<tr>{{range $i, $c := .}}{{if $i}}<td class="n">{{$c}}</td>{{else}}<td>{{$c}}</td>{{end}}{{end}}</tr>{{end}}</tbody></table></div>{{end}}
 <h2 style="margin-top:18px">Recent timeouts and memory kills <span class="muted">· from the app log</span></h2>
-{{if .Incidents}}<ul class="why">{{range .Incidents}}<li><span class="muted">{{.Time}} UTC · {{.Stage}}</span><pre class="msg">{{.Message}}</pre></li>{{end}}</ul>{{else}}<p class="muted">None in the app log.</p>{{end}}
+{{if .Incidents}}<ul class="why">{{range .Incidents}}<li><span class="muted">{{.Time}} UTC · {{.Stage}}</span><pre class="msg">{{.Message}}</pre></li>{{end}}</ul>{{else}}<p class="muted">None in the app log.</p>{{end}}</div>
 
-{{else}}<h2 style="margin-top:0">Actions</h2><p class="muted">Each action is written to the app's log, which the owner and their agent read, and to the operator audit below.</p><div class="forms">
+{{else}}<div class="grow"><h2 style="margin-top:0">Actions</h2><p class="muted">Each action is written to the app's log, which the owner and their agent read, and to the operator audit below.</p><div class="forms">
 <form method="post" action="/operator/resources/{{.App}}/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><input type="hidden" name="action" value="notify">
 <h2>Email the owner</h2><p class="muted">A polite notice of what is heavy, with the upgrade link. Edit it before sending.</p>
 <label for="n-subject">Subject</label><input id="n-subject" name="subject" value="{{.NoticeSubject}}" maxlength="150">
-<label for="n-text">Message</label><textarea id="n-text" name="text" rows="12">{{.Notice}}</textarea><button>Send email</button></form>
+<label for="n-text">Message</label><textarea id="n-text" name="text" rows="7">{{.Notice}}</textarea><button>Send email</button></form>
 <form method="post" action="/operator/resources/{{.App}}/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}">
 <h2>Throttle for a while</h2><p class="muted">Only this app is limited; other apps keep their slots. The owner sees a notice in the admin panel until it ends.</p>
 <label for="t-slots">Scripts at the same time</label><select id="t-slots" name="slots"><option value="1">1</option><option value="0">normal ({{.MaxSlots}})</option></select>
@@ -866,4 +866,4 @@ const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}
 {{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<label for="s-reason">Reason</label><input id="s-reason" name="reason" maxlength="200" placeholder="suspended by Renoxium"><button class="danger" name="action" value="suspend">Suspend</button>{{end}}</form></div>
 <h2 style="margin-top:22px">Operator audit</h2>{{if .Audit}}<div class="scroll"><table><thead><tr><th>When</th><th>Operator</th><th>Action</th><th>Detail</th></tr></thead><tbody>
 {{range .Audit}}<tr><td>{{.At}}</td><td>{{.Operator}}</td><td>{{.Action}}</td><td>{{.Detail}}</td></tr>{{end}}</tbody></table></div>{{else}}<p class="muted">No operator action on this app yet.</p>{{end}}
-{{end}}</div>{{template "appbottom"}}{{end}}`
+</div>{{end}}</div>{{template "appbottom"}}{{end}}`

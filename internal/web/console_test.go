@@ -29,7 +29,15 @@ func TestConsoleListsAndDashboard(t *testing.T) {
 		return r.StatusCode, read(t, r), r
 	}
 
+	// The overview is three pages: visitors, sales, and data and status.
 	code, page, _ := get("/apps/al-noor")
+	for _, tab := range []string{"/sales", "/status"} {
+		c, more, _ := get("/apps/al-noor" + tab)
+		if c != 200 {
+			t.Fatalf("overview%s: %d", tab, c)
+		}
+		page += more
+	}
 	for _, want := range []string{"Overview", "Visitors per day", "Card sales per day", "Where visitors come from", `href="/apps/al-noor/t/orders"`, `aria-current="page"`, "Payments"} {
 		if code != 200 || !strings.Contains(page, want) {
 			t.Fatalf("dashboard lacks %q (%d)", want, code)
