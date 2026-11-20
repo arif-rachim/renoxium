@@ -1,6 +1,6 @@
 # Resources: heavy and unprofitable apps
 
-`/operator/resources` (linked from `/operator`, operators only) shows which apps use the shared
+The Resources section of the console (operators only; in the side menu under Operator) has three tabs, each on its own address: `/operator/resources` (the server), `/operator/usage` (the apps) and `/operator/prices` (unit prices and fair use). One app's page, `/operator/resources/<app>`, has the tabs Summary, Per hour (`/hours`), Scripts and incidents (`/scripts`) and Actions (`/actions`). Together they show which apps use the shared
 server most, which make other apps wait, and which cost more than they bring in.
 
 ## How it is measured

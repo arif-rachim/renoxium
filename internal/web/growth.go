@@ -150,6 +150,8 @@ type monthRow struct {
 }
 
 type growthView struct {
+	Tab                 string // funnel, weeks, economics or templates
+	Tabs                []shellLink
 	Cohort, CohortLabel string
 	CSRF                string
 	Cohorts             []cohortLink
@@ -187,11 +189,11 @@ func (s *Site) growthView(r *http.Request, paying map[string]int) (*growthView, 
 	now := s.growthNow().UTC()
 	v := &growthView{Cohort: cohortParam(r), ThisMonth: now.Format("2006-01"), FeePct: platform.FreePlanFeePercent, Prices: accounts.PlanPriceAED}
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	v.Cohorts = append(v.Cohorts, cohortLink{Label: "All time", Href: "/operator#growth", Current: v.Cohort == ""})
+	v.Cohorts = append(v.Cohorts, cohortLink{Label: "All time", Href: "/operator/growth", Current: v.Cohort == ""})
 	for i := 5; i >= 0; i-- {
 		m := month.AddDate(0, -i, 0)
 		val := m.Format("2006-01")
-		v.Cohorts = append(v.Cohorts, cohortLink{Label: m.Format("Jan 2006"), Href: "/operator?cohort=" + val + "#growth", Current: v.Cohort == val})
+		v.Cohorts = append(v.Cohorts, cohortLink{Label: m.Format("Jan 2006"), Href: "/operator/growth?cohort=" + val, Current: v.Cohort == val})
 	}
 	v.CohortLabel = "all time"
 	if v.Cohort != "" {
@@ -313,6 +315,51 @@ func humanDuration(d time.Duration) string {
 	}
 }
 
+// growthPage is the operator's growth page: the funnel, cohorts and unit
+// economics.
+func (s *Site) growthPage(tab string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) { s.growthTab(w, r, tab) }
+}
+
+func (s *Site) growthTab(w http.ResponseWriter, r *http.Request, tab string) {
+	op, ok := s.operator(w, r)
+	if !ok {
+		return
+	}
+	_, _, paying, _ := s.accounts.PlanCounts()
+	csrf := s.csrfToken(w, r)
+	view, err := s.growthView(r, paying)
+	if err != nil {
+		slog.Error("operator growth figures", "err", err)
+	} else {
+		view.CSRF = csrf
+	}
+	here := growthPaths[tab]
+	q := ""
+	if view != nil {
+		view.Tab = tab
+		if view.Cohort != "" {
+			q = "?cohort=" + url.QueryEscape(view.Cohort)
+		}
+		for i := range view.Cohorts { // the cohort links stay on this tab
+			view.Cohorts[i].Href = here + strings.TrimPrefix(view.Cohorts[i].Href, "/operator/growth")
+		}
+	}
+	var tabs []shellLink
+	for _, t := range growthTabs {
+		tabs = append(tabs, shellLink{Label: t.Label, Href: growthPaths[t.Key] + q, Current: t.Key == tab})
+	}
+	if view != nil {
+		view.Tabs = tabs
+	}
+	render(w, http.StatusOK, "operator_growth", map[string]any{"Growth": view, "Shell": s.ownerShell(op, "Growth", "/operator/growth", csrf)})
+}
+
+// growthTabs are the parts of the growth section, each on its own address.
+var growthTabs = []struct{ Key, Label string }{{"funnel", "Funnel"}, {"weeks", "Last 12 weeks"}, {"economics", "Unit economics"}, {"templates", "By template"}}
+
+var growthPaths = map[string]string{"funnel": "/operator/growth", "weeks": "/operator/growth/weeks", "economics": "/operator/growth/economics", "templates": "/operator/growth/templates"}
+
 // operatorGrowth saves the operator's marketing spend for a month or the
 // gross margin.
 func (s *Site) operatorGrowth(w http.ResponseWriter, r *http.Request) {
@@ -355,11 +402,11 @@ func (s *Site) operatorGrowth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("operator changed growth settings", "operator", op.Email, "action", r.PostFormValue("action"))
-	back := "/operator"
+	back := "/operator/growth/economics"
 	if c := r.PostFormValue("cohort"); c != "" {
 		back += "?cohort=" + url.QueryEscape(c)
 	}
-	http.Redirect(w, r, back+"#growth", http.StatusSeeOther)
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 // operatorGrowthCSV downloads the per-owner funnel. It changes nothing, so
@@ -422,23 +469,23 @@ const growthTemplate = `{{define "growth"}}<style>
 .growth .tile .hint{font-size:13px}.growth .good{color:var(--live)}.growth .warn{color:var(--sun)}
 .growth .forms{display:flex;gap:16px 28px;flex-wrap:wrap;align-items:flex-end;margin:14px 0 12px}.growth .forms form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
 .growth .forms label{margin:0 0 4px}.growth .forms input{width:190px;padding:8px 10px}.growth .forms button{margin:0;padding:8px 14px}
-</style><div class="card growth" id="growth" style="margin-top:16px">
-<div class="bar"><h1 style="margin:0">Growth</h1><a class="button secondary" href="/operator/growth.csv{{with .Cohort}}?cohort={{.}}{{end}}">Download funnel CSV</a></div>
-<p class="muted">Owner accounts only: operators, the template demos and owners of a suspended app are left out. Figures refresh every few minutes.</p>
-<nav class="seg" aria-label="Sign-up cohort">{{range .Cohorts}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
-
+</style><div class="pagehead"><div><h1>Growth</h1><p class="sub">Owner accounts only: operators, the template demos and owners of a suspended app are left out. Figures refresh every few minutes.</p></div>
+<div class="acts"><a class="button secondary" href="/operator/growth.csv{{with .Cohort}}?cohort={{.}}{{end}}">Download funnel CSV</a></div></div>{{template "tabs" .Tabs}}
+<div class="card growth" id="growth">
+{{if or (eq .Tab "funnel") (eq .Tab "templates")}}<nav class="seg" aria-label="Sign-up cohort">{{range .Cohorts}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
+{{if eq .Tab "funnel"}}
 <h2>Funnel <span class="muted">· {{.Owners}} owners, {{.CohortLabel}}</span></h2>
 <div class="scroll"><table><thead><tr><th>Stage</th><th class="n">Owners</th><th></th><th class="n">Of previous</th><th class="n">Of sign-ups</th><th class="n">Median from previous</th></tr></thead><tbody>
 {{range .Funnel}}<tr><td class="stage">{{.Name}}{{with .Note}}<div class="snote">{{.}}</div>{{end}}</td><td class="n">{{.Count}}</td><td class="barcell"><span class="gb" style="width:{{.Width}}%"></span></td><td class="n">{{.OfPrev}}</td><td class="n">{{.OfSignups}}</td><td class="n">{{.Median}}</td></tr>{{end}}
 </tbody></table></div>
 <p class="muted">Owners: how many reached the stage. Of previous: of those who reached the stage before, the share who reached this one too.</p>
 
-<h2>Last 12 weeks <span class="muted">· all owners</span></h2>
+{{else if eq .Tab "weeks"}}<h2 style="margin-top:0">Last 12 weeks <span class="muted">· all owners</span></h2>
 <div class="scroll"><table class="weeks"><thead><tr><th>Week of</th><th class="n">Sign-ups</th><th></th><th class="n">First publish</th><th></th><th class="n">First customer</th><th></th></tr></thead><tbody>
 {{range .Weeks}}<tr><td>{{.Label}}</td><td class="n">{{.Signups}}</td><td class="barcell"><span class="gb" style="width:{{.SW}}%"></span></td><td class="n">{{.Published}}</td><td class="barcell"><span class="gb p" style="width:{{.PW}}%"></span></td><td class="n">{{.Activity}}</td><td class="barcell"><span class="gb a" style="width:{{.AW}}%"></span></td></tr>{{end}}
 </tbody></table></div>
 
-<h2>Revenue and unit economics</h2><div class="tiles">
+{{else if eq .Tab "economics"}}<h2 style="margin-top:0">Revenue and unit economics</h2><div class="tiles">
 <div class="tile"><div class="muted">MRR</div><div class="big">AED {{.E.MRR}}</div><div class="muted">Pro AED {{index .Prices "pro"}}, Business AED {{index .Prices "business"}} a month</div></div>
 <div class="tile"><div class="muted">Paying accounts</div><div class="big">{{.E.PayingAccounts}}</div><div class="muted">ARPA {{.ARPA}} a month</div></div>
 <div class="tile"><div class="muted">Logo churn, last 30 days</div><div class="big">{{.Churn}}</div><div class="muted">{{.E.Churned}} of {{.E.ChurnBase}} paying 30 days ago stopped</div></div>
@@ -457,9 +504,9 @@ const growthTemplate = `{{define "growth"}}<style>
 <div><label for="g-margin">Gross margin (%)</label><input id="g-margin" name="margin" type="number" min="1" max="100" value="{{.E.GrossMarginPct}}" required></div><button class="secondary">Save margin</button></form></div>
 <p class="muted">MRR counts subscriptions paid through Stripe, not granted plans; ARPA leaves out card fees. LTV needs at least 5 paying accounts and at least one cancellation in the last 30 days.</p>
 
-<h2>Activation by template <span class="muted">· {{.CohortLabel}}</span></h2>
+{{else}}<h2>Activation by template <span class="muted">· {{.CohortLabel}}</span></h2>
 {{if .Templates}}<div class="scroll"><table><thead><tr><th>Example the first live app came from</th><th class="n">Published</th><th class="n">Reached first customer</th></tr></thead><tbody>
 {{range .Templates}}<tr><td>{{.Template}}</td><td class="n">{{.Published}}</td><td class="n">{{.Activity}}</td></tr>{{end}}
 </tbody></table></div>{{else}}<p class="muted">Nobody in this cohort has published yet.</p>{{end}}
 <p class="muted">The example is recognised by the app's table names when it is first published; "custom" means no example was close.</p>
-</div>{{end}}`
+{{end}}</div>{{end}}`

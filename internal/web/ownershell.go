@@ -39,7 +39,7 @@ func (s *Site) ownerShell(u accounts.User, title, current, csrf string) ownerShe
 		Account: []shellLink{link("Plan and billing", "/billing"), link("Account settings", "/account"), link("Connect and help", "/connect")}}
 	if u.Verified && s.isOperator(u.Email) {
 		sh.Operator = true
-		sh.Ops = []shellLink{link("Overview", "/operator"), link("Resources", "/operator/resources"), {Label: "Growth", Href: "/operator#growth"}}
+		sh.Ops = []shellLink{link("Platform", "/operator"), link("Resources", "/operator/resources"), link("Growth", "/operator/growth")}
 	}
 	return sh
 }
@@ -136,22 +136,22 @@ body.own .sidenav .who strong{font-size:14px;font-weight:500;overflow:hidden;tex
 .hero{display:grid;gap:18px 28px;align-items:center}@media(min-width:760px){.hero{grid-template-columns:minmax(0,1fr) auto}}
 .hero .name{font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:2px 0 6px}.hero .name .per{font-size:15px;font-weight:400;color:var(--muted)}
 .hero .acts{display:flex;gap:8px;flex-wrap:wrap}.hero .acts button,.hero .acts .button{margin:0}
-.meters{display:grid;gap:18px 28px}@media(min-width:700px){.meters{grid-template-columns:1fr 1fr}}
+.meters{display:grid;gap:14px 28px}@media(min-width:700px){.meters{grid-template-columns:1fr 1fr}}
 .meter .top{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:6px}.meter .top span:last-child{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
 .meter .top b{color:var(--fg);font-weight:600}.meter .tr{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}.meter .tr i{display:block;height:100%;background:var(--series);border-radius:4px}.meter.warn .tr i{background:var(--sun)}
 .tiers{display:grid;gap:14px}@media(min-width:900px){.tiers{grid-template-columns:repeat(3,1fr)}}
-.tier{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.tier{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
 .tier.popular{border-color:var(--fg);box-shadow:0 10px 30px -18px rgb(19 32 58 / .45)}.tier.current{border-color:var(--gold)}
 .tier .badge{position:absolute;top:-11px;inset-inline-start:18px;font-size:12px;font-weight:500;padding:2px 10px;border-radius:999px;background:var(--fg);color:var(--bg)}.tier.current .badge{background:var(--gold);color:#fff}
 .tier h3{font-size:18px;margin:0}.tier .tag{border:0;background:none;padding:0;font-size:14px;color:var(--muted);white-space:normal}
-.tier .price{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:14px 0 2px}.tier .price small{font-size:14px;font-weight:400;color:var(--muted)}
-.tier ul{list-style:none;padding:0;margin:14px 0 18px;font-size:14px;display:grid;gap:7px;flex:1}.tier li{display:flex;gap:8px;align-items:flex-start}
+.tier .price{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 2px}.tier .price small{font-size:14px;font-weight:400;color:var(--muted)}
+.tier ul{list-style:none;padding:0;margin:10px 0 14px;font-size:14px;display:grid;gap:4px;flex:1}.tier li{display:flex;gap:8px;align-items:flex-start}
 .tier li::before{content:"";flex:none;width:16px;height:16px;margin-top:2px;border-radius:50%;background:var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-4.8' fill='none' stroke='%231e8a50' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
 .tier form{margin:0}.tier button,.tier .button{width:100%;margin:0;text-align:center}.tier .is{display:block;text-align:center;padding:11px;border-radius:8px;background:var(--bg);color:var(--muted);font-size:15px}
 .fine{font-size:13px;color:var(--muted);margin-top:14px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:10px 20px;margin:0;font-size:15px}.kv dt{color:var(--muted);font-size:14px}.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .danger-zone{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}.danger-zone h2{color:var(--bad)}
-.settings-grid{display:grid;gap:16px;max-width:820px}.settings-grid .panel+.panel{margin-top:0}
+.settings-grid{display:grid;gap:16px;align-items:start}@media(min-width:1100px){.settings-grid{grid-template-columns:1fr 1fr}}.settings-grid .panel+.panel{margin-top:0}
 .settings-grid label:first-of-type{margin-top:4px}.settings-grid button{margin-top:16px}
 .appmain .card{border-radius:var(--radius)}.appmain .card+.card,.appmain .card+.panel,.appmain .panel+.card{margin-top:16px}
 </style>{{end}}`

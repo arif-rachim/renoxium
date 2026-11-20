@@ -750,39 +750,44 @@ func (l *limiter) allow(key string) bool {
 // --- templates ---
 
 var pages = template.Must(template.New("").Parse(brandDefines + `
-{{define "top"}}{{template "head" .}}<body>{{template "nav"}}<main>{{end}}
-{{define "wide"}}{{template "head" .}}<body>{{template "nav"}}<main class="wide">{{end}}
-{{define "auth"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a href="/connect">Connect</a></nav></div></header><main>{{end}}
+{{define "top"}}{{template "head" .}}<body>{{template "pubnav"}}<main>{{end}}
+{{define "wide"}}{{template "head" .}}<body>{{template "pubnav"}}<main class="wide">{{end}}
+{{define "auth"}}{{template "head" .}}<body class="auth">{{template "pubnav"}}<main>{{end}}
 {{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
 {{define "appbottom"}}</main></div></body></html>{{end}}
-{{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}"><div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
+{{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
 <nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
+{{define "tabs"}}<nav class="tabs" aria-label="Sections">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
 {{define "navlist"}}<ul>{{range .}}<li><a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a></li>{{end}}</ul>{{end}}
 {{define "pager"}}{{if .Total}}<nav class="pager" aria-label="Pages"><span class="muted">{{.From}}–{{.To}} of {{.Of}}</span>{{if gt .Pages 1}}<span class="pages">{{if .Prev}}<a href="{{.Prev}}" rel="prev" aria-label="Previous page">‹</a>{{end}}{{range .Links}}{{if .Ellip}}<span>…</span>{{else}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}{{end}}{{if .Next}}<a href="{{.Next}}" rel="next" aria-label="Next page">›</a>{{end}}</span>{{end}}</nav>{{end}}{{end}}
 {{define "chart"}}<div class="chart">{{if .Bars}}<span class="top" aria-hidden="true">{{.Max}}</span><div class="plot" role="img" aria-label="{{.Title}}, total {{.Total}}">{{range .Bars}}<span class="b{{if .Today}} today{{end}}" tabindex="0"><i style="height:{{.Height}}%"></i><span class="tip">{{.Tip}}</span></span>{{end}}</div>
 <div class="ticks" aria-hidden="true">{{range .Ticks}}<span>{{.}}</span>{{end}}</div>
 <details class="astable"><summary>Show as a table</summary><table class="rx"><thead><tr><th>Day</th><th>Figures</th></tr></thead><tbody>{{range .Rows}}<tr><td>{{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</tbody></table></details>
 {{else}}<p class="empty">{{.Empty}}</p>{{end}}</div>{{end}}
-{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/">Your apps</a><a href="/templates">Templates</a><a href="/billing">Plan</a><a href="/account">Account</a><a href="/connect">Help</a></nav></div></header>{{end}}
+{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a><nav aria-label="Site"><a href="/support">Support</a></nav></div></header>{{end}}
+{{define "pubnav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="button sm" href="/signup">Create account</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}} · Renoxium</title>{{template "icons"}}{{template "fonts"}}<style>
-:root{color-scheme:light dark;--series:#2b4a85;--brand:#13203a;--fg:#13203a;--muted:#4b5870;--bg:#eef1f5;--card:#fff;--line:#d6dce5;--accent:#13203a;--accent-ink:#fff;--accent-soft:#e6ebf3;--gold:#b8892e;--sun:#b8892e;--sun-soft:#f5ecd9;--live:#1e8a50;--bad:#b3261e;--radius:14px}
+:root{color-scheme:light dark;--series:#2b4a85;--brand:#13203a;--fg:#13203a;--muted:#4b5870;--bg:#eef1f5;--card:#fff;--line:#d6dce5;--accent:#13203a;--accent-ink:#fff;--accent-soft:#e6ebf3;--gold:#b8892e;--sun:#b8892e;--sun-soft:#f5ecd9;--live:#1e8a50;--bad:#b3261e;--radius:12px}
 @media (prefers-color-scheme:dark){:root{--series:#8fb0ea;--brand:#e7ecf4;--fg:#e7ecf4;--muted:#a3afc4;--bg:#0b1424;--card:#121d33;--line:#263552;--accent:#e7ecf4;--accent-ink:#0b1424;--accent-soft:#1b2a47;--gold:#d2a955;--sun:#d2a955;--sun-soft:#3a2f17;--live:#5fd394;--bad:#ff8a80}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.55 "Readex Pro",system-ui,sans-serif;color:var(--fg);background:var(--bg)}
 a{color:var(--accent);text-decoration-color:var(--muted);text-underline-offset:3px}a:hover{text-decoration-color:var(--gold);text-decoration-thickness:2px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.bar-top{background:var(--card);border-bottom:1px solid var(--line)}.bar-top .in{max-width:1120px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:8px 24px;flex-wrap:wrap}
-.logo{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:20px;color:var(--brand);text-decoration:none;letter-spacing:-.01em;margin-inline-end:auto}.logo .mark{height:26px;width:auto;flex:none}
-.bar-top nav{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:15px}.bar-top nav a{color:var(--fg);text-decoration:none;padding:4px 0}.bar-top nav a:hover{color:var(--accent)}
+.bar-top{background:var(--card);border-bottom:1px solid var(--line)}.bar-top .in{max-width:1200px;margin:0 auto;padding:14px 20px;min-height:68px;display:flex;align-items:center;gap:8px 20px;flex-wrap:wrap}
+.logo{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:22px;color:var(--brand);text-decoration:none;letter-spacing:-.02em;margin-inline-end:auto}.logo .mark{height:30px;width:auto;flex:none}
+.bar-top nav{display:flex;align-items:center;gap:4px 22px;flex-wrap:wrap;font-size:15px}.bar-top nav a{color:var(--muted);text-decoration:none}.bar-top nav a:hover{color:var(--fg)}
+.bar-top nav a.button{color:var(--accent-ink);margin:0}.button.sm{min-height:40px;padding:8px 16px;font-size:15px}
+@media(max-width:600px){.bar-top nav .wide{display:none}.bar-top nav{gap:4px 16px}}
+.sidenav a.back{display:inline-block;font-size:14px;color:var(--muted);text-decoration:none;margin:0 0 14px}.sidenav a.back:hover{color:var(--fg)}
 main{max-width:600px;margin:32px auto 64px;padding:0 20px}main.wide{max-width:1120px}body.auth main{max-width:440px;margin-top:56px}
 .crumbs{font-size:14px;margin:0 0 14px;color:var(--muted)}.crumbs a{color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}.card+.card{margin-top:16px}
-h1{font-size:24px;line-height:1.25;margin:0 0 14px;font-weight:600;letter-spacing:-.01em}h2{font-size:18px;margin:0 0 10px;font-weight:600}
+h1{font-size:24px;line-height:1.25;margin:0 0 14px;font-weight:600;letter-spacing:-.02em}h2{font-size:18px;margin:0 0 10px;font-weight:600}
 p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}ul{padding-inline-start:20px}
 label{display:block;font-size:14px;font-weight:500;margin:14px 0 6px}
 input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit}
 textarea{min-height:96px}textarea.json{font-family:ui-monospace,monospace;font-size:14px}
-button,.button{display:inline-block;margin-top:18px;padding:11px 18px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;line-height:1.3}
+button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin-top:18px;padding:10px 18px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:500;cursor:pointer;text-decoration:none;line-height:1.3}
 button.secondary,.button.secondary{background:transparent;color:var(--fg);border-color:var(--line)}button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
 .scroll{overflow-x:auto;margin:0 -4px}table{border-collapse:collapse;width:100%;font-size:14px}
 th{text-align:start;font-weight:500;color:var(--muted);font-size:13px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -813,8 +818,8 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .tables a:hover{border-color:var(--accent)}.tables strong{display:block;font-weight:500}.tables span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .shell{max-width:1320px;margin:0 auto;padding:0 20px;display:grid;grid-template-columns:minmax(0,1fr);gap:24px}.sidenav{min-width:0}
 @media(min-width:1000px){.shell{grid-template-columns:232px minmax(0,1fr);gap:32px}}
-.appmain{min-width:0;max-width:none;margin:0;padding:28px 0 72px}body.app .bar-top .in{max-width:1320px}.grid2>.panel,.grid2>.panel+.panel{margin-top:0}.cur{text-transform:uppercase}
-.sidenav{padding-top:28px}
+.appmain{min-width:0;max-width:none;margin:0;padding:24px 0 40px}body.app .bar-top .in{max-width:1320px}.grid2>.panel,.grid2>.panel+.panel{margin-top:0}.cur{text-transform:uppercase}
+.sidenav{padding-top:24px}
 @media(min-width:1000px){.sidenav{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding-bottom:24px}}
 .sidenav .who{margin:0 0 18px}.sidenav .who strong{display:block;font-size:17px;font-weight:600;overflow-wrap:anywhere}.sidenav .who .pill{margin-top:6px}
 .sidenav .who a.site{display:inline-block;margin-top:8px;font-size:14px}
@@ -825,8 +830,12 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .sidenav nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}.sidenav h3{display:none}.sidenav ul{display:contents}
 .sidenav li a{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--card);font-size:14px}.sidenav li a[aria-current]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
 .appmain{padding-top:8px}.kpi{padding:14px}.kpi .v{font-size:22px}.pagehead h1{font-size:24px}}
-.pagehead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}.pagehead h1{margin:0;font-size:28px;line-height:1.2}
-.pagehead .sub{color:var(--muted);font-size:15px;margin:4px 0 0}.pagehead .acts{display:flex;gap:8px;flex-wrap:wrap}.pagehead .acts .button{margin:0}
+.pagehead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}.pagehead h1{margin:0;font-size:30px;line-height:1.15}
+.tabs{display:flex;gap:4px 24px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:-4px 0 18px}
+.tabs a{padding:8px 0 10px;margin-bottom:-1px;font-size:15px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent}.tabs a:hover{color:var(--fg)}
+.tabs a[aria-current]{color:var(--fg);font-weight:500;border-bottom-color:var(--gold)}
+.fit{max-height:calc(100vh - 350px);min-height:240px;overflow:auto}.fit thead th{position:sticky;top:0;background:var(--card);z-index:1}
+.pagehead .sub{color:var(--muted);font-size:16px;margin:6px 0 0;max-width:46em}.pagehead .acts{display:flex;gap:8px;flex-wrap:wrap}.pagehead .acts .button{margin:0}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}.seg a{padding:7px 12px;font-size:14px;color:var(--fg);text-decoration:none}.seg a+a{border-inline-start:1px solid var(--line)}
 .seg a[aria-current]{background:var(--fg);color:var(--bg)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
@@ -898,13 +907,13 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 {{define "dashboard"}}{{template "owntop" .}}{{template "owncss"}}<style>
 .dash{display:grid;gap:20px}@media(min-width:1100px){.dash{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
 .apps{display:grid;gap:16px}@media(min-width:640px){.apps{grid-template-columns:1fr 1fr}}
-.app{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s,box-shadow .15s}
-.app:hover{border-color:color-mix(in srgb,var(--fg) 35%,var(--line));box-shadow:0 10px 28px -20px rgb(19 32 58 / .5)}
-.app h2{font-size:18px;margin:0}.app h2 a{color:var(--fg);text-decoration:none}.app h2 a:hover{color:var(--accent)}
-.app .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap}.app .host{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere;margin:2px 0 0}
+.appcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s,box-shadow .15s}
+.appcard:hover{border-color:color-mix(in srgb,var(--fg) 35%,var(--line));box-shadow:0 10px 28px -20px rgb(19 32 58 / .5)}
+.appcard h2{font-size:18px;margin:0}.appcard h2 a{color:var(--fg);text-decoration:none}.appcard h2 a:hover{color:var(--accent)}
+.appcard .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap}.appcard .host{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere;margin:2px 0 0}
 .figs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--bg);border-radius:10px;padding:12px 14px;margin:0}
 .figs div{min-width:0}.figs dt{font-size:12.5px;color:var(--muted)}.figs dd{margin:0;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.figs dd.bad{color:var(--bad)}
-.app .acts{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;font-size:14.5px;margin-top:auto}.app .acts .button{margin:0;padding:8px 14px}
+.appcard .acts{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;font-size:14.5px;margin-top:auto}.appcard .acts .button{margin:0;padding:8px 14px}
 .draft{font-size:14px;color:var(--muted);margin:0;background:var(--bg);border-radius:10px;padding:12px 14px}
 .empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:28px}.empty h2{font-size:20px}
 .say{background:var(--accent-soft);border-radius:12px;padding:10px 14px;font-size:15px;margin:8px 0 0}
@@ -932,7 +941,7 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 <p class="muted"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></section>
 <section class="panel"><div class="ph"><h2>Start from a template</h2></div><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates →</a></section></aside></div>{{template "appbottom"}}{{end}}
 
-{{define "app_card"}}<article class="app"><div class="top"><div><h2><a href="/apps/{{.App}}">{{.App}}</a></h2>{{if .LiveVersion}}<p class="host">{{.Host}}</p>{{end}}</div>
+{{define "app_card"}}<article class="appcard"><div class="top"><div><h2><a href="/apps/{{.App}}">{{.App}}</a></h2>{{if .LiveVersion}}<p class="host">{{.Host}}</p>{{end}}</div>
 <span class="pill {{.Status}}">{{.StatusText}}</span></div>
 {{if .LiveVersion}}<dl class="figs"><div><dt>Sales, 30 days</dt><dd>{{if .SalesCount}}{{.Sales}}{{else}}None yet{{end}}</dd></div><div><dt>Customers</dt><dd>{{.Visitors}}</dd></div>
 <div><dt>Recent errors</dt><dd{{if .Errors}} class="bad"{{end}}>{{.Errors}}</dd></div></dl>
@@ -986,13 +995,12 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{if .Shell.Demo}}<p style="margin:14px 0 0"><a class="button" href="/signup" style="margin:0">Create your account</a></p>{{end}}</section></div>
 {{template "appbottom"}}{{end}}
 
-{{define "publish"}}{{template "top" "Publish"}}<p class="crumbs"><a href="/apps/{{.Info.App}}">{{.Info.App}}</a></p>
-<form class="card" method="post" action="/apps/{{.Info.App}}/publish"><h1>{{if .Rollback}}Roll back{{else}}Publish{{end}} version {{.Version}}?</h1>
+{{define "publish"}}{{template "apptop" .}}<form class="card formcard" method="post" action="/apps/{{.Info.App}}/publish"><h1>{{if .Rollback}}Roll back{{else}}Publish{{end}} version {{.Version}}?</h1>
 <p>Your agent asked to make version {{.Version}} of <strong>{{.Info.App}}</strong> live at <a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a>.</p>
 <p class="muted">Live now: {{if .Info.LiveVersion}}version {{.Info.LiveVersion}}{{else}}nothing yet{{end}}. <a href="/apps/{{.Info.App}}/preview">Check the preview</a> first if you have not.</p>
 <p class="muted">Live data is backed up before the change.</p>
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
-<button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "bottom"}}{{end}}
+<button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "appbottom"}}{{end}}
 
 {{define "admin_list"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>{{.Label}}</h1><p class="sub">{{.Pager.Of}} {{if eq .Total 1}}row{{else}}rows{{end}}{{if .Query}} matching "{{.Query}}"{{end}}</p></div>
@@ -1015,9 +1023,8 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 .optable td{white-space:nowrap}.optable form.inline input{width:150px}.optable .em{max-width:280px;overflow:hidden;text-overflow:ellipsis}
 .alerts{margin:0 0 16px}.alerts li{margin:4px 0}
 </style>
-<div class="pagehead"><div><h1>Renoxium operator</h1><p class="sub">Accounts, apps, abuse reports and growth across the platform.</p></div>
-<div class="acts"><a class="button secondary" href="/operator/resources">Resources</a><a class="button secondary" href="#growth">Growth</a></div></div>
-{{with .Health}}{{range .Problems}}<p class="flash bad error">{{.}}</p>{{end}}{{end}}
+<div class="pagehead"><div><h1>Platform</h1><p class="sub">Accounts, apps and abuse reports across Renoxium.</p></div></div>{{template "tabs" .Tabs}}
+{{if eq .Tab "overview"}}{{with .Health}}{{range .Problems}}<p class="flash bad error">{{.}}</p>{{end}}{{end}}
 <div class="kpis">
 <div class="kpi"><div class="l">Accounts</div><div class="v">{{.Accounts}}</div><div class="n">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
 <div class="kpi"><div class="l">Subscription revenue</div><div class="v">AED {{.MRR}}</div><div class="n">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
@@ -1026,26 +1033,27 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{with .Health}}<div class="kpi"><div class="l">Server</div><div class="v">{{.DiskFreeGB}} GB</div><div class="n">free of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
 </div>
 {{with .Health}}{{with .Alerts}}<details class="panel alerts"><summary>Recent alerts</summary><ul>{{range .}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{end}}
-<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="Search by email or app name" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>
-<span class="sp"></span><span class="muted">Card fees and subscription payments are in the Stripe Dashboard.</span></form>
-
 {{if .Reports}}<section class="panel"><div class="ph"><h2>Abuse reports <span class="muted">({{.OpenReports}} open)</span></h2></div>
 {{range .Reports}}<div class="report{{if .Resolved}} done{{end}}"><p><strong>{{.Address}}</strong> <span class="muted">{{.CreatedAt}}{{with .Contact}} · {{.}}{{end}}</span></p><p>{{.Details}}</p>
-{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin-top:0">Mark handled</button></form>{{end}}</div>{{end}}</section>{{end}}
-
-<section class="panel"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll"><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
-{{range .Users}}<tr><td class="em"><a href="/operator?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td><span class="tag">{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</span></td><td class="muted">{{.CreatedAt}}</td>
+{{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin-top:0">Mark handled</button></form>{{end}}</div>{{end}}</section>{{end}}{{if not .Reports}}<p class="muted">No abuse reports.</p>{{end}}
+<p class="muted" style="margin-top:14px">Card fees and subscription payments are in the Stripe Dashboard.</p>
+{{else if eq .Tab "accounts"}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
+<section class="panel"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll fit"><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
+{{range .Users}}<tr><td class="em"><a href="/operator/apps?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td><span class="tag">{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</span></td><td class="muted">{{.CreatedAt}}</td>
 <td><form method="post" action="/operator/plan" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">
 <select name="plan" aria-label="Plan"><option value="free">free</option><option value="pro">pro</option><option value="business">business</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
 </tbody></table></div></section>
 
-<section class="panel"><div class="ph"><h2>Apps</h2></div><div class="scroll"><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
+{{else}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
+<section class="panel"><div class="ph"><h2>Apps</h2></div><div class="scroll fit"><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
 {{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
 <td>{{if .LiveVersion}}<span class="pill live">v{{.LiveVersion}}</span>{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}<span class="ok">ready</span>{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
 <td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
 {{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}
 </tbody></table></div></section>
-{{with .Growth}}{{template "growth" .}}{{else}}<div class="card" style="margin-top:16px"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "appbottom"}}{{end}}
+{{end}}{{template "appbottom"}}{{end}}
+
+{{define "operator_growth"}}{{template "owntop" .}}{{template "owncss"}}{{with .Growth}}{{template "growth" .}}{{else}}<div class="card"><h1>Growth</h1><p class="error">The growth figures could not be read; see the server log.</p></div>{{end}}{{template "appbottom"}}{{end}}
 
 {{define "account"}}{{template "owntop" .}}{{template "owncss"}}
 <div class="pagehead"><div><h1>Account settings</h1><p class="sub">Sign-in, your data and your account.</p></div></div>
@@ -1068,7 +1076,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{define "billing"}}{{template "owntop" .}}{{template "owncss"}}
 <div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">Your Renoxium plan, what you have used this month, and payments.</p></div></div>
 {{with .Notice}}<p class="flash" role="status">{{.}}</p>{{end}}
-<section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
+<div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
 <p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else}}/ month{{end}}</span></p>
 {{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
 {{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
@@ -1081,9 +1089,9 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{range .Meters}}<div class="meter{{if .Warn}} warn{{end}}"><div class="top"><span>{{.Label}}</span><span><b>{{.Used}}{{.Unit}}</b> of {{.Quota}}{{.Unit}}</span></div><div class="tr" role="progressbar" aria-label="{{.Label}}" aria-valuenow="{{.Pct}}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{.Pct}}%"></i></div></div>{{end}}
 </div></section>
 
-<section class="panel"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
+</div><section class="panel" style="margin-top:16px"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
 {{if not .Ready}}<p class="flash">Paid plans are not available yet.</p>{{end}}
-<div class="tiers" style="margin-top:22px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
+<div class="tiers" style="margin-top:18px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
 <h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">AED {{.Price}} <small>/ month</small></p>
 <ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>
 {{if .Current}}<span class="is">Current plan</span>
@@ -1267,9 +1275,30 @@ your app can send it data, including your customers' details.</p>
 {{if and .ID (not .Demo)}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
 {{template "appbottom"}}{{end}}
 
-{{define "connect"}}{{template "wide" "Connect"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
+{{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
+.tcards{display:grid;gap:12px}@media(min-width:680px){.tcards{grid-template-columns:1fr 1fr}}@media(min-width:1240px){.tcards{grid-template-columns:repeat(3,1fr)}}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:grid;grid-template-columns:76px minmax(0,1fr);gap:14px;align-items:start;scroll-margin-top:16px}
+.tcard:target{border-color:var(--gold)}
+.tcard img{width:76px;height:auto;aspect-ratio:600/900;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--line)}
+.tcard h3{font-size:16px;margin:0 0 2px}.tcard .job{font-size:12.5px;color:var(--muted);margin:0 0 6px}.tcard p{margin:0 0 6px;font-size:14px;line-height:1.45;color:var(--muted)}
+.tcard .tlinks{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:14px;align-items:center}
+.tcard .tlinks button{margin:0;min-height:0;padding:0;border:0;background:none;color:var(--fg);font-size:14px;font-weight:400;text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
+</style>
+<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
+<div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
+<div class="tcards">{{range .Groups}}{{$job := .Job}}{{range .Cards}}<article class="tcard" id="{{.Name}}">
+{{if .Screen.File}}<img src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">{{else}}<span></span>{{end}}
+<div><h3>{{.Title}}</h3><p class="job">{{$job}}</p><p>{{.Summary}}</p>
+<div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Owner's admin panel</a><button type="button" data-prompt="{{.Prompt}}">Copy the request</button></div></div></article>{{end}}{{end}}</div>
+<p class="muted" style="margin-top:14px">Something in between? Start from the closest template and tell your assistant what to change.</p>
+<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-prompt]");if(!b)return;var t=b.getAttribute("data-prompt");if(navigator.clipboard)navigator.clipboard.writeText(t);b.textContent="Copied: paste it to your assistant"})</script>
+{{template "appbottom"}}{{end}}
+
+{{define "connect_body"}}<div class="card connect">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
-{{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{template "bottom"}}{{end}}
+{{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{end}}
+{{define "connect"}}{{if .Shell}}{{template "owntop" .}}{{template "owncss"}}<style>.connect>h1:first-child{display:none}@media(min-width:1100px){.connect{column-count:2;column-gap:44px}.connect h2{break-after:avoid;margin-top:20px}.connect p,.connect ul,.connect ol{break-inside:avoid}.connect>:nth-child(2){margin-top:0}}.connect{font-size:15px}</style>
+<div class="pagehead"><div><h1>Connect and help</h1><p class="sub">Add Renoxium to ChatGPT or Claude once, then ask for a new app or a change.</p></div><div class="acts"><a class="button secondary" href="/support">Support</a></div></div>{{template "connect_body" .}}{{template "appbottom"}}{{else}}{{template "wide" "Connect"}}{{template "connect_body" .}}{{template "bottom"}}{{end}}{{end}}
 
 {{define "forgot"}}{{template "auth" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
 <p class="muted">Enter your email and we will send you a link to choose a new password.</p>
