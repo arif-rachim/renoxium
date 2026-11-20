@@ -19,7 +19,7 @@ import (
 
 const (
 	// helperShotTime is the longest one connection may keep its browser.
-	helperShotTime = 2 * shotTimeout
+	helperShotTime = browserStartTimeout + 2*shotTimeout
 	// helperBrowsers is how many browsers the helper runs at once.
 	helperBrowsers = 2 * shotsAtOnce
 )

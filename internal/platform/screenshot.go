@@ -66,11 +66,16 @@ var screenshotCDNs = []string{"fonts.googleapis.com", "fonts.gstatic.com", "unpk
 	"a.basemaps.cartocdn.com", "b.basemaps.cartocdn.com", "c.basemaps.cartocdn.com", "d.basemaps.cartocdn.com"}
 
 const (
-	maxShotHeight     = 8000
-	maxShotWait       = 5 * time.Second
-	shotTimeout       = 25 * time.Second
-	shotsAtOnce       = 2 // browsers running at the same time on the server
-	shotsPerAppPerMin = 10
+	maxShotHeight = 8000
+	maxShotWait   = 5 * time.Second
+	shotTimeout   = 25 * time.Second
+	// browserStartTimeout is how long Chromium may take to start answering.
+	// The first start after a boot or a deploy reads the whole browser from
+	// disk, on a busy machine well past a shot's own time, so it has a
+	// budget of its own.
+	browserStartTimeout = 60 * time.Second
+	shotsAtOnce         = 2 // browsers running at the same time on the server
+	shotsPerAppPerMin   = 10
 )
 
 var errNoBrowser = errors.New("screenshots are not set up on this server (no Chromium); use test_request to read the page")
@@ -113,7 +118,7 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 			return ScreenshotResult{}, err
 		}
 		visitorToken = secretToken()
-		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(visitorToken), id, time.Now().Add(time.Minute).Unix()); err != nil {
+		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(visitorToken), id, time.Now().Add(browserStartTimeout+shotTimeout+10*time.Second).Unix()); err != nil {
 			return ScreenshotResult{}, err
 		}
 		defer st.admin.Exec(`DELETE FROM rx_sessions WHERE hash = ?`, sha(visitorToken))
@@ -125,13 +130,22 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 	case <-ctx.Done():
 		return ScreenshotResult{}, ctx.Err()
 	}
-	ctx, cancel := context.WithTimeout(ctx, shotTimeout)
+	// The browser lives for the start and the shot; each has its own limit.
+	ctx, cancel := context.WithTimeout(ctx, browserStartTimeout+shotTimeout)
 	defer cancel()
 	b, err := p.startBrowser(ctx)
 	if err != nil {
 		return ScreenshotResult{}, err
 	}
 	defer b.close()
+	startCtx, started := context.WithTimeout(ctx, browserStartTimeout)
+	_, err = b.call(startCtx, "", "Browser.getVersion", nil)
+	started()
+	if err != nil {
+		return ScreenshotResult{}, fmt.Errorf("browser: did not start: %w", err)
+	}
+	ctx, cancelShot := context.WithTimeout(ctx, shotTimeout)
+	defer cancelShot()
 	shot := &previewShot{p: p, app: app, host: p.host(app, Preview), visitorToken: visitorToken}
 	return shot.take(ctx, b, p.URL(app, Preview)+path, w, h, mobile, in.FullPage, !in.MotionAllowed, wait)
 }
