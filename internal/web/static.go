@@ -136,6 +136,55 @@ func (s *Site) sitePaths(cards []galleryCard) []sitePath {
 	}
 }
 
+// trade is one kind of business on the landing page: what its customers do
+// on the site and what the owner gets, shown with the demo that fits it.
+type trade struct {
+	ID, Tab, Example  string
+	Customers, Owner  []string
+	Screen            screen
+	DemoURL, AdminURL string
+}
+
+var trades = []trade{
+	{ID: "salon", Tab: "Salons and spas", Example: "booking-uae",
+		Customers: []string{"Pick a service, a stylist and a free time", "Pay a deposit by card, or pay at the salon", "Join a class with limited seats, billed per term or monthly", "Cancel in time and the deposit is refunded at once"},
+		Owner:     []string{"A day calendar with one lane per stylist", "No double bookings: free times come from your hours and each stylist's bookings", "Tomorrow's schedule by email every evening", "Move or cancel a booking and the customer is emailed"}},
+	{ID: "shop", Tab: "Shops", Example: "store-uae",
+		Customers: []string{"Browse by category, search and filter", "Choose a size or option with its own price and stock", "Pay by card or cash on delivery, with discount codes", "Pick a delivery date for made-to-order cakes or flowers"},
+		Owner:     []string{"Every order with its status in your panel", "A delivery fee, and free delivery above an amount you set", "Stock for each product option", "Tax invoices once you add your TRN"}},
+	{ID: "home", Tab: "Home services", Example: "home-service-uae",
+		Customers: []string{"Choose a service, an area and an arrival window", "Add a photo of the problem", "Book weekly or two-weekly visits, paid by card automatically", "Follow the crew on a map on the day"},
+		Owner:     []string{"A set number of crews per window, so you are never overbooked", "A phone page for each crew: on the way, arrived, completed, cash collected", "Area surcharges added to the price", "Cancellations before your cut-off are refunded automatically"}},
+	{ID: "tours", Tab: "Tours and rentals", Example: "reservation-uae",
+		Customers: []string{"Book seats on a dated departure, with adult and child prices", "Rent a car or equipment by the day, with a weekly price", "Add extras such as a child seat or delivery", "Get a voucher to show on the day"},
+		Owner:     []string{"Seats and stock counted from the reservations, never oversold", "A deposit online and the balance on the day", "A security deposit as a card hold you release or capture at the return", "Tomorrow's departures, handovers and returns by email"}},
+	{ID: "property", Tab: "Property brokers", Example: "listings-uae",
+		Customers: []string{"Search by sale or rent, community, bedrooms and price", "See the permit number and QR code on every listing", "Request a viewing or ask a question without signing in", "Call or WhatsApp the agent from the listing"},
+		Owner:     []string{"Leads in your panel with a follow-up status", "Viewings in a calendar, one lane per agent", "A listing without a permit number stays hidden", "A daily summary by email"}},
+	{ID: "services", Tab: "Business services", Example: "quote-portal-uae",
+		Customers: []string{"Send an enquiry with a target date and a budget", "Read your quote and accept it online", "Pay the deposit and the balance by card or bank transfer", "Follow progress and share documents in a private portal"},
+		Owner:     []string{"Write quotes in your panel, with 5% VAT added or included", "A payments ledger for each quote", "Clients are emailed when you update a quote", "Card payments refunded when you cancel a quote, if you choose"}},
+}
+
+// siteTrades fills the trades with their demos; a trade whose demo is not
+// in the gallery is left out.
+func (s *Site) siteTrades(cards []galleryCard) []trade {
+	byName := map[string]galleryCard{}
+	for _, c := range cards {
+		byName[c.Name] = c
+	}
+	var out []trade
+	for _, t := range trades {
+		c, ok := byName[t.Example]
+		if !ok {
+			continue
+		}
+		t.Screen, t.DemoURL, t.AdminURL = screens[t.Example], c.DemoURL+"/", c.AdminURL
+		out = append(out, t)
+	}
+	return out
+}
+
 // suits joins the kinds of business a template suits into one sentence
 // part: "beauty salons and barbers, spas and clinics".
 func suits(kinds []string) string {
