@@ -20,7 +20,8 @@ func TestListingsBoutiqueTheme(t *testing.T) {
 		`<form class="v-find" method="get" action="/search"`, `name="purpose"`, `name="community"`, `<option value="Dubai Marina">`, `name="type"`, `name="max"`,
 		"Real estate, the personal way.", "Licensed brokers", "A permit on every advert", "Viewings at your time",
 		`id="v-track"`, `data-scroll="1"`, `class="v-card" href="/l/1"`, "MH-1001", "AED 2,350,000", "2 bedrooms", "Omar Al Hashimi",
-		`class="v-sell"`, `class="site-foot b-foot"`, "Property types", `href="/search?type=villa"`} {
+		`class="v-close"`, `class="v-curve"`, `class="v-stats"`, `<strong>9</strong><span>Properties</span>`, `<strong>5</strong><span>For rent</span>`,
+		`class="v-area" href="/search?community=Dubai%20Marina"`, "2 properties", "1 property", `class="v-chips"`, `href="/search?type=villa">Villa<span>2</span>`, `class="site-foot b-foot"`, "Property types", `href="/search?type=villa"`} {
 		if !strings.Contains(home, want) {
 			t.Errorf("boutique home lacks %q", want)
 		}

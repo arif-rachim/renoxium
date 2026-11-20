@@ -91,37 +91,26 @@ Rules of the luxury style:
 `font = boutique` keeps `data-style="standard"` (every template's normal layout works) and sets `theme.boutique`. Its look is the
 `boutique` template (the same copy in every template, included from `head` only for this font; `TestThemeIsTheSameEverywhere`):
 cream paper `#fbf6f1`, deep brown ink `#3b2a22`, the brand colour as the accent (default terracotta `#b4643f`), Gilda Display
-headings (Amiri in Arabic) and DM Sans text (IBM Plex Sans Arabic), 4px buttons in small tracked capitals, 16px photos, arched
-tiles (`.arch`), ovals (`.oval`), a small tracked label (`.eyebrow`), a short rule (`.rule`) and arrows that turn in Arabic (`.arr`).
+headings (Amiri in Arabic) and DM Sans text (IBM Plex Sans Arabic), 4px buttons in small tracked capitals, 16px photos, a small tracked label (`.eyebrow`), a short rule (`.rule`) and arrows that turn in Arabic (`.arr`).
 
-A template may add a boutique layout with `{{if .theme.boutique}}`. booking-uae does (`home_boutique`): a split hero with a label
-(`business.eyebrow`), an accent line (`tagline_accent`), an intro and a turning stamp; highlights with line icons (table
-`highlights`, template `icon`); arched service cards with their category; a brand-colour band (story); a closing call to book with
-an oval photo (`interior_image`); a "Book" button in the header and a three-column footer. A rating shows only when the owner sets
-a real `rating` and `review_count`; never seed invented reviews.
+A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutique`). Five templates have one. They share these rules:
 
-home-service-uae has its own (`home_boutique`, classes `h-…`), seeded in forest green `#1F3A2E`: a split hero with a big
-headline (`headline` + `tagline_accent`, capitals in Latin script only), the label (`eyebrow`) and `intro`; service cards with a
-round icon (`services.icon`, template `icon`); highlights next to `story_image` (table `highlights`); three steps in texts
-(`step1_title` ... `step3_text`) next to `interior_image`; one customer review from table `testimonials` only when the owner adds
-a real one (empty in the seed); the areas and facts; a brand-colour closing band; header links, a "Book a visit" button and a
-three-column footer. It has no motion kit, so its boutique motion is only hover transforms.
+- **Density.** Sections sit 28-44px apart, and every block carries real information: numbers counted with SQL from the app's own
+  tables, facts from the settings row (hours, fees, payment methods, VAT, cancellation), category chips with counts, a FAQ built
+  from the settings. Never invent statistics, ratings or reviews.
+- **Reviews and ratings.** Shown only when the owner adds real ones (table `testimonials`, up to three; `rating` and
+  `review_count` where the template has them). The template's seed keeps them empty. The gallery demos alone get sample rows
+  (`internal/platform/demosample_<example>.go`, every name marked "(sample)"); the store demo also gets four more products there.
+- **Photo frames.** Never plain rectangles, and never the arch (round top, square bottom): it was used everywhere and is retired.
+  Each template has its own frame, mirrored in Arabic, with thin ring or line ornaments behind the photos.
 
-store-uae has its own (`home_boutique`, classes `e-…`), seeded in forest green `#1F3A2E`: a hero with a label (`store.eyebrow`),
-the tagline with an accent line (`tagline_accent`), `intro` and an arched `hero_image` in a gold outline; the categories as
-"families" with an arched photo (each category's first product photo), filtered in place by the motion kit; a search field and the
-products in arched cards with an optional label (`products.badge`: bestseller, new) and a quick-add button for products without
-variants (opens the cart drawer); a promo band only for a coupon the owner marks `promote` (active, not expired, not used up);
-the story next to `story_image`, with one customer quote from table `testimonials` only when the owner adds a real one (empty in
-the seed); and a three-column footer.
-
-listings-uae has its own (`home_boutique`, classes `v-…`), seeded in forest green `#1F3A2E` on a cooler cream: a photo hero
-(`hero_image`, faded into the paper on the text side) with a label (`agency.eyebrow`), a headline (`headline` + `tagline_accent`)
-and `intro`; a floating search bar (purpose, location, type, maximum price) that sends to `/search`; about with
-`interior_image` (or `story_image`) and highlights (table `highlights`, template `icon`); the featured listings as a scrolling row
-of cards with arrows (purpose label, beds, baths, area, reference, price); up to three client reviews from table `testimonials`
-only when the owner adds real ones (empty in the seed); the agents; a brand-colour valuation band; a "Browse properties" button in
-the header and a four-column footer with property types.
+| Template | Classes | Seed colour | Photo frame | Home page blocks |
+|---|---|---|---|---|
+| booking-uae | `b-…` | terracotta `#B4643F` | organic pebbles (three fixed shapes) with a tinted pebble behind | hero with a turning stamp, counted numbers, facts strip, category chips that filter the service cards in place, brand panel with the story and highlights, classes next to the team, reviews, closing call to book with the week's opening hours, four-column footer |
+| store-uae | `e-…` | forest green `#1F3A2E` | ovals and circles in a thin gold ring; soft squircle product photos | hero with counted numbers, facts strip (delivery, free delivery, payment, VAT), collections with counts, search and product grid with labels and quick add, promo band only for a coupon marked `promote`, new arrivals, story with contact facts, reviews, four-column footer |
+| home-service-uae | `h-…` | forest green `#1F3A2E` | rounded photos with a tinted block offset behind; a speech-tab shape (one square corner) | hero with counted pills, facts strip, six compact service cards, why-us next to the three steps, reviews, areas as chips with their surcharge, FAQ, closing band, four-column footer |
+| listings-uae | `v-…` | forest green `#1F3A2E` | curved hero edge, organic about photo with a round second photo, leaf-shaped community tiles, cards with one large corner | photo hero with a floating search bar, counted numbers, about with highlights, communities with their number of homes, type chips, featured cards in a row with arrows, reviews, agents next to the valuation card, four-column footer |
+| quote-portal-uae | `s-…` | gold `#C9A14A` on navy, plain capitals instead of the serif | diagonal cuts and chamfered corners with gold hairlines | photo hero with a licence badge, highlights strip, numbers bar (services, areas, quote validity, deposit, years only when set), about with the service areas, service cards in a row with arrows, four steps, reviews, "included in every quote" and FAQ from the settings, custom-case band, four-column footer. Invoices and printouts switch back to white paper |
 
 ## 4. Type scale
 

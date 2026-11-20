@@ -30,6 +30,7 @@ var demoImageSets = map[string][]DemoImageSet{
 		"White Musk":   {"image": "store-white-musk.webp"},
 		"Amber Night":  {"image": "store-amber-night.webp"},
 		"Oud Gift Set": {"image": "store-oud-gift-set.webp"},
+		// The added products reuse the shop's own photos.
 	}}},
 	"booking-uae": {
 		{Table: "business", Key: "name", Rows: map[string]map[string]string{
