@@ -457,6 +457,46 @@ Store-uae's own components (intro, cats, tiles, pdp, options, stepper, buybar, c
 collection and visit blocks) follow in its `css` template;
 reuse them for similar pieces (service grids = tiles, booking detail = pdp, booking/quote lists = orders) rather than inventing new ones.
 
+## 8a. Motion kit (store-uae first; copy it to the other templates)
+
+store-uae and booking-uae carry the kit as two named templates, so `patch_app` can replace either one alone. **Every template
+carries the same copy** (`TestMotionKitIsTheSameEverywhere`): change the kit in all templates at once, and put a template's own
+motion in its own `css`. Parts that need a component only switch on where it exists (the cart drawer needs `rxCart` in `top`,
+the gallery needs `.gal`, in-place search needs `#results`).
+
+- `motion` (CSS, included from `head` after `css`) and `motion_js` (one inline script, included from `bottom` before `</body>`).
+- `top` adds the `js` class on `<html>` before anything paints and fires a `rxcart` event from `rxSave`; motion styles that hide
+  something until it animates are scoped to `.js`, so pages work without JavaScript.
+
+Rules:
+
+- **Only `transform` and `opacity` animate.** Nothing reflows, so CLS stays 0. One easing (`--ease-out: cubic-bezier(.2,.7,.2,1)`)
+  and three durations (`--t-fast` .18s, `--t-mid` .35s, `--t-slow` .7s).
+- **The first screen never waits.** Reveal-on-scroll (`.rv` → `.rv.in`, IntersectionObserver, staggered by 70 ms) only applies to
+  blocks below the fold at load, and only `loading="lazy"` images fade in over a shimmer (`.well.sk`). The hero and the first
+  product photo paint at once, so LCP is unchanged.
+- **Reduced motion turns it all off**: the kit adds no `.rv`, the CSS resets animations, and the view transition is disabled.
+- **RTL**: the drawer uses `inset-inline-end` and slides from the end side; directions never assume left-to-right.
+- **Progressive enhancement**: every part checks for the browser feature it needs (View Transitions, IntersectionObserver,
+  `<dialog>`, DOMParser) and leaves a working page without it.
+
+Parts:
+
+| Part | How |
+| --- | --- |
+| List → product transition | `@view-transition {navigation: auto}`; the tile photo and the product's first photo share `view-transition-name: pimg-<id>` |
+| Luxury hero | Ken Burns zoom in CSS (`rx-kb`), parallax with the `translate` property (it does not fight the animation's `transform`) |
+| Prefetch | `<link rel=prefetch>` on `pointerover`/`touchstart` of same-origin links (not `/_rx/`, not `/checkout`) |
+| Cart drawer | `rxDrawer.open()`; totals from `/api/products` with `rxDrawer.sum()`, the same delivery rule as `deliveryFor` in lib `common` (tested in `store_delivery_test.go`); Checkout goes to `/cart` |
+| Filters and search | `#results` is swapped with the server-rendered results of the new URL (no client templates), `history.pushState`/`replaceState`, `popstate` reloads the results |
+| Gallery and zoom | `products.image2`/`image3` (optional); scroll-snap carousel with dots, a `<dialog>` for full screen, tap to zoom |
+| PWA | `/manifest.webmanifest` from the store's name, brand colour and logo |
+| Choices and time slots | press feedback on `.opt`, `.day` and `.slot`; time slots pop in (`rx-pop`) as they load |
+| Print | everything waiting for a reveal is shown, the drawer is hidden |
+
+Budget (checked for the store and booking demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
+LCP ≤ 2.5 s, CLS ≤ 0.1, inline JS ≤ 30 KB, non-image bytes ≤ 150 KB per page.
+
 ## 9. Checklist per template
 
 1. Settings columns above added with labels/help, seeded with a fitting colour + font; logo seed empty.

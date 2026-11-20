@@ -26,7 +26,7 @@ var demoImageSets = map[string][]DemoImageSet{
 	"store-uae": {{Table: "store", Key: "name", Rows: map[string]map[string]string{
 		"Al Noor Perfumes": {"hero_image": "store-hero.webp", "story_image": "store-story.webp"},
 	}}, {Table: "products", Key: "name", Rows: map[string]map[string]string{
-		"Royal Oud":    {"image": "store-royal-oud.webp"},
+		"Royal Oud":    {"image": "store-royal-oud.webp", "image2": "store-story.webp", "image3": "store-hero.webp"},
 		"White Musk":   {"image": "store-white-musk.webp"},
 		"Amber Night":  {"image": "store-amber-night.webp"},
 		"Oud Gift Set": {"image": "store-oud-gift-set.webp"},

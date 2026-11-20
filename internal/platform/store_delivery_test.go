@@ -3,8 +3,10 @@ package platform_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/arif-rachim/renoxium/examples"
@@ -65,7 +67,7 @@ func TestStoreUAEDeliveryFee(t *testing.T) {
 
 			// Cart: the page's own script, with the cart in the browser's storage, shows delivery and total.
 			cartPage := req(platform.TestRequestInput{Path: "/cart", UserEmail: "fatima@mail.ae"}).Body
-			vm := pageScript(t, p, app, "fatima@mail.ae", cartPage, "rxCart()",
+			vm := pageScript(t, p, app, "fatima@mail.ae", cartPage, "cart-field",
 				`var __cart = `+c.cart+`; function rxCart() { return __cart; } function rxSave(c) { __cart = c; }`)
 			wantDel := fmt.Sprintf("AED %.2f", c.want)
 			if c.want == 0 {
@@ -76,6 +78,17 @@ func TestStoreUAEDeliveryFee(t *testing.T) {
 			}
 			if got, want := text(t, vm, "total"), fmt.Sprintf("AED %.2f", c.sub+c.want); got != want {
 				t.Errorf("cart shows total %q, want %q", got, want)
+			}
+			// The cart drawer (motion kit) works the totals out the same way.
+			dvm := pageScript(t, p, app, "fatima@mail.ae", cartPage, "rxDrawer=",
+				`var __cart = `+c.cart+`; function rxCart() { return __cart; } function rxSave(c) { __cart = c; }`)
+			api := req(platform.TestRequestInput{Path: "/api/products?ids=" + cartKeys(c.cart)}).Body
+			v, err := dvm.RunString(`(function(){ var s = window.rxDrawer.sum(__cart, ` + api + `); return [s.del, s.tot]; })()`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := v.Export().([]any); toFloat(got[0]) != c.want || toFloat(got[1]) != c.sub+c.want {
+				t.Errorf("cart drawer shows delivery %v total %v, want %v and %v", got[0], got[1], c.want, c.sub+c.want)
 			}
 
 			// Checkout: the order row stores what the shopper is charged.
@@ -98,4 +111,29 @@ func TestStoreUAEDeliveryFee(t *testing.T) {
 			}
 		})
 	}
+}
+
+// cartKeys turns a cart's JSON into the ids parameter of /api/products, e.g. "1.1,2".
+func cartKeys(cart string) string {
+	var items []struct{ ID, V int }
+	json.Unmarshal([]byte(cart), &items)
+	keys := []string{}
+	for _, i := range items {
+		if i.V > 0 {
+			keys = append(keys, fmt.Sprintf("%d.%d", i.ID, i.V))
+		} else {
+			keys = append(keys, fmt.Sprint(i.ID))
+		}
+	}
+	return strings.Join(keys, ",")
+}
+
+func toFloat(v any) float64 {
+	switch x := v.(type) {
+	case int64:
+		return float64(x)
+	case float64:
+		return x
+	}
+	return -1
 }
