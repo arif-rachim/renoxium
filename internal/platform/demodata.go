@@ -53,6 +53,9 @@ func (p *Platform) demoData(ctx context.Context, name string) error {
 			return fmt.Errorf("demo schedule: %w", err)
 		}
 	}
+	if err := demoSampleRows(ctx, st.admin, example); err != nil {
+		return fmt.Errorf("demo samples: %w", err)
+	}
 	return nil
 }
 
