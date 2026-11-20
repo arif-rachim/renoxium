@@ -752,7 +752,11 @@ func (l *limiter) allow(key string) bool {
 var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "top"}}{{template "head" .}}<body>{{template "pubnav"}}<main>{{end}}
 {{define "wide"}}{{template "head" .}}<body>{{template "pubnav"}}<main class="wide">{{end}}
-{{define "auth"}}{{template "head" .}}<body class="auth">{{template "pubnav"}}<main>{{end}}
+{{define "auth"}}{{template "head" .}}<body class="auth">{{template "pubnav"}}<div class="authwrap"><main>{{end}}
+{{define "authbottom"}}</main><aside class="authside" aria-label="About Renoxium"><h2>Orders, bookings and payments in one place.</h2>
+<p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد</p>
+<p>Describe your business to ChatGPT or Claude. Renoxium builds the website, you check the preview, and nothing goes live until you publish.</p>
+<ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
 {{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
 {{define "appbottom"}}</main></div></body></html>{{end}}
 {{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
@@ -779,7 +783,19 @@ a{color:var(--accent);text-decoration-color:var(--muted);text-underline-offset:3
 .bar-top nav a.button{color:var(--accent-ink);margin:0}.button.sm{min-height:40px;padding:8px 16px;font-size:15px}
 @media(max-width:600px){.bar-top nav .wide{display:none}.bar-top nav{gap:4px 16px}}
 .sidenav a.back{display:inline-block;font-size:14px;color:var(--muted);text-decoration:none;margin:0 0 14px}.sidenav a.back:hover{color:var(--fg)}
-main{max-width:600px;margin:32px auto 64px;padding:0 20px}main.wide{max-width:1120px}body.auth main{max-width:440px;margin-top:56px}
+main{max-width:600px;margin:32px auto 64px;padding:0 20px}main.wide{max-width:1120px}body.auth{background:var(--card)}.authwrap{display:grid;min-height:calc(100vh - 69px)}
+body.auth main{max-width:none;margin:0;padding:clamp(32px,9vh,104px) 24px 56px;display:flex;justify-content:center;align-items:flex-start}
+body.auth main>.card{width:100%;max-width:400px;border:0;border-radius:0;padding:0;background:none}
+body.auth h1{font-size:30px;line-height:1.15;margin-bottom:10px}body.auth main button{width:100%}body.auth main .row button{flex:1;width:auto}body.auth code{display:block;padding:10px 12px}
+.authside{display:none}
+@media(min-width:960px){.authwrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.authside{display:flex;flex-direction:column;justify-content:center;position:relative;isolation:isolate;overflow:hidden;background:#101b33;color:#e7ecf4;padding:64px clamp(40px,6vw,104px);border-inline-start:1px solid var(--line)}
+.authside::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.3;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M18 18H54V54H18ZM36 10.5L61.5 36L36 61.5L10.5 36ZM36 0V10.5M36 61.5V72M0 36H10.5M61.5 36H72' fill='none' stroke='%23d2a955' stroke-width='1'/%3E%3C/svg%3E");-webkit-mask-image:radial-gradient(ellipse 80% 70% at 100% 0,#000 0,transparent 72%);mask-image:radial-gradient(ellipse 80% 70% at 100% 0,#000 0,transparent 72%)}
+.authside h2{font-size:clamp(28px,2.7vw,40px);line-height:1.1;letter-spacing:-.03em;color:#fff;margin:0;max-width:13em}
+.authside .ar{font-size:clamp(20px,1.8vw,26px);font-weight:600;line-height:1.5;color:#d2a955;margin:18px 0 0;padding-top:18px;border-top:1px solid rgb(210 169 85 / .5);max-width:20em;text-align:start}
+.authside p{font-size:17px;line-height:1.6;color:#b9c4d8;max-width:30em;margin:24px 0 0}
+.authside ul{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:12px;max-width:30em}.authside li{padding-inline-start:22px;position:relative}
+.authside li::before{content:"";position:absolute;inset-inline-start:0;top:.62em;width:8px;height:8px;border-radius:50%;background:#d2a955}}
 .crumbs{font-size:14px;margin:0 0 14px;color:var(--muted)}.crumbs a{color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}.card+.card{margin-top:16px}
 h1{font-size:24px;line-height:1.25;margin:0 0 14px;font-weight:600;letter-spacing:-.02em}h2{font-size:18px;margin:0 0 10px;font-weight:600}
@@ -894,7 +910,7 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 <p class="muted">Add this connector address to your agent:</p><p><code>{{.MCP}}</code></p>
 <p><a href="/connect">How to connect ChatGPT or Claude</a></p>
 <div class="row"><a href="/signup">Create an account</a> · <a href="/login">Sign in</a></div>
-<p class="muted" style="margin-top:16px"><a href="/abuse">Report an app</a></p></div>{{template "bottom"}}{{end}}
+<p class="muted" style="margin-top:16px"><a href="/abuse">Report an app</a></p></div>{{template "authbottom"}}{{end}}
 
 {{define "abuse"}}{{template "top" "Report an app"}}<form class="card" method="post" action="/abuse"><h1>Report an app</h1>
 <p class="muted">Tell us about an app on Renoxium that is used for phishing, scams, malware or anything illegal.</p>
@@ -953,14 +969,14 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
-<button>Create account</button><p class="muted" style="margin-top:16px">Already have an account? <a href="/login?next={{.Next}}">Sign in</a></p></form>{{template "bottom"}}{{end}}
+<button>Create account</button><p class="muted" style="margin-top:16px">Already have an account? <a href="/login?next={{.Next}}">Sign in</a></p></form>{{template "authbottom"}}{{end}}
 
 {{define "login"}}{{template "auth" "Sign in"}}<form class="card" method="post" action="/login"><h1>Sign in to Renoxium</h1>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<button>Sign in</button><p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "bottom"}}{{end}}
+<button>Sign in</button><p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "authbottom"}}{{end}}
 
 {{define "consent"}}{{template "auth" "Allow access"}}<form class="card" method="post" action="/oauth/authorize"><h1>Allow {{.Client}}?</h1>
 <p><strong>{{.Client}}</strong> wants to create, change and publish your Renoxium apps, and read their logs.</p>
@@ -969,7 +985,7 @@ table.rx td.id{grid-column:2;grid-row:1;justify-content:flex-end}table.rx td.act
 <p class="muted">Signed in as {{.User.Email}} · <a href="{{.Switch}}">use another account</a></p>
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 {{range $k, $v := .Params}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}
-<div class="row"><button name="decision" value="allow">Allow</button><button class="secondary" name="decision" value="deny">Cancel</button></div></form>{{template "bottom"}}{{end}}
+<div class="row"><button name="decision" value="allow">Allow</button><button class="secondary" name="decision" value="deny">Cancel</button></div></form>{{template "authbottom"}}{{end}}
 
 {{define "demo_note"}}<p class="note" style="border:1px dashed var(--accent);background:var(--accent-soft)">
 This is the owner's admin panel of a template demo, shown read-only. In your own app you add, change and delete here, on your phone or computer. The data is public and deleted every hour.</p>{{end}}
@@ -1303,13 +1319,13 @@ your app can send it data, including your customers' details.</p>
 {{define "forgot"}}{{template "auth" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
 <p class="muted">Enter your email and we will send you a link to choose a new password.</p>
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required>
-<button>Send the link</button></form>{{template "bottom"}}{{end}}
+<button>Send the link</button></form>{{template "authbottom"}}{{end}}
 
 {{define "reset"}}{{template "auth" "New password"}}<form class="card" method="post" action="/reset"><h1>Choose a new password</h1>
 {{with .Email}}<p class="muted">For {{.}}</p>{{end}}{{with .Error}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="token" value="{{.Token}}">
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
-<button>Save and sign in</button><p class="muted" style="margin-top:16px">You will be signed out on every other device, and agents will need to connect again.</p></form>{{template "bottom"}}{{end}}
+<button>Save and sign in</button><p class="muted" style="margin-top:16px">You will be signed out on every other device, and agents will need to connect again.</p></form>{{template "authbottom"}}{{end}}
 
 {{define "notice"}}{{template "top" .Title}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">Continue</a></p>{{end}}</div>{{template "bottom"}}{{end}}
 
