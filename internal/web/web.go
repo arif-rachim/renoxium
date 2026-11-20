@@ -144,6 +144,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerGallery()
 	s.registerBrand()
 	s.registerStatic()
+	s.registerSEO()
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.Monitor != nil {
 			if err := s.Monitor.Healthy(); err != nil {
@@ -201,6 +202,10 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, pattern := s.mux.Handler(r); pattern == "" {
 		render(w, http.StatusNotFound, "notfound", nil)
+		return
+	}
+	if r.Method == http.MethodGet && isPublicPage(r.URL.Path) {
+		s.servePublic(w, r)
 		return
 	}
 	s.mux.ServeHTTP(w, r)

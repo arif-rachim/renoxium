@@ -223,6 +223,28 @@ Admin changes (on_admin_change), e.g. email the client when the owner sets a quo
   it changes the preview row with the admin panel's checks (on update, columns left out keep their value; "by" sets req.body.by),
   runs the script and returns its answer, the row after the change and the logs.
 
+Search engines, link previews and AI assistants (seo):
+- Pages are rendered on the server, so search engines read them as they are. On the live app the platform serves /robots.txt,
+  /sitemap.xml and /llms.txt (unless the app has its own route there) and adds to every public page's <head> what is missing:
+  the canonical address (the custom domain when there is one), og:title from <title>, og:description from the meta description,
+  og:url, og:type, og:site_name, twitter:card, and hreflang links. A tag the template writes itself is kept. The preview is never indexed.
+- So templates write, per page: <title>, <meta name="description" content="..."> (one sentence, at most 160 characters),
+  <meta property="og:image" content="absolute https address"> (the product photo on a product page; req.origin + path makes it
+  absolute) and, for a rich search result, <script type="application/ld+json">{{.jsonld}}</script> with a schema.org object built in
+  the script (Product with offers on a product page, LocalBusiness or Store on the home page). Pass the object, not a string:
+  the template writes it as JSON. The finished examples do all of this in seoOf (lib) and the head template; keep both.
+- "seo": {description, image, languages, sitemap, ai_crawlers, verify}, all optional:
+  description: one or two sentences about this business, for pages without a meta description and for /llms.txt.
+  image: the picture for shared links when a page has no og:image (a path or the url from upload_file; 1200x630).
+  languages: ["en", "ar"] when pages answer to ?lang=<code> (the first is the default, served without the parameter).
+  sitemap: the public pages, each a path ("/about") or a SELECT returning path (and optionally title, updated), e.g.
+    "SELECT '/p/' || id AS path, name AS title FROM products WHERE active = 1". Without it the sitemap lists the public GET
+    routes that have no parameters, so add it whenever the app has detail pages such as /p/:id. apply_change runs the SELECTs
+    and reports one that fails as a check on GET /sitemap.xml.
+  ai_crawlers: "block" keeps AI companies' crawlers out through robots.txt; leave it out unless the owner asks.
+  verify: {"google": "<code>"} adds the Search Console verification tag to the home page (also bing, yandex, pinterest, facebook).
+- Pages that must not be found (a tracking page, a courier page) write <meta name="robots" content="noindex"> themselves.
+
 Tools for shoppers' AI assistants (MCP):
 - "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
   about products. Anyone can call them without signing in (req.user is null), so return only public information, mark read-only
