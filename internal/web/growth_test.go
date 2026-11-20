@@ -43,6 +43,9 @@ func TestOperatorGrowth(t *testing.T) {
 
 	// Only the operator sees any of it.
 	for _, c := range []*http.Client{merchant, e.browser()} {
+		if r, _ := c.Get(e.base + "/operator/growth"); r.StatusCode != 404 {
+			t.Fatalf("growth page for a non-operator: %d", r.StatusCode)
+		}
 		if r, _ := c.Get(e.base + "/operator/growth.csv"); r.StatusCode != 404 {
 			t.Fatalf("csv for a non-operator: %d", r.StatusCode)
 		}
@@ -51,9 +54,20 @@ func TestOperatorGrowth(t *testing.T) {
 		}
 	}
 
-	r, _ := ops.Get(e.base + "/operator")
-	page := read(t, r)
-	for _, want := range []string{`id="growth"`, "3 owners, all time", "Signed up", "Email confirmed", "Agent connected", "First publish to live",
+	// The growth section is four pages, one per tab.
+	all := func() string {
+		out := ""
+		for _, path := range []string{"/operator/growth", "/operator/growth/weeks", "/operator/growth/economics", "/operator/growth/templates"} {
+			r, _ := ops.Get(e.base + path)
+			if r.StatusCode != 200 {
+				t.Fatalf("%s: %d", path, r.StatusCode)
+			}
+			out += read(t, r)
+		}
+		return out
+	}
+	page := all()
+	for _, want := range []string{`id="growth"`, `<a href="/operator/growth/economics">Unit economics</a>`, `aria-label="Account"`, `href="/operator/growth" aria-current="page"`, "3 owners, all time", "Signed up", "Email confirmed", "Agent connected", "First publish to live",
 		"First customer activity", "Paid plan started", "Still paying after 3 months", "33%", // 1 of 3 sign-ups published
 		"AED 99", "not enough data: fewer than 5 paying accounts", "enter marketing spend for the last three months", "aim for 3 or more",
 		"Activation by template", "<td>custom</td>", "Download funnel CSV", "Last 12 weeks"} {
@@ -65,10 +79,10 @@ func TestOperatorGrowth(t *testing.T) {
 		t.Error("the operator is counted as an owner")
 	}
 	month := time.Now().UTC().Format("2006-01")
-	if r, _ := ops.Get(e.base + "/operator?cohort=" + month); !strings.Contains(read(t, r), "3 owners, signed up in "+time.Now().UTC().Format("January 2006")) {
+	if r, _ := ops.Get(e.base + "/operator/growth?cohort=" + month); !strings.Contains(read(t, r), "3 owners, signed up in "+time.Now().UTC().Format("January 2006")) {
 		t.Error("this month's cohort")
 	}
-	if r, _ := ops.Get(e.base + "/operator?cohort=2020-01"); !strings.Contains(read(t, r), "0 owners, signed up in January 2020") {
+	if r, _ := ops.Get(e.base + "/operator/growth?cohort=2020-01"); !strings.Contains(read(t, r), "0 owners, signed up in January 2020") {
 		t.Error("an empty cohort")
 	}
 
@@ -103,8 +117,13 @@ func TestOperatorGrowth(t *testing.T) {
 	if code := post(url.Values{"action": {"margin"}, "margin": {"70%"}}); code != 303 {
 		t.Fatalf("margin: %d", code)
 	}
-	r, _ = ops.Get(e.base + "/operator")
-	page = read(t, r)
+	// Growth is its own page: the overview no longer carries it, and its links have no #growth.
+	if r, _ := ops.Get(e.base + "/operator"); true {
+		if p := read(t, r); strings.Contains(p, "Activation by template") || strings.Contains(p, "#growth") || !strings.Contains(p, `href="/operator/growth"`) {
+			t.Error("the operator overview still carries growth, or does not link to its page")
+		}
+	}
+	page = all()
 	// The payer started this month: CAC = 1500 ÷ 1.
 	for _, want := range []string{"<td class=\"n\">AED 1500</td>", `value="70"`, "AED 1500</div>"} {
 		if !strings.Contains(page, want) {
@@ -113,7 +132,7 @@ func TestOperatorGrowth(t *testing.T) {
 	}
 
 	// The per-owner CSV.
-	r, _ = ops.Get(e.base + "/operator/growth.csv")
+	r, _ := ops.Get(e.base + "/operator/growth.csv")
 	if r.StatusCode != 200 || !strings.HasPrefix(r.Header.Get("Content-Type"), "text/csv") || !strings.Contains(r.Header.Get("Content-Disposition"), "attachment") {
 		t.Fatalf("csv: %d %v", r.StatusCode, r.Header)
 	}

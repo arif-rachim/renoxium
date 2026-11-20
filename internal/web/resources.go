@@ -25,8 +25,13 @@ import (
 // email the owner, throttle the app for a while or suspend it.
 
 func (s *Site) registerResources() {
-	s.mux.HandleFunc("GET /operator/resources", s.resourcesPage)
-	s.mux.HandleFunc("GET /operator/resources/{app}", s.resourceAppPage)
+	s.mux.HandleFunc("GET /operator/resources", s.resourcesPage("server"))
+	s.mux.HandleFunc("GET /operator/usage", s.resourcesPage("apps"))
+	s.mux.HandleFunc("GET /operator/prices", s.resourcesPage("prices"))
+	s.mux.HandleFunc("GET /operator/resources/{app}", s.resourceAppPage("summary"))
+	s.mux.HandleFunc("GET /operator/resources/{app}/hours", s.resourceAppPage("hours"))
+	s.mux.HandleFunc("GET /operator/resources/{app}/scripts", s.resourceAppPage("scripts"))
+	s.mux.HandleFunc("GET /operator/resources/{app}/actions", s.resourceAppPage("actions"))
 	s.mux.HandleFunc("POST /operator/resources/prices", s.resourcePrices)
 	s.mux.HandleFunc("POST /operator/resources/{app}/action", s.resourceAction)
 }
@@ -279,8 +284,17 @@ func (s *Site) healthTiles(rows []resources.Row, server platform.Usage) []resTil
 	}
 }
 
-func (s *Site) resourcesPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.operator(w, r); !ok {
+// resourcePaths are the parts of the Resources section: the server's load,
+// the apps' use of it, and the unit prices the costs are worked out from.
+var resourcePaths = map[string]string{"server": "/operator/resources", "apps": "/operator/usage", "prices": "/operator/prices"}
+
+func (s *Site) resourcesPage(tab string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) { s.resourcesTab(w, r, tab) }
+}
+
+func (s *Site) resourcesTab(w http.ResponseWriter, r *http.Request, tab string) {
+	op, ok := s.operator(w, r)
+	if !ok {
 		return
 	}
 	win, sorter := windowParam(r), sortParam(r)
@@ -392,7 +406,7 @@ func (s *Site) resourcesPage(w http.ResponseWriter, r *http.Request) {
 		if showAll {
 			v.Set("all", "1")
 		}
-		return "/operator/resources?" + v.Encode()
+		return resourcePaths[tab] + "?" + v.Encode()
 	}
 	for _, x := range resWindows {
 		windows = append(windows, resLink{Label: x.Label, Href: q(x.Key, sorter.Key), Current: x.Key == win.Key})
@@ -411,8 +425,14 @@ func (s *Site) resourcesPage(w http.ResponseWriter, r *http.Request) {
 		v := *f.Get(&d.Prices)
 		prices = append(prices, priceField{Key: f.Key, Label: f.Label, Unit: f.Unit, Value: strconv.FormatFloat(v, 'f', -1, 64)})
 	}
+	csrf := s.csrfToken(w, r)
 	render(w, http.StatusOK, "operator_resources", map[string]any{
-		"CSRF": s.csrfToken(w, r), "Window": win, "Windows": windows, "Sorts": sorts, "Sort": sorter, "Rows": view, "Idle": idle, "More": more,
+		"Shell": s.ownerShell(op, "Resources", "/operator/resources", csrf),
+		"Tab":   tab,
+		"Tabs": []shellLink{{Label: "Server", Href: "/operator/resources?window=" + win.Key, Current: tab == "server"},
+			{Label: "Apps", Href: "/operator/usage?window=" + win.Key, Current: tab == "apps"},
+			{Label: "Unit prices", Href: "/operator/prices", Current: tab == "prices"}},
+		"CSRF": csrf, "Window": win, "Windows": windows, "Sorts": sorts, "Sort": sorter, "Rows": view, "Idle": idle, "More": more,
 		"ShowAll": showAll, "AllHref": allHref, "Health": s.healthTiles(day.Rows, day.Server), "Flagged": flagged, "Prices": prices,
 		"Totals": []resTile{
 			{Label: "Script time", Value: resources.Seconds(total.ScriptUS), Note: "time scripts held a worker"},
@@ -456,7 +476,7 @@ func (s *Site) resourcePrices(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	slog.Info("operator changed resource prices", "operator", op.Email)
-	http.Redirect(w, r, "/operator/resources?window="+url.QueryEscape(r.PostFormValue("window"))+"#prices", http.StatusSeeOther)
+	http.Redirect(w, r, "/operator/prices", http.StatusSeeOther)
 }
 
 // --- one app ---
@@ -470,8 +490,16 @@ type resEvent struct {
 	Time, Stage, Message string
 }
 
-func (s *Site) resourceAppPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.operator(w, r); !ok {
+// resourceAppTabs are the parts of one app's resource page.
+var resourceAppTabs = []struct{ Key, Label, Path string }{{"summary", "Summary", ""}, {"hours", "Per hour", "/hours"}, {"scripts", "Scripts and incidents", "/scripts"}, {"actions", "Actions", "/actions"}}
+
+func (s *Site) resourceAppPage(tab string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) { s.resourceAppTab(w, r, tab) }
+}
+
+func (s *Site) resourceAppTab(w http.ResponseWriter, r *http.Request, tab string) {
+	op, ok := s.operator(w, r)
+	if !ok {
 		return
 	}
 	app := r.PathValue("app")
@@ -580,14 +608,25 @@ func (s *Site) resourceAppPage(w http.ResponseWriter, r *http.Request) {
 		{Label: "Revenue", Value: aed2(row.Revenue), Note: "plan share " + aed2(row.PlanRevenue) + " · card fees " + aed2(row.FeeRevenue)},
 		{Label: "Margin", Value: aed2(row.Margin), Bad: row.Margin < 0, Note: "revenue minus estimated cost"},
 	}
+	base, here := "/operator/resources/"+url.PathEscape(app), ""
+	var tabs []shellLink
+	for _, x := range resourceAppTabs {
+		tabs = append(tabs, shellLink{Label: x.Label, Href: base + x.Path + "?window=" + win.Key, Current: x.Key == tab})
+		if x.Key == tab {
+			here = base + x.Path
+		}
+	}
 	var windows []resLink
 	for _, x := range resWindows {
-		windows = append(windows, resLink{Label: x.Label, Href: "/operator/resources/" + url.PathEscape(app) + "?window=" + x.Key, Current: x.Key == win.Key})
+		windows = append(windows, resLink{Label: x.Label, Href: here + "?window=" + x.Key, Current: x.Key == win.Key})
 	}
 	throttle, throttled := s.platform.ThrottleOf(app)
 	appRow := d.Infos[app]
+	csrf := s.csrfToken(w, r)
 	render(w, http.StatusOK, "operator_resource_app", map[string]any{
-		"CSRF": s.csrfToken(w, r), "App": app, "Info": info, "Row": row, "Flags": resFlags(row), "Tiles": tiles, "Charts": hourCharts,
+		"Shell": s.ownerShell(op, app, "/operator/resources", csrf),
+		"Tab":   tab, "Tabs": tabs,
+		"CSRF": csrf, "App": app, "Info": info, "Row": row, "Flags": resFlags(row), "Tiles": tiles, "Charts": hourCharts,
 		"Names": nameRows, "Incidents": incidents, "Stages": stageRows, "Audit": audit, "Window": win, "Windows": windows,
 		"Throttle": throttle, "Throttled": throttled, "ThrottleNotice": throttle.Notice(), "Suspended": appRow.Suspended,
 		"Notice": noticeText(row, win, s.base), "NoticeSubject": "Your app " + app + " uses a lot of the shared server",
@@ -735,7 +774,7 @@ func (s *Site) resourceAction(w http.ResponseWriter, r *http.Request) {
 	}
 	s.platform.Audit(op.Email, app, action, detail)
 	slog.Warn("operator resource action", "operator", op.Email, "app", app, "action", action)
-	http.Redirect(w, r, "/operator/resources/"+url.PathEscape(app)+"?window="+url.QueryEscape(r.PostFormValue("window"))+"&done="+url.QueryEscape(action), http.StatusSeeOther)
+	http.Redirect(w, r, "/operator/resources/"+url.PathEscape(app)+"/actions?window="+url.QueryEscape(r.PostFormValue("window"))+"&done="+url.QueryEscape(action), http.StatusSeeOther)
 }
 
 func init() {
@@ -757,58 +796,64 @@ main.wide{max-width:1400px}.res th,.res td{padding-left:7px;padding-right:7px}
 .res .chart{margin-bottom:22px}.res .chart .plot{height:120px;gap:1px}.res .chart .b i{border-radius:1px 1px 0 0}.res h2.ch{font-size:16px;margin:4px 0 6px}
 .res .namebar{display:block;height:6px;border-radius:3px;background:var(--series)}.res pre.msg{white-space:pre-wrap;font:12.5px/1.45 ui-monospace,monospace;margin:4px 0 0;overflow-wrap:anywhere}
 .res .notice{border:1px solid var(--sun);background:var(--sun-soft);border-radius:10px;padding:10px 14px;margin:10px 0}
+@media(min-width:1000px) and (min-height:600px){.res .prices.grow{align-content:space-evenly}.res .fitchart>.chart>.plot{height:auto}.res .fitcharts{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(0,1fr);gap:8px 24px}.res .fitchart h2.ch{margin:0 0 6px}}.res .tiles{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px}.res .tile{padding:12px}
 </style>`
 
-const resourcesTemplate = `{{define "operator_resources"}}{{template "wide" "Resources"}}` + resourcesCSS + `<p class="crumbs"><a href="/operator">Operator</a></p>
-<div class="card res"><div class="bar"><h1 style="margin:0">Resources</h1><span class="muted">measured {{.Measured}} · current hour included</span></div>
-<p class="muted">Which apps use the shared server most, which make other apps wait, and which cost more than they bring in. Both stages count towards an app's use; revenue comes from live only.</p>
-<h2>Last 24 hours</h2><div class="tiles">{{range .Health}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
-<h2>Over {{.Window.Label}}</h2><div class="tiles">{{range .Totals}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
-<div class="controls"><nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
+const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}}{{template "owncss"}}` + resourcesCSS + `
+<div class="pagehead"><div><h1>Resources</h1><p class="sub">Which apps use the shared server most, which make other apps wait, and which cost more than they bring in. Both stages count towards an app's use; revenue comes from live only.</p></div>
+<span class="muted">measured {{.Measured}} · current hour included</span></div>
+{{template "tabs" .Tabs}}<div class="card res fill col">
+{{if eq .Tab "server"}}<div class="controls"><nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
+<h2 style="margin-top:0">Last 24 hours</h2><div class="tiles grow">{{range .Health}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
+<h2>Over {{.Window.Label}}</h2><div class="tiles grow">{{range .Totals}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
+
+{{else if eq .Tab "apps"}}<div class="controls"><nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 <span class="muted">Sort by</span><nav class="seg" aria-label="Sort by">{{range .Sorts}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
 <p class="muted">{{len .Rows}} apps shown{{if .Idle}} · {{.Idle}} idle apps hidden (<a href="{{.AllHref}}">show all</a>){{else if .ShowAll}} · <a href="{{.AllHref}}">hide idle apps</a>{{end}}{{if .More}} · {{.More}} more not shown{{end}} · {{.Flagged}} flagged · sorted by {{.Sort.Label}}</p>
-<div class="scroll"><table><thead><tr><th>App</th><th>Script time</th><th class="n">Script</th><th class="n">CPU</th><th class="n">Share</th><th class="n">Wait caused</th><th class="n">Refused</th><th class="n" title="timeouts / memory kills">Timeouts / kills</th><th class="n">Bandwidth</th><th class="n">Storage</th><th class="n">Est. cost, AED</th><th class="n">Revenue, AED</th><th class="n">Margin, AED</th></tr></thead><tbody>
+<div class="scroll grow" data-long><table><thead><tr><th>App</th><th>Script time</th><th class="n">Script</th><th class="n">CPU</th><th class="n">Share</th><th class="n">Wait caused</th><th class="n">Refused</th><th class="n" title="timeouts / memory kills">Timeouts / kills</th><th class="n">Bandwidth</th><th class="n">Storage</th><th class="n">Est. cost, AED</th><th class="n">Revenue, AED</th><th class="n">Margin, AED</th></tr></thead><tbody>
 {{range .Rows}}<tr><td class="app"><a href="{{.Detail}}"><strong>{{.App}}</strong></a>{{if .Suspended}} <span class="error">suspended</span>{{end}}<div class="muted">{{.OwnerEmail}} · {{.Plan}}{{with .LiveURL}} · <a href="{{.}}" target="_blank" rel="noopener">live</a>{{end}}</div>{{with .Throttle}}<div class="muted bad">{{.}}</div>{{end}}
 {{range .Flags}}<span class="flag {{.Key}}" title="{{.Why}}">{{.Label}}</span>{{end}}</td>
 <td><span class="spark" aria-hidden="true">{{range .Spark}}<i style="height:{{.}}%"></i>{{end}}</span></td>
 {{template "rescell" .Script}}{{template "rescell" .CPU}}<td class="n">{{.Share.Text}}</td>{{template "rescell" .Caused}}{{template "rescell" .Refused}}{{template "rescell" .Incidents}}{{template "rescell" .Bandwidth}}{{template "rescell" .Storage}}{{template "rescell" .Cost}}{{template "rescell" .Revenue}}{{template "rescell" .Margin}}</tr>
 {{else}}<tr><td colspan="13" class="muted">No app used the server in this period.</td></tr>{{end}}
 </tbody></table></div>
-<h2 style="margin-top:22px">What the flags mean</h2><ul class="why">
+<details class="astable"><summary>What the flags and columns mean</summary><ul class="why">
 <li><span class="flag noisy">Noisy neighbour</span> Among the top 1% of active apps by script time, and other apps waited at least a second in all for a worker while its scripts held one. These apps make other customers' pages slow.</li>
 <li><span class="flag">Unprofitable heavy</span> Among the 10% of apps with the highest estimated cost, costing at least AED 0.01, and bringing in less than they cost.</li>
 <li><span class="flag errors">Error-prone</span> At least 3 runs, and at least 2% of runs, stopped at the 2 s time limit or a memory limit. Each holds a worker until it is stopped, and a memory kill restarts the worker.</li>
 <li><span class="flag">Free plan over fair use</span> A Free-plan app above the fair-use thresholds below (script seconds a day or MB sent a day, averaged over the period).</li></ul>
 <p class="muted">Script time is how long scripts held a worker, database calls and waiting included; CPU is measured inside the worker process (user and system time from the kernel) plus the time the server spent on the app's database calls. Wait caused: when a run had to wait for a free worker, the wait is shared out over the apps whose runs held the workers. Cost share is the app's part of all script time. Revenue: the owner's plan price for the period (paid plans only, not granted ones), split equally over the owner's live apps (all their apps if none is live), plus the Free-plan card fees of the app's own live payments (AED only).</p>
-<h2 style="margin-top:22px" id="prices">Unit prices and fair use</h2>
-<form method="post" action="/operator/resources/prices"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><div class="prices">
+</details>
+{{else}}<h2 style="margin-top:0" id="prices">Unit prices and fair use</h2>
+<form class="col grow" method="post" action="/operator/resources/prices"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><div class="prices grow">
 {{range .Prices}}<div><label for="p-{{.Key}}">{{.Label}} <span class="muted">({{.Unit}})</span></label><input id="p-{{.Key}}" name="{{.Key}}" inputmode="decimal" value="{{.Value}}"></div>{{end}}</div>
-<button class="secondary">Save prices</button></form></div>{{template "bottom"}}{{end}}
+<button class="secondary">Save prices</button></form>{{end}}</div>{{template "appbottom"}}{{end}}
 
 {{define "rescell"}}<td class="n"><span class="cell"><span{{if .Bad}} class="bad"{{end}}>{{.Text}}</span>{{if .Width}}<span class="cb{{if .Bad}} bad{{end}}" style="width:{{.Width}}%"></span>{{end}}</span></td>{{end}}
 
-{{define "operator_resource_app"}}{{template "wide" .App}}` + resourcesCSS + `<p class="crumbs"><a href="/operator">Operator</a> / <a href="/operator/resources?window={{.Window.Key}}">Resources</a></p>
-<div class="card res"><div class="bar"><h1 style="margin:0">{{.App}}</h1><nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
-<p class="muted">{{.Row.OwnerEmail}} · {{.Row.Plan}} plan{{if .Info.LiveVersion}} · <a href="{{.Info.LiveURL}}" target="_blank" rel="noopener">{{.Info.LiveURL}}</a> (v{{.Info.LiveVersion}}){{else}} · not published{{end}}{{with .Suspended}} · <span class="error">suspended: {{.}}</span>{{end}}</p>
-{{if .Throttled}}<p class="notice"><strong>Throttled</strong> until {{.Throttle.Until.UTC.Format "2 Jan 15:04"}} UTC by {{.Throttle.By}}. The owner sees: {{.ThrottleNotice}}</p>{{end}}
+{{define "operator_resource_app"}}{{template "owntop" .}}{{template "owncss"}}` + resourcesCSS + `<p class="crumbs"><a href="/operator/usage?window={{.Window.Key}}">← Apps</a></p>
+<div class="pagehead"><div><h1>{{.App}}</h1><p class="sub">{{.Row.OwnerEmail}} · {{.Row.Plan}} plan{{if .Info.LiveVersion}} · <a href="{{.Info.LiveURL}}" target="_blank" rel="noopener">{{.Info.LiveURL}}</a> (v{{.Info.LiveVersion}}){{else}} · not published{{end}}{{with .Suspended}} · <span class="error">suspended: {{.}}</span>{{end}}</p></div>
+<nav class="seg" aria-label="Period">{{range .Windows}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
+{{template "tabs" .Tabs}}<div class="card res fill col">{{if .Throttled}}<p class="notice"><strong>Throttled</strong> until {{.Throttle.Until.UTC.Format "2 Jan 15:04"}} UTC by {{.Throttle.By}}. The owner sees: {{.ThrottleNotice}}</p>{{end}}{{if eq .Tab "summary"}}
+
 {{if .Flags}}<ul class="why">{{range .Flags}}<li><span class="flag {{.Key}}">{{.Label}}</span> {{.Why}}</li>{{end}}</ul>{{else}}<p class="muted">No flags in this period.</p>{{end}}
-<h2>Over {{.Window.Label}}</h2><div class="tiles">{{range .Tiles}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
-<h2 style="margin-top:18px">Last 7 days, per hour <span class="muted">(UTC · gold is the current hour)</span></h2>
-{{range .Charts}}<h2 class="ch">{{.Title}} <span class="muted">· total {{.Total}}</span></h2>{{template "chart" .}}{{end}}
-<h2>Top routes, jobs and tools <span class="muted">· {{.Window.Label}}, by time held</span></h2>
+<h2>Over {{.Window.Label}}</h2><div class="tiles grow">{{range .Tiles}}<div class="tile{{if .Bad}} bad{{end}}"><div class="muted">{{.Label}}</div><div class="big">{{.Value}}</div><div class="muted">{{.Note}}</div></div>{{end}}</div>
+{{else if eq .Tab "hours"}}<h2 style="margin-top:0">Last 7 days, per hour <span class="muted">(UTC · gold is the current hour)</span></h2>
+<div class="fitcharts grow">{{range .Charts}}<div class="fitchart"><h2 class="ch">{{.Title}} <span class="muted">· total {{.Total}}</span></h2>{{template "chart" .}}</div>{{end}}</div>
+{{else if eq .Tab "scripts"}}<div class="grow"><h2 style="margin-top:0">Top routes, jobs and tools <span class="muted">· {{.Window.Label}}, by time held</span></h2>
 {{if .Names}}<div class="scroll"><table><thead><tr><th>Route, job, hook or tool</th><th class="n">Runs</th><th class="n">Time</th><th class="n">Share</th><th></th><th class="n">CPU</th><th class="n">Average</th></tr></thead><tbody>
 {{range .Names}}<tr><td><code>{{.Name}}</code></td><td class="n">{{.Runs}}</td><td class="n">{{.Time}}</td><td class="n">{{.Share}}</td><td style="width:22%"><span class="namebar" style="width:{{.Width}}%"></span></td><td class="n">{{.CPU}}</td><td class="n">{{.Avg}}</td></tr>{{end}}
 </tbody></table></div>{{else}}<p class="muted">No script ran in this period.</p>{{end}}
 {{if .Stages}}<h2 style="margin-top:18px">By stage</h2><div class="scroll"><table><thead><tr><th>Stage</th><th class="n">Requests</th><th class="n">Runs</th><th class="n">Script time</th><th class="n">Worker CPU</th><th class="n">Database</th><th class="n">Sent</th><th class="n">Peak heap</th></tr></thead><tbody>
 {{range .Stages}}<tr>{{range $i, $c := .}}{{if $i}}<td class="n">{{$c}}</td>{{else}}<td>{{$c}}</td>{{end}}{{end}}</tr>{{end}}</tbody></table></div>{{end}}
 <h2 style="margin-top:18px">Recent timeouts and memory kills <span class="muted">· from the app log</span></h2>
-{{if .Incidents}}<ul class="why">{{range .Incidents}}<li><span class="muted">{{.Time}} UTC · {{.Stage}}</span><pre class="msg">{{.Message}}</pre></li>{{end}}</ul>{{else}}<p class="muted">None in the app log.</p>{{end}}
+{{if .Incidents}}<ul class="why">{{range .Incidents}}<li><span class="muted">{{.Time}} UTC · {{.Stage}}</span><pre class="msg">{{.Message}}</pre></li>{{end}}</ul>{{else}}<p class="muted">None in the app log.</p>{{end}}</div>
 
-<h2 style="margin-top:22px">Actions</h2><p class="muted">Each action is written to the app's log, which the owner and their agent read, and to the operator audit below.</p><div class="forms">
+{{else}}<div class="grow"><h2 style="margin-top:0">Actions</h2><p class="muted">Each action is written to the app's log, which the owner and their agent read, and to the operator audit below.</p><div class="forms">
 <form method="post" action="/operator/resources/{{.App}}/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><input type="hidden" name="action" value="notify">
 <h2>Email the owner</h2><p class="muted">A polite notice of what is heavy, with the upgrade link. Edit it before sending.</p>
 <label for="n-subject">Subject</label><input id="n-subject" name="subject" value="{{.NoticeSubject}}" maxlength="150">
-<label for="n-text">Message</label><textarea id="n-text" name="text" rows="12">{{.Notice}}</textarea><button>Send email</button></form>
+<label for="n-text">Message</label><textarea id="n-text" name="text" rows="7">{{.Notice}}</textarea><button>Send email</button></form>
 <form method="post" action="/operator/resources/{{.App}}/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}">
 <h2>Throttle for a while</h2><p class="muted">Only this app is limited; other apps keep their slots. The owner sees a notice in the admin panel until it ends.</p>
 <label for="t-slots">Scripts at the same time</label><select id="t-slots" name="slots"><option value="1">1</option><option value="0">normal ({{.MaxSlots}})</option></select>
@@ -821,4 +866,4 @@ const resourcesTemplate = `{{define "operator_resources"}}{{template "wide" "Res
 {{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<label for="s-reason">Reason</label><input id="s-reason" name="reason" maxlength="200" placeholder="suspended by Renoxium"><button class="danger" name="action" value="suspend">Suspend</button>{{end}}</form></div>
 <h2 style="margin-top:22px">Operator audit</h2>{{if .Audit}}<div class="scroll"><table><thead><tr><th>When</th><th>Operator</th><th>Action</th><th>Detail</th></tr></thead><tbody>
 {{range .Audit}}<tr><td>{{.At}}</td><td>{{.Operator}}</td><td>{{.Action}}</td><td>{{.Detail}}</td></tr>{{end}}</tbody></table></div>{{else}}<p class="muted">No operator action on this app yet.</p>{{end}}
-</div>{{template "bottom"}}{{end}}`
+</div>{{end}}</div>{{template "appbottom"}}{{end}}`

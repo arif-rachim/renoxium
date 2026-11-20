@@ -46,26 +46,47 @@ func TestOperatorResources(t *testing.T) {
 		}
 	}
 
-	r, _ := ops.Get(e.base + "/operator/resources")
-	page := read(t, r)
+	// The Resources section is three pages: the server, the apps and the unit prices.
+	page := ""
+	for _, path := range []string{"/operator/resources", "/operator/usage", "/operator/prices"} {
+		r, _ := ops.Get(e.base + path)
+		if r.StatusCode != 200 {
+			t.Fatalf("%s: %d", path, r.StatusCode)
+		}
+		page += read(t, r)
+	}
 	for _, want := range []string{"Resources", "Last 24 hours", "Workers busy now", "Slot waits", "Memory kills", "Timeouts", "zara-shop", "zara@shop.ae",
-		"What the flags mean", "Noisy neighbour", "Unprofitable heavy", "Error-prone", "Free plan over fair use", "Unit prices and fair use", `name="cpu_hour"`,
+		"What the flags and columns mean", "Noisy neighbour", "Unprofitable heavy", "Error-prone", "Free plan over fair use", "Unit prices and fair use", `name="cpu_hour"`,
 		"/operator/resources/zara-shop?window=24h"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("resources page lacks %q", want)
 		}
 	}
 	for _, q := range []string{"?window=7d&sort=cost", "?window=30d&sort=margin&all=1", "?sort=waits"} {
-		if r, _ := ops.Get(e.base + "/operator/resources" + q); r.StatusCode != 200 || !strings.Contains(read(t, r), "zara-shop") {
+		if r, _ := ops.Get(e.base + "/operator/usage" + q); r.StatusCode != 200 || !strings.Contains(read(t, r), "zara-shop") {
 			t.Errorf("%s: %d", q, r.StatusCode)
+		}
+	}
+	// The resources pages sit in the console, with Resources marked in the side menu.
+	for _, path := range []string{"/operator/resources", "/operator/resources/zara-shop"} {
+		r, _ := ops.Get(e.base + path)
+		if p := read(t, r); !strings.Contains(p, `aria-label="Account"`) || !strings.Contains(p, `href="/operator/resources" aria-current="page"`) {
+			t.Errorf("%s has no side menu with Resources marked", path)
 		}
 	}
 	if r, _ := ops.Get(e.base + "/operator"); !strings.Contains(read(t, r), `href="/operator/resources"`) {
 		t.Error("no link from /operator")
 	}
 
-	r, _ = ops.Get(e.base + "/operator/resources/zara-shop?window=7d")
-	page = read(t, r)
+	// One app's page is four tabs: summary, per hour, scripts and incidents, actions.
+	page = ""
+	for _, tab := range []string{"", "/hours", "/scripts", "/actions"} {
+		r, _ := ops.Get(e.base + "/operator/resources/zara-shop" + tab + "?window=7d")
+		if r.StatusCode != 200 {
+			t.Fatalf("app page%s: %d", tab, r.StatusCode)
+		}
+		page += read(t, r)
+	}
 	for _, want := range []string{"zara-shop", "Script time per hour", "Requests per hour", "GET /busy/:n", "Email the owner", "Throttle for a while", "Suspend",
 		"uses a lot of the shared server", "/billing", "Operator audit"} {
 		if !strings.Contains(page, want) {
@@ -99,7 +120,7 @@ func TestOperatorResources(t *testing.T) {
 	if code, _ := post("/operator/resources/prices", url.Values{"cpu_hour": {"-3"}}, true); code != 400 {
 		t.Fatalf("negative price: %d", code)
 	}
-	if r, _ := ops.Get(e.base + "/operator/resources"); !strings.Contains(read(t, r), `name="cpu_hour" inputmode="decimal" value="0.2"`) {
+	if r, _ := ops.Get(e.base + "/operator/prices"); !strings.Contains(read(t, r), `name="cpu_hour" inputmode="decimal" value="0.2"`) {
 		t.Error("saved price not shown")
 	}
 
@@ -155,7 +176,7 @@ func TestOperatorResources(t *testing.T) {
 	if len(logs) != 5 || !strings.Contains(logs[len(logs)-1].Message, "throttled until") {
 		t.Errorf("app log: %+v", logs)
 	}
-	if r, _ := ops.Get(e.base + "/operator/resources/zara-shop"); !strings.Contains(read(t, r), "emailed the owner: Your app uses a lot") {
+	if r, _ := ops.Get(e.base + "/operator/resources/zara-shop/actions"); !strings.Contains(read(t, r), "emailed the owner: Your app uses a lot") {
 		t.Error("audit not shown on the app page")
 	}
 }

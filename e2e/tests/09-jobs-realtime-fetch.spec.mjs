@@ -103,7 +103,7 @@ test('agent adds a job, a host and a key; the owner is told what to do; the job 
   const pub = await agent.call('publish', { app });
   await confirmPublish(owner.page, pub.confirm_url);
   publishedAt = Date.now();
-  await owner.page.goto(`/apps/${app}`);
+  await owner.page.goto(`/apps/${app}/status`);
   await expect(owner.page.locator('body')).toContainText('Scheduled jobs');
   await expect(owner.page.locator('body')).toContainText('every 1m0s');
   await expect(owner.page.locator('body')).toContainText('not yet');
@@ -249,7 +249,7 @@ test('the job runs on live by itself, updates an open page in real time and show
   expect(Number(await visitor.page.locator('#n').innerText())).toBeGreaterThan(seen);
   expect(Date.now() - publishedAt).toBeGreaterThan(55_000); // not before its interval
 
-  await owner.page.goto(`/apps/${app}`);
+  await owner.page.goto(`/apps/${app}/status`);
   const row = owner.page.locator('tr', { hasText: 'tick' }).filter({ hasText: 'every 1m0s' });
   await expect(row).toContainText('ok');
   await owner.page.goto(`/apps/${app}/t/ticks`);

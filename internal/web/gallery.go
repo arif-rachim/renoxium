@@ -52,9 +52,16 @@ func (s *Site) galleryCards() []galleryCard {
 }
 
 func (s *Site) galleryPage(w http.ResponseWriter, r *http.Request) {
+	groups := galleryGroups(s.galleryCards())
+	// Signed in, the templates sit in the console like the other account
+	// pages; the page differs by visitor, so it is not cached.
+	if u, ok := s.currentUser(r); ok {
+		render(w, http.StatusOK, "templates_app", map[string]any{"Groups": groups, "Shell": s.ownerShell(u, "Templates", "/templates", s.csrfToken(w, r))})
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=300")
-	landingPages.ExecuteTemplate(w, "gallery", map[string]any{"Groups": galleryGroups(s.galleryCards()), "Legal": s.legalOrDefaults(), "Base": s.base})
+	w.Header().Set("Cache-Control", "no-store")
+	landingPages.ExecuteTemplate(w, "gallery", map[string]any{"Groups": groups, "Legal": s.legalOrDefaults(), "Base": s.base})
 }
 
 func galleryExample(r *http.Request) (examples.Example, bool) {

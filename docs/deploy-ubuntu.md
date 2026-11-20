@@ -228,7 +228,8 @@ The connector address is `https://www.renoxium.com/mcp`; the support page is `ht
 ### Operator panel
 
 `https://www.renoxium.com/operator` shows totals (accounts per plan, monthly subscription revenue, apps,
-WhatsApp codes), lists accounts with a plan grant, apps with suspend and bring back, and abuse reports.
+WhatsApp codes) and abuse reports; its tabs list accounts with a plan grant (`/operator/accounts`) and apps with
+suspend and bring back (`/operator/apps`). Resources and Growth are in the same side menu.
 Only confirmed accounts whose email is listed in `RENOXIUM_OPERATORS` can open it; everyone else gets 404.
 
 ```bash
