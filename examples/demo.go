@@ -33,7 +33,7 @@ var demoImageSets = map[string][]DemoImageSet{
 	}}},
 	"booking-uae": {
 		{Table: "business", Key: "name", Rows: map[string]map[string]string{
-			"Lamsa Beauty Lounge": {"hero_image": "booking-hero.webp", "story_image": "booking-story.webp"},
+			"Lamsa Beauty Lounge": {"hero_image": "booking-hero.webp", "story_image": "booking-story.webp", "interior_image": "booking-moroccan-bath.webp"},
 		}},
 		{Table: "services", Key: "name", Rows: map[string]map[string]string{
 			"Haircut & Blow-dry":      {"image": "booking-haircut.webp"},
@@ -49,7 +49,7 @@ var demoImageSets = map[string][]DemoImageSet{
 		}},
 	},
 	"home-service-uae": {{Table: "business", Key: "name", Rows: map[string]map[string]string{
-		"Bayti Home Services": {"hero_image": "home-hero.webp", "story_image": "home-story.webp"},
+		"Bayti Home Services": {"hero_image": "home-hero.webp", "story_image": "home-story.webp", "interior_image": "home-sofa.webp"},
 	}}, {Table: "services", Key: "name", Rows: map[string]map[string]string{
 		"Home cleaning":                       {"image": "home-cleaning.webp"},
 		"Deep cleaning (1-bedroom apartment)": {"image": "home-deep-cleaning.webp"},
@@ -84,7 +84,7 @@ var demoImageSets = map[string][]DemoImageSet{
 		"Al Noor Flowers": {"hero_image": "delivery-hero.webp", "story_image": "delivery-story.webp"},
 	}}},
 	"listings-uae": {{Table: "agency", Key: "name", Rows: map[string]map[string]string{
-		"Marsa Homes": {"hero_image": "listings-hero.webp", "story_image": "listings-story.webp"},
+		"Marsa Homes": {"hero_image": "listings-hero.webp", "story_image": "listings-story.webp", "interior_image": "listing-living-room.webp"},
 	}}, {Table: "listings", Key: "reference", Rows: map[string]map[string]string{
 		"MH-1001": {"image1": "listing-living-room.webp", "image2": "listing-kitchen.webp", "image3": "listing-bedroom.webp", "permit_qr": "listings-permit-qr.webp"},
 		"MH-1002": {"image1": "listing-apartment-1.webp", "image2": "listing-kitchen.webp", "permit_qr": "listings-permit-qr.webp"},
