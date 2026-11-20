@@ -22,7 +22,7 @@ The pages belong to the merchant's brand, not to Renoxium: no Renoxium colours o
 ```json
 {"name": "logo", "type": "image", "label": "Logo", "help": "Optional. A wide logo on a transparent or white background; it replaces the shop name in the header and on invoices."},
 {"name": "brand_color", "type": "text", "label": "Brand colour", "help": "Your main colour as a hex code, e.g. #5C2A3D for deep plum or #1F4D3A for palm green. Buttons and highlights use it; text on it turns white or dark by itself."},
-{"name": "font", "type": "text", "label": "Font", "help": "<the store-uae help text; under 300 characters>", "options": ["modern", "classic", "rounded", "heritage", "atelier"]}
+{"name": "font", "type": "text", "label": "Font", "help": "<the store-uae help text; under 300 characters>", "options": ["modern", "classic", "rounded", "heritage", "atelier", "boutique"]}
 ```
 Also give every owner-facing text column an `_ar` twin where shoppers see it (name, tagline, address, legal_name, category, option names...).
 Seed a tasteful brand colour and font that fit the example's business (store-uae: `#1F1B17` deep ink with `heritage`).
@@ -85,6 +85,20 @@ Rules of the luxury style:
 - Home order: hero, story line (`story`), collection (heading, categories, grid), visit block (`story_image` beside the
   address and WhatsApp link), footer (centred name, address, links).
 - Motion: only the slow 1.4s image zoom on tile hover; `prefers-reduced-motion` turns it off.
+
+## 3b. Boutique style: boutique
+
+`font = boutique` keeps `data-style="standard"` (every template's normal layout works) and sets `theme.boutique`. Its look is the
+`boutique` template (the same copy in every template, included from `head` only for this font; `TestThemeIsTheSameEverywhere`):
+cream paper `#fbf6f1`, deep brown ink `#3b2a22`, the brand colour as the accent (default terracotta `#b4643f`), Gilda Display
+headings (Amiri in Arabic) and DM Sans text (IBM Plex Sans Arabic), 4px buttons in small tracked capitals, 16px photos, arched
+tiles (`.arch`), ovals (`.oval`), a small tracked label (`.eyebrow`), a short rule (`.rule`) and arrows that turn in Arabic (`.arr`).
+
+A template may add a boutique layout with `{{if .theme.boutique}}`. booking-uae does (`home_boutique`): a split hero with a label
+(`business.eyebrow`), an accent line (`tagline_accent`), an intro and a turning stamp; highlights with line icons (table
+`highlights`, template `icon`); arched service cards with their category; a brand-colour band (story); a closing call to book with
+an oval photo (`interior_image`); a "Book" button in the header and a three-column footer. A rating shows only when the owner sets
+a real `rating` and `review_count`; never seed invented reviews.
 
 ## 4. Type scale
 

@@ -33,7 +33,7 @@ var demoImageSets = map[string][]DemoImageSet{
 	}}},
 	"booking-uae": {
 		{Table: "business", Key: "name", Rows: map[string]map[string]string{
-			"Lamsa Beauty Lounge": {"hero_image": "booking-hero.webp", "story_image": "booking-story.webp"},
+			"Lamsa Beauty Lounge": {"hero_image": "booking-hero.webp", "story_image": "booking-story.webp", "interior_image": "booking-moroccan-bath.webp"},
 		}},
 		{Table: "services", Key: "name", Rows: map[string]map[string]string{
 			"Haircut & Blow-dry":      {"image": "booking-haircut.webp"},
