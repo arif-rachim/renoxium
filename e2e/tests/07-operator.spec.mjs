@@ -69,7 +69,7 @@ test('operator panel', async ({ browser }) => {
   // Resources: the shop's use of the server, its page and a throttle the owner is told about.
   expect((await shop.page.request.get('/operator/resources')).status()).toBe(404);
   await page.goto('/operator');
-  await page.getByRole('link', { name: 'Resources: heavy and unprofitable apps' }).click();
+  await page.locator('.pagehead').getByRole('link', { name: 'Resources', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toBeVisible();
   await expect(page.locator('.tile').getByText('Workers busy now')).toBeVisible();
   await page.goto('/operator/resources/' + shop.app + '?window=7d');
