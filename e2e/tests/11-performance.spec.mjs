@@ -73,8 +73,8 @@ test('store motion kit: drawer, search in place, Arabic and reduced motion', asy
 
   await page.goto(base + '/', { waitUntil: 'networkidle' });
   await page.evaluate(() => { window.__same = 1; });
-  await page.fill('#q', 'musk');
-  await expect(page).toHaveURL(/\?q=musk$/);
+  await page.fill('#q', 'tahara');
+  await expect(page).toHaveURL(/\?q=tahara$/);
   await expect(page.locator('#results .tile, #results .e-prod')).toHaveCount(1);
   expect(await page.evaluate(() => window.__same)).toBe(1); // no reload
 

@@ -49,9 +49,10 @@ func TestStoreUAEExample(t *testing.T) {
 	if !strings.Contains(home.Body, "Royal Oud") || !strings.Contains(home.Body, "AED 250.00") || !strings.Contains(home.Body, `dir="ltr"`) {
 		t.Fatalf("home: %s", home.Body)
 	}
-	// test_request leaves out the long inline stylesheet, so the page's content fits in the body it returns.
-	if r := req(platform.TestRequestInput{Path: "/"}); !strings.Contains(r.Body, "bytes of CSS left out */</style>") || r.Truncated {
-		t.Fatalf("stylesheet not shortened: truncated=%v", r.Truncated)
+	// test_request leaves out the long inline stylesheet, so the page's content (everything down to the footer) fits in
+	// the body it returns; only the motion script after the footer may be cut.
+	if r := req(platform.TestRequestInput{Path: "/"}); !strings.Contains(r.Body, "bytes of CSS left out */</style>") || !strings.Contains(r.Body, `class="wrap b-foot-base"`) {
+		t.Fatalf("stylesheet not shortened, or the page's content cut: truncated=%v", r.Truncated)
 	}
 	ar := req(platform.TestRequestInput{Path: "/?lang=ar"})
 	if !strings.Contains(ar.Body, `dir="rtl"`) || !strings.Contains(ar.Body, "العود الملكي") || !strings.Contains(ar.Body, "عطور النور") {
