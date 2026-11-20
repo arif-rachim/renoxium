@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -65,18 +66,23 @@ var screenshotCDNs = []string{"fonts.googleapis.com", "fonts.gstatic.com", "unpk
 	"a.basemaps.cartocdn.com", "b.basemaps.cartocdn.com", "c.basemaps.cartocdn.com", "d.basemaps.cartocdn.com"}
 
 const (
-	maxShotHeight     = 8000
-	maxShotWait       = 5 * time.Second
-	shotTimeout       = 25 * time.Second
-	shotsAtOnce       = 2 // browsers running at the same time on the server
-	shotsPerAppPerMin = 10
+	maxShotHeight = 8000
+	maxShotWait   = 5 * time.Second
+	shotTimeout   = 25 * time.Second
+	// browserStartTimeout is how long Chromium may take to start answering.
+	// The first start after a boot or a deploy reads the whole browser from
+	// disk, on a busy machine well past a shot's own time, so it has a
+	// budget of its own.
+	browserStartTimeout = 60 * time.Second
+	shotsAtOnce         = 2 // browsers running at the same time on the server
+	shotsPerAppPerMin   = 10
 )
 
 var errNoBrowser = errors.New("screenshots are not set up on this server (no Chromium); use test_request to read the page")
 
 // ScreenshotPreview renders a page of an app's preview and returns a PNG.
 func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in ScreenshotInput) (ScreenshotResult, error) {
-	if p.cfg.Chromium == "" {
+	if p.cfg.Chromium == "" && p.cfg.ChromiumSocket == "" {
 		return ScreenshotResult{}, errNoBrowser
 	}
 	if _, err := p.Info(app); err != nil {
@@ -112,7 +118,7 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 			return ScreenshotResult{}, err
 		}
 		visitorToken = secretToken()
-		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(visitorToken), id, time.Now().Add(time.Minute).Unix()); err != nil {
+		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(visitorToken), id, time.Now().Add(browserStartTimeout+shotTimeout+10*time.Second).Unix()); err != nil {
 			return ScreenshotResult{}, err
 		}
 		defer st.admin.Exec(`DELETE FROM rx_sessions WHERE hash = ?`, sha(visitorToken))
@@ -124,13 +130,22 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 	case <-ctx.Done():
 		return ScreenshotResult{}, ctx.Err()
 	}
-	ctx, cancel := context.WithTimeout(ctx, shotTimeout)
+	// The browser lives for the start and the shot; each has its own limit.
+	ctx, cancel := context.WithTimeout(ctx, browserStartTimeout+shotTimeout)
 	defer cancel()
-	b, err := startBrowser(ctx, p.cfg.Chromium, p.cfg.ChromiumNoSandbox)
+	b, err := p.startBrowser(ctx)
 	if err != nil {
 		return ScreenshotResult{}, err
 	}
 	defer b.close()
+	startCtx, started := context.WithTimeout(ctx, browserStartTimeout)
+	_, err = b.call(startCtx, "", "Browser.getVersion", nil)
+	started()
+	if err != nil {
+		return ScreenshotResult{}, fmt.Errorf("browser: did not start: %w", err)
+	}
+	ctx, cancelShot := context.WithTimeout(ctx, shotTimeout)
+	defer cancelShot()
 	shot := &previewShot{p: p, app: app, host: p.host(app, Preview), visitorToken: visitorToken}
 	return shot.take(ctx, b, p.URL(app, Preview)+path, w, h, mobile, in.FullPage, !in.MotionAllowed, wait)
 }
@@ -471,9 +486,8 @@ type cdpMessage struct {
 }
 
 type browser struct {
-	cmd     *exec.Cmd
-	in      io.WriteCloser // the browser reads commands from fd 3
-	dir     string
+	in      io.WriteCloser // the browser reads commands from here
+	stop    func()         // ends the browser and removes what it wrote
 	writeMu sync.Mutex
 	next    atomic.Int64
 	mu      sync.Mutex
@@ -485,6 +499,9 @@ type browser struct {
 
 // why gives the end of the browser's error output, for an error message.
 func (b *browser) why() string {
+	if b.stderr == nil {
+		return "" // a browser behind the helper: its errors are in the helper's journal
+	}
 	if t := strings.TrimSpace(b.stderr.String()); t != "" {
 		lines := strings.Split(t, "\n")
 		if len(lines) > 6 {
@@ -518,7 +535,52 @@ func (t *tailBuffer) String() string {
 	return string(t.buf)
 }
 
-func startBrowser(ctx context.Context, chromium string, noSandbox bool) (*browser, error) {
+// errUnsandboxed is why a browser is not started inside the platform's
+// own process when Chromium cannot sandbox the pages it renders.
+var errUnsandboxed = errors.New("screenshots are not set up safely on this server: Chromium would render pages without its sandbox inside the platform's own process; run the screenshot helper (docs/deploy-ubuntu.md, \"Screenshots for agents\")")
+
+// startBrowser gives a fresh browser: from the screenshot helper when one
+// is configured (its own service and user, away from the apps' data), or
+// started here.
+func (p *Platform) startBrowser(ctx context.Context) (*browser, error) {
+	if p.cfg.ChromiumSocket != "" {
+		var d net.Dialer
+		conn, err := d.DialContext(ctx, "unix", p.cfg.ChromiumSocket)
+		if err != nil {
+			return nil, fmt.Errorf("screenshot helper: %w", err)
+		}
+		b := &browser{in: conn, stop: func() { conn.Close() }, waiting: map[int64]chan cdpMessage{}, done: make(chan struct{})}
+		go b.read(conn)
+		return b, nil
+	}
+	// Chromium's sandbox cannot run as root. A page is written by whoever
+	// owns the app, so without the sandbox a browser bug would give that
+	// person this process and every app's data: only where the operator
+	// said this is a development machine.
+	noSandbox := os.Geteuid() == 0 || p.cfg.ChromiumNoSandbox
+	if noSandbox && !p.cfg.ChromiumNoSandbox {
+		return nil, errUnsandboxed
+	}
+	c, err := spawnChromium(ctx, p.cfg.Chromium, noSandbox)
+	if err != nil {
+		return nil, err
+	}
+	b := &browser{in: c.in, stop: c.stop, waiting: map[int64]chan cdpMessage{}, done: make(chan struct{}), stderr: c.stderr}
+	go b.read(c.out)
+	return b, nil
+}
+
+// chromiumProcess is a running headless Chromium and its DevTools pipe.
+type chromiumProcess struct {
+	in     io.WriteCloser // commands to the browser (its fd 3)
+	out    io.ReadCloser  // messages from the browser (its fd 4)
+	stderr *tailBuffer
+	stop   func() // kills the browser and removes its profile directory
+}
+
+// spawnChromium starts a headless Chromium driven over a pipe (no port is
+// opened), with a throwaway profile and a DNS that resolves only the CDNs.
+func spawnChromium(ctx context.Context, chromium string, noSandbox bool) (*chromiumProcess, error) {
 	dir, err := os.MkdirTemp("", "rx-shot-")
 	if err != nil {
 		return nil, err
@@ -544,9 +606,7 @@ func startBrowser(ctx context.Context, chromium string, noSandbox bool) (*browse
 		"--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--mute-audio",
 		"--hide-scrollbars", "--force-color-profile=srgb", "--disable-dev-shm-usage",
 		"--host-resolver-rules=" + rules, "--disable-features=Translate,MediaRouter,OptimizationHints", "about:blank"}
-	if os.Geteuid() == 0 || noSandbox {
-		// Chromium's own sandbox cannot run as root, nor where user
-		// namespaces are not allowed (RENOXIUM_CHROMIUM_NO_SANDBOX).
+	if noSandbox {
 		args = append(args, "--no-sandbox")
 	}
 	cmd := exec.CommandContext(ctx, chromium, args...)
@@ -564,9 +624,18 @@ func startBrowser(ctx context.Context, chromium string, noSandbox bool) (*browse
 	}
 	toBrowser.Close()
 	fromBrowser.Close()
-	b := &browser{cmd: cmd, in: browserIn, dir: dir, waiting: map[int64]chan cdpMessage{}, done: make(chan struct{}), stderr: stderr}
-	go b.read(browserOut)
-	return b, nil
+	var once sync.Once
+	stop := func() {
+		once.Do(func() {
+			browserIn.Close()
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+			cmd.Wait()
+			os.RemoveAll(dir)
+		})
+	}
+	return &chromiumProcess{in: browserIn, out: browserOut, stderr: stderr, stop: stop}, nil
 }
 
 func (b *browser) read(r io.ReadCloser) {
@@ -655,9 +724,5 @@ func (b *browser) close() {
 	case <-b.done:
 	case <-time.After(2 * time.Second):
 	}
-	if b.cmd.Process != nil {
-		b.cmd.Process.Kill()
-	}
-	b.cmd.Wait()
-	os.RemoveAll(b.dir)
+	b.stop()
 }

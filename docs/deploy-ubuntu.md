@@ -238,25 +238,34 @@ echo 'RENOXIUM_OPERATORS=you@renoxium.com' | sudo tee -a /etc/renoxium/env >/dev
 
 ### Screenshots for agents (optional)
 
-`screenshot_preview` lets a building agent see its preview pages. It runs a headless Chromium for each
-shot (about 150 MB while it runs, at most 2 at once). The browser only ever loads the preview, served
-inside Renoxium, and a few public font, script and map-tile CDNs. The hardened unit stops Chromium (its
-JIT needs writable and executable memory, and its own sandbox needs user namespaces), so it is off
-unless you add a drop-in. This drop-in has not been tried on the production unit yet: check the journal
-after the first screenshot.
+`screenshot_preview` lets a building agent see its preview pages. A headless Chromium renders each shot
+(about 150 MB while it runs, at most 2 at once). It only ever loads the preview, served inside Renoxium,
+and a few public font, script and map-tile CDNs.
+
+The pages are written by app owners, so Chromium does not run inside the platform's service. It runs in
+a helper service, `renoxium-shots`, under a user that exists only for it and cannot see `/var/lib/renoxium`
+or `/etc/renoxium`. The platform talks to the helper over a unix socket, and the helper serves only the
+`renoxium` user. The platform's own unit stays as strict as it is: no drop-in is needed. This unit has
+not been tried on the production server yet: check `journalctl -u renoxium-shots` after the first screenshot.
 
 ```bash
 sudo apt install -y chromium
-sudo mkdir -p /etc/systemd/system/renoxium.service.d
-printf '[Service]\nMemoryDenyWriteExecute=false\nRestrictNamespaces=false\nMemoryMax=1200M\n' | sudo tee /etc/systemd/system/renoxium.service.d/screenshots.conf
-echo 'RENOXIUM_CHROMIUM=/usr/bin/chromium' | sudo tee -a /etc/renoxium/env >/dev/null
-sudo systemctl daemon-reload && sudo systemctl restart renoxium
+sudo install -m 644 deploy/renoxium-shots.service /etc/systemd/system/renoxium-shots.service
+echo 'RENOXIUM_SHOT_SOCKET=/run/renoxium-shots/cdp.sock' | sudo tee -a /etc/renoxium/env >/dev/null
+sudo systemctl daemon-reload && sudo systemctl enable --now renoxium-shots && sudo systemctl restart renoxium
 ```
 
-Use a node with 2 GB or more. Without `RENOXIUM_CHROMIUM` the tool tells agents that screenshots are not set up.
-If Chromium cannot start its own sandbox (the error then quotes Chromium, e.g. "No usable sandbox"; Ubuntu 24.04 restricts
-user namespaces with AppArmor), prefer allowing it over turning it off. `RENOXIUM_CHROMIUM_NO_SANDBOX=1` runs it without,
-which isolates the rendered pages less.
+If an earlier setup added `/etc/systemd/system/renoxium.service.d/screenshots.conf` or `RENOXIUM_CHROMIUM`
+and `RENOXIUM_CHROMIUM_NO_SANDBOX` to `/etc/renoxium/env`, remove them: the platform no longer starts
+Chromium without its sandbox in its own process, and turns screenshots off when asked to.
+
+Use a node with 2 GB or more. Without `RENOXIUM_SHOT_SOCKET` the tool tells agents that screenshots are not set up.
+If the helper's journal shows Chromium's "No usable sandbox" (Ubuntu 24.04 restricts user namespaces with
+AppArmor), prefer allowing them for Chromium; otherwise uncomment `RENOXIUM_CHROMIUM_NO_SANDBOX=1` in the
+helper's unit, never in the platform's.
+
+On a development machine, `RENOXIUM_CHROMIUM=/path/to/chrome` starts Chromium from the platform's process
+(add `RENOXIUM_CHROMIUM_NO_SANDBOX=dev` when running as root, where Chromium has no sandbox).
 
 ### WhatsApp sign-in codes (optional)
 

@@ -50,6 +50,7 @@ func main() {
 			"       renoxium [flags] plan EMAIL PLAN     give an account the free, pro or business plan without payment\n"+
 			"       renoxium [flags] reviewer EMAIL [APP] create or reset an account for a directory's reviewers, with an example store\n"+
 			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
+			"       renoxium shot-helper SOCKET          run Chromium for screenshots as a service of its own (deploy/renoxium-shots.service)\n"+
 			"       renoxium version                     print the commit this binary was built from\n\nflags:\n")
 		flag.PrintDefaults()
 	}
@@ -58,6 +59,8 @@ func main() {
 		switch args[0] {
 		case "whatsapp-test":
 			os.Exit(whatsappTest(args[1:]))
+		case "shot-helper":
+			os.Exit(shotHelper(args[1:]))
 		case "version":
 			fmt.Println(buildVersion())
 			os.Exit(0)
@@ -93,10 +96,23 @@ func main() {
 	// Screenshots of previews for building agents (screenshot_preview).
 	// Opt-in: the hardened service needs a drop-in before Chromium can run
 	// (docs/deploy-ubuntu.md, "Screenshots for agents").
-	cfg.Chromium = os.Getenv("RENOXIUM_CHROMIUM")
-	cfg.ChromiumNoSandbox = os.Getenv("RENOXIUM_CHROMIUM_NO_SANDBOX") == "1"
-	if cfg.Chromium == "" {
-		slog.Info("RENOXIUM_CHROMIUM is not set: agents cannot take screenshots of previews")
+	cfg.ChromiumSocket = os.Getenv("RENOXIUM_SHOT_SOCKET")
+	switch noSandbox := os.Getenv("RENOXIUM_CHROMIUM_NO_SANDBOX"); {
+	case cfg.ChromiumSocket != "":
+		// Production: Chromium runs in the screenshot helper, never here.
+		slog.Info("screenshots through the screenshot helper", "socket", cfg.ChromiumSocket)
+	case os.Getenv("RENOXIUM_CHROMIUM") == "":
+		slog.Info("RENOXIUM_SHOT_SOCKET is not set: agents cannot take screenshots of previews")
+	case noSandbox == "dev":
+		cfg.Chromium, cfg.ChromiumNoSandbox = os.Getenv("RENOXIUM_CHROMIUM"), true
+		slog.Warn("RENOXIUM_CHROMIUM_NO_SANDBOX=dev: Chromium renders previews without its sandbox inside this process; never on a server with customers' data")
+	case noSandbox != "":
+		// Pages are written by app owners: an unsandboxed browser in this
+		// process would put every app's data one browser bug away.
+		slog.Error("RENOXIUM_CHROMIUM_NO_SANDBOX is set: screenshots are off. Run the screenshot helper instead (docs/deploy-ubuntu.md, \"Screenshots for agents\")")
+	default:
+		cfg.Chromium = os.Getenv("RENOXIUM_CHROMIUM")
+		slog.Warn("Chromium for screenshots runs inside this process; the screenshot helper (RENOXIUM_SHOT_SOCKET) keeps it away from the apps' data")
 	}
 	cfg.ScriptsPerOwner = max(1, *workers/2)
 	cfg.ScriptsPerApp = cfg.ScriptsPerOwner

@@ -39,6 +39,8 @@ export default async function globalSetup() {
     RENOXIUM_OPERATORS: OPERATOR,
     // screenshot_preview: the Chromium Playwright uses, unless told otherwise.
     RENOXIUM_CHROMIUM: process.env.E2E_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : ''),
+    // Chromium cannot sandbox itself as root (containers): a test machine says so, a server uses the screenshot helper.
+    RENOXIUM_CHROMIUM_NO_SANDBOX: process.getuid?.() === 0 ? 'dev' : '',
     RENOXIUM_LEGAL_NAME: 'Renoxium E2E (FZC)', RENOXIUM_LEGAL_ADDRESS: 'Test address, Sharjah', RENOXIUM_LEGAL_EMAIL: 'legal@e2e.test',
   };
   const log = fs.openSync(path.join(run, 'renoxium.log'), 'w');

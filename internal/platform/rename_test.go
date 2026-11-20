@@ -146,3 +146,46 @@ func TestRenameKeepsStripePayments(t *testing.T) {
 		t.Fatalf("payments after rename: %+v", list)
 	}
 }
+
+// A name can also be part of the apps domain ("oxi" in renoxium.test).
+// Renaming such an app again must send its earlier addresses to the new
+// host, not to a host made by replacing the name wherever it appears; and
+// nothing stays recorded under a name the app no longer has.
+func TestRenameTwiceKeepsRedirectsWhole(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	if _, res, err := p.CreateFromExample(ctx, "usr_a", "first-shop", "catalog"); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	if _, err := p.Publish("first-shop", 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.AddStaff("first-shop", "sam@shop.ae", "usr_a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.RenameApp(ctx, "first-shop", "oxi"); err != nil {
+		t.Fatal(err)
+	}
+	platform.AgeRenames(t, p)
+	if _, err := p.RenameApp(ctx, "oxi", "third-shop"); err != nil {
+		t.Fatal(err)
+	}
+	for host, want := range map[string]string{
+		"first-shop.renoxium.test":     "https://third-shop.renoxium.test/x",
+		"oxi.renoxium.test":            "https://third-shop.renoxium.test/x",
+		"first-shop--id.renoxium.test": "https://third-shop--id.renoxium.test/x",
+		"oxi--preview.renoxium.test":   "https://third-shop--preview.renoxium.test/x",
+	} {
+		if r := do(t, p, "GET", host, "/x", nil); r.status != 301 || r.header.Get("Location") != want {
+			t.Errorf("%s: %d %s", host, r.status, r.header.Get("Location"))
+		}
+	}
+	for _, old := range []string{"first-shop", "oxi"} {
+		if n := platform.LeftoverRows(t, p, old); n != 0 {
+			t.Errorf("%d rows still recorded under %s", n, old)
+		}
+	}
+	if staff, _ := p.Staff("third-shop"); len(staff) != 1 {
+		t.Errorf("staff after two renames: %v", staff)
+	}
+}

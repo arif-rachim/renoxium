@@ -95,10 +95,15 @@ type Config struct {
 	// Chromium is the path of a Chromium or Chrome binary for screenshots
 	// of previews (screenshot_preview). Empty turns screenshots off.
 	Chromium string
-	// ChromiumNoSandbox runs Chromium without its own sandbox, for hosts
-	// where it cannot start one (no unprivileged user namespaces). The
-	// pages it renders are then less isolated; leave it off where it works.
+	// ChromiumNoSandbox allows a Chromium started by this process to run
+	// without its own sandbox (always needed as root). Only for tests and
+	// development machines: the browser renders pages written by app
+	// owners, in a process that holds every app's data.
 	ChromiumNoSandbox bool
+	// ChromiumSocket is the unix socket of the screenshot helper
+	// (renoxium shot-helper), which runs Chromium as a user of its own.
+	// When set, Chromium is never started in this process.
+	ChromiumSocket string
 }
 
 // DailyLimits caps messages sent per day, per app and over all apps.
