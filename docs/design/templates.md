@@ -123,6 +123,13 @@ of cards with arrows (purpose label, beds, baths, area, reference, price); up to
 only when the owner adds real ones (empty in the seed); the agents; a brand-colour valuation band; a "Browse properties" button in
 the header and a four-column footer with property types.
 
+The listings layout is the reference for density and shape in boutique layouts: sections sit 28-44px apart; every block carries
+real data (numbers counted from the published listings under the search bar, communities as arched tiles with their number of
+homes, property-type chips with counts); photos are never plain rectangles (a curved hero edge, an organic about photo with a
+round second photo, arched tiles, cards with one large corner) and thin ring or curve ornaments (`.v-deco`) sit behind them.
+Sample client reviews exist only in the gallery demo (`listingsDemoReviews`, names marked "(sample)"); the template's
+`testimonials` seed stays empty.
+
 quote-portal-uae has its own (`home_boutique`, classes `s-…`), seeded in gold `#C9A14A` on a navy night palette with plain capitals
 (DM Sans) instead of the serif: a photo hero (`hero_image`, faded into navy on the text side) with a gold rule, the label
 (`business.eyebrow`), a headline (`headline` + `tagline_accent` in gold) and `intro`; a badge with the trade licence, or the years in

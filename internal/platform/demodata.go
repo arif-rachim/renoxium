@@ -572,5 +572,32 @@ func listingsDemoSchedule(ctx context.Context, db *sql.DB, now time.Time) error 
 			return err
 		}
 	}
+	return listingsDemoReviews(ctx, db)
+}
+
+// Sample client reviews for the demo only, so its home page shows the reviews
+// section. The template handed to owners keeps the table empty: a real site
+// shows reviews only when its owner adds real ones.
+func listingsDemoReviews(ctx context.Context, db *sql.DB) error {
+	var n int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM testimonials`).Scan(&n); err != nil || n > 0 {
+		return nil // an older demo without the table, or already filled
+	}
+	for i, r := range []map[string]any{
+		{"quote": "They showed us three villas in one afternoon and told us plainly which one was overpriced. We moved in six weeks later.",
+			"quote_ar": "عرضوا علينا ثلاث فلل في ظهيرة واحدة وأخبرونا بصراحة أيها سعرها مبالغ فيه. انتقلنا بعد ستة أسابيع.",
+			"name":     "Rebecca L. (sample)", "area": "Arabian Ranches", "area_ar": "المرابع العربية"},
+		{"quote": "Every advert had its permit number and the flat looked exactly like the photos. No surprises at the viewing.",
+			"quote_ar": "كل إعلان يحمل رقم التصريح والشقة كانت تماماً كما في الصور. لا مفاجآت عند المعاينة.",
+			"name":     "Yousef D. (sample)", "area": "Dubai Marina", "area_ar": "دبي مارينا"},
+		{"quote": "I booked the viewing online at night and had a WhatsApp confirmation before breakfast.",
+			"quote_ar": "حجزت المعاينة عبر الإنترنت ليلاً ووصلني التأكيد عبر واتساب قبل الإفطار.",
+			"name":     "Arjun M. (sample)", "area": "Business Bay", "area_ar": "الخليج التجاري"},
+	} {
+		r["position"], r["active"] = i+1, 1
+		if err := insertDemoRow(ctx, db, "testimonials", r); err != nil {
+			return err
+		}
+	}
 	return nil
 }
