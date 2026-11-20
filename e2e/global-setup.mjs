@@ -37,6 +37,8 @@ export default async function globalSetup() {
     JOBS_CHECK_EVERY: '1s',            // scheduled jobs are checked every second instead of every 30
     RENOXIUM_DNS_API: `${FAKES}/dns`,
     RENOXIUM_OPERATORS: OPERATOR,
+    // screenshot_preview: the Chromium Playwright uses, unless told otherwise.
+    RENOXIUM_CHROMIUM: process.env.E2E_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : ''),
     RENOXIUM_LEGAL_NAME: 'Renoxium E2E (FZC)', RENOXIUM_LEGAL_ADDRESS: 'Test address, Sharjah', RENOXIUM_LEGAL_EMAIL: 'legal@e2e.test',
   };
   const log = fs.openSync(path.join(run, 'renoxium.log'), 'w');

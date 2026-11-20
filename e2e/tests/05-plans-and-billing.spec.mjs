@@ -11,7 +11,7 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
 
   await page.goto('/billing');
   await expect(page.locator('body')).toContainText('Current plan: Free');
-  await expect(page.locator('body')).toContainText('Apps: 1 of 1');
+  await expect(page.locator('body')).toContainText(/Apps\s*1 of 1/);
   await expect(page.locator('body')).toContainText('takes 2% of card payments');
   await page.goto(`/apps/${shop.app}/domain`);
   await expect(page.locator('body')).toContainText('included in the Pro and Business plans');
@@ -24,7 +24,7 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
   expect(sub.price).toBe(SECRETS.pricePro);
   expect(sub.metadata.rx_plan).toBe('pro');
   await expect(page.locator('body')).toContainText(/active · renews \d+ \w+ \d{4}/);
-  await expect(page.locator('body')).toContainText('Apps: 1 of 3');
+  await expect(page.locator('body')).toContainText(/Apps\s*1 of 3/);
   await expect(page.locator('body')).toContainText('of 500');
 
   // The badge is gone within the plan cache time; card payments carry no fee.
@@ -56,7 +56,7 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
 
   await portal(page, 'Switch to Business');
   await expect(page.locator('body')).toContainText('Current plan: Business');
-  await expect(page.locator('body')).toContainText('of 2000');
+  await expect(page.locator('body')).toContainText('of 2,000');
   await page.goto(`/apps/${shop.app}/staff`);
   await expect(page.locator('body')).toContainText('0 of 10 on your plan');
 
@@ -72,7 +72,7 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
 
   await portal(page, 'Cancel now');
   await expect(page.locator('body')).toContainText('Current plan: Free');
-  await expect(page.locator('body')).toContainText('Apps: 2 of 1'); // existing apps keep running
+  await expect(page.locator('body')).toContainText(/Apps\s*2 of 1/); // existing apps keep running
   await expect.poll(async () => (await (await page.request.get(shop.live)).text()).includes('Made with Renoxium'), { timeout: 40_000, intervals: [2000] }).toBe(true);
   await expect(agent.call('create_app', { app: unique('third') })).rejects.toThrow();
   const customers = (await fake.stripeCalls()).filter((c) => c.path === '/v1/customers' && c.form.email === shop.email);

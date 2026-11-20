@@ -71,11 +71,20 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 	waUsed, waQuota := s.platform.WhatsAppUsage(u.ID)
 	stUsed, stQuota := s.platform.StorageUsage(u.ID)
 	fetchUsed, fetchQuota := s.platform.FetchUsage(u.ID)
-	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": s.csrfToken(w, r), "Prices": accounts.PlanPriceAED,
-		"Apps": len(apps), "Limit": platform.AppsPerPlan[b.Plan], "Fee": platform.FreePlanFeePercent,
-		"Paying": b.Plan != accounts.PlanFree, "PeriodEnd": formatDate(b.PeriodEnd),
-		"WAUsed": waUsed, "WAQuota": waQuota, "StorageMB": stUsed >> 20, "StorageQuotaMB": stQuota >> 20,
-		"FetchUsed": fetchUsed, "FetchQuota": fetchQuota})
+	csrf := s.csrfToken(w, r)
+	granted := b.Plan != accounts.PlanFree && b.Status == accounts.StatusGranted
+	limit := platform.AppsPerPlan[b.Plan]
+	meters := []meter{
+		newMeter("Apps", int64(len(apps)), int64(limit), ""),
+		newMeter("WhatsApp sign-in codes this month", int64(waUsed), int64(waQuota), ""),
+		newMeter("Image storage", stUsed>>20, stQuota>>20, " MB"),
+		newMeter("External API calls this month", int64(fetchUsed), int64(fetchQuota), ""),
+	}
+	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": csrf, "Prices": accounts.PlanPriceAED,
+		"Fee": platform.FreePlanFeePercent, "PlanName": planName(b.Plan),
+		"Paying": b.Plan != accounts.PlanFree, "Granted": granted, "CanManage": s.Billing.ready() && b.Customer != "" && !granted,
+		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(b.Plan),
+		"Notice": billingNotices[r.URL.Query().Get("notice")], "Shell": s.ownerShell(u, "Plan and billing", "/billing", csrf)})
 }
 
 func formatDate(t time.Time) string {
@@ -118,7 +127,7 @@ func (s *Site) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b, _ := s.accounts.Billing(u.ID)
-	if b.Plan != accounts.PlanFree {
+	if b.Plan != accounts.PlanFree && b.Status != accounts.StatusGranted {
 		// Already subscribed: changing plans happens in the billing portal,
 		// so nobody pays for two subscriptions.
 		s.billingPortal(w, r)
@@ -147,8 +156,16 @@ func (s *Site) billingPortal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b, _ := s.accounts.Billing(u.ID)
-	if !s.Billing.ready() || b.Customer == "" {
-		http.Redirect(w, r, "/billing", http.StatusSeeOther)
+	switch {
+	case !s.Billing.ready():
+		http.Redirect(w, r, "/billing?notice=unavailable", http.StatusSeeOther)
+		return
+	case b.Plan != accounts.PlanFree && b.Status == accounts.StatusGranted:
+		// A plan given by the operator has no subscription at Stripe.
+		http.Redirect(w, r, "/billing?notice=granted", http.StatusSeeOther)
+		return
+	case b.Customer == "":
+		http.Redirect(w, r, "/billing?notice=no-customer", http.StatusSeeOther)
 		return
 	}
 	if !s.apiLimiter.allow("stripe-portal:" + u.ID) {

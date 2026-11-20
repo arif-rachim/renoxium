@@ -46,7 +46,8 @@ type operatorApp struct {
 }
 
 func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.operator(w, r); !ok {
+	op, ok := s.operator(w, r)
+	if !ok {
 		return
 	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
@@ -96,7 +97,8 @@ func (s *Site) operatorPage(w http.ResponseWriter, r *http.Request) {
 		growth.CSRF = csrf
 	}
 	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": csrf, "Accounts": total, "PerPlan": perPlan,
-		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open, "Growth": growth})
+		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open, "Growth": growth,
+		"Shell": s.ownerShell(op, "Operator", "/operator", csrf)})
 }
 
 func (s *Site) operatorPlan(w http.ResponseWriter, r *http.Request) {
