@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"image/png"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,5 +140,68 @@ func TestScreenshotNeedsBrowser(t *testing.T) {
 	p.CreateApp("usr_test", "nobrowser")
 	if _, err := p.ScreenshotPreview(context.Background(), "nobrowser", platform.ScreenshotInput{Path: "/"}); err == nil || !strings.Contains(err.Error(), "not set up") {
 		t.Fatal(err)
+	}
+}
+
+// With the screenshot helper, Chromium runs in another process: the
+// platform only talks to its socket, and the helper lets in one user.
+func TestScreenshotThroughHelper(t *testing.T) {
+	bin := chromium(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	serve := func(name string, uid int) string {
+		sock := filepath.Join(t.TempDir(), name)
+		l, err := net.Listen("unix", sock)
+		if err != nil {
+			t.Fatal(err)
+		}
+		go platform.ShotHelper{Chromium: bin, NoSandbox: true, AllowUID: uid}.Serve(ctx, l)
+		return sock
+	}
+	take := func(sock string) (platform.ScreenshotResult, error) {
+		// No Chromium path at all: the platform cannot start a browser itself.
+		p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
+			PreviewKey: []byte("0123456789abcdef0123456789abcdef"), ChromiumSocket: sock}, sandbox.NewGoja())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(p.Close)
+		if _, res, err := p.CreateFromExample(ctx, "usr_test", "noor", "store-uae"); err != nil || !res.OK {
+			t.Fatal(err, res)
+		}
+		return p.ScreenshotPreview(ctx, "noor", platform.ScreenshotInput{Path: "/"})
+	}
+	r, err := take(serve("ok.sock", os.Geteuid()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := png.Decode(bytes.NewReader(r.PNG)); err != nil || r.Status != 200 || r.Width != 390 {
+		t.Fatalf("shot through the helper: %v status=%d width=%d", err, r.Status, r.Width)
+	}
+	// Another user's connection gets no browser.
+	if _, err := take(serve("other.sock", os.Geteuid()+1)); err == nil {
+		t.Fatal("the helper served a user it does not allow")
+	}
+}
+
+// Started inside the platform's own process, Chromium must have its
+// sandbox: as root it has none, so there is no screenshot unless the
+// operator declared a development machine.
+func TestUnsandboxedChromiumIsRefused(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("Chromium can sandbox itself for this user")
+	}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
+		PreviewKey: []byte("0123456789abcdef0123456789abcdef"), Chromium: chromium(t)}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	ctx := context.Background()
+	if _, res, err := p.CreateFromExample(ctx, "usr_test", "noor", "store-uae"); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	if _, err := p.ScreenshotPreview(ctx, "noor", platform.ScreenshotInput{Path: "/"}); err == nil || !strings.Contains(err.Error(), "screenshot helper") {
+		t.Fatalf("unsandboxed browser started in the platform's process: %v", err)
 	}
 }

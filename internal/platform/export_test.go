@@ -84,3 +84,31 @@ func SetMaxTestBody(n int) (restore func()) {
 	maxTestBody = n
 	return func() { maxTestBody = old }
 }
+
+// AgeRenames makes every rename so far look older than the wait between
+// two renames, so a test can rename an app again.
+func AgeRenames(t *testing.T, p *Platform) {
+	t.Helper()
+	if _, err := p.db.Exec(`UPDATE app_renames SET renamed_at = renamed_at - ?`, int64(RenameEvery/time.Second)+60); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// LeftoverRows counts rows that still name app in any platform table with
+// an app column.
+func LeftoverRows(t *testing.T, p *Platform, app string) int {
+	t.Helper()
+	tables, err := p.tablesWithAppColumn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := 0
+	for _, table := range tables {
+		var n int
+		if err := p.db.QueryRow(`SELECT count(*) FROM "`+table+`" WHERE app = ?`, app).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		total += n
+	}
+	return total
+}

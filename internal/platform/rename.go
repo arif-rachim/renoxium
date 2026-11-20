@@ -165,6 +165,12 @@ func (p *Platform) RenameApp(ctx context.Context, app, name string) (AppInfo, er
 			sql  string
 			args []any
 		}{`UPDATE OR IGNORE "` + t + `" SET app = ? WHERE app = ?`, []any{name, app}})
+		// A row that could not move (the new name already has one) must not
+		// stay behind for whoever takes the old name later.
+		steps = append(steps, struct {
+			sql  string
+			args []any
+		}{`DELETE FROM "` + t + `" WHERE app = ?`, []any{app}})
 	}
 	until := time.Now().Add(RenameRedirect).Unix()
 	for _, stg := range []string{Live, Preview} {
@@ -183,12 +189,15 @@ func (p *Platform) RenameApp(ctx context.Context, app, name string) (AppInfo, er
 			}{`INSERT OR REPLACE INTO host_redirects (host, target, owner, until) VALUES (?, ?, ?, ?)`, []any{bareHost(p.idHost(app, stg)), p.idHost(name, stg), owner, until}},
 		)
 	}
-	// Redirects that pointed at the old name now point at the new one.
-	steps = append(steps, struct {
-		sql  string
-		args []any
-	}{`UPDATE host_redirects SET target = replace(target, ?, ?) WHERE target IN (?, ?, ?, ?)`, []any{app, name,
-		p.host(app, Live), p.host(app, Preview), p.idHost(app, Live), p.idHost(app, Preview)}})
+	// Redirects that pointed at the old name now point at the new one. Whole
+	// hosts are compared and replaced: a name can also be part of the domain.
+	for _, pair := range [][2]string{{p.host(app, Live), p.host(name, Live)}, {p.host(app, Preview), p.host(name, Preview)},
+		{p.idHost(app, Live), p.idHost(name, Live)}, {p.idHost(app, Preview), p.idHost(name, Preview)}} {
+		steps = append(steps, struct {
+			sql  string
+			args []any
+		}{`UPDATE host_redirects SET target = ? WHERE target = ?`, []any{pair[1], pair[0]}})
+	}
 	for _, s := range steps {
 		if _, err := tx.ExecContext(ctx, s.sql, s.args...); err != nil {
 			undo()
