@@ -115,6 +115,14 @@ variants (opens the cart drawer); a promo band only for a coupon the owner marks
 the story next to `story_image`, with one customer quote from table `testimonials` only when the owner adds a real one (empty in
 the seed); and a three-column footer.
 
+listings-uae has its own (`home_boutique`, classes `v-…`), seeded in forest green `#1F3A2E` on a cooler cream: a photo hero
+(`hero_image`, faded into the paper on the text side) with a label (`agency.eyebrow`), a headline (`headline` + `tagline_accent`)
+and `intro`; a floating search bar (purpose, location, type, maximum price) that sends to `/search`; about with
+`interior_image` (or `story_image`) and highlights (table `highlights`, template `icon`); the featured listings as a scrolling row
+of cards with arrows (purpose label, beds, baths, area, reference, price); up to three client reviews from table `testimonials`
+only when the owner adds real ones (empty in the seed); the agents; a brand-colour valuation band; a "Browse properties" button in
+the header and a four-column footer with property types.
+
 ## 4. Type scale
 
 Sizes: 14 / 16 / 18 / 22 / 28 / 36 / 48 px (`--fs-14` ... `--fs-48`). Nothing smaller than 14px except the cart count (13px).
