@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -38,6 +37,11 @@ type TestRequestInput struct {
 	Job       string `json:"job,omitempty" jsonschema:"run this scheduled job once on preview instead of sending a request (path is then ignored); jobs never run on preview by themselves"`
 	UserEmail string `json:"user_email,omitempty" jsonschema:"send the request signed in as the visitor with this email or WhatsApp number; preview only; the visitor must exist in preview (sign up through /_rx/auth/signup or /_rx/auth/phone first, or it may come from live data)"`
 
+	// Session keeps cookies between calls (preview only), Follow follows
+	// redirects within the preview's own hosts.
+	Session string `json:"session,omitempty" jsonschema:"name of a cookie jar kept between calls, e.g. s1 (preview only, kept 1 hour): cookies the app or its sign-in pages set are sent again on later calls with the same session, so a real sign-up or sign-in can be followed through"`
+	Follow  bool   `json:"follow_redirects,omitempty" jsonschema:"follow redirects (up to 8, as GET) within the preview and its sign-in host, keeping the session's cookies; the response is the last page, redirects lists the hops and logs has every hop's log"`
+
 	// Admin makes an admin panel change on preview (see TestAdminInput).
 	Admin *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
 }
@@ -64,6 +68,8 @@ type TestResponse struct {
 	Truncated   bool           `json:"truncated,omitempty"`
 	RequestID   string         `json:"request_id"`
 	Logs        []applog.Event `json:"logs" jsonschema:"server log events of this request, including script console output and errors"`
+	// Redirects lists the hops followed with follow_redirects.
+	Redirects []string `json:"redirects,omitempty" jsonschema:"redirects followed, in order, as status and target"`
 	// Admin is set for test_request {admin}: the row after the change.
 	Admin *TestAdminResult `json:"admin,omitempty"`
 }
@@ -112,14 +118,46 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 		return TestResponse{}, errors.New("method must be GET or POST")
 	case stage == Live && method != http.MethodGet:
 		return TestResponse{}, errors.New("only GET requests may go to live; send POST and other requests to the preview (stage preview), so tests never change the live app")
-	case !strings.HasPrefix(in.Path, "/") || strings.HasPrefix(in.Path, "//"):
-		return TestResponse{}, errors.New("path must start with /")
-	case stage == Live && strings.HasPrefix(in.Path, AuthPrefix):
+	case stage == Live && (in.Session != "" || in.Follow):
+		return TestResponse{}, errors.New("session and follow_redirects work only on preview")
+	}
+	host, path, err := p.testTarget(app, stage, in.Path)
+	if err != nil {
+		return TestResponse{}, err
+	}
+	if stage == Live && strings.HasPrefix(path, AuthPrefix) {
 		// Sign-in links (email confirmation, password reset, sign-out) change visitor accounts even on GET.
 		return TestResponse{}, errors.New("sign-in pages can only be tested on preview")
 	}
+	var jar *testJar
+	if in.Session != "" {
+		if jar, err = p.testSession(app, in.Session); err != nil {
+			return TestResponse{}, err
+		}
+	}
+	var visitorToken string
+	if in.UserEmail != "" {
+		if stage != Preview {
+			return TestResponse{}, errors.New("user_email works only on preview")
+		}
+		st, err := p.loadStage(app, Preview)
+		if err != nil || st == nil {
+			return TestResponse{}, errors.New("preview has no version yet: call apply_change first")
+		}
+		addr, _ := normalizeEmail(in.UserEmail)
+		phone, _ := whatsapp.Normalize(in.UserEmail)
+		var id int64
+		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ? OR phone = ?`, addr, phone).Scan(&id); err != nil {
+			return TestResponse{}, fmt.Errorf("no visitor %q in preview: make one with create_test_visitor, or sign up with POST /_rx/auth/signup", in.UserEmail)
+		}
+		visitorToken = secretToken()
+		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(visitorToken), id, time.Now().Add(5*time.Minute).Unix()); err != nil {
+			return TestResponse{}, err
+		}
+		defer st.admin.Exec(`DELETE FROM rx_sessions WHERE hash = ?`, sha(visitorToken))
+	}
 
-	var body *bytes.Reader
+	var body []byte
 	ctype := ""
 	switch {
 	case len(in.Files) > 0:
@@ -151,83 +189,130 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 			part.Write(raw)
 		}
 		mw.Close()
-		body, ctype = bytes.NewReader(buf.Bytes()), mw.FormDataContentType()
+		body, ctype = buf.Bytes(), mw.FormDataContentType()
 	case in.JSON != nil:
 		raw, err := json.Marshal(in.JSON)
 		if err != nil {
 			return TestResponse{}, err
 		}
-		body, ctype = bytes.NewReader(raw), "application/json"
+		body, ctype = raw, "application/json"
 	case len(in.Form) > 0:
-		form := url.Values{}
-		for k, v := range in.Form {
-			form.Set(k, v)
-		}
-		body, ctype = bytes.NewReader([]byte(form.Encode())), "application/x-www-form-urlencoded"
-	default:
-		body = bytes.NewReader(nil)
+		ctype = "application/x-www-form-urlencoded"
 	}
 	if stage == Live {
 		ctx = context.WithValue(ctx, liveTestKey{}, true)
 	}
+	one := testHop{method: method, host: host, path: path, body: body, ctype: ctype, form: in.Form, files: len(in.Files) > 0}
+	out, at, err := p.testSend(ctx, app, stage, one, jar, visitorToken)
+	if err != nil || !in.Follow {
+		return out, err
+	}
+	for hops := 0; out.Location != "" && out.Status >= 300 && out.Status < 400; hops++ {
+		if hops == maxTestRedirects {
+			out.Redirects = append(out.Redirects, "stopped after too many redirects")
+			break
+		}
+		next, err := url.Parse(out.Location)
+		if err != nil {
+			break
+		}
+		base, _ := url.Parse("http://" + at + strings.SplitN(one.path, "?", 2)[0])
+		target := base.ResolveReference(next)
+		h, pth, err := p.testTarget(app, stage, target.String())
+		if err != nil {
+			out.Redirects = append(out.Redirects, fmt.Sprintf("%d %s (not followed: another site)", out.Status, out.Location))
+			break
+		}
+		chain := append(out.Redirects, fmt.Sprintf("%d %s", out.Status, out.Location))
+		logs := out.Logs
+		one = testHop{method: http.MethodGet, host: h, path: pth}
+		if out, at, err = p.testSend(ctx, app, stage, one, jar, visitorToken); err != nil {
+			return out, err
+		}
+		out.Redirects, out.Logs = chain, append(logs, out.Logs...) // the log of every hop, in order
+	}
+	return out, nil
+}
+
+// testHop is one request of a test, after the input is checked.
+type testHop struct {
+	method, host, path, ctype string
+	body                      []byte
+	form                      map[string]string // urlencoded form fields, when body is empty
+	files                     bool
+}
+
+// testSend sends one request to an app stage, as a visitor's browser would.
+// host "" means the stage's own host, or its sign-in host for sign-in pages.
+// It also returns the host the request went to.
+func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop, jar *testJar, visitorToken string) (TestResponse, string, error) {
+	host, path := hop.host, hop.path
 	// Sign-in pages live on the stage's sign-in host; a test request goes
 	// straight there, as a visitor's browser would after the redirect.
-	host := p.host(app, stage)
-	authPath := strings.SplitN(in.Path, "?", 2)[0]
+	authPath := strings.SplitN(path, "?", 2)[0]
 	signIn := strings.HasPrefix(authPath, AuthPrefix) && authPath != AuthPrefix+"callback" && authPath != AuthPrefix+"logout"
-	if signIn {
-		host = p.idHost(app, stage)
+	if host == "" {
+		host = p.host(app, stage)
+		// Without a session every sign-in request goes straight to the
+		// sign-in host. In a session a GET starts on the app's host, as a
+		// link would (it sets the hand-over state), and a POST goes to the
+		// sign-in host, where the form is.
+		if signIn && (jar == nil || hop.method == http.MethodPost) {
+			host = p.idHost(app, stage)
+		}
 	}
-	req := httptest.NewRequestWithContext(ctx, method, "http://"+host+in.Path, body)
-	if signIn {
-		req.AddCookie(&http.Cookie{Name: p.cookieName(authFlowCookie), Value: secretToken()})
+	onID := host == p.idHost(app, stage)
+	body := hop.body
+	// Test requests carry a valid CSRF pair, so platform forms such as
+	// /_rx/auth/signup can be exercised too. A session uses its own.
+	csrfName := p.cookieName(visitorCSRFCookie)
+	csrf := ""
+	if hop.method == http.MethodPost && !hop.files && (strings.HasPrefix(path, AuthPrefix) || strings.HasPrefix(path, PayPrefix)) {
+		if csrf = jar.get(host, csrfName); csrf == "" {
+			csrf = secretToken()
+		}
 	}
-	if ctype != "" {
-		req.Header.Set("Content-Type", ctype)
+	if len(body) == 0 && len(hop.form) > 0 {
+		form := url.Values{}
+		for k, v := range hop.form {
+			form.Set(k, v)
+		}
+		if csrf != "" && form.Get("csrf") == "" {
+			form.Set("csrf", csrf)
+		}
+		body = []byte(form.Encode())
 	}
-	if strings.SplitN(in.Path, "?", 2)[0] == MCPPath {
+	req := httptest.NewRequestWithContext(ctx, hop.method, "http://"+host+path, bytes.NewReader(body))
+	if hop.ctype != "" {
+		req.Header.Set("Content-Type", hop.ctype)
+	}
+	if strings.SplitN(path, "?", 2)[0] == MCPPath {
 		req.Header.Set("Accept", "application/json, text/event-stream")
 	}
+	if csrf != "" {
+		req.AddCookie(&http.Cookie{Name: csrfName, Value: csrf})
+	}
+	// A GET carries the state in its query, as after the app host's redirect.
+	if flow := p.cookieName(authFlowCookie); signIn && onID && jar.get(host, flow) == "" && (jar == nil || hop.method == http.MethodPost) {
+		state := secretToken()
+		req.AddCookie(&http.Cookie{Name: flow, Value: state})
+		// A session that posts the form without opening the page first
+		// gets the hand-over state a browser would hold, so the sign-in
+		// finishes on the app host.
+		jar.set(p.host(app, stage), p.cookieName(authStateCookie), state)
+	}
+	if visitorToken != "" && !onID {
+		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorSessionCookie), Value: visitorToken})
+	}
+	jar.add(req, host)
 	if stage == Preview && len(p.cfg.PreviewKey) > 0 {
-		req.AddCookie(p.previewCookie(app))
-	}
-	if in.UserEmail != "" {
-		if stage != Preview {
-			return TestResponse{}, errors.New("user_email works only on preview")
-		}
-		st, err := p.loadStage(app, Preview)
-		if err != nil || st == nil {
-			return TestResponse{}, errors.New("preview has no version yet: call apply_change first")
-		}
-		addr, _ := normalizeEmail(in.UserEmail)
-		phone, _ := whatsapp.Normalize(in.UserEmail)
-		var id int64
-		if err := st.admin.QueryRowContext(ctx, `SELECT id FROM rx_users WHERE email = ? OR phone = ?`, addr, phone).Scan(&id); err != nil {
-			return TestResponse{}, fmt.Errorf("no visitor %q in preview: sign up first with POST /_rx/auth/signup", in.UserEmail)
-		}
-		token := secretToken()
-		if _, err := st.admin.ExecContext(ctx, `INSERT INTO rx_sessions (hash, user_id, expires_at) VALUES (?, ?, ?)`, sha(token), id, time.Now().Add(time.Minute).Unix()); err != nil {
-			return TestResponse{}, err
-		}
-		defer st.admin.Exec(`DELETE FROM rx_sessions WHERE hash = ?`, sha(token))
-		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorSessionCookie), Value: token})
-	}
-	// Test requests carry a valid CSRF pair, so platform forms such as
-	// /_rx/auth/signup can be exercised too.
-	if method == http.MethodPost && len(in.Files) == 0 && (strings.HasPrefix(in.Path, AuthPrefix) || strings.HasPrefix(in.Path, PayPrefix)) {
-		token := secretToken()
-		req.AddCookie(&http.Cookie{Name: p.cookieName(visitorCSRFCookie), Value: token})
-		if len(in.Form) > 0 {
-			form := url.Values{"csrf": {token}}
-			for k, v := range in.Form {
-				form.Set(k, v)
-			}
-			req.Body = io.NopCloser(strings.NewReader(form.Encode()))
-			req.ContentLength = int64(len(form.Encode()))
+		if _, err := req.Cookie(p.cookieName("rx_preview")); err != nil {
+			req.AddCookie(p.previewCookie(app))
 		}
 	}
 	w := httptest.NewRecorder()
 	p.ServeApp(w, req)
+	jar.keep(host, w.Result().Cookies())
 
 	rid := w.Header().Get("X-Request-Id")
 	out := TestResponse{Status: w.Code, ContentType: w.Header().Get("Content-Type"), Location: w.Header().Get("Location"), RequestID: rid}
@@ -256,7 +341,7 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 			}
 		}
 	}
-	return out, nil
+	return out, host, nil
 }
 
 // Patch changes parts of an app's newest definition. Unset fields are kept.

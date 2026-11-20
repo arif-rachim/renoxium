@@ -90,6 +90,14 @@ func main() {
 		SiteURL: strings.TrimRight(*baseURL, "/"), PreviewKey: previewKey}
 	// One account may use at most half of the script workers, so other
 	// accounts' apps always have a worker left.
+	// Screenshots of previews for building agents (screenshot_preview).
+	// Opt-in: the hardened service needs a drop-in before Chromium can run
+	// (docs/deploy-ubuntu.md, "Screenshots for agents").
+	cfg.Chromium = os.Getenv("RENOXIUM_CHROMIUM")
+	cfg.ChromiumNoSandbox = os.Getenv("RENOXIUM_CHROMIUM_NO_SANDBOX") == "1"
+	if cfg.Chromium == "" {
+		slog.Info("RENOXIUM_CHROMIUM is not set: agents cannot take screenshots of previews")
+	}
 	cfg.ScriptsPerOwner = max(1, *workers/2)
 	cfg.ScriptsPerApp = cfg.ScriptsPerOwner
 	if key := os.Getenv("STRIPE_SECRET_KEY"); key != "" {

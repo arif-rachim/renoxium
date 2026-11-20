@@ -466,9 +466,9 @@ func (p *Platform) applyStripeSubscription(ctx context.Context, st *stage, id st
 
 // subscriptionOf finds the Renoxium subscription for Stripe metadata or a
 // Stripe subscription id.
-func subscriptionOf(ctx context.Context, st *stage, meta map[string]string, stripeID string) (Subscription, bool) {
+func (p *Platform) subscriptionOf(ctx context.Context, st *stage, meta map[string]string, stripeID string) (Subscription, bool) {
 	if id := meta["rx_subscription"]; id != "" {
-		if meta["rx_app"] != "" && meta["rx_app"] != st.app {
+		if meta["rx_app"] != "" && p.currentName(meta["rx_app"]) != st.app { // renamed apps keep their subscriptions
 			return Subscription{}, false
 		}
 		if sub, err := subscriptionByID(ctx, st, id); err == nil {
@@ -485,7 +485,7 @@ func subscriptionOf(ctx context.Context, st *stage, meta map[string]string, stri
 
 // invoiceEvent applies invoice.paid and invoice.payment_failed.
 func (p *Platform) invoiceEvent(ctx context.Context, st *stage, account string, paid bool, in stripe.Invoice) error {
-	sub, ok := subscriptionOf(ctx, st, in.SubscriptionMetadata(), in.SubscriptionID())
+	sub, ok := p.subscriptionOf(ctx, st, in.SubscriptionMetadata(), in.SubscriptionID())
 	if !ok {
 		return nil // not a Renoxium subscription
 	}
@@ -508,7 +508,7 @@ func (p *Platform) invoiceEvent(ctx context.Context, st *stage, account string, 
 
 // subscriptionEvent applies customer.subscription.* events.
 func (p *Platform) subscriptionEvent(ctx context.Context, st *stage, s stripe.Subscription, deleted bool) error {
-	sub, ok := subscriptionOf(ctx, st, s.Metadata, s.ID)
+	sub, ok := p.subscriptionOf(ctx, st, s.Metadata, s.ID)
 	if !ok {
 		return nil
 	}

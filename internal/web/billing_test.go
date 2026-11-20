@@ -163,6 +163,26 @@ func TestGrantedPlan(t *testing.T) {
 	if p := read(t, r); !strings.Contains(p, "<strong>Business</strong>") {
 		t.Fatalf("granted plan: %s", p)
 	}
+	// No Stripe subscription to manage: the page says so instead of a
+	// Manage billing button that only reloads the page, and the owner can
+	// still subscribe to pay for a plan themselves.
+	r, _ = c.Get(e.base + "/billing")
+	p := read(t, r)
+	if strings.Contains(p, "Manage billing") || !strings.Contains(p, "granted") || !strings.Contains(p, "Choose Pro") {
+		t.Fatalf("granted billing page: %s", p)
+	}
+	r, _ = c.PostForm(e.base+"/billing/portal", url.Values{"csrf": {e.csrf(c, "/billing")}})
+	if r.StatusCode != 303 || r.Header.Get("Location") != "/billing?notice=granted" {
+		t.Fatalf("portal on a granted plan: %d %s", r.StatusCode, r.Header.Get("Location"))
+	}
+	r, _ = c.Get(e.base + "/billing?notice=granted")
+	if p := read(t, r); !strings.Contains(p, "no card, invoice or subscription to manage") {
+		t.Fatal("granted notice not shown")
+	}
+	r, _ = c.PostForm(e.base+"/billing/checkout", url.Values{"csrf": {e.csrf(c, "/billing")}, "plan": {"pro"}})
+	if r.Header.Get("Location") != "https://checkout.stripe.com/c/pay/cs_sub" {
+		t.Fatalf("checkout on a granted plan: %s", r.Header.Get("Location"))
+	}
 	if err := acc.GrantPlan(u.ID, "gold"); err == nil {
 		t.Fatal("unknown plan accepted")
 	}

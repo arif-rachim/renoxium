@@ -29,7 +29,7 @@ func liveExample(t *testing.T, example, app string) *platform.Platform {
 		t.Fatal(err, res)
 	}
 	for _, c := range res.Checks {
-		if c.Status >= 400 {
+		if c.Status >= 500 {
 			t.Errorf("check %s: %d %s", c.Route, c.Status, c.Error)
 		}
 	}

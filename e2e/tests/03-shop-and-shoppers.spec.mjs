@@ -114,7 +114,7 @@ test('sign-in with WhatsApp: code, wrong code, quota count', async ({ browser })
   await page.waitForURL(shop.live + '/');
 
   await shop.page.goto('/billing');
-  await expect(shop.page.locator('body')).toContainText(/WhatsApp sign-in codes this month: [1-9]\d* of 50/);
+  await expect(shop.page.locator('body')).toContainText(/WhatsApp sign-in codes this month\s*[1-9]\d* of 50/);
   await shop.page.goto(`/apps/${shop.app}/visitors`);
   await expect(shop.page.locator('tbody')).toContainText(phone);
 });

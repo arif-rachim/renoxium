@@ -33,7 +33,9 @@ func (s *Site) accountPage(w http.ResponseWriter, r *http.Request) {
 func (s *Site) renderAccount(w http.ResponseWriter, r *http.Request, u accounts.User, status int, extra map[string]any) {
 	apps, _ := s.platform.Apps(u.ID)
 	b, _ := s.accounts.Billing(u.ID)
-	data := map[string]any{"User": u, "CSRF": s.csrfToken(w, r), "Apps": apps, "Billing": b}
+	csrf := s.csrfToken(w, r)
+	data := map[string]any{"User": u, "CSRF": csrf, "Apps": apps, "Billing": b, "PlanName": planName(b.Plan),
+		"Shell": s.ownerShell(u, "Account", "/account", csrf)}
 	for k, v := range extra {
 		data[k] = v
 	}

@@ -69,7 +69,7 @@ func (s *Site) shell(u accounts.User, app, title, current string, demo bool) app
 	sh.Business = append(sh.Business, link("Customers", base+"/visitors"))
 	if sh.IsOwner {
 		sh.Settings = []shellLink{link("Notifications", base+"/notifications"), link("Staff", base+"/staff"),
-			link("Domain", base+"/domain"), link("Connections", base+"/connections"), link("Delete app", base+"/delete")}
+			link("Domain", base+"/domain"), link("Connections", base+"/connections"), link("Rename app", base+"/rename"), link("Delete app", base+"/delete")}
 	}
 	return sh
 }
