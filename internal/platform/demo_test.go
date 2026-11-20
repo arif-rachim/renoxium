@@ -216,3 +216,42 @@ func TestGalleryTemplatesRunAsDemos(t *testing.T) {
 		}
 	}
 }
+
+// A link carrying someone else's inbox key does not make this browser's
+// demo messages (sign-in links, codes, the email typed) land in their
+// inbox, on the app host or on the sign-in host, and a forged hand-over
+// does not move them either.
+func TestDemoInboxKeyCannotBeForcedByALink(t *testing.T) {
+	p, _ := newDemoPlatform(t)
+	if err := p.EnsureDemos(context.Background(), []examples.Example{demoExample(t)}); err != nil {
+		t.Fatal(err)
+	}
+	mallory := newVisitor(t, p, "demo-club.renoxium.test")
+	mallory.do("GET", "/", nil)
+	key := mallory.cookies["__Host-rx_demo"].Value
+
+	victim := newVisitor(t, p, "demo-club.renoxium.test")
+	victim.do("GET", "/?rx_dk="+key, nil)
+	if c := victim.cookies["__Host-rx_demo"]; c == nil || c.Value == key {
+		t.Fatal("the app host took the inbox key from the link")
+	}
+	victim.do("POST", "/book?rx_dk="+key, url.Values{"to": {"victim@real.ae"}})
+	victim.doAt(victim.idHost(), "GET", "/_rx/auth/signup?rx_dk="+key, nil)
+	if c := victim.jar(victim.idHost())["__Host-rx_demo"]; c != nil && c.Value == key {
+		t.Fatal("the sign-in host took the inbox key from the link")
+	}
+	if w := victim.submit("/_rx/auth/signup?rx_dk="+key, "/_rx/auth/signup", url.Values{"email": {"victim@real.ae"}, "password": {"demo password 1"}}); w.Code != 303 {
+		t.Fatalf("signup: %d", w.Code)
+	}
+	// A hand-over with a made-up code and Mallory's key moves nothing.
+	victim.do("GET", "/_rx/auth/callback?code=made-up&rx_dk="+key, nil)
+	if inbox := mallory.do("GET", platform.DemoInboxPath, nil).Body.String(); strings.Contains(inbox, "victim@real.ae") || strings.Contains(inbox, "Confirm your email") {
+		t.Fatalf("the victim's messages reached the link's inbox:\n%s", inbox)
+	}
+	// The victim has them all: the booking and, after the hand-over, the
+	// confirmation sent from the sign-in host.
+	inbox := victim.do("GET", platform.DemoInboxPath, nil).Body.String()
+	if !strings.Contains(inbox, "Your booking") || !strings.Contains(inbox, "Confirm your email") {
+		t.Fatalf("the victim's own inbox:\n%s", inbox)
+	}
+}

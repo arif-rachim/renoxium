@@ -67,13 +67,13 @@ func (s screen) Src() string { return staticURL(s.File) }
 func phone(file, alt string) screen { return screen{File: file, Alt: alt, W: 600, H: 1298} }
 
 var screens = map[string]screen{
-	"store-uae":         phone("screen-store-home.webp", "The home page of the Al Noor Perfumes demo shop: the shop name over a full-screen photo of desert dunes at dusk, with Oud, musk and amber from the UAE and Discover the collection"),
-	"store-ar":          phone("screen-store-home-ar.webp", "The Al Noor Perfumes demo shop in Arabic: the shop name, category filters and four perfumes with their photos and AED prices, laid out right to left"),
-	"booking-uae":       phone("screen-booking.webp", "The home page of the Lamsa Beauty Lounge demo: Hair, nails and skincare in Jumeirah on a plum banner with a Book an appointment button and a photo of a calm spa bathroom"),
-	"home-service-uae":  phone("screen-home-service.webp", "The home page of the Bayti Home Services demo: Cleaning, AC and maintenance across Dubai, booked in a minute on a green banner with a Choose a service button and a photo of a tidy living room"),
+	"store-uae":         phone("screen-store-home.webp", "The home page of the Al Noor Perfumes demo shop: Premium perfume collection, Oud, musk and amber from the UAE for every moment, a Discover the collection button, the numbers 8 products, 4 collections and prices from AED 60, and an oval photo of desert dunes at dusk in a gold ring"),
+	"store-ar":          phone("screen-store-home-ar.webp", "The Al Noor Perfumes demo shop in Arabic: a search field and perfumes in rounded cards with Best seller and New labels, their collection and AED prices, laid out right to left"),
+	"booking-uae":       phone("screen-booking.webp", "The home page of the Lamsa Beauty Lounge demo: Where calm meets care, Hair, nails and skincare in Jumeirah, every visit, a Book an appointment button, a sample rating, the numbers 6 services, 3 categories, 3 specialists and 2 classes, and a rounded photo of a calm spa bathroom"),
+	"home-service-uae":  phone("screen-home-service.webp", "The home page of the Bayti Home Services demo: Cleaning, AC, handyman, Home care, done right, Book a visit and How it works buttons, a sample rating, the numbers 6 services, 5 areas served and 2 crews, and a rounded photo of a tidy living room"),
 	"reservation-uae":   phone("screen-reservation.webp", "The home page of the Sahara Bay Tours and Rentals demo: Desert safaris, cruises, car hire and party rentals in Dubai on a brown banner with a See tours and rentals button and a photo of a camel caravan crossing the dunes"),
-	"quote-portal-uae":  phone("screen-quote-portal.webp", "The home page of the Bayan Business Setup demo: Company formation, visas and tax services in Dubai, with a clear quote before you pay, an Ask for a quote button and a photo of the Dubai skyline at night"),
-	"listings-uae":      phone("screen-listing.webp", "The home page of the Marsa Homes demo: the broker's name over a full-screen photo of Downtown Dubai and the Burj Khalifa, with Homes to buy and rent across Dubai and Search properties"),
+	"quote-portal-uae":  phone("screen-quote-portal.webp", "The home page of the Bayan Business Setup demo in navy and gold: Your company in Dubai, set up clearly, with Ask for a quote and See services and prices buttons, a Licensed in the UAE badge and a photo of the Dubai skyline at night with a diagonal lower edge"),
+	"listings-uae":      phone("screen-listing.webp", "The home page of the Marsa Homes demo: Homes in Dubai, known street by street, with Browse properties and List your property buttons, a photo of Downtown Dubai at sunset and a search bar for purpose, location, type and price"),
 	"delivery-tracking": phone("screen-delivery.webp", "Delivery #1 of the Al Noor Flowers demo for Mariam: the courier's position on a map of Dubai and the progress Preparing, On the way, Delivered, with On the way reached"),
 	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
 		Alt: "The owner's admin panel of the Lamsa Beauty Lounge demo: the bookings calendar for one day, one lane each for Layla, Maryam and Priya, with nine appointments from 10:00 to 19:00, each with the customer's name and service, marked confirmed or pending"},
@@ -134,6 +134,55 @@ func (s *Site) sitePaths(cards []galleryCard) []sitePath {
 		{ID: "quote", Title: "I send quotes", Screen: screens["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
 			Text: "Clients ask for a quote, accept it and pay a deposit online, for a business setup firm or a property broker."},
 	}
+}
+
+// trade is one kind of business on the landing page: what its customers do
+// on the site and what the owner gets, shown with the demo that fits it.
+type trade struct {
+	ID, Tab, Example  string
+	Customers, Owner  []string
+	Screen            screen
+	DemoURL, AdminURL string
+}
+
+var trades = []trade{
+	{ID: "salon", Tab: "Salons and spas", Example: "booking-uae",
+		Customers: []string{"Pick a service, a stylist and a free time", "Pay a deposit by card, or pay at the salon", "Join a class with limited seats, billed per term or monthly", "Cancel in time and the deposit is refunded at once"},
+		Owner:     []string{"A day calendar with one lane per stylist", "No double bookings: free times come from your hours and each stylist's bookings", "Tomorrow's schedule by email every evening", "Move or cancel a booking and the customer is emailed"}},
+	{ID: "shop", Tab: "Shops", Example: "store-uae",
+		Customers: []string{"Browse by category, search and filter", "Choose a size or option with its own price and stock", "Pay by card or cash on delivery, with discount codes", "Pick a delivery date for made-to-order cakes or flowers"},
+		Owner:     []string{"Every order with its status in your panel", "A delivery fee, and free delivery above an amount you set", "Stock for each product option", "Tax invoices once you add your TRN"}},
+	{ID: "home", Tab: "Home services", Example: "home-service-uae",
+		Customers: []string{"Choose a service, an area and an arrival window", "Add a photo of the problem", "Book weekly or two-weekly visits, paid by card automatically", "Follow the crew on a map on the day"},
+		Owner:     []string{"A set number of crews per window, so you are never overbooked", "A phone page for each crew: on the way, arrived, completed, cash collected", "Area surcharges added to the price", "Cancellations before your cut-off are refunded automatically"}},
+	{ID: "tours", Tab: "Tours and rentals", Example: "reservation-uae",
+		Customers: []string{"Book seats on a dated departure, with adult and child prices", "Rent a car or equipment by the day, with a weekly price", "Add extras such as a child seat or delivery", "Get a voucher to show on the day"},
+		Owner:     []string{"Seats and stock counted from the reservations, never oversold", "A deposit online and the balance on the day", "A security deposit as a card hold you release or capture at the return", "Tomorrow's departures, handovers and returns by email"}},
+	{ID: "property", Tab: "Property brokers", Example: "listings-uae",
+		Customers: []string{"Search by sale or rent, community, bedrooms and price", "See the permit number and QR code on every listing", "Request a viewing or ask a question without signing in", "Call or WhatsApp the agent from the listing"},
+		Owner:     []string{"Leads in your panel with a follow-up status", "Viewings in a calendar, one lane per agent", "A listing without a permit number stays hidden", "A daily summary by email"}},
+	{ID: "services", Tab: "Business services", Example: "quote-portal-uae",
+		Customers: []string{"Send an enquiry with a target date and a budget", "Read your quote and accept it online", "Pay the deposit and the balance by card or bank transfer", "Follow progress and share documents in a private portal"},
+		Owner:     []string{"Write quotes in your panel, with 5% VAT added or included", "A payments ledger for each quote", "Clients are emailed when you update a quote", "Card payments refunded when you cancel a quote, if you choose"}},
+}
+
+// siteTrades fills the trades with their demos; a trade whose demo is not
+// in the gallery is left out.
+func (s *Site) siteTrades(cards []galleryCard) []trade {
+	byName := map[string]galleryCard{}
+	for _, c := range cards {
+		byName[c.Name] = c
+	}
+	var out []trade
+	for _, t := range trades {
+		c, ok := byName[t.Example]
+		if !ok {
+			continue
+		}
+		t.Screen, t.DemoURL, t.AdminURL = screens[t.Example], c.DemoURL+"/", c.AdminURL
+		out = append(out, t)
+	}
+	return out
 }
 
 // suits joins the kinds of business a template suits into one sentence

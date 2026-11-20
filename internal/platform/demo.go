@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -45,7 +46,7 @@ const (
 	DemoPrefix    = "demo-"
 	DemoInboxPath = "/_rx/demo/inbox"
 	demoCookie    = "rx_demo"
-	demoKeyParam  = "rx_dk" // hands the inbox key to the sign-in host
+	demoKeyParam  = "rx_dk" // carries the sign-in host's inbox key back on a verified hand-over
 	// Each browser keeps its newest demoInboxSize messages; at most
 	// demoInboxBoxes browsers per demo get an inbox until the next reset.
 	demoInboxSize  = 20
@@ -208,24 +209,22 @@ func (p *Platform) resetDemo(name string) error {
 type demoKey struct{}
 
 // withDemoKey gives a request to a demo the browser's inbox key, from a
-// cookie set on first visit. The sign-in host is another origin with its
-// own cookies, so the app host passes its key along when it sends the
-// browser there: sign-in codes and links then show up in the same inbox.
-// The key only reads demo messages, which are public data anyway.
+// cookie set on first visit. The key is never taken from the address: a
+// link carrying someone else's key would make this browser's messages
+// (sign-in links, codes, the email typed) land in their inbox. The app host
+// and the sign-in host are separate origins with a key each; the sign-in
+// host's messages show on its own pages and move to the app host's inbox
+// when a sign-in hands over (moveDemoMessages).
 func (p *Platform) withDemoKey(w http.ResponseWriter, r *http.Request) *http.Request {
 	name := p.cookieName(demoCookie)
 	key := ""
-	if v := r.URL.Query().Get(demoKeyParam); validDemoKey(v) {
-		key = v
-	} else if c, err := r.Cookie(name); err == nil && validDemoKey(c.Value) {
+	if c, err := r.Cookie(name); err == nil && validDemoKey(c.Value) {
 		key = c.Value
 	}
-	if c, err := r.Cookie(name); err != nil || c.Value != key {
-		if key == "" {
-			b := make([]byte, 16)
-			rand.Read(b)
-			key = hex.EncodeToString(b)
-		}
+	if key == "" {
+		b := make([]byte, 16)
+		rand.Read(b)
+		key = hex.EncodeToString(b)
 		http.SetCookie(w, &http.Cookie{Name: name, Value: key, Path: "/", HttpOnly: true,
 			Secure: p.cfg.PublicScheme == "https", SameSite: http.SameSiteLaxMode, MaxAge: 7 * 24 * 3600})
 	}
@@ -285,6 +284,38 @@ func (b *demoInbox) list(app, key string) []DemoMessage {
 		out[len(src)-1-i] = m // newest first
 	}
 	return out
+}
+
+// move appends from's messages to to's and removes from's box.
+func (b *demoInbox) move(app, from, to string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	boxes := b.boxes[app]
+	if boxes == nil || from == to {
+		return
+	}
+	list, ok := boxes[from]
+	if !ok {
+		return
+	}
+	delete(boxes, from)
+	merged := append(boxes[to], list...)
+	sort.SliceStable(merged, func(i, j int) bool { return merged[i].At.Before(merged[j].At) })
+	if len(merged) > demoInboxSize {
+		merged = merged[len(merged)-demoInboxSize:]
+	}
+	boxes[to] = merged
+}
+
+// moveDemoMessages moves what the sign-in host showed one browser into that
+// browser's inbox on the app host. Called only after a hand-over code bound
+// to this browser's own sign-in state was accepted, so the key it names
+// came from this browser's sign-in, not from a link.
+func (p *Platform) moveDemoMessages(r *http.Request, app string) {
+	to, _ := r.Context().Value(demoKey{}).(string)
+	if from := r.URL.Query().Get(demoKeyParam); to != "" && validDemoKey(from) {
+		p.demoBox.move(app, from, to)
+	}
 }
 
 func (b *demoInbox) clear(app string) {

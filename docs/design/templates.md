@@ -22,7 +22,7 @@ The pages belong to the merchant's brand, not to Renoxium: no Renoxium colours o
 ```json
 {"name": "logo", "type": "image", "label": "Logo", "help": "Optional. A wide logo on a transparent or white background; it replaces the shop name in the header and on invoices."},
 {"name": "brand_color", "type": "text", "label": "Brand colour", "help": "Your main colour as a hex code, e.g. #5C2A3D for deep plum or #1F4D3A for palm green. Buttons and highlights use it; text on it turns white or dark by itself."},
-{"name": "font", "type": "text", "label": "Font", "help": "<the store-uae help text; under 300 characters>", "options": ["modern", "classic", "rounded", "heritage", "atelier"]}
+{"name": "font", "type": "text", "label": "Font", "help": "<the store-uae help text; under 300 characters>", "options": ["modern", "classic", "rounded", "heritage", "atelier", "boutique"]}
 ```
 Also give every owner-facing text column an `_ar` twin where shoppers see it (name, tagline, address, legal_name, category, option names...).
 Seed a tasteful brand colour and font that fit the example's business (store-uae: `#1F1B17` deep ink with `heritage`).
@@ -85,6 +85,32 @@ Rules of the luxury style:
 - Home order: hero, story line (`story`), collection (heading, categories, grid), visit block (`story_image` beside the
   address and WhatsApp link), footer (centred name, address, links).
 - Motion: only the slow 1.4s image zoom on tile hover; `prefers-reduced-motion` turns it off.
+
+## 3b. Boutique style: boutique
+
+`font = boutique` keeps `data-style="standard"` (every template's normal layout works) and sets `theme.boutique`. Its look is the
+`boutique` template (the same copy in every template, included from `head` only for this font; `TestThemeIsTheSameEverywhere`):
+cream paper `#fbf6f1`, deep brown ink `#3b2a22`, the brand colour as the accent (default terracotta `#b4643f`), Gilda Display
+headings (Amiri in Arabic) and DM Sans text (IBM Plex Sans Arabic), 4px buttons in small tracked capitals, 16px photos, a small tracked label (`.eyebrow`), a short rule (`.rule`) and arrows that turn in Arabic (`.arr`).
+
+A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutique`). Five templates have one. They share these rules:
+
+- **Density.** Sections sit 28-44px apart, and every block carries real information: numbers counted with SQL from the app's own
+  tables, facts from the settings row (hours, fees, payment methods, VAT, cancellation), category chips with counts, a FAQ built
+  from the settings. Never invent statistics, ratings or reviews.
+- **Reviews and ratings.** Shown only when the owner adds real ones (table `testimonials`, up to three; `rating` and
+  `review_count` where the template has them). The template's seed keeps them empty. The gallery demos alone get sample rows
+  (`internal/platform/demosample_<example>.go`, every name marked "(sample)"); the store demo also gets four more products there.
+- **Photo frames.** Never plain rectangles, and never the arch (round top, square bottom): it was used everywhere and is retired.
+  Each template has its own frame, mirrored in Arabic, with thin ring or line ornaments behind the photos.
+
+| Template | Classes | Seed colour | Photo frame | Home page blocks |
+|---|---|---|---|---|
+| booking-uae | `b-…` | terracotta `#B4643F` | organic pebbles (three fixed shapes) with a tinted pebble behind | hero with a turning stamp, counted numbers, facts strip, category chips that filter the service cards in place, brand panel with the story and highlights, classes next to the team, reviews, closing call to book with the week's opening hours, four-column footer |
+| store-uae | `e-…` | forest green `#1F3A2E` | ovals and circles in a thin gold ring; soft squircle product photos | hero with counted numbers, facts strip (delivery, free delivery, payment, VAT), collections with counts, search and product grid with labels and quick add, promo band only for a coupon marked `promote`, new arrivals, story with contact facts, reviews, four-column footer |
+| home-service-uae | `h-…` | forest green `#1F3A2E` | rounded photos with a tinted block offset behind; a speech-tab shape (one square corner) | hero with counted pills, facts strip, six compact service cards, why-us next to the three steps, reviews, areas as chips with their surcharge, FAQ, closing band, four-column footer |
+| listings-uae | `v-…` | forest green `#1F3A2E` | curved hero edge, organic about photo with a round second photo, leaf-shaped community tiles, cards with one large corner | photo hero with a floating search bar, counted numbers, about with highlights, communities with their number of homes, type chips, featured cards in a row with arrows, reviews, agents next to the valuation card, four-column footer |
+| quote-portal-uae | `s-…` | gold `#C9A14A` on navy, plain capitals instead of the serif | diagonal cuts and chamfered corners with gold hairlines | photo hero with a licence badge, highlights strip, numbers bar (services, areas, quote validity, deposit, years only when set), about with the service areas, service cards in a row with arrows, four steps, reviews, "included in every quote" and FAQ from the settings, custom-case band, four-column footer. Invoices and printouts switch back to white paper |
 
 ## 4. Type scale
 
@@ -456,6 +482,46 @@ input[type=radio],input[type=checkbox]{width:20px;height:20px;min-height:0;margi
 Store-uae's own components (intro, cats, tiles, pdp, options, stepper, buybar, cart lines, orders, and the luxury hero, story,
 collection and visit blocks) follow in its `css` template;
 reuse them for similar pieces (service grids = tiles, booking detail = pdp, booking/quote lists = orders) rather than inventing new ones.
+
+## 8a. Motion kit (store-uae first; copy it to the other templates)
+
+store-uae and booking-uae carry the kit as two named templates, so `patch_app` can replace either one alone. **Every template
+carries the same copy** (`TestMotionKitIsTheSameEverywhere`): change the kit in all templates at once, and put a template's own
+motion in its own `css`. Parts that need a component only switch on where it exists (the cart drawer needs `rxCart` in `top`,
+the gallery needs `.gal`, in-place search needs `#results`).
+
+- `motion` (CSS, included from `head` after `css`) and `motion_js` (one inline script, included from `bottom` before `</body>`).
+- `top` adds the `js` class on `<html>` before anything paints and fires a `rxcart` event from `rxSave`; motion styles that hide
+  something until it animates are scoped to `.js`, so pages work without JavaScript.
+
+Rules:
+
+- **Only `transform` and `opacity` animate.** Nothing reflows, so CLS stays 0. One easing (`--ease-out: cubic-bezier(.2,.7,.2,1)`)
+  and three durations (`--t-fast` .18s, `--t-mid` .35s, `--t-slow` .7s).
+- **The first screen never waits.** Reveal-on-scroll (`.rv` → `.rv.in`, IntersectionObserver, staggered by 70 ms) only applies to
+  blocks below the fold at load, and only `loading="lazy"` images fade in over a shimmer (`.well.sk`). The hero and the first
+  product photo paint at once, so LCP is unchanged.
+- **Reduced motion turns it all off**: the kit adds no `.rv`, the CSS resets animations, and the view transition is disabled.
+- **RTL**: the drawer uses `inset-inline-end` and slides from the end side; directions never assume left-to-right.
+- **Progressive enhancement**: every part checks for the browser feature it needs (View Transitions, IntersectionObserver,
+  `<dialog>`, DOMParser) and leaves a working page without it.
+
+Parts:
+
+| Part | How |
+| --- | --- |
+| List → product transition | `@view-transition {navigation: auto}`; the tile photo and the product's first photo share `view-transition-name: pimg-<id>` |
+| Luxury hero | Ken Burns zoom in CSS (`rx-kb`), parallax with the `translate` property (it does not fight the animation's `transform`) |
+| Prefetch | `<link rel=prefetch>` on `pointerover`/`touchstart` of same-origin links (not `/_rx/`, not `/checkout`) |
+| Cart drawer | `rxDrawer.open()`; totals from `/api/products` with `rxDrawer.sum()`, the same delivery rule as `deliveryFor` in lib `common` (tested in `store_delivery_test.go`); Checkout goes to `/cart` |
+| Filters and search | `#results` is swapped with the server-rendered results of the new URL (no client templates), `history.pushState`/`replaceState`, `popstate` reloads the results |
+| Gallery and zoom | `products.image2`/`image3` (optional); scroll-snap carousel with dots, a `<dialog>` for full screen, tap to zoom |
+| PWA | `/manifest.webmanifest` from the store's name, brand colour and logo |
+| Choices and time slots | press feedback on `.opt`, `.day` and `.slot`; time slots pop in (`rx-pop`) as they load |
+| Print | everything waiting for a reveal is shown, the drawer is hidden |
+
+Budget (checked for the store and booking demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
+LCP ≤ 2.5 s, CLS ≤ 0.1, inline JS ≤ 30 KB, non-image bytes ≤ 150 KB per page.
 
 ## 9. Checklist per template
 

@@ -8,7 +8,7 @@
 //
 //   RENOXIUM_URL=https://renoxium.com RENOXIUM_TOKEN=<access token> node e2e/agent-demo.mjs [app-name]
 //
-// (get a token by connecting an MCP client; e2e/tests/11-agent-tools.spec.mjs
+// (get a token by connecting an MCP client; e2e/tests/12-agent-tools.spec.mjs
 // runs the same demo on the test server). The screenshot is written to
 // booking-mobile.png in the current directory.
 import fs from 'node:fs';

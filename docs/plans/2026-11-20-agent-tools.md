@@ -288,5 +288,5 @@ settings row has a brand colour, since the owner's admin-panel change would then
 7. Cancel the booking.
 
 It runs against any server with `RENOXIUM_URL` and `RENOXIUM_TOKEN`, and on the test server as
-`e2e/tests/11-agent-tools.spec.mjs`. The same steps run in Go, without a browser, in
+`e2e/tests/12-agent-tools.spec.mjs`. The same steps run in Go, without a browser, in
 `internal/web/mcpdemo_test.go`.

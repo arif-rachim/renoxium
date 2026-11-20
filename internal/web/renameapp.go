@@ -72,5 +72,5 @@ func (s *Site) renameApp(w http.ResponseWriter, r *http.Request) {
 	slog.Info("app renamed", "user", u.ID, "app", app, "to", to)
 	render(w, http.StatusOK, "notice", map[string]any{"Title": "App renamed",
 		"Message": app + " is now " + info.App + " at " + info.LiveURL + ". The old addresses send visitors to the new ones for a year.",
-		"Link": "/apps/" + info.App})
+		"Link":    "/apps/" + info.App})
 }

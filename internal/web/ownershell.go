@@ -52,7 +52,7 @@ type meter struct {
 }
 
 func newMeter(label string, used, quota int64, unit string) meter {
-	m := meter{Label: label, Used: thousands(used), Quota: thousands(quota), Unit: unit}
+	m := meter{Label: label, Used: thousands(int(used)), Quota: thousands(int(quota)), Unit: unit}
 	if quota > 0 {
 		m.Pct = int(used * 100 / quota)
 		if used > 0 && m.Pct == 0 {
@@ -64,26 +64,6 @@ func newMeter(label string, used, quota int64, unit string) meter {
 	}
 	m.Warn = m.Pct >= 80
 	return m
-}
-
-// thousands writes n with comma separators: 20000 → "20,000".
-func thousands(n int64) string {
-	s := strconv.FormatInt(n, 10)
-	neg := n < 0
-	if neg {
-		s = s[1:]
-	}
-	out := make([]byte, 0, len(s)+len(s)/3)
-	for i := range len(s) {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			out = append(out, ',')
-		}
-		out = append(out, s[i])
-	}
-	if neg {
-		return "-" + string(out)
-	}
-	return string(out)
 }
 
 // planCard is one column of the plan comparison on the billing page.
@@ -104,9 +84,9 @@ func planCards(current string) []planCard {
 			apps = "1 app"
 		}
 		out := []string{apps,
-			thousands(int64(platform.WhatsAppCodesPerPlan[plan])) + " WhatsApp sign-in codes a month",
+			thousands(platform.WhatsAppCodesPerPlan[plan]) + " WhatsApp sign-in codes a month",
 			storageText(platform.StorageMBPerPlan[plan]) + " of images",
-			thousands(int64(platform.FetchCallsPerPlan[plan])) + " external API calls a month",
+			thousands(platform.FetchCallsPerPlan[plan]) + " external API calls a month",
 			staff}
 		if plan == accounts.PlanFree {
 			return append(out, strconv.Itoa(platform.FreePlanFeePercent)+"% fee on card payments", `"Made with Renoxium" badge`)
