@@ -9,8 +9,8 @@ schedule every demo gets around the current day (`internal/platform/demodata.go`
 
 | File | Screenshot of |
 | --- | --- |
-| screen-store-home.webp | store-uae: the shop's home page in the boutique font, hero with its arched photo (scrolled past the announcement bar) |
-| screen-store-home-ar.webp | store-uae: the shop's home page in Arabic, scrolled to the perfume families and the arched product cards |
+| screen-store-home.webp | store-uae: the shop's home page in the boutique font, hero with its oval photo (scrolled past the announcement bar) |
+| screen-store-home-ar.webp | store-uae: the shop's home page in Arabic, scrolled to the search field and the product cards |
 | screen-booking.webp | booking-uae: the boutique home page with its hero and photo |
 | screen-home-service.webp | home-service-uae: the boutique home page with its hero and photo |
 | screen-reservation.webp | reservation-uae: the home page with its banner and photo |

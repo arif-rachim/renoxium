@@ -45,6 +45,9 @@ func (p *Platform) demoData(ctx context.Context, name string) error {
 	if err != nil || st == nil {
 		return err
 	}
+	if err := p.demoExtraRows(ctx, st.admin, name, example); err != nil {
+		return fmt.Errorf("demo extra rows: %w", err)
+	}
 	if err := p.demoPhotos(ctx, name, example, st.admin); err != nil {
 		return fmt.Errorf("demo photos: %w", err)
 	}

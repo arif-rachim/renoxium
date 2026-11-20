@@ -68,3 +68,7 @@ func PreviewRows(t *testing.T, p *Platform, app, query string, args ...any) []ma
 	}
 	return out
 }
+
+// DemoExtraRows returns the rows a demo gets on top of its template's seed
+// rows in one table, so a test can build the same site.
+func DemoExtraRows(example, table string) []map[string]any { return demoExtras[example][table].rows }
