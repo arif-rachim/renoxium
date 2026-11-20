@@ -345,7 +345,19 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 	for _, p := range periods {
 		periodLinks = append(periodLinks, shellLink{Label: fmt.Sprintf("%d days", p), Href: fmt.Sprintf("?days=%d", p), Current: p == days})
 	}
+	// The overview is three pages: visitors, sales, and data and status.
+	tab, base := "visitors", "/apps/"+sh.App
+	switch {
+	case strings.HasSuffix(r.URL.Path, "/sales"):
+		tab = "sales"
+	case strings.HasSuffix(r.URL.Path, "/status"):
+		tab = "status"
+	}
+	dq := fmt.Sprintf("?days=%d", days)
+	tabs := []shellLink{{Label: "Overview", Href: base + dq, Current: tab == "visitors"}, {Label: "Traffic and payments", Href: base + "/sales" + dq, Current: tab == "sales"},
+		{Label: "Status", Href: base + "/status", Current: tab == "status"}}
 	render(w, http.StatusOK, "admin_app", map[string]any{
+		"Tab": tab, "Tabs": tabs,
 		"Shell": sh, "Info": info, "Days": days, "Periods": periodLinks, "KPIs": kpis,
 		"VisitorsChart": visitorsChart, "SalesChart": salesChart,
 		"Pages": shares(traffic.Pages), "Sources": shares(traffic.Sources),

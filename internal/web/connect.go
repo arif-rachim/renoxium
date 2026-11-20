@@ -54,7 +54,12 @@ func (s *Site) connectBody() string {
 }
 
 func (s *Site) connectPage(w http.ResponseWriter, r *http.Request) {
-	render(w, http.StatusOK, "connect", map[string]any{"Blocks": markdownBlocks(s.connectBody())})
+	data := map[string]any{"Blocks": markdownBlocks(s.connectBody())}
+	// Signed in, the page sits in the console like the other account pages.
+	if u, ok := s.currentUser(r); ok {
+		data["Shell"] = s.ownerShell(u, "Connect and help", "/connect", s.csrfToken(w, r))
+	}
+	render(w, http.StatusOK, "connect", data)
 }
 
 // block is one rendered piece of the small markdown subset used above.
