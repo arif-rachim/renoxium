@@ -17,6 +17,7 @@ type Legal struct {
 }
 
 func (s *Site) registerLanding() {
+	s.mux.HandleFunc("GET /ar", s.landingAR)
 	s.mux.HandleFunc("GET /privacy", s.legalPage("privacy"))
 	s.mux.HandleFunc("GET /terms", s.legalPage("terms"))
 	s.mux.HandleFunc("GET /support", func(w http.ResponseWriter, r *http.Request) {
@@ -33,14 +34,18 @@ func (s *Site) registerLanding() {
 	})
 }
 
-func (s *Site) landingData() map[string]any {
+func (s *Site) landingData(ar bool) map[string]any {
 	cards := s.galleryCards()
 	// The pricing example: what the Free plan's fee costs on AED 10,000 of
 	// card sales, and the card sales above which Pro (AED 99) is cheaper.
 	const fee, pro = 2, 99
+	calendar := screens["admin-calendar"]
+	if ar {
+		calendar = screensAR["admin-calendar"]
+	}
 	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "ProFrom": thousands(pro * 100 / fee),
-		"Legal": s.legalOrDefaults(), "Paths": s.sitePaths(cards), "Trades": s.siteTrades(cards),
-		"Calendar": screens["admin-calendar"], "Base": s.base}
+		"Legal": s.legalOrDefaults(), "Paths": s.sitePaths(cards, ar), "Trades": s.siteTrades(cards, ar),
+		"Calendar": calendar, "Base": s.base}
 }
 
 // thousands writes n with a comma between thousands: 4950 is "4,950".
@@ -76,13 +81,24 @@ func renderLanding(w http.ResponseWriter, data map[string]any) {
 	landingPages.ExecuteTemplate(w, "landing", data)
 }
 
+// landingAR is the home page in Arabic, for everyone: a signed-in owner
+// reaches the console from its Sign in link.
+func (s *Site) landingAR(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Language", "ar")
+	w.Header().Set("Cache-Control", "no-store")
+	landingPages.ExecuteTemplate(w, "landing-ar", s.landingData(true))
+}
+
 // The public pages share one small design system: navy ink on white with
 // mist bands, gold only for the hero rule and the Pro plan, one family
 // (Readex Pro) for English and Arabic, and real screenshots of the demos.
 var landingPages = template.Must(template.New("").Parse(brandDefines + `
 {{define "lhead"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}}</title><meta name="description" content="Orders, bookings and payments for UAE small businesses in one place, from your own website to your customers' AI assistants, built by describing your business to ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
-{{template "icons"}}
+{{template "lcommon"}}{{end}}
+
+{{define "lcommon"}}{{template "icons"}}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -122,7 +138,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 </style>{{end}}
 
 {{define "nav"}}<a class="skip" href="#main">Skip to content</a><header class="wrap"><nav class="top" aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links">
-<a href="/templates"{{if eq . "templates"}} aria-current="page"{{end}}>Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="btn sm" href="/signup">Create account</a></div></nav></header>{{end}}
+<a href="/templates"{{if eq . "templates"}} aria-current="page"{{end}}>Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/ar" lang="ar">العربية</a><a href="/login">Sign in</a><a class="btn sm" href="/signup">Create account</a></div></nav></header>{{end}}
 
 {{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer></div>{{end}}
 
@@ -130,7 +146,145 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <meta property="og:description" content="Orders, bookings and payments for UAE small businesses on their own website, built by describing the business to ChatGPT or Claude, in English and Arabic.">
 <meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">{{end}}
 
-{{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}<style>
+{{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}{{template "landing-css"}}<link rel="alternate" hreflang="en" href="{{.Base}}/"><link rel="alternate" hreflang="ar" href="{{.Base}}/ar">{{template "og" .Base}}</head><body>
+{{template "nav" "home"}}
+<main id="main">
+<section class="hero" aria-labelledby="hero-h"><div class="wrap">
+<h1 id="hero-h" class="sign"><span class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span></h1>
+<p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
+<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
+<div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
+<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
+<h2 id="{{.ID}}-h">{{.Title}}</h2><p>{{.Text}}</p>
+<ul>{{range .Demos}}<li><a href="{{.URL}}">{{.Label}}</a></li>{{end}}</ul></section>{{end}}</div>
+<p class="also">Delivering too? <a href="/templates#delivery-tracking">Live delivery tracking</a> lets customers follow the courier on a map. Or <a href="/templates">see every template</a> with its owner's admin panel.</p>
+</div></section>
+
+<section class="block" aria-labelledby="how-h"><div class="wrap split">
+<div data-r><h2 id="how-h">How it works</h2><p class="sub">You describe, the assistant builds, you decide what goes live.</p>
+<ol class="steps" data-w>
+<li><div><h3>Connect Renoxium</h3><p>Add Renoxium to ChatGPT or Claude once and sign in. The <a href="/connect">connect page</a> shows the steps.</p></div></li>
+<li><div><h3>Describe your business</h3><p>Your name, what you sell or book, prices, delivery areas or opening hours, in English or Arabic. The assistant builds the site and tests every page.</p></div></li>
+<li><div><h3>Check the preview and publish</h3><p>Open the private preview on your phone. When you are happy, press Publish. Connect Stripe to take cards.</p></div></li>
+</ol></div>
+<figure class="chat" data-seq>
+<p class="me">Make a booking site for Lamsa, my salon in Jumeirah. Haircuts, colour and nails, three stylists.</p>
+<p class="me" lang="ar">وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز</p>
+<p class="used">Used Renoxium</p>
+<p class="reply">Done. Customers pick a service, a stylist and a free time, and pay a AED 50 deposit by card. I tested every page. Your private preview is at lamsa.renoxium.app; check it on your phone, then tell me to publish.</p>
+<p class="me">Close on Fridays until 2pm.</p>
+<figcaption>An example conversation in ChatGPT with Renoxium connected.</figcaption></figure>
+</div></section>
+
+<section class="block band" aria-labelledby="ai-h"><div class="wrap">
+<div data-r><h2 id="ai-h">Your customers can ask their own AI assistant</h2>
+<p class="sub">Every Renoxium site also answers ChatGPT and Claude with your real prices, stock and free times. The assistant sends the customer to the right page to book or pay, and the booking reaches you like any other.</p></div>
+<div class="relay">
+<figure class="chat" data-seq>
+<p class="me">Can I get a haircut at Lamsa Beauty Lounge tomorrow after 5?</p>
+<p class="used">Used Lamsa Beauty Lounge</p>
+<p class="reply">Yes. Tomorrow Layla is free at 17:30 and 18:15, and Priya at 19:00. A haircut and blow-dry takes an hour and costs AED 150; a AED 50 deposit holds your time. <u>Book with Layla at Lamsa</u></p>
+<figcaption>An example: a customer in ChatGPT with the salon added. She opens the link, picks 18:15 and pays the deposit on the salon's site.</figcaption></figure>
+<div class="lands" data-seq>
+<p class="lab">What reaches you a minute later</p>
+<div class="card"><span class="from">WhatsApp message to the owner</span><p>New booking: Haircut and blow-dry, tomorrow 18:15 with Layla. Sara A., deposit AED 50 paid by card.</p></div>
+<div class="card slot"><span class="t">18:15</span><span>Haircut and blow-dry</span><span class="tag">Confirmed</span><span class="who">Sara A. · Layla's lane in your calendar</span></div>
+<p class="fine">The same happens when she books from your website's home page or a link in your Instagram bio.</p>
+</div></div>
+</div></section>
+
+<section class="block" aria-labelledby="chan-h"><div class="wrap">
+<div data-r><h2 id="chan-h">One place behind every channel</h2>
+<p class="sub">Customers reach you in more than one way. What they order and book ends up in the same panel, whichever way they came.</p></div>
+<div class="chans">
+<article class="chan" data-r><h3>Your website</h3><dl><div><dt>Today</dt><dd>Customers browse, order, book and pay, by card or cash on delivery.</dd></div></dl></article>
+<article class="chan" data-r><h3>Customers' AI assistants</h3><dl><div><dt>Today</dt><dd>ChatGPT and Claude read your products, prices and free times, and send the customer to the page to book or pay.</dd></div><div class="next"><dt>Coming next</dt><dd>Booking and paying without leaving the chat.</dd></div></dl></article>
+<article class="chan" data-r><h3>WhatsApp</h3><dl><div><dt>Today</dt><dd>Customers sign in with a code on WhatsApp, and you get a WhatsApp message for each order.</dd></div><div class="next"><dt>Coming next</dt><dd>Customers order and book by chatting with your own WhatsApp number.</dd></div></dl></article>
+</div>
+<div class="join" data-w aria-hidden="true"><i></i><i></i><i></i><b></b><u></u></div>
+<div class="panel-head" data-r><h3 id="panel-h">Every order and booking in one panel</h3>
+<p class="sub">Your site comes with an admin panel made from your own data. Change a price or a photo yourself, on your phone or computer, or ask your assistant.</p></div>
+<figure class="panel-shot" data-r><img src="{{.Calendar.Src}}" width="{{.Calendar.W}}" height="{{.Calendar.H}}" alt="{{.Calendar.Alt}}" loading="lazy">
+<figcaption>The bookings calendar of the salon demo, one lane per stylist. <a href="/templates/booking-uae/admin">Open the demo's admin panel</a>; it is read-only.</figcaption></figure>
+<h3 class="after-h" data-r>After an order or booking comes in</h3>
+<ol class="after">
+<li data-r><h4>You are told</h4><p>A WhatsApp message and an email, with the customer's name and what they ordered.</p></li>
+<li data-r><h4>It is in your panel</h4><p>In the orders list, or in the calendar lane of the stylist, crew or agent.</p></li>
+<li data-r><h4>Your customer is told</h4><p>A confirmation by email, and for bookings a reminder the day before.</p></li>
+<li data-r><h4>You can change it</h4><p>Move, cancel or refund from the panel. The customer gets an email, and a card refund goes back at once.</p></li>
+</ol>
+</div></section>
+
+<section class="block band" aria-labelledby="trade-h"><div class="wrap" id="trades">
+<div data-r><h2 id="trade-h">Made for your kind of business</h2>
+<p class="sub">Each template is a complete, working site. You change the names, prices and photos; the booking rules and payments are already there.</p></div>
+<div class="tabs" role="tablist" aria-label="Kinds of business">{{range .Trades}}<button type="button" role="tab" id="tab-{{.ID}}" aria-controls="trade-{{.ID}}" aria-selected="false">{{.Tab}}</button>{{end}}</div>
+{{range .Trades}}<div class="trade" role="tabpanel" id="trade-{{.ID}}" aria-labelledby="tab-{{.ID}}">
+<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">
+<div><h3>{{.Tab}}</h3><div class="cols">
+<div><h4>Your customers</h4><ul>{{range .Customers}}<li>{{.}}</li>{{end}}</ul></div>
+<div><h4>You</h4><ul>{{range .Owner}}<li>{{.}}</li>{{end}}</ul></div></div>
+<p class="go"><a href="{{.DemoURL}}">Try the demo as a customer</a><a href="{{.AdminURL}}">See the owner's panel</a></p></div>
+</div>{{end}}
+</div></section>
+
+<section class="block" aria-labelledby="has-h"><div class="wrap">
+<div data-r><h2 id="has-h">What every site has, on every plan</h2></div>
+<div class="groups">
+<section class="group" data-r><h3>Take the money</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>Deposit, haircut</span><span class="num">AED 50.00</span><span class="tag">Paid</span></div><div class="row"><span class="dim">Cancelled in time</span><span class="num dim">− AED 50.00</span><span class="tag">Refunded</span></div></div>
+<dl><div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
+<div><dt>Cash on delivery</dt><dd>Or pay at the venue. Works without Stripe.</dd></div>
+<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div></dl></section>
+<section class="group" data-r><h3>Run the day</h3>
+<div class="spec" aria-hidden="true"><div class="lanes"><div><b>Layla</b><span>10:00 Colour</span><span>13:30 Haircut</span></div><div><b>Maryam</b><span class="gap">.</span><span>12:00 Manicure</span></div><div><b>Priya</b><span>11:00 Facial</span><span>15:00 Haircut</span></div></div></div>
+<dl><div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
+<div><dt>Calendar</dt><dd>Day and week views, one lane per stylist, crew or item.</dd></div>
+<div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
+<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div></dl></section>
+<section class="group" data-r><h3>Made for the UAE</h3>
+<div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span><span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
+<dl><div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
+<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
+<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
+<section class="group" data-r><h3>You stay in control</h3>
+<div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
+<dl><div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
+<div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
+<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
+<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div></dl></section>
+</div></div></section>
+
+<section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
+<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
+<div class="prices">
+<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
+<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
+<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
+</div>
+<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
+<p class="note">Stripe charges its own card fees to your Stripe account on every plan. Building and changing your site through your assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></div></section>
+
+<section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
+<details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
+<details><summary>Which AI assistant do I need?</summary><p>ChatGPT (a paid plan with developer mode) or Claude, with your own account. You add Renoxium to it once; the <a href="/connect">connect page</a> shows the steps.</p></details>
+<details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
+<details><summary>Can my customers use ChatGPT or Claude to order?</summary><p>They can add your business to ChatGPT or Claude and ask about your products, prices and free times. To book or pay, the assistant sends them to the right page of your site.</p></details>
+<details><summary>What if the assistant makes a mistake?</summary><p>Changes always go to a private preview first, and only you can publish. If something slips through, roll back to an earlier version from your panel; live data is backed up before every publish.</p></details>
+<details><summary>Do I need Stripe?</summary><p>Only for card payments. Cash on delivery and pay at the venue work without it. When you connect Stripe, payments go straight to your own Stripe account.</p></details>
+<details><summary>Can I use my own domain?</summary><p>Yes, on Pro and Business, for example www.yourshop.ae. On Free your site lives at yourname.renoxium.app.</p></details>
+<details><summary>Who owns the customers and orders?</summary><p>You do. Download everything your site holds at any time, or delete your account and all of its data.</p></details>
+</div></div></section>
+
+<section class="block end" aria-labelledby="end-h"><div class="wrap" data-r>
+<h2 id="end-h">Try a demo before you sign up</h2><p class="sub">Book a haircut, order a perfume or ask for a quote on a demo, then open the owner's admin panel to see what you would get.</p>
+<div class="cta"><a class="btn" href="/templates">Try a demo</a><a class="btn line" href="/signup">Create your account</a></div></div></section>
+</main>
+{{template "footer" .Legal}}
+{{template "landing-js"}}
+</body></html>{{end}}
+
+{{define "landing-css"}}<style>
 [hidden]{display:none!important}
 html,body{overflow-x:clip}
 @media(min-width:760px){header.wrap{position:sticky;top:0;z-index:10}
@@ -271,152 +425,178 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .js .join.in b{transition-delay:.4s}.js .join.in u{transition-delay:.8s}.js .join.in u::after{opacity:1;transition:opacity .3s 1.2s}
 .js .now,.js .now *{transition:none!important}
 @media(prefers-reduced-motion:reduce){.hero::after{animation:none}.way .shot,.tabs button,header.wrap::before{transition:none}.tabbed .trade:not([hidden]){animation:none}.way:hover .shot{transform:none}}
-</style><script>(function(){var h=document.documentElement;if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches){h.classList.add("js");setTimeout(function(){if(!window.__rv)h.classList.remove("js")},3000)}})()</script>{{template "og" .Base}}</head><body>
-{{template "nav" "home"}}
-<main id="main">
-<section class="hero" aria-labelledby="hero-h"><div class="wrap">
-<h1 id="hero-h" class="sign"><span class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span></h1>
-<p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
-<div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
-<div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
-<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
-<h2 id="{{.ID}}-h">{{.Title}}</h2><p>{{.Text}}</p>
-<ul>{{range .Demos}}<li><a href="{{.URL}}">{{.Label}}</a></li>{{end}}</ul></section>{{end}}</div>
-<p class="also">Delivering too? <a href="/templates#delivery-tracking">Live delivery tracking</a> lets customers follow the courier on a map. Or <a href="/templates">see every template</a> with its owner's admin panel.</p>
-</div></section>
+</style><script>(function(){var h=document.documentElement;if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches){h.classList.add("js");setTimeout(function(){if(!window.__rv)h.classList.remove("js")},3000)}})()</script>{{end}}
 
-<section class="block" aria-labelledby="how-h"><div class="wrap split">
-<div data-r><h2 id="how-h">How it works</h2><p class="sub">You describe, the assistant builds, you decide what goes live.</p>
-<ol class="steps" data-w>
-<li><div><h3>Connect Renoxium</h3><p>Add Renoxium to ChatGPT or Claude once and sign in. The <a href="/connect">connect page</a> shows the steps.</p></div></li>
-<li><div><h3>Describe your business</h3><p>Your name, what you sell or book, prices, delivery areas or opening hours, in English or Arabic. The assistant builds the site and tests every page.</p></div></li>
-<li><div><h3>Check the preview and publish</h3><p>Open the private preview on your phone. When you are happy, press Publish. Connect Stripe to take cards.</p></div></li>
-</ol></div>
-<figure class="chat" data-seq>
-<p class="me">Make a booking site for Lamsa, my salon in Jumeirah. Haircuts, colour and nails, three stylists.</p>
-<p class="me" lang="ar">وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز</p>
-<p class="used">Used Renoxium</p>
-<p class="reply">Done. Customers pick a service, a stylist and a free time, and pay a AED 50 deposit by card. I tested every page. Your private preview is at lamsa.renoxium.app; check it on your phone, then tell me to publish.</p>
-<p class="me">Close on Fridays until 2pm.</p>
-<figcaption>An example conversation in ChatGPT with Renoxium connected.</figcaption></figure>
-</div></section>
-
-<section class="block band" aria-labelledby="ai-h"><div class="wrap">
-<div data-r><h2 id="ai-h">Your customers can ask their own AI assistant</h2>
-<p class="sub">Every Renoxium site also answers ChatGPT and Claude with your real prices, stock and free times. The assistant sends the customer to the right page to book or pay, and the booking reaches you like any other.</p></div>
-<div class="relay">
-<figure class="chat" data-seq>
-<p class="me">Can I get a haircut at Lamsa Beauty Lounge tomorrow after 5?</p>
-<p class="used">Used Lamsa Beauty Lounge</p>
-<p class="reply">Yes. Tomorrow Layla is free at 17:30 and 18:15, and Priya at 19:00. A haircut and blow-dry takes an hour and costs AED 150; a AED 50 deposit holds your time. <u>Book with Layla at Lamsa</u></p>
-<figcaption>An example: a customer in ChatGPT with the salon added. She opens the link, picks 18:15 and pays the deposit on the salon's site.</figcaption></figure>
-<div class="lands" data-seq>
-<p class="lab">What reaches you a minute later</p>
-<div class="card"><span class="from">WhatsApp message to the owner</span><p>New booking: Haircut and blow-dry, tomorrow 18:15 with Layla. Sara A., deposit AED 50 paid by card.</p></div>
-<div class="card slot"><span class="t">18:15</span><span>Haircut and blow-dry</span><span class="tag">Confirmed</span><span class="who">Sara A. · Layla's lane in your calendar</span></div>
-<p class="fine">The same happens when she books from your website's home page or a link in your Instagram bio.</p>
-</div></div>
-</div></section>
-
-<section class="block" aria-labelledby="chan-h"><div class="wrap">
-<div data-r><h2 id="chan-h">One place behind every channel</h2>
-<p class="sub">Customers reach you in more than one way. What they order and book ends up in the same panel, whichever way they came.</p></div>
-<div class="chans">
-<article class="chan" data-r><h3>Your website</h3><dl><div><dt>Today</dt><dd>Customers browse, order, book and pay, by card or cash on delivery.</dd></div></dl></article>
-<article class="chan" data-r><h3>Customers' AI assistants</h3><dl><div><dt>Today</dt><dd>ChatGPT and Claude read your products, prices and free times, and send the customer to the page to book or pay.</dd></div><div class="next"><dt>Coming next</dt><dd>Booking and paying without leaving the chat.</dd></div></dl></article>
-<article class="chan" data-r><h3>WhatsApp</h3><dl><div><dt>Today</dt><dd>Customers sign in with a code on WhatsApp, and you get a WhatsApp message for each order.</dd></div><div class="next"><dt>Coming next</dt><dd>Customers order and book by chatting with your own WhatsApp number.</dd></div></dl></article>
-</div>
-<div class="join" data-w aria-hidden="true"><i></i><i></i><i></i><b></b><u></u></div>
-<div class="panel-head" data-r><h3 id="panel-h">Every order and booking in one panel</h3>
-<p class="sub">Your site comes with an admin panel made from your own data. Change a price or a photo yourself, on your phone or computer, or ask your assistant.</p></div>
-<figure class="panel-shot" data-r><img src="{{.Calendar.Src}}" width="{{.Calendar.W}}" height="{{.Calendar.H}}" alt="{{.Calendar.Alt}}" loading="lazy">
-<figcaption>The bookings calendar of the salon demo, one lane per stylist. <a href="/templates/booking-uae/admin">Open the demo's admin panel</a>; it is read-only.</figcaption></figure>
-<h3 class="after-h" data-r>After an order or booking comes in</h3>
-<ol class="after">
-<li data-r><h4>You are told</h4><p>A WhatsApp message and an email, with the customer's name and what they ordered.</p></li>
-<li data-r><h4>It is in your panel</h4><p>In the orders list, or in the calendar lane of the stylist, crew or agent.</p></li>
-<li data-r><h4>Your customer is told</h4><p>A confirmation by email, and for bookings a reminder the day before.</p></li>
-<li data-r><h4>You can change it</h4><p>Move, cancel or refund from the panel. The customer gets an email, and a card refund goes back at once.</p></li>
-</ol>
-</div></section>
-
-<section class="block band" aria-labelledby="trade-h"><div class="wrap" id="trades">
-<div data-r><h2 id="trade-h">Made for your kind of business</h2>
-<p class="sub">Each template is a complete, working site. You change the names, prices and photos; the booking rules and payments are already there.</p></div>
-<div class="tabs" role="tablist" aria-label="Kinds of business">{{range .Trades}}<button type="button" role="tab" id="tab-{{.ID}}" aria-controls="trade-{{.ID}}" aria-selected="false">{{.Tab}}</button>{{end}}</div>
-{{range .Trades}}<div class="trade" role="tabpanel" id="trade-{{.ID}}" aria-labelledby="tab-{{.ID}}">
-<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">
-<div><h3>{{.Tab}}</h3><div class="cols">
-<div><h4>Your customers</h4><ul>{{range .Customers}}<li>{{.}}</li>{{end}}</ul></div>
-<div><h4>You</h4><ul>{{range .Owner}}<li>{{.}}</li>{{end}}</ul></div></div>
-<p class="go"><a href="{{.DemoURL}}">Try the demo as a customer</a><a href="{{.AdminURL}}">See the owner's panel</a></p></div>
-</div>{{end}}
-</div></section>
-
-<section class="block" aria-labelledby="has-h"><div class="wrap">
-<div data-r><h2 id="has-h">What every site has, on every plan</h2></div>
-<div class="groups">
-<section class="group" data-r><h3>Take the money</h3>
-<div class="spec" aria-hidden="true"><div class="row"><span>Deposit, haircut</span><span class="num">AED 50.00</span><span class="tag">Paid</span></div><div class="row"><span class="dim">Cancelled in time</span><span class="num dim">− AED 50.00</span><span class="tag">Refunded</span></div></div>
-<dl><div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
-<div><dt>Cash on delivery</dt><dd>Or pay at the venue. Works without Stripe.</dd></div>
-<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div></dl></section>
-<section class="group" data-r><h3>Run the day</h3>
-<div class="spec" aria-hidden="true"><div class="lanes"><div><b>Layla</b><span>10:00 Colour</span><span>13:30 Haircut</span></div><div><b>Maryam</b><span class="gap">.</span><span>12:00 Manicure</span></div><div><b>Priya</b><span>11:00 Facial</span><span>15:00 Haircut</span></div></div></div>
-<dl><div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
-<div><dt>Calendar</dt><dd>Day and week views, one lane per stylist, crew or item.</dd></div>
-<div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
-<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div></dl></section>
-<section class="group" data-r><h3>Made for the UAE</h3>
-<div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span><span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
-<dl><div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
-<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
-<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
-<section class="group" data-r><h3>You stay in control</h3>
-<div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
-<dl><div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
-<div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
-<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
-<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div></dl></section>
-</div></div></section>
-
-<section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
-<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
-<div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
-</div>
-<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
-<p class="note">Stripe charges its own card fees to your Stripe account on every plan. Building and changing your site through your assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></div></section>
-
-<section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
-<details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
-<details><summary>Which AI assistant do I need?</summary><p>ChatGPT (a paid plan with developer mode) or Claude, with your own account. You add Renoxium to it once; the <a href="/connect">connect page</a> shows the steps.</p></details>
-<details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
-<details><summary>Can my customers use ChatGPT or Claude to order?</summary><p>They can add your business to ChatGPT or Claude and ask about your products, prices and free times. To book or pay, the assistant sends them to the right page of your site.</p></details>
-<details><summary>What if the assistant makes a mistake?</summary><p>Changes always go to a private preview first, and only you can publish. If something slips through, roll back to an earlier version from your panel; live data is backed up before every publish.</p></details>
-<details><summary>Do I need Stripe?</summary><p>Only for card payments. Cash on delivery and pay at the venue work without it. When you connect Stripe, payments go straight to your own Stripe account.</p></details>
-<details><summary>Can I use my own domain?</summary><p>Yes, on Pro and Business, for example www.yourshop.ae. On Free your site lives at yourname.renoxium.app.</p></details>
-<details><summary>Who owns the customers and orders?</summary><p>You do. Download everything your site holds at any time, or delete your account and all of its data.</p></details>
-</div></div></section>
-
-<section class="block end" aria-labelledby="end-h"><div class="wrap" data-r>
-<h2 id="end-h">Try a demo before you sign up</h2><p class="sub">Book a haircut, order a perfume or ask for a quote on a demo, then open the owner's admin panel to see what you would get.</p>
-<div class="cta"><a class="btn" href="/templates">Try a demo</a><a class="btn line" href="/signup">Create your account</a></div></div></section>
-</main>
-{{template "footer" .Legal}}
-<script>(function(){var d=document,h=d.documentElement;window.__rv=1;
+{{define "landing-js"}}<script>(function(){var d=document,h=d.documentElement;window.__rv=1;
 var tabs=[].slice.call(d.querySelectorAll("[role=tab]"));
 function pick(t,f){tabs.forEach(function(x){var s=x===t;x.setAttribute("aria-selected",s?"true":"false");x.tabIndex=s?0:-1;d.getElementById(x.getAttribute("aria-controls")).hidden=!s});if(f){t.focus();t.scrollIntoView({block:"nearest",inline:"center"})}}
-tabs.forEach(function(t,i){t.addEventListener("click",function(){pick(t)});t.addEventListener("keydown",function(e){var n=tabs.length,j=e.key==="ArrowRight"?(i+1)%n:e.key==="ArrowLeft"?(i+n-1)%n:e.key==="Home"?0:e.key==="End"?n-1:-1;if(j>=0){e.preventDefault();pick(tabs[j],true)}})});
+tabs.forEach(function(t,i){t.addEventListener("click",function(){pick(t)});t.addEventListener("keydown",function(e){var n=tabs.length,r=h.dir==="rtl",j=e.key===(r?"ArrowLeft":"ArrowRight")?(i+1)%n:e.key===(r?"ArrowRight":"ArrowLeft")?(i+n-1)%n:e.key==="Home"?0:e.key==="End"?n-1:-1;if(j>=0){e.preventDefault();pick(tabs[j],true)}})});
 if(tabs.length){d.getElementById("trades").classList.add("tabbed");pick(tabs[0])}
 function sc(){h.classList.toggle("scrolled",window.scrollY>8)}sc();addEventListener("scroll",sc,{passive:true});
 if(!h.classList.contains("js"))return;
 var first=true,io=new IntersectionObserver(function(es){var n=0;es.forEach(function(e){if(!e.isIntersecting)return;var t=e.target;io.unobserve(t);
 if(t.hasAttribute("data-seq")){[].forEach.call(t.children,function(c,i){setTimeout(function(){c.classList.add("in")},first?0:200+i*520)});if(first)t.classList.add("now");return}
 if(first)t.classList.add("now");else t.style.setProperty("--i",Math.min(n++,5));t.classList.add("in")});first=false},{rootMargin:"0px 0px -8% 0px",threshold:.12});
-[].forEach.call(d.querySelectorAll("[data-r],[data-w],[data-seq]"),function(x){io.observe(x)})})()</script>
+[].forEach.call(d.querySelectorAll("[data-r],[data-w],[data-seq]"),function(x){io.observe(x)})})()</script>{{end}}
+
+{{define "landing-ar"}}<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renoxium: الطلبات والحجوزات والمدفوعات على موقعك</title><meta name="description" content="الطلبات والحجوزات والمدفوعات للأنشطة الصغيرة في الإمارات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك. يُبنى الموقع بوصف نشاطك لـ ChatGPT أو Claude: متاجر وحجوزات وتأجير وعروض أسعار وإعلانات عقارية، مع الدفع بالبطاقة أو عند الاستلام، بالعربية والإنجليزية.">
+{{template "lcommon"}}{{template "landing-css"}}<style>
+h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
+.sign .en{font-size:.82em;line-height:1.15;text-align:left;font-weight:600}
+.sign .ar{font-size:1em;line-height:1.45}
+.hero::before{-webkit-mask-image:radial-gradient(ellipse 62% 78% at 8% 4%,#000 0,transparent 72%);mask-image:radial-gradient(ellipse 62% 78% at 8% 4%,#000 0,transparent 72%)}
+.hero::after{right:auto;left:-8%;animation-name:drift-r}
+@keyframes drift-r{from{transform:translate(0,0)}to{transform:translate(14%,9%)}}
+.end::before{-webkit-mask-image:radial-gradient(ellipse 55% 110% at 0 100%,#000 0,transparent 70%);mask-image:radial-gradient(ellipse 55% 110% at 0 100%,#000 0,transparent 70%)}
+.steps::before{left:auto;right:17px}
+.slot,.sum{border-left:0;border-right:3px solid var(--gold);border-radius:12px 4px 4px 12px}
+.spec .lanes span{border-left:0;border-right:3px solid var(--gold);border-radius:6px 3px 3px 6px}
+.skip{left:auto;right:-9999px}.skip:focus{right:16px}
+.tabbed .trade h3{left:auto;right:-9999px}
+.amount{font-size:36px}
+</style>
+<link rel="alternate" hreflang="en" href="{{.Base}}/"><link rel="alternate" hreflang="ar" href="{{.Base}}/ar">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:locale" content="ar_AE"><meta property="og:title" content="Renoxium: نشاطك على الإنترنت، يُبنى في محادثة">
+<meta property="og:description" content="الطلبات والحجوزات والمدفوعات للأنشطة الصغيرة في الإمارات على موقعها الخاص، يُبنى بوصف النشاط لـ ChatGPT أو Claude، بالعربية والإنجليزية.">
+<meta property="og:image" content="{{.Base}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"></head><body>
+<a class="skip" href="#main">انتقل إلى المحتوى</a><header class="wrap"><nav class="top" aria-label="القائمة الرئيسية"><a class="logo" href="/ar" aria-label="الصفحة الرئيسية لـ Renoxium" dir="ltr">{{template "brandlogo"}}</a><div class="links">
+<a class="wide" href="/templates">القوالب</a><a class="wide" href="#pricing">الأسعار</a><a class="wide" href="/connect">الربط</a><a href="/" lang="en" dir="ltr">English</a><a href="/login">تسجيل الدخول</a><a class="btn sm" href="/signup">إنشاء حساب</a></div></nav></header>
+<main id="main">
+<section class="hero" aria-labelledby="hero-h"><div class="wrap">
+<h1 id="hero-h" class="sign"><span class="ar">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span><span class="rule" aria-hidden="true"></span><span class="en" lang="en" dir="ltr">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span></h1>
+<p class="how-it">صِف نشاطك التجاري لـ ChatGPT أو Claude. يبني Renoxium موقعك ويربطه بمساعدي الذكاء الاصطناعي، ليجدك العملاء ويحجزوا ويدفعوا. كل طلب يصل إلى لوحة واحدة، وتصلك رسالة واتساب عن كل طلب.</p>
+<div class="cta"><a class="btn" href="/signup">أنشئ حسابك</a><a class="btn line" href="/templates">جرّب نسخة تجريبية</a></div>
+<div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
+<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
+<h2 id="{{.ID}}-h">{{.Title}}</h2><p>{{.Text}}</p>
+<ul>{{range .Demos}}<li><a href="{{.URL}}">{{.Label}}</a></li>{{end}}</ul></section>{{end}}</div>
+<p class="also">هل لديك توصيل أيضاً؟ <a href="/templates#delivery-tracking">التتبع المباشر للتوصيل</a> يتيح للعملاء متابعة المندوب على الخريطة. أو <a href="/templates">شاهد كل القوالب</a> مع لوحة تحكم صاحب النشاط.</p>
+</div></section>
+
+<section class="block" aria-labelledby="how-h"><div class="wrap split">
+<div data-r><h2 id="how-h">كيف يعمل</h2><p class="sub">أنت تصف، والمساعد يبني، وأنت تقرر ما يُنشر.</p>
+<ol class="steps" data-w>
+<li><div><h3>اربط Renoxium</h3><p>أضف Renoxium إلى ChatGPT أو Claude مرة واحدة وسجّل الدخول. <a href="/connect">صفحة الربط</a> تشرح الخطوات.</p></div></li>
+<li><div><h3>صِف نشاطك</h3><p>اسمك، وما تبيعه أو تحجزه، والأسعار، ومناطق التوصيل أو ساعات العمل، بالعربية أو الإنجليزية. يبني المساعد الموقع ويختبر كل صفحة.</p></div></li>
+<li><div><h3>راجع المعاينة وانشر</h3><p>افتح المعاينة الخاصة على هاتفك. عندما يعجبك الموقع اضغط «نشر». اربط Stripe لقبول البطاقات.</p></div></li>
+</ol></div>
+<figure class="chat" data-seq>
+<p class="me">أنشئ موقع حجوزات لـ«لمسة»، صالوني في جميرا. قص شعر وصبغة وأظافر، وثلاث مصففات.</p>
+<p class="me">وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز</p>
+<p class="used">تم استخدام Renoxium</p>
+<p class="reply">تم. يختار العملاء الخدمة والمصففة والوقت المتاح، ويدفعون عربوناً قدره ٥٠ درهماً بالبطاقة. اختبرتُ كل الصفحات. معاينتك الخاصة على <span dir="ltr">lamsa.renoxium.app</span>؛ راجعها على هاتفك ثم اطلب مني النشر.</p>
+<p class="me">أغلق يوم الجمعة حتى الساعة ٢ ظهراً.</p>
+<figcaption>مثال لمحادثة في ChatGPT بعد ربط Renoxium.</figcaption></figure>
+</div></section>
+
+<section class="block band" aria-labelledby="ai-h"><div class="wrap">
+<div data-r><h2 id="ai-h">عملاؤك يستطيعون سؤال مساعدهم الذكي</h2>
+<p class="sub">كل موقع على Renoxium يجيب ChatGPT و Claude بأسعارك ومخزونك وأوقاتك المتاحة الفعلية. يوجّه المساعد العميل إلى الصفحة المناسبة للحجز أو الدفع، ويصلك الحجز كأي حجز آخر.</p></div>
+<div class="relay">
+<figure class="chat" data-seq>
+<p class="me">هل أستطيع حجز قص شعر في لمسة بيوتي لاونج غداً بعد الخامسة؟</p>
+<p class="used">تم استخدام لمسة بيوتي لاونج</p>
+<p class="reply">نعم. ليلى متاحة غداً الساعة 17:30 و18:15، وبريا الساعة 19:00. قص الشعر مع السشوار يستغرق ساعة وسعره 150 درهماً، وعربون 50 درهماً يحجز موعدك. <u>احجزي مع ليلى في لمسة</u></p>
+<figcaption>مثال: عميلة في ChatGPT أضافت الصالون. تفتح الرابط وتختار 18:15 وتدفع العربون على موقع الصالون.</figcaption></figure>
+<div class="lands" data-seq>
+<p class="lab">ما يصلك بعد دقيقة</p>
+<div class="card"><span class="from">رسالة واتساب إلى صاحب النشاط</span><p>حجز جديد: قص شعر مع سشوار، غداً 18:15 مع ليلى. سارة أ.، دُفع عربون 50 درهماً بالبطاقة.</p></div>
+<div class="card slot"><span class="t">18:15</span><span>قص شعر مع سشوار</span><span class="tag">مؤكد</span><span class="who">سارة أ. · عمود ليلى في تقويمك</span></div>
+<p class="fine">يحدث الشيء نفسه عندما تحجز من الصفحة الرئيسية لموقعك أو من رابط في حسابك على إنستغرام.</p>
+</div></div>
+</div></section>
+
+<section class="block" aria-labelledby="chan-h"><div class="wrap">
+<div data-r><h2 id="chan-h">مكان واحد خلف كل قناة</h2>
+<p class="sub">يصل إليك العملاء بأكثر من طريقة. ما يطلبونه ويحجزونه ينتهي في اللوحة نفسها، أياً كانت الطريقة.</p></div>
+<div class="chans">
+<article class="chan" data-r><h3>موقعك</h3><dl><div><dt>اليوم</dt><dd>يتصفح العملاء ويطلبون ويحجزون ويدفعون، بالبطاقة أو نقداً عند الاستلام.</dd></div></dl></article>
+<article class="chan" data-r><h3>مساعدو الذكاء الاصطناعي لدى العملاء</h3><dl><div><dt>اليوم</dt><dd>يقرأ ChatGPT و Claude منتجاتك وأسعارك وأوقاتك المتاحة، ويوجّهان العميل إلى صفحة الحجز أو الدفع.</dd></div><div class="next"><dt>قريباً</dt><dd>الحجز والدفع دون مغادرة المحادثة.</dd></div></dl></article>
+<article class="chan" data-r><h3>واتساب</h3><dl><div><dt>اليوم</dt><dd>يسجّل العملاء الدخول برمز يصلهم على واتساب، وتصلك رسالة واتساب عن كل طلب.</dd></div><div class="next"><dt>قريباً</dt><dd>يطلب العملاء ويحجزون بمحادثة رقم واتساب الخاص بنشاطك.</dd></div></dl></article>
+</div>
+<div class="join" data-w aria-hidden="true"><i></i><i></i><i></i><b></b><u></u></div>
+<div class="panel-head" data-r><h3 id="panel-h">كل طلب وحجز في لوحة واحدة</h3>
+<p class="sub">يأتي موقعك مع لوحة تحكم مبنية من بياناتك. غيّر سعراً أو صورة بنفسك، من هاتفك أو حاسوبك، أو اطلب ذلك من مساعدك.</p></div>
+<figure class="panel-shot" data-r><img src="{{.Calendar.Src}}" width="{{.Calendar.W}}" height="{{.Calendar.H}}" alt="{{.Calendar.Alt}}" loading="lazy">
+<figcaption>تقويم الحجوزات في تجربة الصالون، عمود لكل مصففة. <a href="/templates/booking-uae/admin">افتح لوحة التحكم التجريبية</a>؛ وهي للقراءة فقط وبالإنجليزية.</figcaption></figure>
+<h3 class="after-h" data-r>بعد وصول طلب أو حجز</h3>
+<ol class="after">
+<li data-r><h4>يصلك إشعار</h4><p>رسالة واتساب وبريد إلكتروني، فيهما اسم العميل وما طلبه.</p></li>
+<li data-r><h4>يظهر في لوحتك</h4><p>في قائمة الطلبات، أو في عمود المصففة أو الفريق أو الوكيل في التقويم.</p></li>
+<li data-r><h4>يصل العميلَ تأكيد</h4><p>تأكيد بالبريد الإلكتروني، وللحجوزات تذكير قبل الموعد بيوم.</p></li>
+<li data-r><h4>يمكنك تعديله</h4><p>انقل الموعد أو ألغِه أو استردّ المبلغ من اللوحة. يصل العميلَ بريد إلكتروني، ويعود مبلغ البطاقة فوراً.</p></li>
+</ol>
+</div></section>
+
+<section class="block band" aria-labelledby="trade-h"><div class="wrap" id="trades">
+<div data-r><h2 id="trade-h">مصمَّم لنوع نشاطك</h2>
+<p class="sub">كل قالب موقع كامل وجاهز للعمل. تغيّر الأسماء والأسعار والصور؛ أما قواعد الحجز والمدفوعات فجاهزة.</p></div>
+<div class="tabs" role="tablist" aria-label="أنواع الأنشطة">{{range .Trades}}<button type="button" role="tab" id="tab-{{.ID}}" aria-controls="trade-{{.ID}}" aria-selected="false">{{.Tab}}</button>{{end}}</div>
+{{range .Trades}}<div class="trade" role="tabpanel" id="trade-{{.ID}}" aria-labelledby="tab-{{.ID}}">
+<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">
+<div><h3>{{.Tab}}</h3><div class="cols">
+<div><h4>عملاؤك</h4><ul>{{range .Customers}}<li>{{.}}</li>{{end}}</ul></div>
+<div><h4>أنت</h4><ul>{{range .Owner}}<li>{{.}}</li>{{end}}</ul></div></div>
+<p class="go"><a href="{{.DemoURL}}">جرّب الموقع كعميل</a><a href="{{.AdminURL}}">شاهد لوحة صاحب النشاط</a></p></div>
+</div>{{end}}
+</div></section>
+
+<section class="block" aria-labelledby="has-h"><div class="wrap">
+<div data-r><h2 id="has-h">ما يتضمنه كل موقع، في كل الخطط</h2></div>
+<div class="groups">
+<section class="group" data-r><h3>استلام المال</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>عربون، قص شعر</span><span class="num">50.00 د.إ</span><span class="tag">مدفوع</span></div><div class="row"><span class="dim">أُلغي في الوقت المحدد</span><span class="num dim">− 50.00 د.إ</span><span class="tag">مُستردّ</span></div></div>
+<dl><div><dt>الدفع بالبطاقة</dt><dd>يدفع العملاء على صفحة Stripe ويذهب المال إلى حسابك أنت في Stripe.</dd></div>
+<div><dt>الدفع عند الاستلام</dt><dd>أو الدفع في المكان. يعمل دون Stripe.</dd></div>
+<div><dt>العربون والاسترداد</dt><dd>خذ عربوناً عند الحجز، واستردّه من لوحتك بخطوة واحدة.</dd></div></dl></section>
+<section class="group" data-r><h3>إدارة اليوم</h3>
+<div class="spec" aria-hidden="true"><div class="lanes"><div><b>ليلى</b><span>10:00 صبغة</span><span>13:30 قص شعر</span></div><div><b>مريم</b><span class="gap">.</span><span>12:00 مانيكير</span></div><div><b>بريا</b><span>11:00 عناية بالبشرة</span><span>15:00 قص شعر</span></div></div></div>
+<dl><div><dt>لوحة التحكم</dt><dd>المنتجات والصور والطلبات والعملاء، من أي هاتف.</dd></div>
+<div><dt>التقويم</dt><dd>عرض يومي وأسبوعي، بعمود لكل مصففة أو فريق أو عنصر.</dd></div>
+<div><dt>صلاحيات الموظفين</dt><dd>يدير المساعدون الطلبات دون رؤية مدفوعاتك أو مستنداتك.</dd></div>
+<div><dt>تنبيهات الطلبات</dt><dd>على واتساب وبالبريد الإلكتروني، مع ملخص يومي.</dd></div></dl></section>
+<section class="group" data-r><h3>مصمَّم للإمارات</h3>
+<div class="spec" aria-hidden="true"><div class="bi"><span>250.00 د.إ</span><span lang="en" dir="ltr">AED 250.00</span></div><div class="row dim"><span>شامل ضريبة القيمة المضافة 5%</span><span lang="en" dir="ltr">Includes 5% VAT</span></div></div>
+<dl><div><dt>الدرهم مع ضريبة 5%</dt><dd>فواتير ضريبية بعد إضافة رقم التسجيل الضريبي.</dd></div>
+<div><dt>العربية والإنجليزية</dt><dd>تخطيط من اليمين إلى اليسار بالعربية، والتبديل بنقرة واحدة.</dd></div>
+<div><dt>تسجيل دخول العملاء</dt><dd>بالبريد الإلكتروني أو برمز يصل على واتساب. يرى العملاء طلباتهم وحجوزاتهم.</dd></div></dl></section>
+<section class="group" data-r><h3>التحكم بيدك</h3>
+<div class="spec" aria-hidden="true"><div class="flow"><span class="tag">معاينة</span><i></i><span class="tag">تضغط «نشر»</span><i></i><span class="tag">الإصدار 12 منشور</span></div><div class="row dim"><span>نسخة احتياطية قبل النشر</span><span>العودة إلى الإصدار 11</span></div></div>
+<dl><div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
+<div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
+<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div>
+<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourshop.ae</span> في خطتي Pro و Business.</dd></div></dl></section>
+</div></div></section>
+
+<section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
+<div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">ابدأ مجاناً. انتقل إلى خطة أعلى عندما تحتاج مواقع أكثر، أو نطاقك الخاص، أو إلغاء الرسوم على مدفوعات البطاقة.</p></div>
+<div class="prices">
+<div class="plan" data-r><h3>Free</h3><p class="for">لتجربته مع عملاء حقيقيين</p><p class="amount">0 درهم</p><ul><li>موقع واحد</li><li>يأخذ Renoxium {{.Fee}}% من مدفوعات البطاقة</li><li>50 رمز دخول عبر واتساب شهرياً</li><li>200 ميغابايت للصور</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
+<div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
+<div class="plan" data-r><h3>Business</h3><p class="for">لعدة فروع أو علامات تجارية</p><p class="amount">299 درهماً <span>شهرياً</span></p><ul><li>10 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>2,000 رمز دخول عبر واتساب شهرياً</li><li>10 غيغابايت للصور</li><li>نطاقك الخاص، و10 موظفين لكل موقع</li><li>بلا شارة</li></ul><a class="btn line" href="/signup">اختر Business</a></div>
+</div>
+<p class="sum" data-r><b>متى تغطي خطة Pro تكلفتها؟</b> في خطة Free، مبيعات بالبطاقة قدرها 10,000 درهم في الشهر تكلّف {{.FeeOn10k}} درهم رسوماً لـ Renoxium. سعر Pro هو 99 درهماً، فتصبح أوفر عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. الدفع عند الاستلام لا رسوم عليه من Renoxium أبداً.</p>
+<p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. بناء موقعك وتعديله عبر مساعدك غير محدود في كل الخطط؛ وتحتاج إلى حسابك الخاص في ChatGPT أو Claude.</p></div></section>
+
+<section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>أسئلة يطرحها أصحاب الأنشطة</h2><div class="faq" data-r>
+<details><summary>هل أحتاج إلى معرفة تقنية؟</summary><p>لا. تصف نشاطك بكلماتك، بالعربية أو الإنجليزية. يتولى المساعد البناء والاختبار، وتراجع النتيجة في معاينة قبل نشرها.</p></details>
+<details><summary>أي مساعد ذكاء اصطناعي أحتاج؟</summary><p>ChatGPT (خطة مدفوعة مع وضع المطوّر) أو Claude، بحسابك الخاص. تضيف Renoxium إليه مرة واحدة؛ و<a href="/connect">صفحة الربط</a> تشرح الخطوات.</p></details>
+<details><summary>أتواصل مع عملائي على واتساب وإنستغرام. أين مكان الموقع؟</summary><p>واصل محادثتهم هناك. شارك رابط موقعك في نبذة حسابك وفي ردودك: الموقع وأدوات المساعد الذكي تستقبل الطلب والدفع والحجز وتضعها في لوحتك وجدولك، فلا يضيع شيء في المحادثات.</p></details>
+<details><summary>هل يستطيع عملائي الطلب عبر ChatGPT أو Claude؟</summary><p>يمكنهم إضافة نشاطك إلى ChatGPT أو Claude والسؤال عن منتجاتك وأسعارك وأوقاتك المتاحة. وللحجز أو الدفع يوجّههم المساعد إلى الصفحة المناسبة في موقعك.</p></details>
+<details><summary>ماذا لو أخطأ المساعد؟</summary><p>تذهب التغييرات دائماً إلى معاينة خاصة أولاً، ولا ينشر أحد غيرك. وإن فاتك شيء، عُد إلى إصدار سابق من لوحتك؛ فبياناتك تُنسخ احتياطياً قبل كل نشر.</p></details>
+<details><summary>هل أحتاج إلى Stripe؟</summary><p>لمدفوعات البطاقة فقط. الدفع عند الاستلام والدفع في المكان يعملان دونه. وعند ربط Stripe تذهب المدفوعات مباشرة إلى حسابك أنت.</p></details>
+<details><summary>هل أستطيع استخدام نطاقي الخاص؟</summary><p>نعم، في خطتي Pro و Business، مثل <span dir="ltr">www.yourshop.ae</span>. وفي خطة Free يكون موقعك على <span dir="ltr">yourname.renoxium.app</span>.</p></details>
+<details><summary>من يملك بيانات العملاء والطلبات؟</summary><p>أنت. نزّل كل ما يحتويه موقعك في أي وقت، أو احذف حسابك وكل بياناته.</p></details>
+</div></div></section>
+
+<section class="block end" aria-labelledby="end-h"><div class="wrap" data-r>
+<h2 id="end-h">جرّب نسخة تجريبية قبل التسجيل</h2><p class="sub">احجز قص شعر، أو اطلب عطراً، أو اطلب عرض سعر في إحدى التجارب، ثم افتح لوحة تحكم صاحب النشاط لترى ما ستحصل عليه.</p>
+<div class="cta"><a class="btn" href="/templates">جرّب نسخة تجريبية</a><a class="btn line" href="/signup">أنشئ حسابك</a></div>
+<p class="note">صفحات إنشاء الحساب والقوالب والربط ولوحة التحكم متاحة بالإنجليزية حالياً. أما المواقع التي تبنيها فتعمل بالعربية والإنجليزية.</p></div></section>
+</main>
+<div class="wrap"><footer class="site"><span>© {{.Legal.Company}}</span><div class="links"><a href="/templates">القوالب</a><a href="/connect">الربط</a><a href="/privacy">الخصوصية</a><a href="/terms">الشروط</a><a href="/support">الدعم</a><a href="/abuse">الإبلاغ عن موقع</a><a href="/" lang="en" dir="ltr">English</a><a href="/login">تسجيل الدخول</a></div></footer></div>
+{{template "landing-js"}}
 </body></html>{{end}}
 
 {{define "gallery"}}{{template "lhead" "Templates | Renoxium"}}<style>

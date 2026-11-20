@@ -321,7 +321,7 @@ func (s *Site) clientIP(r *http.Request) string {
 func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.currentUser(r)
 	if !ok {
-		renderLanding(w, s.landingData())
+		renderLanding(w, s.landingData(false))
 		return
 	}
 	apps, err := s.platform.Apps(u.ID)

@@ -79,6 +79,28 @@ var screens = map[string]screen{
 		Alt: "The owner's admin panel of the Lamsa Beauty Lounge demo: the bookings calendar for one day, one lane each for Layla, Maryam and Priya, with nine appointments from 10:00 to 19:00, each with the customer's name and service, marked confirmed or pending"},
 }
 
+// screensAR are the same demos in Arabic, for the Arabic home page.
+var screensAR = map[string]screen{
+	"store-uae":        phone("screen-store-home-ar.webp", "متجر عطور النور التجريبي بالعربية: فئات العطور بصور مقوّسة وحقل بحث وبطاقات عطور بأسعارها بالدرهم، من اليمين إلى اليسار"),
+	"booking-uae":      phone("screen-booking-ar.webp", "الصفحة الرئيسية لتجربة صالون لمسة بيوتي لاونج بالعربية: عناية بالشعر والأظافر والبشرة في جميرا، مع زر احجزي موعداً"),
+	"home-service-uae": phone("screen-home-service-ar.webp", "الصفحة الرئيسية لتجربة بيتي للخدمات المنزلية بالعربية: تنظيف وتكييف وصيانة، مع زر احجز زيارة وصورة لغرفة معيشة مرتبة"),
+	"reservation-uae":  phone("screen-reservation-ar.webp", "الصفحة الرئيسية لتجربة صحارى باي للرحلات والتأجير بالعربية: رحلات سفاري وجولات بحرية وتأجير سيارات، مع صورة لقافلة جمال تعبر الكثبان"),
+	"quote-portal-uae": phone("screen-quote-portal-ar.webp", "الصفحة الرئيسية لتجربة بيان لتأسيس الأعمال بالعربية: شركتك في دبي بتأسيس واضح، مع زر اطلب عرض سعر وصورة لأفق دبي ليلاً"),
+	"listings-uae":     phone("screen-listing-ar.webp", "الصفحة الرئيسية لتجربة مرسى هومز بالعربية: منازل في دبي نعرفها شارعاً شارعاً، مع زر تصفح العقارات وصورة لوسط دبي عند الغروب"),
+	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
+		Alt: "لوحة تحكم صالون لمسة التجريبي: تقويم الحجوزات ليوم واحد، بعمود لكل من ليلى ومريم وبريا، وتسعة مواعيد من 10:00 إلى 19:00 مع اسم العميلة والخدمة وحالة الحجز"},
+}
+
+// demoNameAR names each demo on the Arabic home page.
+var demoNameAR = map[string]string{
+	"store-uae":        "تجربة متجر العطور",
+	"booking-uae":      "تجربة الصالون",
+	"home-service-uae": "تجربة تنظيف المنازل",
+	"reservation-uae":  "تجربة رحلات السفاري",
+	"quote-portal-uae": "تجربة تأسيس الشركات",
+	"listings-uae":     "تجربة الوسيط العقاري",
+}
+
 // exampleJob is what the owner does with each template, as the landing
 // page and the gallery group them, in their words.
 var exampleJob = map[string]string{
@@ -112,7 +134,7 @@ type sitePath struct {
 
 type demoLink struct{ Label, URL string }
 
-func (s *Site) sitePaths(cards []galleryCard) []sitePath {
+func (s *Site) sitePaths(cards []galleryCard, ar bool) []sitePath {
 	byName := map[string]galleryCard{}
 	for _, c := range cards {
 		byName[c.Name] = c
@@ -121,10 +143,24 @@ func (s *Site) sitePaths(cards []galleryCard) []sitePath {
 		var out []demoLink
 		for _, n := range names {
 			if c, ok := byName[n]; ok {
+				if ar {
+					out = append(out, demoLink{Label: demoNameAR[n], URL: c.DemoURL + "/?lang=ar"})
+					continue
+				}
 				out = append(out, demoLink{Label: demoName[n], URL: c.DemoURL + "/"})
 			}
 		}
 		return out
+	}
+	if ar {
+		return []sitePath{
+			{ID: "sell", Title: "أبيع منتجات", Screen: screensAR["store-uae"], Demos: pick("store-uae"),
+				Text: "متجر بسلة مشتريات وصفحة دفع، لمتجر عطور أو بوتيك أو كعك يُطلب قبل أيام. يدفع العملاء بالبطاقة أو نقداً عند الاستلام."},
+			{ID: "book", Title: "أستقبل حجوزات", Screen: screensAR["booking-uae"], Demos: pick("booking-uae", "home-service-uae", "reservation-uae"),
+				Text: "يختار العملاء وقتاً متاحاً ويدفعون عربوناً، لصالون أو شركة تنظيف أو رحلة سفاري."},
+			{ID: "quote", Title: "أرسل عروض أسعار", Screen: screensAR["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
+				Text: "يطلب العملاء عرض سعر ويقبلونه ويدفعون العربون عبر الإنترنت، لمكتب تأسيس شركات أو وسيط عقاري."},
+		}
 	}
 	return []sitePath{
 		{ID: "sell", Title: "I sell products", Screen: screens["store-ar"], Demos: pick("store-uae"),
@@ -166,20 +202,46 @@ var trades = []trade{
 		Owner:     []string{"Write quotes in your panel, with 5% VAT added or included", "A payments ledger for each quote", "Clients are emailed when you update a quote", "Card payments refunded when you cancel a quote, if you choose"}},
 }
 
+// tradesAR are the same kinds of business in Arabic, in the same order.
+var tradesAR = []trade{
+	{ID: "salon", Tab: "الصالونات والسبا", Example: "booking-uae",
+		Customers: []string{"اختيار الخدمة والمصففة والوقت المتاح", "دفع عربون بالبطاقة، أو الدفع في الصالون", "الانضمام إلى حصة بمقاعد محدودة، تُدفع لكل فصل أو شهرياً", "عند الإلغاء في الوقت المحدد يُستردّ العربون فوراً"},
+		Owner:     []string{"تقويم يومي بعمود لكل مصففة", "لا حجوزات مزدوجة: الأوقات المتاحة تُحسب من ساعات عملك وحجوزات كل مصففة", "جدول الغد يصلك بالبريد الإلكتروني كل مساء", "عند نقل حجز أو إلغائه يصل العميل بريد إلكتروني"}},
+	{ID: "shop", Tab: "المتاجر", Example: "store-uae",
+		Customers: []string{"التصفح حسب الفئة مع البحث والتصفية", "اختيار مقاس أو خيار له سعره ومخزونه", "الدفع بالبطاقة أو نقداً عند الاستلام، مع رموز الخصم", "اختيار تاريخ التوصيل للكعك أو الزهور المصنوعة حسب الطلب"},
+		Owner:     []string{"كل طلب مع حالته في لوحتك", "رسوم توصيل، وتوصيل مجاني فوق مبلغ تحدده", "مخزون لكل خيار من خيارات المنتج", "فواتير ضريبية بعد إضافة رقم التسجيل الضريبي"}},
+	{ID: "home", Tab: "الخدمات المنزلية", Example: "home-service-uae",
+		Customers: []string{"اختيار الخدمة والمنطقة وفترة الوصول", "إضافة صورة للمشكلة", "حجز زيارات أسبوعية أو كل أسبوعين تُدفع بالبطاقة تلقائياً", "متابعة الفريق على الخريطة يوم الزيارة"},
+		Owner:     []string{"عدد محدد من الفرق لكل فترة، فلا تتجاوز الحجوزات طاقتك", "صفحة على الهاتف لكل فريق: في الطريق، وصل، اكتمل، استُلم النقد", "رسوم إضافية حسب المنطقة تُضاف إلى السعر", "الإلغاء قبل المهلة التي تحددها يُستردّ مبلغه تلقائياً"}},
+	{ID: "tours", Tab: "الجولات والتأجير", Example: "reservation-uae",
+		Customers: []string{"حجز مقاعد في رحلة بتاريخ محدد، بسعر للبالغين وسعر للأطفال", "استئجار سيارة أو معدات باليوم، مع سعر أسبوعي", "إضافات مثل مقعد طفل أو التوصيل", "قسيمة تُعرض يوم الرحلة"},
+		Owner:     []string{"المقاعد والمخزون تُحسب من الحجوزات، فلا بيع زائد", "عربون عبر الإنترنت والباقي يوم الرحلة", "مبلغ تأمين كحجز على البطاقة تحرّره أو تخصم منه عند الإرجاع", "رحلات الغد وعمليات التسليم والإرجاع تصلك بالبريد الإلكتروني"}},
+	{ID: "property", Tab: "الوسطاء العقاريون", Example: "listings-uae",
+		Customers: []string{"البحث حسب البيع أو الإيجار والمنطقة وعدد الغرف والسعر", "رقم التصريح ورمز QR ظاهران في كل إعلان", "طلب معاينة أو طرح سؤال دون تسجيل الدخول", "الاتصال بالوكيل أو مراسلته على واتساب من صفحة الإعلان"},
+		Owner:     []string{"العملاء المحتملون في لوحتك مع حالة المتابعة", "المعاينات في تقويم بعمود لكل وكيل", "الإعلان الذي لا يحمل رقم تصريح يبقى مخفياً", "ملخص يومي بالبريد الإلكتروني"}},
+	{ID: "services", Tab: "خدمات الأعمال", Example: "quote-portal-uae",
+		Customers: []string{"إرسال استفسار مع التاريخ المطلوب والميزانية", "قراءة عرض السعر وقبوله عبر الإنترنت", "دفع العربون والباقي بالبطاقة أو بالتحويل البنكي", "متابعة سير العمل ومشاركة المستندات في بوابة خاصة"},
+		Owner:     []string{"كتابة عروض الأسعار في لوحتك، مع إضافة ضريبة 5% أو شمولها", "سجل مدفوعات لكل عرض سعر", "يصل العميل بريد إلكتروني عند تحديث عرض السعر", "استرداد مدفوعات البطاقة عند إلغاء العرض، إن اخترت ذلك"}},
+}
+
 // siteTrades fills the trades with their demos; a trade whose demo is not
 // in the gallery is left out.
-func (s *Site) siteTrades(cards []galleryCard) []trade {
+func (s *Site) siteTrades(cards []galleryCard, ar bool) []trade {
 	byName := map[string]galleryCard{}
 	for _, c := range cards {
 		byName[c.Name] = c
 	}
 	var out []trade
-	for _, t := range trades {
+	list, shots, query := trades, screens, ""
+	if ar {
+		list, shots, query = tradesAR, screensAR, "?lang=ar"
+	}
+	for _, t := range list {
 		c, ok := byName[t.Example]
 		if !ok {
 			continue
 		}
-		t.Screen, t.DemoURL, t.AdminURL = screens[t.Example], c.DemoURL+"/", c.AdminURL
+		t.Screen, t.DemoURL, t.AdminURL = shots[t.Example], c.DemoURL+"/"+query, c.AdminURL
 		out = append(out, t)
 	}
 	return out
