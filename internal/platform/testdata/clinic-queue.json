@@ -1,0 +1,201 @@
+{
+ "tables": [
+  {
+   "name": "clinic",
+   "label": "Clinic",
+   "columns": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "label": "Clinic name"
+    },
+    {
+     "name": "tagline",
+     "type": "text",
+     "label": "Line under the name"
+    },
+    {
+     "name": "brand_color",
+     "type": "text",
+     "label": "Brand colour",
+     "help": "Hex colour, e.g. #0f766e."
+    }
+   ]
+  },
+  {
+   "name": "services",
+   "label": "Services",
+   "columns": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "label": "Service"
+    },
+    {
+     "name": "prefix",
+     "type": "text",
+     "label": "Number prefix",
+     "help": "A letter before the number, e.g. A for A001."
+    },
+    {
+     "name": "position",
+     "type": "integer",
+     "label": "Order on the screen"
+    },
+    {
+     "name": "active",
+     "type": "boolean",
+     "label": "Taking numbers"
+    }
+   ]
+  },
+  {
+   "name": "tickets",
+   "label": "Queue",
+   "columns": [
+    {
+     "name": "code",
+     "type": "text",
+     "required": true,
+     "unique": true,
+     "label": "Ticket code",
+     "help": "Secret part of the patient's ticket link."
+    },
+    {
+     "name": "day",
+     "type": "text",
+     "required": true,
+     "label": "Day"
+    },
+    {
+     "name": "service_id",
+     "type": "integer",
+     "required": true,
+     "label": "Service"
+    },
+    {
+     "name": "number",
+     "type": "integer",
+     "required": true,
+     "label": "Number"
+    },
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "label": "Patient name"
+    },
+    {
+     "name": "phone",
+     "type": "text",
+     "label": "Mobile"
+    },
+    {
+     "name": "status",
+     "type": "text",
+     "required": true,
+     "label": "Status",
+     "options": [
+      "waiting",
+      "called",
+      "done",
+      "no_show"
+     ],
+     "help": "Set to called to call the patient: the TV screen and their ticket page update at once."
+    },
+    {
+     "name": "called_at",
+     "type": "datetime",
+     "label": "Called at"
+    }
+   ]
+  }
+ ],
+ "lib": {
+  "common": "// Shared helpers for the clinic queue.\nfunction clinic() { return db.query('SELECT * FROM clinic ORDER BY id LIMIT 1')[0] || {name: 'Clinic', tagline: ''}; }\nfunction today() { return new Date(Date.now() + 4 * 3600 * 1000).toISOString().slice(0, 10); } // UAE date\nfunction label(svc, n) { return (svc.prefix || '') + String(n).padStart(3, '0'); }\n// Per active service: the number being served now and how many are waiting, for today.\nfunction boards() {\n  const d = today();\n  return db.query('SELECT * FROM services WHERE active = 1 ORDER BY position, id').map(s => {\n    const called = db.query(\"SELECT number FROM tickets WHERE service_id = ? AND day = ? AND status = 'called' ORDER BY called_at DESC, number DESC LIMIT 1\", s.id, d)[0];\n    const w = db.query(\"SELECT COUNT(*) AS n FROM tickets WHERE service_id = ? AND day = ? AND status = 'waiting'\", s.id, d)[0].n;\n    return {id: s.id, name: s.name, serving: called ? label(s, called.number) : '', waiting: w};\n  });\n}\nfunction changed() { realtime.publish({channel: 'public:queue', data: {at: Date.now()}}); }"
+ },
+ "templates": {
+  "css": ":root{--brand:#0f766e;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc}\n*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}\nheader{background:var(--brand);color:#fff;padding:14px 16px}header a{color:#fff;text-decoration:none;font-weight:700}\nmain{max-width:640px;margin:0 auto;padding:20px 16px 48px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:0 0 16px}\nh1{font-size:26px;margin:0 0 6px}h2{font-size:18px;margin:0 0 10px}.muted{color:var(--muted)}\nlabel{display:block;font-weight:600;margin:12px 0 4px}input,select{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;background:#fff}\nbutton{margin-top:16px;width:100%;padding:13px;border:0;border-radius:10px;background:var(--brand);color:#fff;font:inherit;font-weight:700;cursor:pointer}\n.serving{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.box{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}\n.num{font-size:40px;font-weight:800;letter-spacing:.02em;color:var(--brand)}.big{font-size:72px}.alert{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px}\n.ok{background:#dcfce7;border-color:#86efac}.screen{background:#0f172a;color:#fff;min-height:100vh}.screen .box{border-color:#334155}.screen .num{color:#5eead4;font-size:96px}",
+  "top": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{{.title}}</title><style>{{template \"css\"}}</style>{{with .clinic.brand_color}}<style>:root{--brand:{{.}}}</style>{{end}}</head><body{{if .screen}} class=\"screen\"{{end}}>\n{{if not .screen}}<header><a href=\"/\">{{.clinic.name}}</a></header>{{end}}<main>",
+  "bottom": "</main><script>(function(){var s=new EventSource('/_rx/live/public:queue');s.onmessage=function(){if(window.onQueue)window.onQueue();else location.reload()}})();</script></body></html>",
+  "home": "{{template \"top\" .}}<div class=\"card\"><h1>{{.clinic.name}}</h1><p class=\"muted\">{{.clinic.tagline}}</p></div>\n<div class=\"card\"><h2>Now serving</h2><div class=\"serving\">{{range .services}}<div class=\"box\" data-id=\"{{.id}}\"><div class=\"muted\">{{.name}}</div><div class=\"num\">{{if .serving}}{{.serving}}{{else}}\u2013{{end}}</div><div class=\"muted\"><span class=\"w\">{{.waiting}}</span> waiting</div></div>{{end}}</div></div>\n<form class=\"card\" method=\"post\" action=\"/take\"><h2>Take a number</h2>{{with .error}}<p class=\"alert\" role=\"alert\">{{.}}</p>{{end}}\n<label for=\"service\">Service</label><select id=\"service\" name=\"service\" required>{{range .services}}<option value=\"{{.id}}\">{{.name}}</option>{{end}}</select>\n<label for=\"name\">Your name</label><input id=\"name\" name=\"name\" required maxlength=\"80\" autocomplete=\"name\">\n<label for=\"phone\">Mobile number (optional)</label><input id=\"phone\" name=\"phone\" type=\"tel\" maxlength=\"20\" autocomplete=\"tel\">\n<button>Get my number</button><p class=\"muted\">Keep the page that opens: it shows your place in the queue and updates by itself.</p></form>\n<script>window.onQueue=function(){fetch('/api/state').then(function(r){return r.json()}).then(function(d){d.services.forEach(function(s){var b=document.querySelector('.box[data-id=\"'+s.id+'\"]');if(!b)return;b.querySelector('.num').textContent=s.serving||'\u2013';b.querySelector('.w').textContent=s.waiting})})};</script>{{template \"bottom\" .}}",
+  "ticket": "{{template \"top\" .}}<div class=\"card\" style=\"text-align:center\"><p class=\"muted\">{{.t.service}} \u00b7 {{.t.name}}</p><div class=\"num big\">{{.t.label}}</div>\n{{if eq .t.status \"called\"}}<p class=\"alert ok\"><strong>It is your turn.</strong> Please go to the counter.</p>\n{{else if eq .t.status \"waiting\"}}<p><strong>{{.ahead}}</strong> {{if eq .ahead 1}}person{{else}}people{{end}} ahead of you.</p><p class=\"muted\">Now serving: {{if .serving}}{{.serving}}{{else}}\u2013{{end}}</p>\n{{else if eq .t.status \"done\"}}<p>Thank you for your visit.</p>{{else}}<p class=\"alert\">This number was skipped. Please ask at the reception.</p>{{end}}</div>\n<p class=\"muted\" style=\"text-align:center\"><a href=\"/\">Back</a></p>{{template \"bottom\" .}}",
+  "screen": "{{template \"top\" .}}<h1 style=\"font-size:40px\">{{.clinic.name}}</h1><div class=\"serving\">{{range .services}}<div class=\"box\"><div style=\"font-size:28px\">{{.name}}</div><div class=\"num\">{{if .serving}}{{.serving}}{{else}}\u2013{{end}}</div><div>{{.waiting}} waiting</div></div>{{end}}</div>{{template \"bottom\" .}}"
+ },
+ "scripts": {
+  "home": "// GET /  the queue boards and the form to take a number.\nfunction handle(req) {\n  const errors = {full: 'Please choose a service and enter your name.', closed: 'This service is not taking numbers right now.'};\n  return {template: 'home', data: {title: clinic().name, clinic: clinic(), services: boards(), error: errors[req.query.error] || ''}};\n}",
+  "take": "// POST /take  form: service, name, phone. Gives the next number of the day for the service.\nfunction handle(req) {\n  const name = (req.form.name || '').trim().slice(0, 80), phone = (req.form.phone || '').trim().slice(0, 20);\n  const svc = db.query('SELECT * FROM services WHERE id = ?', Number(req.form.service))[0];\n  if (!svc || !name) return {redirect: '/?error=full'};\n  if (!svc.active) return {redirect: '/?error=closed'};\n  const d = today();\n  const n = db.query('SELECT COALESCE(MAX(number), 0) + 1 AS n FROM tickets WHERE service_id = ? AND day = ?', svc.id, d)[0].n;\n  const code = crypto.randomId();\n  db.exec(\"INSERT INTO tickets (code, day, service_id, number, name, phone, status) VALUES (?, ?, ?, ?, ?, ?, 'waiting')\", code, d, svc.id, n, name, phone);\n  changed();\n  return {redirect: '/t/' + code};\n}",
+  "ticket": "// GET /t/:code  a visitor's own ticket, found by its secret code.\nfunction handle(req) {\n  const t = db.query('SELECT * FROM tickets WHERE code = ?', String(req.params.code))[0];\n  if (!t) return {status: 404, text: 'Ticket not found'};\n  const svc = db.query('SELECT * FROM services WHERE id = ?', t.service_id)[0] || {name: '', prefix: ''};\n  const ahead = db.query(\"SELECT COUNT(*) AS n FROM tickets WHERE service_id = ? AND day = ? AND status = 'waiting' AND number < ?\", t.service_id, t.day, t.number)[0].n;\n  const b = boards().find(x => x.id === t.service_id);\n  return {template: 'ticket', data: {title: label(svc, t.number), clinic: clinic(), ahead: ahead, serving: b ? b.serving : '',\n    t: {label: label(svc, t.number), name: t.name, service: svc.name, status: t.status}}};\n}",
+  "screen": "// GET /screen  the waiting-room TV: now serving per service, updated live.\nfunction handle(req) { return {template: 'screen', data: {title: clinic().name, clinic: clinic(), services: boards(), screen: true}}; }",
+  "state": "// GET /api/state  the boards as JSON.\nfunction handle(req) { return {json: {day: today(), services: boards()}}; }",
+  "admin_change": "// on_admin_change: the reception calls a number in the admin panel (status called); stamp the time and update every screen.\nfunction handle(req) {\n  const b = req.body;\n  if (b.table === 'tickets' && b.row && b.row.status === 'called' && (!b.before || b.before.status !== 'called')) {\n    db.exec(\"UPDATE tickets SET called_at = datetime('now') WHERE id = ?\", b.id);\n  }\n  if (b.table === 'tickets' || b.table === 'services') changed();\n  return {text: 'ok'};\n}",
+  "mcp_queue": "// MCP tool: the queue right now, for assistants.\nfunction handle(req) { return {json: {clinic: clinic().name, day: today(), services: boards(), take_a_number: req.origin + '/'}}; }"
+ },
+ "routes": [
+  {
+   "method": "GET",
+   "path": "/",
+   "script": "home"
+  },
+  {
+   "method": "POST",
+   "path": "/take",
+   "script": "take"
+  },
+  {
+   "method": "GET",
+   "path": "/t/:code",
+   "script": "ticket"
+  },
+  {
+   "method": "GET",
+   "path": "/screen",
+   "script": "screen"
+  },
+  {
+   "method": "GET",
+   "path": "/api/state",
+   "script": "state"
+  }
+ ],
+ "on_admin_change": "admin_change",
+ "tools": [
+  {
+   "name": "queue_status",
+   "description": "The clinic's queue right now: the number being served and how many are waiting, per service.",
+   "script": "mcp_queue",
+   "read_only": true
+  }
+ ],
+ "seed": {
+  "clinic": [
+   {
+    "name": "Al Shifa Family Clinic",
+    "tagline": "Take a number and follow your turn on your phone.",
+    "brand_color": "#0f766e"
+   }
+  ],
+  "services": [
+   {
+    "name": "General doctor",
+    "prefix": "A",
+    "position": 1,
+    "active": 1
+   },
+   {
+    "name": "Dentist",
+    "prefix": "B",
+    "position": 2,
+    "active": 1
+   },
+   {
+    "name": "Pharmacy",
+    "prefix": "C",
+    "position": 3,
+    "active": 1
+   }
+  ]
+ }
+}
