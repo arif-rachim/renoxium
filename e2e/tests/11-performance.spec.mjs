@@ -142,6 +142,28 @@ test('home page: budget, reveals on scroll, tabs and reduced motion', async ({ b
   await expect(page.getByRole('tabpanel')).toContainText('accept it online');
   await ctx.close();
 
+  // Arabic: right to left without sideways scrolling, reached from the English page, and the left arrow goes to the next tab.
+  const arabic = await browser.newContext({ ...devices['Pixel 7'] });
+  const pa = await arabic.newPage();
+  pa.on('pageerror', (e) => errors.push(e.message));
+  await pa.goto('/', { waitUntil: 'networkidle' });
+  await pa.getByRole('navigation').getByRole('link', { name: 'العربية' }).click();
+  await expect(pa).toHaveURL(/\/ar$/);
+  await expect(pa.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(pa.getByRole('heading', { level: 1 })).toContainText('الطلبات والحجوزات والمدفوعات في مكان واحد');
+  const arHeight = await pa.evaluate(() => document.documentElement.scrollHeight);
+  for (let y = 0; y < arHeight; y += 600) { await pa.evaluate((v) => scrollTo(0, v), y); await pa.waitForTimeout(100); }
+  await expect(pa.locator('[data-r]:not(.in)')).toHaveCount(0);
+  expect(await pa.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  expect(await pa.evaluate(() => scrollX)).toBe(0);
+  await pa.getByRole('tab', { name: 'الصالونات والسبا' }).focus();
+  await pa.keyboard.press('ArrowLeft');
+  await expect(pa.getByRole('tab', { name: 'المتاجر' })).toHaveAttribute('aria-selected', 'true');
+  await expect(pa.getByRole('tabpanel')).toContainText('الدفع بالبطاقة أو نقداً عند الاستلام');
+  await pa.getByRole('navigation').getByRole('link', { name: 'English' }).click();
+  await expect(pa).toHaveURL(/\/$/);
+  await arabic.close();
+
   const calm = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
   const p2 = await calm.newPage();
   await p2.goto('/', { waitUntil: 'networkidle' });

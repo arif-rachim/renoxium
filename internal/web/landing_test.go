@@ -39,6 +39,33 @@ func TestLandingAndLegalPages(t *testing.T) {
 	if p := read(t, r); strings.Contains(p, "Draft.") || !strings.Contains(p, "Renoxium (FZC)") || !strings.Contains(p, "mailto:legal@renoxium.test") {
 		t.Fatalf("reviewed terms: %s", p)
 	}
+	// The home page in Arabic: right to left, the same sections, Arabic demos, and a way back to English.
+	r, _ = http.Get(e.base + "/ar")
+	ar := read(t, r)
+	if r.StatusCode != 200 || r.Header.Get("Content-Language") != "ar" {
+		t.Fatalf("/ar: %d %s", r.StatusCode, r.Header.Get("Content-Language"))
+	}
+	for _, want := range []string{`<html lang="ar" dir="rtl">`, "الطلبات والحجوزات والمدفوعات في مكان واحد", "أبيع منتجات", "أستقبل حجوزات", "أرسل عروض أسعار",
+		"عملاؤك يستطيعون سؤال مساعدهم الذكي", "مكان واحد خلف كل قناة", "الوسطاء العقاريون", "التحكم بيدك", "99 درهماً", "4,950 درهماً", "?lang=ar",
+		"screen-booking-ar.webp", `hreflang="en"`, `href="/" lang="en"`, `href="/signup"`} {
+		if !strings.Contains(ar, want) {
+			t.Errorf("/ar lacks %q", want)
+		}
+	}
+	// Both pages have the same sections and tabs, and point to each other.
+	for _, id := range []string{`id="hero-h"`, `id="how-h"`, `id="ai-h"`, `id="chan-h"`, `id="panel-h"`, `id="trade-h"`, `id="has-h"`, `id="pricing-h"`, `id="faq-h"`, `id="end-h"`} {
+		if !strings.Contains(page, id) || !strings.Contains(ar, id) {
+			t.Errorf("section %s is not on both home pages", id)
+		}
+	}
+	for _, n := range []string{`role="tab"`, "<details>", `class="chan"`, "<dt>"} {
+		if a, b := strings.Count(page, n), strings.Count(ar, n); a != b || a == 0 {
+			t.Errorf("%s: %d in English, %d in Arabic", n, a, b)
+		}
+	}
+	if !strings.Contains(page, `href="/ar" lang="ar"`) || !strings.Contains(page, `hreflang="ar"`) {
+		t.Error("the English home page does not link to the Arabic one")
+	}
 	// Signed in, / is still the dashboard.
 	c := e.browser()
 	e.signup(c, "abe@shop.ae")
