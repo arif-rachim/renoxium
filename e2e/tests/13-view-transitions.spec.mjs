@@ -5,8 +5,12 @@
 // both pages. A snapshot of a bare photo inside a rounded frame would be a
 // rectangle: the shape would vanish for the length of the transition.
 // Reduced motion switches the transition off.
+// A card without a photo moves its title into the page's h1 instead; the
+// demos all have photos, so that is checked on fresh apps made from each
+// example (their seed rows have no photos), on the owner's private preview.
 import { test, expect } from '@playwright/test';
-import { appURL } from '../env.mjs';
+import { appURL, RENOXIUM } from '../env.mjs';
+import { person, signUp, email, unique, connectAgent, builder } from '../lib.mjs';
 
 // demo, list page, prefix of the shared view-transition-name, the detail page's path
 const NAVS = [
@@ -133,4 +137,78 @@ test('reduced motion: pages change without a view transition', async ({ browser 
     expect((await lastReveal(page)).transition, `${demo}: no view transition with reduced motion`).toBe(false);
   }
   await calm.close();
+});
+
+// example, prefix of the title's view-transition-name, the detail page's path
+const TITLES = [
+  ['store-uae', 'pttl-', /^\/p\/\d+$/],
+  ['booking-uae', 'sttl-', /^\/s\/\d+$/],
+  ['home-service-uae', 'sttl-', /^\/s\/\d+$/],
+  ['reservation-uae', 'ittl-', /^\/item\/\d+$/],
+  ['listings-uae', 'lttl-', /^\/l\/\d+$/],
+  ['quote-portal-uae', 'kttl-', /^\/packages\/\d+$/],
+];
+
+// The named title: a box of its own (class vtt) that hugs its text, so the snapshot is the words and nothing else, and
+// that the transition sizes as text (view-transition-class vtt) instead of cropping it like a photo.
+function namedTitle(name) {
+  const el = [...document.querySelectorAll('[style*="view-transition-name"]')].find((e) => e.style.viewTransitionName === name);
+  if (!el) return null;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const text = range.getBoundingClientRect(), box = el.getBoundingClientRect(), outer = el.parentElement.getBoundingClientRect();
+  const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+  const cs = getComputedStyle(el);
+  const all = [...document.querySelectorAll('[style*="view-transition-name"]')].map((e) => e.style.viewTransitionName);
+  return { vtt: el.classList.contains('vtt'), display: cs.display, cls: cs.viewTransitionClass, lines, slack: Math.round(box.width - text.width),
+    inside: box.left >= outer.left - 1 && box.right <= outer.right + 1, photos: all.filter((n) => /img-/.test(n) && !/^aimg-/.test(n)),
+    twice: all.filter((n, i) => all.indexOf(n) !== i) };
+}
+
+test('a card without a photo moves its title into the h1 of its page, and back', async ({ browser }) => {
+  test.setTimeout(300_000);
+  for (const [example, prefix, detail] of TITLES) {
+    const { ctx, page } = await person(browser, { viewport: { width: 1280, height: 860 } });
+    await ctx.route(/^https?:\/\/fonts\.(googleapis|gstatic)\.com\//, (r) => r.abort());
+    await signUp(page, email('vt'));
+    const { access_token: token } = await connectAgent(page);
+    const agent = await builder(token);
+    const app = unique('vt');
+    await agent.call('create_app', { app, from_example: example });
+    await agent.close();
+    await ctx.addInitScript(watchReveals);
+
+    await page.goto(`${RENOXIUM}/apps/${app}/preview`, { waitUntil: 'load' });
+    const list = page.url();
+    const name = await page.evaluate((prefix) => {
+      const el = document.querySelector(`[style*="view-transition-name:${prefix}"]`);
+      const a = el && el.closest('a[href]');
+      if (!a) return '';
+      a.setAttribute('data-vt-link', '');
+      return el.style.viewTransitionName;
+    }, prefix);
+    expect(name, `${example}: a card title with a transition name inside a link`).toMatch(new RegExp('^' + prefix + '\\d+$'));
+    for (const side of ['list', 'detail']) {
+      if (side === 'detail') {
+        await page.locator('[data-vt-link]').click();
+        await page.waitForURL((u) => detail.test(u.pathname));
+        const forward = await lastReveal(page);
+        expect.soft(forward.transition, `${example}: the detail page was revealed with a view transition`).toBe(true);
+        expect.soft(forward.names || [], `${example}: parts of the transition into the detail page`).toEqual(expect.arrayContaining([name, 'root']));
+      }
+      const t = await page.evaluate(namedTitle, name);
+      expect(t, `${example}: the ${side} page has an element named ${name}`).not.toBeNull();
+      expect.soft(t.vtt && t.display === 'inline-block' && t.cls === 'vtt', `${example} ${side}: ${name} is a box of class vtt (${JSON.stringify(t)})`).toBe(true);
+      expect.soft(t.inside, `${example} ${side}: the title's box stays inside its heading`).toBe(true);
+      if (t.lines === 1) expect.soft(t.slack, `${example} ${side}: the title's box hugs its text`).toBeLessThanOrEqual(2);
+      expect.soft(t.photos, `${example} ${side}: no photo frame is named when the rows have no photo`).toEqual([]);
+      expect.soft(t.twice, `${example} ${side}: names used twice`).toEqual([]);
+    }
+    await page.goBack({ waitUntil: 'commit' });
+    await page.waitForURL(list);
+    const back = await lastReveal(page);
+    expect.soft(back.transition, `${example}: the list page was revealed with a view transition on the way back`).toBe(true);
+    expect.soft(back.names || [], `${example}: parts of the transition back to the list`).toEqual(expect.arrayContaining([name, 'root']));
+    await ctx.close();
+  }
 });

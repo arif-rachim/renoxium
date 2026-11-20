@@ -60,7 +60,12 @@ func TestMotionKitIsTheSameEverywhere(t *testing.T) {
 	}
 	// The list to detail transition: snapshots crop instead of stretching, and reduced motion switches it off.
 	for _, want := range []string{"@view-transition{navigation:auto}", "::view-transition-old(*),::view-transition-new(*){width:100%;height:100%;object-fit:cover}",
-		"@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}"} {
+		"@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}",
+		// Titles: a box that hugs the text, snapshots sized as text (never cropped), and no title transition at all in a
+		// browser that cannot tell them apart from photos.
+		".vtt{display:inline-block;max-width:100%;text-decoration:inherit;view-transition-class:vtt}",
+		"::view-transition-old(.vtt),::view-transition-new(.vtt){height:auto;object-fit:fill}",
+		"@supports not (view-transition-class:vtt){.vtt{view-transition-name:none!important}}"} {
 		if !strings.Contains(kit["motion"], want) {
 			t.Errorf("the kit's stylesheet lacks %q", want)
 		}
@@ -100,69 +105,115 @@ func transitionNames(t *testing.T, where, body string) map[string]string {
 	return names
 }
 
+type transitionNav struct {
+	list   string // the page with the cards
+	photo  string // prefix of the name a card with a photo gives its photo frame
+	title  string // prefix of the name a card without a photo gives its title ("" where the focal object needs no photo)
+	detail string // the page a card leads to; %s is the row's id
+}
+
+// Every list to detail navigation of the templates with the kit.
+var transitionCases = []struct {
+	example, settings string
+	photos            map[string]string // table -> image column
+	navs              []transitionNav
+	photoCarriesMask  bool // quote-portal's rows: the photo itself has the border-radius, there is no frame around it
+}{
+	{"store-uae", "store", map[string]string{"products": "image"}, []transitionNav{{"/", "pimg-", "pttl-", "/p/%s"}}, false},
+	{"booking-uae", "business", map[string]string{"services": "image", "classes": "image"},
+		[]transitionNav{{"/", "simg-", "sttl-", "/s/%s"}, {"/", "cimg-", "cttl-", "/c/%s"}}, false},
+	{"home-service-uae", "business", map[string]string{"services": "image"}, []transitionNav{{"/", "simg-", "sttl-", "/s/%s"}}, false},
+	{"reservation-uae", "business", map[string]string{"items": "image"}, []transitionNav{{"/", "iimg-", "ittl-", "/item/%s"}}, false},
+	{"listings-uae", "agency", map[string]string{"listings": "image1", "agents": "photo"},
+		[]transitionNav{{"/", "limg-", "lttl-", "/l/%s"}, {"/search", "limg-", "lttl-", "/l/%s"}, {"/agents/1", "limg-", "lttl-", "/l/%s"},
+			{"/", "aimg-", "", "/agents/%s"}, {"/l/1", "aimg-", "", "/agents/%s"}}, false},
+	{"quote-portal-uae", "business", map[string]string{"packages": "image"}, []transitionNav{{"/", "kimg-", "kttl-", "/packages/%s"}}, true},
+}
+
 // A card and the page it leads to share a view-transition-name, in every
 // layout of every template with the kit (boutique, the standard layout and
-// the luxury one use different card markup). The name sits on the element
-// that carries the mask, never on a photo inside a frame: a snapshot of the
-// bare photo is a rectangle, and the shape would vanish while it moves.
+// the luxury one use different card markup). With a photo the name sits on
+// the element that carries the mask, never on a photo inside a frame: a
+// snapshot of the bare photo is a rectangle, and the shape would vanish while
+// it moves. Without a photo the card's title carries a name instead and moves
+// into the page's h1, in a box of its own (class vtt) so the text is sized as
+// text. A row never names both.
 func TestListAndDetailShareATransitionName(t *testing.T) {
-	type nav struct{ list, prefix, detail string }
-	cases := []struct {
-		example, settings string
-		photos            map[string]string // table -> image column, filled so that frames that need a photo exist
-		navs              []nav
-		photoCarriesMask  bool // quote-portal's rows: the photo itself has the border-radius, there is no frame around it
-	}{
-		{"store-uae", "store", map[string]string{"products": "image"}, []nav{{"/", "pimg-", "/p/%s"}}, false},
-		{"booking-uae", "business", map[string]string{"services": "image", "classes": "image"}, []nav{{"/", "simg-", "/s/%s"}, {"/", "cimg-", "/c/%s"}}, false},
-		{"home-service-uae", "business", map[string]string{"services": "image"}, []nav{{"/", "simg-", "/s/%s"}}, false},
-		{"reservation-uae", "business", map[string]string{"items": "image"}, []nav{{"/", "iimg-", "/item/%s"}}, false},
-		{"listings-uae", "agency", map[string]string{"listings": "image1", "agents": "photo"},
-			[]nav{{"/", "limg-", "/l/%s"}, {"/search", "limg-", "/l/%s"}, {"/", "aimg-", "/agents/%s"}, {"/l/1", "aimg-", "/agents/%s"}, {"/agents/1", "limg-", "/l/%s"}}, false},
-		{"quote-portal-uae", "business", map[string]string{"packages": "image"}, []nav{{"/", "kimg-", "/packages/%s"}}, true},
-	}
-	for _, c := range cases {
+	for _, c := range transitionCases {
 		for _, font := range []string{"boutique", "modern", "atelier"} {
-			e := newExampleEnv(t, c.example, func(def *appdef.App) {
-				def.Seed[c.settings][0]["font"] = font
-				for table, col := range c.photos {
-					for _, row := range def.Seed[table] {
-						row[col] = "/_rx/files/photo.webp"
+			for _, withPhotos := range []bool{true, false} {
+				e := newExampleEnv(t, c.example, func(def *appdef.App) {
+					def.Seed[c.settings][0]["font"] = font
+					for table, col := range c.photos {
+						for _, row := range def.Seed[table] {
+							row[col] = ""
+							if withPhotos {
+								row[col] = "/_rx/files/photo.webp"
+							}
+						}
+					}
+				})
+				kind := " without photos"
+				if withPhotos {
+					kind = " with photos"
+				}
+				for _, n := range c.navs {
+					where := c.example + " (" + font + kind + ") " + n.list
+					want, never := n.photo, n.title
+					if !withPhotos && n.title != "" {
+						want, never = n.title, n.photo
+					}
+					// check tells whether name sits on the right kind of element of a page.
+					check := func(page, name, tag, body string) {
+						t.Helper()
+						if want == n.title && n.title != "" {
+							if !strings.Contains(body, `<span class="vtt" style="view-transition-name:`+name+`">`) {
+								t.Errorf("%s: on %s, %s is on <%s>: a title's name belongs on a span of class vtt around the text", where, page, name, tag)
+							}
+						} else if tag == "img" && !c.photoCarriesMask {
+							t.Errorf("%s: on %s, %s is on <%s>: the name belongs on the element that carries the mask", where, page, name, tag)
+						}
+					}
+					list := e.get(n.list, "")
+					names := transitionNames(t, where, list.Body)
+					found := 0
+					for name, tag := range names {
+						if never != "" && strings.HasPrefix(name, never) {
+							t.Errorf("%s: %s is named although the row has %s", where, name, map[bool]string{true: "a photo", false: "no photo"}[withPhotos])
+						}
+						if !strings.HasPrefix(name, want) {
+							continue
+						}
+						found++
+						check(n.list, name, tag, list.Body)
+						path := fmt.Sprintf(n.detail, strings.TrimPrefix(name, want))
+						detail := e.get(path, "")
+						if detail.Status != 200 {
+							t.Errorf("%s: %s answers %d", where, path, detail.Status)
+							continue
+						}
+						there := transitionNames(t, c.example+" ("+font+kind+") "+path, detail.Body)
+						if tag, ok := there[name]; !ok {
+							t.Errorf("%s: %s has no element named %s, so the card's focal object cannot move to it", where, path, name)
+						} else {
+							check(path, name, tag, detail.Body)
+						}
+						if other := never + strings.TrimPrefix(name, want); never != "" && there[other] != "" {
+							t.Errorf("%s: %s names both %s and %s", where, path, name, other)
+						}
+					}
+					if found == 0 {
+						t.Errorf("%s: no card carries a view-transition-name %s…", where, want)
 					}
 				}
-			})
-			for _, n := range c.navs {
-				where := c.example + " (" + font + ") " + n.list
-				list := e.get(n.list, "")
-				names := transitionNames(t, where, list.Body)
-				found := 0
-				for name, tag := range names {
-					if !strings.HasPrefix(name, n.prefix) {
-						continue
-					}
-					found++
-					if tag == "img" && !c.photoCarriesMask {
-						t.Errorf("%s: %s is on <%s>: the name belongs on the element that carries the mask", where, name, tag)
-					}
-					path := fmt.Sprintf(n.detail, strings.TrimPrefix(name, n.prefix))
-					detail := e.get(path, "")
-					if detail.Status != 200 {
-						t.Errorf("%s: %s answers %d", where, path, detail.Status)
-						continue
-					}
-					if tag, ok := transitionNames(t, c.example+" ("+font+") "+path, detail.Body)[name]; !ok {
-						t.Errorf("%s: %s has no element named %s, so the card's photo cannot move to it", where, path, name)
-					} else if tag == "img" && !c.photoCarriesMask {
-						t.Errorf("%s: on %s, %s is on <%s>: the name belongs on the element that carries the mask", where, path, name, tag)
-					}
+				// Arabic pages carry the same names.
+				first := c.navs[0].photo
+				if !withPhotos {
+					first = c.navs[0].title
 				}
-				if found == 0 {
-					t.Errorf("%s: no card carries a view-transition-name %s…", where, n.prefix)
+				if ar := e.get(c.navs[0].list+"?lang=ar", ""); !strings.Contains(ar.Body, `style="view-transition-name:`+first) {
+					t.Errorf("%s (%s%s): the Arabic list page has no transition names", c.example, font, kind)
 				}
-			}
-			// Arabic pages carry the same names.
-			if ar := e.get(c.navs[0].list+"?lang=ar", ""); !strings.Contains(ar.Body, `style="view-transition-name:`+c.navs[0].prefix) {
-				t.Errorf("%s (%s): the Arabic list page has no transition names", c.example, font)
 			}
 		}
 	}
