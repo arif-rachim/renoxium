@@ -567,7 +567,7 @@ func (p *Platform) HandleStripeEvent(ctx context.Context, e stripe.Event) error 
 	if err := json.Unmarshal(e.Data.Object, &s); err != nil {
 		return nil
 	}
-	app := s.Metadata["rx_app"]
+	app := p.currentName(s.Metadata["rx_app"]) // the app may have been renamed since
 	if app == "" {
 		return nil // not created by Renoxium
 	}
