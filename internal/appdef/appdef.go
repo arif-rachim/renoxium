@@ -32,7 +32,85 @@ type App struct {
 	OnAdminChange string            `json:"on_admin_change,omitempty" jsonschema:"script run right after the owner or staff adds, changes or deletes a row in the admin panel; req.body holds {action, table, id, row, before, by}"`
 	// Brand names the row the platform's own pages (sign-in, sign-up) take
 	// the business's name and colour from.
+	SEO   *SEO   `json:"seo,omitempty" jsonschema:"how search engines, link previews and AI assistants see the live app: sitemap, languages, fallback description and image"`
 	Brand *Brand `json:"brand,omitempty" jsonschema:"where the platform's sign-in pages read the business's name and brand colour: a settings table and its columns, read from its first row, so the owner's changes in the admin panel follow"`
+}
+
+// SEO is what the platform tells search engines, link previews (WhatsApp,
+// Instagram) and AI assistants about the live app. The platform serves
+// /robots.txt, /sitemap.xml and /llms.txt and completes each page's <head>
+// (canonical address, Open Graph tags, hreflang links) from it.
+type SEO struct {
+	Description string            `json:"description,omitempty" jsonschema:"one or two sentences about the business, at most 300 characters; used for pages without their own meta description and in /llms.txt"`
+	Image       string            `json:"image,omitempty" jsonschema:"picture shown when a link is shared and the page has no og:image of its own: a path on the app or the url returned by upload_file; 1200x630 works best"`
+	Languages   []string          `json:"languages,omitempty" jsonschema:"languages the pages come in, default first, e.g. [\"en\",\"ar\"]; the pages must answer to ?lang=<code>"`
+	Sitemap     []string          `json:"sitemap,omitempty" jsonschema:"the public pages: each entry is a path such as /about, or a SELECT returning a path column (optional title and updated columns), e.g. SELECT '/p/' || id AS path, name AS title FROM products WHERE active = 1; without it the sitemap lists the public GET routes that have no parameters"`
+	AICrawlers  string            `json:"ai_crawlers,omitempty" jsonschema:"allow (default) or block: whether AI companies' crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended and others) may read the site"`
+	Verify      map[string]string `json:"verify,omitempty" jsonschema:"site verification codes by service: google, bing, yandex, pinterest or facebook, e.g. {\"google\":\"abc123\"} for Google Search Console"`
+}
+
+// VerifyMeta maps the services of SEO.Verify to their meta tag names.
+var VerifyMeta = map[string]string{
+	"google": "google-site-verification", "bing": "msvalidate.01", "yandex": "yandex-verification",
+	"pinterest": "p:domain_verify", "facebook": "facebook-domain-verification",
+}
+
+// MaxSitemapEntries is how many entries SEO.Sitemap may have.
+const MaxSitemapEntries = 20
+
+var (
+	langRE   = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
+	verifyRE = regexp.MustCompile(`^[A-Za-z0-9_.=-]{1,120}$`)
+)
+
+// SitemapQuery reports whether a sitemap entry is a SELECT, not a path.
+func SitemapQuery(entry string) bool {
+	return len(entry) >= 6 && strings.EqualFold(entry[:6], "select")
+}
+
+func (s *SEO) validate(add func(string, ...any)) {
+	if n := len([]rune(s.Description)); n > 300 {
+		add("seo.description: %d characters; at most 300", n)
+	}
+	if s.Image != "" && !strings.HasPrefix(s.Image, "https://") && !(strings.HasPrefix(s.Image, "/") && !strings.HasPrefix(s.Image, "//")) {
+		add("seo.image: must be a path starting with / or an https:// address")
+	}
+	if len(s.Languages) > 10 {
+		add("seo.languages: at most 10 languages")
+	}
+	seen := map[string]bool{}
+	for _, l := range s.Languages {
+		if !langRE.MatchString(l) {
+			add("seo.languages: %q is not a language code such as en, ar or en-AE", l)
+		}
+		if seen[l] {
+			add("seo.languages: %q is listed twice", l)
+		}
+		seen[l] = true
+	}
+	if len(s.Sitemap) > MaxSitemapEntries {
+		add("seo.sitemap: at most %d entries", MaxSitemapEntries)
+	}
+	for i, e := range s.Sitemap {
+		switch {
+		case len(e) > 2000:
+			add("seo.sitemap %d: at most 2000 characters", i)
+		case SitemapQuery(e):
+		case !strings.HasPrefix(e, "/") || strings.HasPrefix(e, "//") || strings.ContainsAny(e, " \t\r\n<>\""):
+			add("seo.sitemap %d: must be a path starting with / or a SELECT returning a path column", i)
+		}
+	}
+	if s.AICrawlers != "" && s.AICrawlers != "allow" && s.AICrawlers != "block" {
+		add("seo.ai_crawlers: must be allow or block")
+	}
+	for service, code := range s.Verify {
+		if VerifyMeta[service] == "" {
+			add("seo.verify: %q is not supported; use google, bing, yandex, pinterest or facebook", service)
+		}
+		if !verifyRE.MatchString(code) {
+			add("seo.verify.%s: must be the code only (letters, digits, - _ . =), not the whole meta tag", service)
+		}
+	}
 }
 
 // Brand points at the columns holding the business's name (and, if set,
@@ -389,6 +467,9 @@ func (a *App) Validate() []string {
 		if !toolNameRE.MatchString(n) {
 			add("lib %q: name must match [a-z][a-z0-9_]{0,63}", n)
 		}
+	}
+	if a.SEO != nil {
+		a.SEO.validate(add)
 	}
 	if len(a.Routes) == 0 {
 		add("routes: at least one route is required")
