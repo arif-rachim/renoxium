@@ -515,8 +515,10 @@ func (s *Site) authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirect, _ := url.Parse(req.redirectURI)
+	apps, _ := s.platform.Apps(u.ID)
 	render(w, http.StatusOK, "consent", map[string]any{
 		"User": u, "Client": req.client.Name, "RedirectHost": redirect.Host, "CSRF": s.csrfToken(w, r),
+		"Plan": planName(s.accounts.Plan(u.ID)), "Apps": len(apps),
 		"Warning": impersonation(req.client.Name, redirect.Hostname()),
 		"Params":  authorizeParams(r.URL.Query()), "Switch": "/login?next=" + url.QueryEscape(r.URL.RequestURI()),
 	})
@@ -774,6 +776,7 @@ fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fo
 <details class="astable"><summary>Show as a table</summary><table class="rx"><thead><tr><th>Day</th><th>Figures</th></tr></thead><tbody>{{range .Rows}}<tr><td>{{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</tbody></table></details>
 {{else}}<p class="empty">{{.Empty}}</p>{{end}}</div>{{end}}
 {{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a><nav aria-label="Site"><a href="/support">Support</a></nav></div></header>{{end}}
+{{define "authsigned"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/support">Support</a></nav></div></header><div class="authwrap"><main>{{end}}
 {{define "pubnav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="button sm" href="/signup">Create account</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.}} · Renoxium</title>{{template "icons"}}{{template "fonts"}}<style>
@@ -1017,14 +1020,37 @@ body.app:not(.own) .sidenav li a{padding:5px 10px}body.app:not(.own) .sidenav h3
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
 <button>Sign in</button><p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "authbottom"}}{{end}}
 
-{{define "consent"}}{{template "auth" "Allow access"}}<form class="card" method="post" action="/oauth/authorize"><h1>Allow {{.Client}}?</h1>
-<p><strong>{{.Client}}</strong> wants to create, change and publish your Renoxium apps, and read their logs.</p>
-{{with .Warning}}<p class="error"><strong>Warning:</strong> {{.}}</p>{{end}}
-<p>After you allow, you return to <code>{{.RedirectHost}}</code>. Only allow if you just connected Renoxium in your agent and you recognise this address.</p>
-<p class="muted">Signed in as {{.User.Email}} · <a href="{{.Switch}}">use another account</a></p>
+{{define "consent"}}{{template "authsigned" "Connect an AI assistant"}}<form class="card consent" method="post" action="/oauth/authorize">
+<style>
+.consent h1{font-size:26px;margin-bottom:8px}.consent .lead{color:var(--muted);margin:0 0 18px}
+.consent .acct{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 20px;background:var(--bg)}
+.consent .acct .av{flex:none;width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--fg);color:var(--bg);font-weight:600;text-transform:uppercase}
+.consent .acct .who{min-width:0;flex:1}.consent .acct strong{display:block;overflow-wrap:anywhere}.consent .acct .meta{font-size:13px;color:var(--muted)}
+.consent .acct .meta,.consent .acct .switch{display:block}.consent .acct .switch{font-size:13px;margin-top:4px}
+.consent h2{font-size:15px;margin:0 0 6px}.consent ul.can,.consent ul.cannot{list-style:none;padding:0;margin:0 0 16px;display:grid;gap:6px;font-size:15px}
+.consent ul li{display:flex;gap:8px;align-items:flex-start}.consent ul li::before{flex:none;width:18px;font-weight:700;text-align:center}
+.consent ul.can li::before{content:"✓";color:var(--live)}.consent ul.cannot li::before{content:"✕";color:var(--muted)}
+.consent .info{border-inline-start:3px solid var(--gold);background:var(--sun-soft);border-radius:8px;padding:10px 12px;font-size:14px;margin:4px 0 18px}
+.consent .warn{border-inline-start:3px solid var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent);border-radius:8px;padding:10px 12px;font-size:14px;margin:0 0 16px}
+.consent button.link{background:none;border:0;color:var(--muted);margin-top:8px;text-decoration:underline;text-underline-offset:3px;font-weight:400}
+.consent .fine{font-size:13px;color:var(--muted);margin-top:14px;text-align:center}
+</style>
+<h1>Connect {{.Client}} to your Renoxium account</h1>
+<p class="lead">{{.Client}} is the AI assistant you are adding Renoxium to. Once connected, it builds and changes your apps for you, as this account:</p>
+{{with .Warning}}<p class="warn" role="alert"><strong>Warning:</strong> {{.}}</p>{{end}}
+<div class="acct"><span class="av" aria-hidden="true">{{slice .User.Email 0 1}}</span><div class="who"><strong>{{.User.Email}}</strong>
+<span class="meta">Renoxium account · {{.Plan}} plan · {{.Apps}} app{{if ne .Apps 1}}s{{end}}</span>
+<a class="switch" href="{{.Switch}}">Not you? Switch account</a></div></div>
+<h2>{{.Client}} will be able to</h2>
+<ul class="can"><li>See your apps and read their logs</li><li>Create apps and change their private preview</li><li>Try pages and forms on the preview</li></ul>
+<h2>{{.Client}} cannot</h2>
+<ul class="cannot"><li>Put a change live, rename or delete an app: it only sends you a link, and you confirm</li><li>See your password or your customers' card details</li></ul>
+<p class="info">After you connect, you go back to <strong>{{.RedirectHost}}</strong>. Continue only if you just added Renoxium in {{.Client}} and recognise this address.</p>
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 {{range $k, $v := .Params}}<input type="hidden" name="{{$k}}" value="{{index $v 0}}">{{end}}
-<div class="row"><button name="decision" value="allow">Allow</button><button class="secondary" name="decision" value="deny">Cancel</button></div></form>{{template "authbottom"}}{{end}}
+<button name="decision" value="allow">Connect {{.Client}} to this account</button>
+<button class="link" name="decision" value="deny">Don't connect</button>
+<p class="fine">You can disconnect {{.Client}} at any time in Account settings.</p></form>{{template "authbottom"}}{{end}}
 
 {{define "demo_note"}}<p class="note" style="border:1px dashed var(--accent);background:var(--accent-soft)">
 This is the owner's admin panel of a template demo, shown read-only. In your own app you add, change and delete here, on your phone or computer. The data is public and deleted every hour.</p>{{end}}
@@ -1118,6 +1144,13 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="current">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required>
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
 <button>Change password</button><p class="fine">Connected agents (ChatGPT, Claude) will need to connect again.</p></form>
+<section class="panel bcell" id="assistants"><div class="ph"><h2>Connected AI assistants</h2></div>
+{{with .Disconnected}}<p class="flash ok">{{.}} was disconnected. It can no longer reach your account.</p>{{end}}
+{{if .Connections}}<ul class="plain conns">{{range .Connections}}<li><div><strong>{{.Name}}</strong><span class="muted"> · {{.Host}}</span>
+<div class="fine">{{if not .ConnectedAt.IsZero}}Connected {{.ConnectedAt.UTC.Format "2 Jan 2006"}}{{end}}{{if not .LastUsedAt.IsZero}} · last active {{.LastUsedAt.UTC.Format "2 Jan 2006"}}{{end}}</div></div>
+<form method="post" action="/account/assistants/disconnect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="client" value="{{.ClientID}}"><button class="secondary" style="margin:0">Disconnect</button></form></li>{{end}}</ul>
+<p class="fine">An assistant you disconnect must be connected again, and approved by you, before it can work on your apps.</p>
+{{else}}<p class="muted">No AI assistant is connected. Add Renoxium to ChatGPT or Claude: <a href="/connect">how to connect</a>.</p>{{end}}</section>
 <section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
