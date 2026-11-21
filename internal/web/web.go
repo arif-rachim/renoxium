@@ -1344,28 +1344,12 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{template "appbottom"}}{{end}}
 
 {{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
-.tcards{display:grid;gap:14px;grid-template-columns:1fr}
-@media(min-width:680px){.tcards{grid-template-columns:1fr 1fr}}@media(min-width:1000px){.tcards{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1180px){.tcards{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.tcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;scroll-margin-top:16px}
-.tcard:target{border-color:var(--gold)}
-.tcard .pic{display:block;flex:1 1 0;min-height:70px;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
-.tcard .pic img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
-.tcard .tx{padding:12px 14px 14px}
-.tcard h3{font-size:16px;margin:0 0 2px}.tcard .job{font-size:12.5px;color:var(--muted);margin:0 0 6px}
-.tcard p.sum{margin:0 0 8px;font-size:13.5px;line-height:1.45;color:var(--muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-.tcard .tlinks{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13.5px;align-items:center}
-.tcard .tlinks button{margin:0;min-height:0;padding:0;border:0;background:none;color:var(--fg);font-size:13.5px;font-weight:400;text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
-.tcard.more{justify-content:center;padding:18px;background:var(--accent-soft);border-style:dashed}.tcard.more h3{font-size:17px;margin-bottom:6px}.tcard.more p{font-size:14px;color:var(--muted);margin:0 0 10px}
-@media(max-width:999px){.tcard .pic{flex:none;height:auto;aspect-ratio:16/10}}
+` + galleryCardsCSS + `
 </style>
-<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-prompt]");if(!b)return;var t=b.getAttribute("data-prompt");if(navigator.clipboard)navigator.clipboard.writeText(t);b.textContent="Copied: paste it to your assistant"})</script>
+` + galleryCopyScript + `
 <div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
-<div class="tcards bento fill">{{range .Groups}}{{$job := .Job}}{{range .Cards}}<article class="tcard" id="{{.Name}}">
-<a class="pic" href="{{.DemoURL}}/" tabindex="-1">{{if .Wide.File}}<img src="{{.Wide.Src}}" width="{{.Wide.W}}" height="{{.Wide.H}}" alt="{{.Wide.Alt}}" loading="lazy">{{end}}</a>
-<div class="tx"><h3>{{.Title}}</h3><p class="job">{{$job}}</p><p class="sum" title="{{.Summary}}">{{.Summary}}</p>
-<div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Admin panel</a><button type="button" data-prompt="{{.Prompt}}">Copy the request</button></div></div></article>{{end}}{{end}}
-<article class="tcard more"><h3>Something in between?</h3><p>Start from the closest template and tell your assistant what to change: other fields on a form, your own sections and texts, your colours and photos.</p><a href="/connect">How to connect ChatGPT or Claude</a></article></div>
+<div class="tcards bento fill">` + galleryCardsHTML + `</div>
 {{template "appbottom"}}{{end}}
 
 {{define "connect_body"}}<div class="card connect fill bcell">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>

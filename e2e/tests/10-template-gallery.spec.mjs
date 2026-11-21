@@ -49,7 +49,7 @@ test('template gallery and demos', async ({ browser }) => {
 
   // The owner's admin panel of the booking demo: data and calendar, no way to change them.
   await page.goto('/templates');
-  await page.locator('.tcard', { hasText: 'Appointments and classes' }).getByRole('link', { name: "Owner's admin panel" }).click();
+  await page.locator('.tcard', { hasText: 'Appointments and classes' }).getByRole('link', { name: 'Admin panel' }).click();
   await expect(page.locator('body')).toContainText('read-only');
   await page.locator('.tables').getByRole('link', { name: /Services/ }).click();
   await expect(page.getByRole('link', { name: 'Add', exact: true })).toHaveCount(0);
