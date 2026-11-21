@@ -1,6 +1,7 @@
 package appdef
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -24,7 +25,7 @@ func calendarApp(c *Calendar) *App {
 }
 
 func TestCalendarValid(t *testing.T) {
-	for _, title := range []any{nil, "customer_name", []string{"customer_name", "id"}, []any{"customer_name", "price"}} {
+	for _, title := range []Columns{nil, {"customer_name"}, {"customer_name", "id"}, {"customer_name", "price"}} {
 		a := calendarApp(&Calendar{Date: "date", Start: "time", End: "slot_end", Duration: "duration_min", EndDate: "end_date",
 			Group: "staff_id", Title: title, Status: "status", HideStatus: []string{"cancelled"}})
 		if p := a.Validate(); len(p) > 0 {
@@ -60,9 +61,8 @@ func TestCalendarProblems(t *testing.T) {
 		{Calendar{Date: "date", Group: "team", GroupTable: "teams"}, `group_table: table "teams" is not defined`},
 		{Calendar{Date: "date", GroupTable: "crews"}, "group_table needs group"},
 		{Calendar{Date: "date", Group: "customer_name", GroupTable: "crews"}, "group_table needs an integer group column"},
-		{Calendar{Date: "date", Title: []any{"customer_name", 3}}, "title must be a column name or a list"},
-		{Calendar{Date: "date", Title: []string{"customer_name", "nope"}}, `title: column "nope" does not exist`},
-		{Calendar{Date: "date", Title: "lines"}, `title: column "lines" is json`},
+		{Calendar{Date: "date", Title: Columns{"customer_name", "nope"}}, `title: column "nope" does not exist`},
+		{Calendar{Date: "date", Title: Columns{"lines"}}, `title: column "lines" is json`},
 		{Calendar{Date: "date", Status: "price"}, `status: column "price" is real`},
 		{Calendar{Date: "date", HideStatus: []string{"cancelled"}}, "hide_status needs status"},
 		{Calendar{Date: "date", Status: "status", HideStatus: []string{"canceled"}}, `hide_status: "canceled" is not one of the status options (pending, confirmed, cancelled)`},
@@ -91,5 +91,20 @@ func TestCalendarGroupTable(t *testing.T) {
 	}
 	if got := (Table{Columns: []Column{{Name: "n", Type: "integer"}, {Name: "full_name", Type: "text"}}}).LaneColumn(); got != "full_name" {
 		t.Errorf("lane column %q", got)
+	}
+}
+
+// A definition saved when title could be one name still reads; anything
+// that is not a name or a list of names is refused with a clear message.
+func TestCalendarTitleForms(t *testing.T) {
+	for in, want := range map[string]int{`"customer_name"`: 1, `["customer_name","id"]`: 2, `""`: 0} {
+		var c Calendar
+		if err := json.Unmarshal([]byte(`{"date":"date","title":`+in+`}`), &c); err != nil || len(c.Title) != want {
+			t.Errorf("title %s: %v %v", in, c.Title, err)
+		}
+	}
+	var c Calendar
+	if err := json.Unmarshal([]byte(`{"date":"date","title":["customer_name",3]}`), &c); err == nil || !strings.Contains(err.Error(), "list of column names") {
+		t.Errorf("a number in title: %v", err)
 	}
 }

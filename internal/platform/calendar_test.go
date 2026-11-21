@@ -16,7 +16,7 @@ func calendarDef() *appdef.App {
 		Tables: []appdef.Table{
 			{Name: "items", Columns: []appdef.Column{{Name: "name", Type: "text"}}},
 			{Name: "reservations", Calendar: &appdef.Calendar{Date: "start_date", EndDate: "end_date", Start: "time", Group: "item_id",
-				Title: "customer_name", Status: "status", HideStatus: []string{"cancelled"}},
+				Title: appdef.Columns{"customer_name"}, Status: "status", HideStatus: []string{"cancelled"}},
 				Columns: []appdef.Column{
 					{Name: "start_date", Type: "text"}, {Name: "end_date", Type: "text"}, {Name: "time", Type: "text"},
 					{Name: "item_id", Type: "integer"}, {Name: "customer_name", Type: "text"},
