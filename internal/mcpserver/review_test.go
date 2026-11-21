@@ -56,7 +56,8 @@ func TestWhatReviewersRead(t *testing.T) {
 		"list_apps": {true, false, false}, "get_app": {true, false, false}, "get_example": {true, false, false}, "get_logs": {true, false, false},
 		"create_app": {false, false, false}, "apply_change": {false, true, true}, "patch_app": {false, true, true},
 		"upload_file": {false, false, true}, "publish": {false, false, false},
-		"test_request": {false, true, true}, "run_job_on_preview": {false, true, true}, "change_preview_row": {false, true, true},
+		"view_page": {false, false, true}, "view_live_page": {true, false, false}, "submit_form": {false, true, true},
+		"upload_as_visitor": {false, false, false}, "test_scheduled_job": {false, true, true}, "change_preview_row": {false, true, true},
 		"edit_app": {false, true, true}, "create_test_visitor": {false, false, false}, "screenshot_preview": {false, false, true},
 		"rename_app": {false, false, false}, "delete_app": {false, false, false},
 	}
@@ -75,18 +76,27 @@ func TestWhatReviewersRead(t *testing.T) {
 		json.Unmarshal(b, &schema)
 		checkSchema(t, tool.Name, schema)
 	}
+	// What a visitor does is one tool per operation: none takes an HTTP
+	// method, a stage or a command that would choose the operation.
+	visitorTools := map[string]bool{"view_page": true, "view_live_page": true, "submit_form": true, "upload_as_visitor": true, "test_scheduled_job": true}
 	for _, tool := range res.Tools {
-		if tool.Name != "test_request" {
+		if !visitorTools[tool.Name] {
 			continue
 		}
 		b, _ := json.Marshal(tool.InputSchema)
-		if strings.Contains(string(b), `"job"`) || strings.Contains(string(b), `"admin"`) {
-			t.Error("test_request still takes job or admin: they are tools of their own")
+		for _, generic := range []string{`"method"`, `"stage"`, `"command"`, `"admin"`, `"files"`} {
+			if strings.Contains(string(b), generic) {
+				t.Errorf("%s takes %s: each operation is a tool of its own", tool.Name, generic)
+			}
+		}
+		if strings.Contains(string(b), "/_rx/") || strings.Contains(tool.Description, "/_rx/") {
+			t.Errorf("%s names a platform address: a tool describes its own operation", tool.Name)
 		}
 	}
 	says := map[string]string{"create_app": "never executed by you", "apply_change": "never executed by you", "patch_app": "never executed by you",
-		"publish": "changes nothing live", "test_request": "nothing on the live site is modified",
-		"run_job_on_preview": "nothing on the live site is modified", "change_preview_row": "nothing on the live site is modified",
+		"publish": "changes nothing live", "view_page": "nothing on the live site is modified",
+		"view_live_page": "nothing on the live site is modified", "submit_form": "nothing on the live site is modified",
+		"upload_as_visitor": "never reaches the live site", "test_scheduled_job": "nothing on the live site is modified", "change_preview_row": "nothing on the live site is modified",
 		"edit_app": "never executed by you", "create_test_visitor": "never reaches the live site", "screenshot_preview": "the live site is never opened",
 		"rename_app": "This call changes nothing", "delete_app": "This call changes nothing"}
 	for _, tool := range res.Tools {

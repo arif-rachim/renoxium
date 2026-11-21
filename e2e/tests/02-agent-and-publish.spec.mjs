@@ -76,7 +76,7 @@ test('builder tools: create, apply, patch, test, upload, logs, publish, roll bac
   await signUp(page, email('builder'));
   const agent = await builder((await connectAgent(page)).access_token);
   const tools = await agent.tools();
-  for (const t of ['list_apps', 'create_app', 'get_app', 'apply_change', 'patch_app', 'publish', 'get_example', 'test_request', 'upload_file', 'get_logs']) {
+  for (const t of ['list_apps', 'create_app', 'get_app', 'apply_change', 'patch_app', 'publish', 'get_example', 'view_page', 'view_live_page', 'submit_form', 'upload_file', 'get_logs']) {
     expect(tools).toContain(t);
   }
 
@@ -118,13 +118,13 @@ test('builder tools: create, apply, patch, test, upload, logs, publish, roll bac
   expect(res.preview_url).toBe(`${RENOXIUM}/apps/${app}/preview`);
   expect(res.checks.find((c) => c.route.includes('GET /') || c.route === '/')?.status ?? 200).toBe(200);
 
-  // test_request on preview: POST, then GET, as a visitor; live accepts only GET.
-  const post = await agent.call('test_request', { app, method: 'POST', path: '/add', form: { text: 'from the agent' } });
+  // A visitor on preview: send a form, then open a page. No tool sends a form to live.
+  const post = await agent.call('submit_form', { app, path: '/add', form: { text: 'from the agent' } });
   expect(post.status).toBe(303);
   expect(post.logs.map((l) => l.message).join('\n')).toContain('added from the agent');
-  const boom = await agent.call('test_request', { app, path: '/boom' });
+  const boom = await agent.call('view_page', { app, path: '/boom' });
   expect(boom.status).toBe(500);
-  await expect(agent.call('test_request', { app, stage: 'live', method: 'POST', path: '/add', form: { text: 'x' } })).rejects.toThrow();
+  await expect(agent.call('submit_form', { app, stage: 'live', path: '/add', form: { text: 'x' } })).rejects.toThrow();
 
   // patch_app changes only what it names.
   const patched = await agent.call('patch_app', { app, templates: { home: def.templates.home.replace('Notes v1', 'Notes v2') } });
@@ -190,7 +190,7 @@ test("an agent cannot touch another owner's app", async ({ browser }) => {
   await signUp(b.page, email('bob'));
   const bob = await builder((await connectAgent(b.page)).access_token);
   for (const [tool, args] of [['get_app', { app }], ['apply_change', { app, definition: storeExample() }], ['publish', { app }],
-    ['test_request', { app, path: '/' }], ['get_logs', { app }], ['patch_app', { app, templates: { x: 'y' } }]]) {
+    ['view_page', { app, path: '/' }], ['get_logs', { app }], ['patch_app', { app, templates: { x: 'y' } }]]) {
     await expect(bob.call(tool, args), tool).rejects.toThrow();
   }
   // The admin panel answers 404, not 403, so app names do not leak.

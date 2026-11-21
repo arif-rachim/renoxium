@@ -97,7 +97,7 @@ func (p *Platform) checkRoutes(ctx context.Context, st *stage, def *appdef.App) 
 			}
 		}
 		if c.Status == http.StatusNotFound && r.HasParams() {
-			c.Note = "the page answered 404 for the rows tried; check it with test_request if the parameter is not a row id"
+			c.Note = "the page answered 404 for the rows tried; check it with view_page if the parameter is not a row id"
 		}
 		checks = append(checks, c)
 	}

@@ -42,7 +42,7 @@ func TestTestRequestNeverChangesLive(t *testing.T) {
 	// A GET whose script writes or sends is refused inside the script, and nothing changes.
 	for _, path := range []string{"/hit", "/mail"} {
 		r, err := live(platform.TestRequestInput{Path: path})
-		if err != nil || r.Status != 500 || !strings.Contains(logText(r), "test_request on live is read-only") {
+		if err != nil || r.Status != 500 || !strings.Contains(logText(r), "view_live_page is read-only") {
 			t.Fatalf("GET live %s: %v %d %s", path, err, r.Status, logText(r))
 		}
 	}

@@ -493,7 +493,7 @@ func (h *scriptHost) mayRedirect(target string) bool {
 var errNoMoney = errors.New("payments.refund, capture, release and cancel_subscription only work in a request of a signed-in visitor " +
 	`(a route with "auth": "user"), a job, on_payment or on_admin_change; not in public MCP tools or requests without a signed-in visitor`)
 
-var errLiveTest = errors.New("test_request on live is read-only: it cannot change data, send messages or call other services; test changes on preview")
+var errLiveTest = errors.New("view_live_page is read-only: it cannot change data, send messages or call other services; test changes on preview")
 
 func (h *scriptHost) readOnlyErr() error {
 	if h.liveTest {

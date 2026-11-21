@@ -87,16 +87,16 @@ test('agent adds a job, a host and a key; the owner is told what to do; the job 
   expect(applied.owner_actions.join('\n')).toContain(`/apps/${app}/connections`);
 
   // Jobs never run on preview by themselves; the agent runs one.
-  const run = await agent.call('run_job_on_preview', { app, job: 'tick' });
+  const run = await agent.call('test_scheduled_job', { app, job: 'tick' });
   expect(run.status).toBe(200);
   expect(run.body).toBe('tick 1');
   expect(run.logs.map((l) => l.message).join('\n')).toMatch(/job tick -> ok/);
-  await expect(agent.call('run_job_on_preview', { app, job: 'nope' })).rejects.toThrow(/no job/);
-  // run_job_on_preview has no stage: jobs never run on live by hand.
-  await expect(agent.call('run_job_on_preview', { app, job: 'tick', stage: 'live' })).rejects.toThrow();
+  await expect(agent.call('test_scheduled_job', { app, job: 'nope' })).rejects.toThrow(/no job/);
+  // test_scheduled_job has no stage: jobs never run on live by hand.
+  await expect(agent.call('test_scheduled_job', { app, job: 'tick', stage: 'live' })).rejects.toThrow();
 
   // Before the owner allows the host, the script is told why it cannot call out.
-  const quote = await agent.call('test_request', { app, path: '/quote' });
+  const quote = await agent.call('view_page', { app, path: '/quote' });
   expect(quote.status).toBe(502);
   expect(quote.body).toContain(`the owner has not allowed ${API_HOST} yet`);
 
@@ -145,7 +145,7 @@ test('external API: only after the owner allows the host and enters the key; the
 
   // Preview holds a copy of live data and the agent changes it unasked, so it
   // makes real calls only while the owner has turned test calls on.
-  const tryPreview = async () => (await agent.call('test_request', { app, path: '/quote?emirate=Ajman' })).body;
+  const tryPreview = async () => (await agent.call('view_page', { app, path: '/quote?emirate=Ajman' })).body;
   expect(await tryPreview()).toContain('until the owner turns on test calls');
   expect((await fake.apiCalls(API_HOST)).length).toBe(before + 1);
   await page.goto(`/apps/${app}/connections`);
