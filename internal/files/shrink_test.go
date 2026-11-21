@@ -11,6 +11,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"os"
 	"testing"
 )
 
@@ -172,5 +173,87 @@ func TestVariantOfATurnedPhoto(t *testing.T) {
 	defer f.Close()
 	if cfg, _, _ := image.DecodeConfig(f); cfg.Width != 1000 {
 		t.Errorf("a request wider than the photo gave %d wide", cfg.Width)
+	}
+}
+
+// A camera photo over the stored-file limit is accepted when it fits once
+// shrunk; a file that cannot be made smaller keeps the old limit.
+func TestPutImageAcceptsLargeCameraPhotos(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 4000, 3000))
+	seed := uint32(1)
+	for i := range img.Pix { // noise, so the JPEG is large
+		seed = seed*1664525 + 1013904223
+		img.Pix[i] = byte(seed >> 24)
+	}
+	var buf bytes.Buffer
+	jpeg.Encode(&buf, img, &jpeg.Options{Quality: 97})
+	if buf.Len() <= MaxSize || buf.Len() > MaxUpload {
+		t.Fatalf("test photo is %d bytes", buf.Len())
+	}
+	b, _, err := s.PutImage(bytes.NewReader(buf.Bytes()))
+	if err != nil || b.Size > MaxSize {
+		t.Fatalf("camera photo of %d bytes: %v, stored %d", buf.Len(), err, b.Size)
+	}
+	if got, _ := stored(t, s, b); got.Bounds().Dx() != 1920 || got.Bounds().Dy() != 1440 {
+		t.Errorf("stored %v", got.Bounds())
+	}
+	if _, _, err = s.PutImage(io.LimitReader(zeros{}, MaxUpload+1)); !errors.Is(err, ErrPhotoTooLarge) {
+		t.Errorf("over the upload limit: %v", err)
+	}
+}
+
+// Photos stored before uploads were shrunk are made to fit in place: the
+// same address and type, upright, with their smaller copies made again.
+func TestFitStored(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _, err := s.Put(bytes.NewReader(photo(4000, 3000, 6))) // as uploads used to be stored
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, _, _ := s.Variant(old, 320, nil)
+	copyName := f.Name()
+	f.Close()
+
+	size, changed, err := s.FitStored(old)
+	if err != nil || !changed || size >= old.Size {
+		t.Fatalf("fit: %v changed=%v size %d of %d", err, changed, size, old.Size)
+	}
+	img, turn := stored(t, s, old) // still found by its old hash
+	if img.Bounds().Dx() != 1440 || img.Bounds().Dy() != 1920 || turn != 1 || corner(img) != "top-right" {
+		t.Errorf("fitted file: %v, orientation %d, red %s", img.Bounds(), turn, corner(img))
+	}
+	if _, err := os.Stat(copyName); !os.IsNotExist(err) {
+		t.Error("the old smaller copy is still there")
+	}
+	f, _, err = s.Variant(Blob{Hash: old.Hash, Size: size, ContentType: old.ContentType}, 320, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	small, _, _ := image.Decode(f)
+	f.Close()
+	if small.Bounds().Dx() != 320 || small.Bounds().Dy() != 426 || corner(small) != "top-right" {
+		t.Errorf("new smaller copy: %v, red %s", small.Bounds(), corner(small))
+	}
+
+	// A second pass, a photo that fits, and a type that is not written back change nothing.
+	if _, changed, _ = s.FitStored(Blob{Hash: old.Hash, Size: size, ContentType: old.ContentType}); changed {
+		t.Error("fitted twice")
+	}
+	fits, _, _ := s.Put(bytes.NewReader(photo(1200, 800, 0)))
+	if n, changed, _ := s.FitStored(fits); changed || n != fits.Size {
+		t.Error("a photo that fits was changed")
+	}
+	var buf bytes.Buffer
+	gif.Encode(&buf, image.NewPaletted(image.Rect(0, 0, 2500, 10), color.Palette{color.Black, color.White}), nil)
+	g, _, _ := s.Put(&buf)
+	if _, changed, _ := s.FitStored(g); changed {
+		t.Error("a GIF was changed")
 	}
 }

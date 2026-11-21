@@ -130,7 +130,7 @@ func (s *Store) Variant(b Blob, width int, mayCreate func() bool) (*os.File, str
 	if ctype == "image/png" {
 		err = (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(tmp, dst)
 	} else {
-		err = jpeg.Encode(tmp, upright(dst, turn), &jpeg.Options{Quality: 82})
+		err = jpeg.Encode(tmp, turned(dst, turn), &jpeg.Options{Quality: 82})
 	}
 	if err == nil {
 		err = tmp.Close()

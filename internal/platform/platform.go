@@ -274,6 +274,11 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		db.Close()
 		return nil, err
 	}
+	// 1 once a stored photo has been made to fit (see FitStoredPhotos).
+	if _, err := db.Exec(`ALTER TABLE blobs ADD COLUMN fitted INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		db.Close()
+		return nil, err
+	}
 	// Until this time preview makes real http.fetch calls (see fetch.go).
 	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN preview_fetch_until INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		db.Close()

@@ -3,6 +3,7 @@ package files
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -17,6 +18,14 @@ import (
 // MaxSide is the longest side a stored photo keeps: no page shows an image
 // wider than the largest of Widths, so anything beyond it only fills the disk.
 const MaxSide = 1920
+
+// MaxUpload is the largest photo accepted for shrinking: camera photos are
+// often over MaxSize as sent and well under it once they fit. What is
+// stored is never over MaxSize.
+const MaxUpload = 25 << 20
+
+// ErrPhotoTooLarge is returned for photos over MaxUpload.
+var ErrPhotoTooLarge = fmt.Errorf("the photo is larger than %d MB", MaxUpload>>20)
 
 // ShrinkPixels is the largest photo shrunk on upload. Decoding one needs
 // about 1.5 bytes a pixel, one photo at a time; bigger ones are stored as
@@ -44,15 +53,18 @@ func (s *Store) PutImage(r io.Reader) (Blob, bool, error) {
 	}
 	defer os.Remove(tmp.Name())
 	defer tmp.Close()
-	n, err := io.Copy(tmp, io.LimitReader(r, MaxSize+1))
+	n, err := io.Copy(tmp, io.LimitReader(r, MaxUpload+1))
 	if err != nil {
 		return Blob{}, false, err
 	}
-	if n > MaxSize {
-		return Blob{}, false, ErrTooLarge
+	if n > MaxUpload {
+		return Blob{}, false, ErrPhotoTooLarge
 	}
-	if small := s.shrink(tmp); small != nil {
+	if small := s.shrink(tmp, true); small != nil {
 		return s.Put(small)
+	}
+	if n > MaxSize { // not a photo that could be made smaller
+		return Blob{}, false, ErrTooLarge
 	}
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return Blob{}, false, err
@@ -61,8 +73,9 @@ func (s *Store) PutImage(r io.Reader) (Blob, bool, error) {
 }
 
 // shrink returns the smaller copy of the photo in f, or nil when f should be
-// stored as it is.
-func (s *Store) shrink(f *os.File) *bytes.Reader {
+// stored as it is. With upright, a JPEG that already fits but carries an
+// orientation note is turned too.
+func (s *Store) shrink(f *os.File, upright bool) *bytes.Reader {
 	head := make([]byte, 512)
 	f.Seek(0, io.SeekStart)
 	k, _ := io.ReadFull(f, head)
@@ -81,7 +94,7 @@ func (s *Store) shrink(f *os.File) *bytes.Reader {
 		turn = jpegOrientation(f)
 	}
 	long := max(cfg.Width, cfg.Height)
-	if (long <= MaxSide && turn == 1) || cfg.Width*cfg.Height > ShrinkPixels {
+	if (long <= MaxSide && (turn == 1 || !upright)) || cfg.Width*cfg.Height > ShrinkPixels {
 		return nil
 	}
 	select {
@@ -112,7 +125,7 @@ func (s *Store) shrink(f *os.File) *bytes.Reader {
 	if ctype == "image/png" {
 		err = (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, dst)
 	} else {
-		err = jpeg.Encode(&out, upright(dst, turn), &jpeg.Options{Quality: masterQuality})
+		err = jpeg.Encode(&out, turned(dst, turn), &jpeg.Options{Quality: masterQuality})
 	}
 	if err != nil {
 		return nil
@@ -170,9 +183,9 @@ func jpegOrientation(r io.Reader) int {
 	}
 }
 
-// upright turns an image stored with EXIF orientation o the way it is meant
+// turned turns an image stored with EXIF orientation o the way it is meant
 // to be seen.
-func upright(src *image.RGBA, o int) image.Image {
+func turned(src *image.RGBA, o int) image.Image {
 	if o <= 1 || o > 8 {
 		return src
 	}
@@ -206,4 +219,51 @@ func upright(src *image.RGBA, o int) image.Image {
 		}
 	}
 	return dst
+}
+
+// FitStored makes a photo stored before uploads were shrunk fit MaxSide, in
+// place: its address is its hash, which rows of the apps hold, so the file
+// keeps its name and type. Only JPEG and PNG can be written back as the
+// type they are; other types and photos that fit are left alone. The
+// photo's smaller copies are removed, to be made again from the new file.
+// It returns the size now stored and whether the file changed.
+func (s *Store) FitStored(b Blob) (int64, bool, error) {
+	if b.ContentType != "image/jpeg" && b.ContentType != "image/png" {
+		return b.Size, false, nil
+	}
+	f, err := s.Open(b.Hash)
+	if err != nil {
+		return b.Size, false, err
+	}
+	small := s.shrink(f, false)
+	f.Close()
+	if small == nil || int64(small.Len()) >= b.Size {
+		return b.Size, false, nil
+	}
+	tmp, err := os.CreateTemp(filepath.Join(s.dir, "tmp"), "fit-*")
+	if err != nil {
+		return b.Size, false, err
+	}
+	defer os.Remove(tmp.Name())
+	size, err := io.Copy(tmp, small)
+	if err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o644)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), s.path(b.Hash))
+	}
+	if err != nil {
+		return b.Size, false, err
+	}
+	old, _ := filepath.Glob(filepath.Join(s.dir, "variants", b.Hash[0:2], b.Hash+"-*"))
+	for _, v := range old {
+		os.Remove(v)
+	}
+	return size, true, nil
 }
