@@ -260,6 +260,10 @@ and `RENOXIUM_CHROMIUM_NO_SANDBOX` to `/etc/renoxium/env`, remove them: the plat
 Chromium without its sandbox in its own process, and turns screenshots off when asked to.
 
 Use a node with 2 GB or more. Without `RENOXIUM_SHOT_SOCKET` the tool tells agents that screenshots are not set up.
+
+The same browser draws the picture on each app's card on Your apps: the preview's home page at desktop size,
+rendered once per preview version when the owner first opens the page and kept in memory. Without the helper the
+cards show the app's initial instead.
 If the helper's journal shows Chromium's "No usable sandbox" (Ubuntu 24.04 restricts user namespaces with
 AppArmor), prefer allowing them for Chromium; otherwise uncomment `RENOXIUM_CHROMIUM_NO_SANDBOX=1` in the
 helper's unit, never in the platform's.

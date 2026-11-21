@@ -80,6 +80,9 @@ const (
 
 var errNoBrowser = errors.New("screenshots are not set up on this server (no Chromium); use view_page to read the page")
 
+// ScreenshotsOn reports whether this server has a browser for screenshots.
+func (p *Platform) ScreenshotsOn() bool { return p.cfg.Chromium != "" || p.cfg.ChromiumSocket != "" }
+
 // ScreenshotPreview renders a page of an app's preview and returns a PNG.
 func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in ScreenshotInput) (ScreenshotResult, error) {
 	if p.cfg.Chromium == "" && p.cfg.ChromiumSocket == "" {
