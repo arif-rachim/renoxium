@@ -27,21 +27,31 @@ func TestAgentToolsForLargeApps(t *testing.T) {
 		t.Fatalf("unknown example: %s", errText)
 	}
 
-	outline, _ := call(t, s, "get_app", map[string]any{"app": "maya-clean", "outline": true})
-	if outline["definition"] != nil || outline["outline"].(map[string]any)["templates"].(map[string]any)["css"] == nil {
+	outline, _ := call(t, s, "get_app_outline", map[string]any{"app": "maya-clean"})
+	if outline["definition"] != nil || outline["version"] != float64(1) || outline["outline"].(map[string]any)["templates"].(map[string]any)["css"] == nil {
 		t.Fatalf("outline: %v", outline)
 	}
-	parts, _ := call(t, s, "get_app", map[string]any{"app": "maya-clean", "only": []string{"scripts.book", "routes"}})
+	parts, _ := call(t, s, "get_app_parts", map[string]any{"app": "maya-clean", "paths": []string{"scripts.book", "routes"}})
 	book, _ := parts["parts"].(map[string]any)["scripts.book"].(string)
-	if !strings.Contains(book, "function handle") || parts["definition"] != nil {
-		t.Fatalf("only: %v", parts)
+	if !strings.Contains(book, "function handle") || parts["version"] != float64(1) {
+		t.Fatalf("parts: %v", parts)
 	}
-	if _, errText := call(t, s, "get_app", map[string]any{"app": "maya-clean", "only": []string{"scripts.nope"}}); !strings.Contains(errText, "scripts.nope") {
+	if _, errText := call(t, s, "get_app_parts", map[string]any{"app": "maya-clean", "paths": []string{"scripts.nope"}}); !strings.Contains(errText, "scripts.nope") {
 		t.Fatalf("bad path: %s", errText)
 	}
-	ex, _ := call(t, s, "get_example", map[string]any{"name": "store-uae", "only": []string{"routes"}})
-	if ex["definition"] != nil || ex["reference"] != nil || ex["parts"].(map[string]any)["routes"] == nil {
-		t.Fatalf("get_example only: %v", ex)
+	if _, errText := call(t, s, "get_app_parts", map[string]any{"app": "maya-clean"}); errText == "" {
+		t.Fatal("parts without paths")
+	}
+	// get_app still returns the whole definition, as before.
+	if whole, _ := call(t, s, "get_app", map[string]any{"app": "maya-clean"}); whole["definition"] == nil {
+		t.Fatal("get_app lost the definition")
+	}
+	// The ways of reading are separate tools, not modes.
+	if _, errText := call(t, s, "get_app", map[string]any{"app": "maya-clean", "outline": true}); errText == "" {
+		t.Fatal("get_app took outline")
+	}
+	if _, errText := call(t, s, "get_example", map[string]any{"name": "store-uae", "only": []string{"routes"}}); errText == "" {
+		t.Fatal("get_example took only")
 	}
 
 	line := "const f = req.form, b = biz();"
@@ -84,7 +94,7 @@ func TestAgentToolsForLargeApps(t *testing.T) {
 	if _, errText := call(t, s, "screenshot_preview", map[string]any{"app": "maya-clean", "path": "/"}); !strings.Contains(errText, "not set up") {
 		t.Fatalf("screenshot without a browser: %s", errText)
 	}
-	info, _ := call(t, s, "get_app", map[string]any{"app": "maya-clean", "outline": true})
+	info, _ := call(t, s, "get_app_outline", map[string]any{"app": "maya-clean"})
 	if info["live_version"] != float64(0) {
 		t.Fatal("live changed")
 	}

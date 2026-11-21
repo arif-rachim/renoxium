@@ -32,7 +32,7 @@ export async function runDemo(call, { app = 'demo-' + Date.now().toString(36), l
   const base = steps.created.version;
 
   // 2. Read just the script to change (not the 180 KB definition).
-  steps.book = await step('read one script', 'get_app', { app, only: ['scripts.book'] });
+  steps.book = await step('read one script', 'get_app_parts', { app, paths: ['scripts.book'] });
   const bookLine = 'const f = req.form, b = biz();';
   if (!steps.book.parts['scripts.book'].includes(bookLine)) throw new Error('scripts.book changed; update the demo');
 
