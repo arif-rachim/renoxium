@@ -180,7 +180,7 @@ func (s *Store) DeleteUser(userID string) error {
 	}
 	defer tx.Rollback()
 	for _, q := range []string{
-		`DELETE FROM sessions WHERE user_id = ?`, `DELETE FROM tokens WHERE user_id = ?`, `DELETE FROM codes WHERE user_id = ?`,
+		`DELETE FROM sessions WHERE user_id = ?`, `DELETE FROM tokens WHERE user_id = ?`, `DELETE FROM codes WHERE user_id = ?`, `DELETE FROM grants WHERE user_id = ?`,
 		`DELETE FROM email_tokens WHERE user_id = ?`, `DELETE FROM billing WHERE user_id = ?`, `DELETE FROM users WHERE id = ?`,
 	} {
 		if _, err := tx.Exec(q, userID); err != nil {

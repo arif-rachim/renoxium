@@ -116,8 +116,10 @@ func (p *Platform) sendPhoneCode(w http.ResponseWriter, r *http.Request, st *sta
 	if err := p.sendCode(r.Context(), st, phone, code); err == nil {
 		p.countWhatsApp(st)
 	} else {
-		data.Error = "We could not send a WhatsApp message to this number. Check it and try again."
-		p.authPage(w, r, st, http.StatusBadGateway, "phone", data)
+		data.Error = "We could not send a WhatsApp code just now. Check the number and try again, or continue with your email below."
+		// 503, not 502: Cloudflare replaces a 502 from the origin with its
+		// own "Bad gateway" page, so the visitor would never see this one.
+		p.authPage(w, r, st, http.StatusServiceUnavailable, "phone", data)
 		return
 	}
 	data.Phone = phone

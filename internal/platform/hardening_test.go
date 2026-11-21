@@ -198,7 +198,7 @@ func TestProviderErrorsStayOutOfTheAppLog(t *testing.T) {
 	p.ApplyChange(context.Background(), "club", membersApp())
 	p.Publish("club", 0)
 	v := newVisitor(t, p, "club.renoxium.test")
-	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971501234567"}}); w.Code != 502 {
+	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971501234567"}}); w.Code != 503 {
 		t.Fatalf("send: %d", w.Code)
 	}
 	logs, _ := p.Logs("club", applog.Filter{Source: "whatsapp"})

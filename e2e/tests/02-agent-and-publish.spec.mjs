@@ -21,11 +21,12 @@ test('OAuth: registration rules, consent and its refusal, PKCE, refresh tokens',
   await page.fill('#email', address);
   await page.fill('#password', 'correct horse battery staple');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Allow E2E agent?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Connect E2E agent to your Renoxium account' })).toBeVisible();
+  await expect(page.locator('.acct')).toContainText(address); // the Renoxium account being connected
   await expect(page.locator('body')).toContainText('127.0.0.1');
 
   // Cancel returns access_denied to the agent.
-  const denied = await consent(page, authorizeURL(reg.body.client_id, challenge, 'deny-state'), 'Cancel');
+  const denied = await consent(page, authorizeURL(reg.body.client_id, challenge, 'deny-state'), 'deny');
   expect(denied.searchParams.get('error')).toBe('access_denied');
   expect(denied.searchParams.get('state')).toBe('deny-state');
 

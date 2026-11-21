@@ -95,7 +95,7 @@ func TestAccountPage(t *testing.T) {
 		t.Fatal("the delete form does not warn about the paid plan")
 	}
 	fb.failCancel = true
-	if r, page := post("/account/delete", url.Values{"confirm": {"xena@shop.ae"}, "password": {"a brand new password"}}); r.StatusCode != 502 || !strings.Contains(page, "nothing was deleted") {
+	if r, page := post("/account/delete", url.Values{"confirm": {"xena@shop.ae"}, "password": {"a brand new password"}}); r.StatusCode != 503 || !strings.Contains(page, "nothing was deleted") {
 		t.Fatalf("delete when Stripe fails: %d", r.StatusCode)
 	}
 	if _, err := e.acc.UserByEmail("xena@shop.ae"); err != nil {
