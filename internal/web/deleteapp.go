@@ -96,7 +96,7 @@ func (s *Site) deleteApp(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.platform.DeleteApp(app); err != nil {
 		slog.Error("delete app", "user", u.ID, "app", app, "err", err)
-		s.renderDeleteApp(w, r, app, http.StatusBadGateway, "The app could not be deleted: "+err.Error())
+		s.renderDeleteApp(w, r, app, http.StatusServiceUnavailable, "The app could not be deleted: "+err.Error())
 		return
 	}
 	slog.Info("app deleted", "user", u.ID, "app", app)

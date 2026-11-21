@@ -164,7 +164,7 @@ func (e *env) approve(c *http.Client, clientID string) (code, verifier string) {
 	authz := e.authorizeURL(clientID, challenge)
 	r, _ := c.Get(e.base + authz)
 	page := read(e.t, r)
-	if r.StatusCode != 200 || !strings.Contains(page, "Allow Test Agent?") || !strings.Contains(page, "localhost:9999") {
+	if r.StatusCode != 200 || !strings.Contains(page, "Connect Test Agent to your Renoxium account") || !strings.Contains(page, "localhost:9999") {
 		e.t.Fatalf("consent page: %d %s", r.StatusCode, page)
 	}
 	form := url.Values{"decision": {"allow"}, "csrf": {csrfRE.FindStringSubmatch(page)[1]}}

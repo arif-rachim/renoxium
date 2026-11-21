@@ -466,7 +466,7 @@ func TestDailySendCaps(t *testing.T) {
 	}
 	v := newVisitor(t, p, "club.renoxium.test")
 	v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971501111111"}})
-	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971502222222"}}); w.Code != 502 || len(codes.codes) != 1 {
+	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971502222222"}}); w.Code != 503 || len(codes.codes) != 1 {
 		t.Fatalf("second WhatsApp code: %d, %d sent", w.Code, len(codes.codes))
 	}
 }

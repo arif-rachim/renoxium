@@ -100,7 +100,7 @@ test('agent adds a job, a host and a key; the owner is told what to do; the job 
 
   // Before the owner allows the host, the script is told why it cannot call out.
   const quote = await agent.call('view_page', { app, path: '/quote' });
-  expect(quote.status).toBe(502);
+  expect(quote.status).toBe(503); // the script answers 502; 502 and 504 are served as 503 so Cloudflare shows the page
   expect(quote.body).toContain(`the owner has not allowed ${API_HOST} yet`);
 
   const pub = await agent.call('publish', { app });

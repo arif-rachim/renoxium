@@ -19,6 +19,41 @@ func (s *Site) registerAccount() {
 	s.mux.HandleFunc("POST /account/password", s.changePassword)
 	s.mux.HandleFunc("GET /account/export", s.exportAccount)
 	s.mux.HandleFunc("POST /account/delete", s.deleteAccount)
+	s.mux.HandleFunc("POST /account/assistants/disconnect", s.disconnectAssistant)
+}
+
+// disconnectAssistant ends one connected agent's access to the account.
+func (s *Site) disconnectAssistant(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(r)
+	if !ok || !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	client := r.PostFormValue("client")
+	name := ""
+	for _, c := range s.connections(u.ID) {
+		if c.ClientID == client {
+			name = c.Name
+		}
+	}
+	if name == "" {
+		http.Redirect(w, r, "/account#assistants", http.StatusSeeOther)
+		return
+	}
+	if _, err := s.accounts.Disconnect(u.ID, client); err != nil {
+		serverError(w, err)
+		return
+	}
+	slog.Info("agent disconnected", "user", u.ID, "client", client)
+	s.renderAccount(w, r, u, http.StatusOK, map[string]any{"Disconnected": name})
+}
+
+func (s *Site) connections(userID string) []accounts.Connection {
+	list, err := s.accounts.Connections(userID)
+	if err != nil {
+		slog.Error("connections", "user", userID, "err", err)
+	}
+	return list
 }
 
 func (s *Site) accountPage(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +69,7 @@ func (s *Site) renderAccount(w http.ResponseWriter, r *http.Request, u accounts.
 	apps, _ := s.platform.Apps(u.ID)
 	b, _ := s.accounts.Billing(u.ID)
 	csrf := s.csrfToken(w, r)
-	data := map[string]any{"User": u, "CSRF": csrf, "Apps": apps, "Billing": b, "PlanName": planName(b.Plan),
+	data := map[string]any{"User": u, "CSRF": csrf, "Apps": apps, "Billing": b, "PlanName": planName(b.Plan), "Connections": s.connections(u.ID),
 		"Shell": s.ownerShell(u, "Account", "/account", csrf)}
 	for k, v := range extra {
 		data[k] = v
@@ -121,7 +156,7 @@ func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.cancelSubscriptions(r.Context(), u.ID); err != nil {
 		slog.Error("cancel subscription before delete", "user", u.ID, "err", err)
-		s.renderAccount(w, r, u, http.StatusBadGateway, map[string]any{"DeleteError": "Your paid plan could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
+		s.renderAccount(w, r, u, http.StatusServiceUnavailable, map[string]any{"DeleteError": "Your paid plan could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
 		return
 	}
 	apps, err := s.platform.Apps(u.ID)

@@ -89,6 +89,7 @@ func Open(path string) (*Store, error) {
 		// Refresh tokens already rotated away. Seeing one again means it was
 		// copied: the whole grant is revoked.
 		`CREATE TABLE IF NOT EXISTS used_refresh (hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
+		grantsTable,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			db.Close()
@@ -478,6 +479,9 @@ func (s *Store) ExchangeCode(code, clientID, redirectURI, verifier string) (Toke
 	if err := s.recordAgent(tx, userID); err != nil {
 		return Tokens{}, err
 	}
+	if err := s.noteGrant(tx, userID, clientID, true); err != nil {
+		return Tokens{}, err
+	}
 	return t, tx.Commit()
 }
 
@@ -512,6 +516,9 @@ func (s *Store) Refresh(refreshToken, clientID string) (Tokens, error) {
 	}
 	t, err := s.issue(tx, clientID, userID, scope)
 	if err != nil {
+		return Tokens{}, err
+	}
+	if err := s.noteGrant(tx, userID, clientID, false); err != nil {
 		return Tokens{}, err
 	}
 	return t, tx.Commit()

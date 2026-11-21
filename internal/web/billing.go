@@ -136,14 +136,14 @@ func (s *Site) billingCheckout(w http.ResponseWriter, r *http.Request) {
 	cus, err := s.customer(r.Context(), u)
 	if err != nil {
 		slog.Error("billing customer", "user", u.ID, "err", err)
-		render(w, http.StatusBadGateway, "error", map[string]any{"Message": "Stripe is not reachable right now. Try again in a minute."})
+		render(w, http.StatusServiceUnavailable, "error", map[string]any{"Message": "Stripe is not reachable right now. Try again in a minute."})
 		return
 	}
 	url, err := s.Billing.Stripe.SubscriptionCheckout(r.Context(), cus, price, s.base+"/billing?done=1", s.base+"/billing",
 		map[string]string{"rx_user": u.ID, "rx_plan": plan})
 	if err != nil {
 		slog.Error("billing checkout", "user", u.ID, "err", err)
-		render(w, http.StatusBadGateway, "error", map[string]any{"Message": "Stripe could not start the payment: " + err.Error()})
+		render(w, http.StatusServiceUnavailable, "error", map[string]any{"Message": "Stripe could not start the payment: " + err.Error()})
 		return
 	}
 	http.Redirect(w, r, url, http.StatusSeeOther)
@@ -175,7 +175,7 @@ func (s *Site) billingPortal(w http.ResponseWriter, r *http.Request) {
 	url, err := s.Billing.Stripe.BillingPortal(r.Context(), b.Customer, s.base+"/billing?done=1")
 	if err != nil {
 		slog.Error("billing portal", "user", u.ID, "err", err)
-		render(w, http.StatusBadGateway, "error", map[string]any{"Message": "Stripe could not open billing: " + err.Error()})
+		render(w, http.StatusServiceUnavailable, "error", map[string]any{"Message": "Stripe could not open billing: " + err.Error()})
 		return
 	}
 	http.Redirect(w, r, url, http.StatusSeeOther)

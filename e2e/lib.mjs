@@ -117,10 +117,11 @@ export function authorizeURL(clientID, challenge, state = 'st' + Date.now(), red
 }
 // approve opens the consent screen in a signed-in page and returns the
 // redirect it leads to (the callback is never actually loaded).
-export async function consent(page, url, decision = 'Allow') {
+// decision is 'allow' (the "Connect … to this account" button) or 'deny' ("Don't connect").
+export async function consent(page, url, decision = 'allow') {
   await page.goto(url);
   const nav = page.waitForURL(/127\.0\.0\.1:18098/);
-  await page.getByRole('button', { name: decision, exact: true }).click();
+  await page.getByRole('button', { name: decision === 'deny' ? "Don't connect" : /^Connect .+ to this account$/ }).click();
   await nav;
   return new URL(page.url());
 }
