@@ -4,7 +4,9 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Legal holds the company details shown on the Privacy Policy and Terms.
@@ -14,6 +16,42 @@ type Legal struct {
 	Address  string
 	Email    string // contact for privacy and legal questions
 	Reviewed bool
+	WhatsApp string   // the company's WhatsApp number, e.g. +9715...; shown in the footer when set
+	Social   []string // the company's profile pages (LinkedIn, Instagram, ...); shown in the footer and as sameAs
+}
+
+// WA is the WhatsApp number as digits, for a wa.me link.
+func (l Legal) WA() string {
+	var b strings.Builder
+	for _, r := range l.WhatsApp {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// SocialLink is one profile page with the name of its network.
+type SocialLink struct{ Name, URL string }
+
+// Socials names each profile page by its host.
+func (l Legal) Socials() []SocialLink {
+	names := map[string]string{"linkedin.com": "LinkedIn", "instagram.com": "Instagram", "x.com": "X", "twitter.com": "X", "github.com": "GitHub",
+		"facebook.com": "Facebook", "youtube.com": "YouTube", "tiktok.com": "TikTok"}
+	var out []SocialLink
+	for _, raw := range l.Social {
+		u, err := url.Parse(strings.TrimSpace(raw))
+		if err != nil || u.Scheme != "https" || u.Host == "" {
+			continue
+		}
+		host := strings.TrimPrefix(strings.ToLower(u.Host), "www.")
+		name := names[host]
+		if name == "" {
+			name = host
+		}
+		out = append(out, SocialLink{name, u.String()})
+	}
+	return out
 }
 
 func (s *Site) registerLanding() {
@@ -95,7 +133,7 @@ func (s *Site) landingAR(w http.ResponseWriter, r *http.Request) {
 // (Readex Pro) for English and Arabic, and real screenshots of the demos.
 var landingPages = template.Must(template.New("").Parse(brandDefines + `
 {{define "lhead"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.}}</title><meta name="description" content="Orders, bookings and payments for UAE small businesses in one place, from your own website to your customers' AI assistants, built by describing your business to ChatGPT or Claude: online stores, bookings, rentals, quotes and listings, with card payments, cash on delivery, English and Arabic.">
+<title>{{.}}</title><meta name="description" content="UAE online store, booking and WhatsApp orders on your own website, with card payments. Built by describing your business to ChatGPT or Claude.">
 {{template "lcommon"}}{{end}}
 
 {{define "lcommon"}}{{template "icons"}}
@@ -134,23 +172,27 @@ nav.top .links a.btn{color:var(--on-ink)}
 .sub{color:var(--slate);max-width:36em;margin:12px 0 0;font-size:19px;line-height:1.55}
 .shot{border-radius:22px;border:1px solid var(--line);box-shadow:var(--shot-shadow);background:var(--paper)}
 footer.site{border-top:1px solid var(--line);padding:32px 0 48px;font-size:15px;color:var(--slate);display:flex;gap:14px 24px;flex-wrap:wrap;justify-content:space-between;align-items:center}
-footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:var(--slate)}footer.site a:hover{color:var(--ink)}
+footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}
+footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;font-style:normal;font-size:14px}footer.site a{color:var(--slate)}footer.site a:hover{color:var(--ink)}
 </style>{{end}}
 
 {{define "nav"}}<a class="skip" href="#main">Skip to content</a><header class="wrap"><nav class="top" aria-label="Main"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><div class="links">
 <a href="/templates"{{if eq . "templates"}} aria-current="page"{{end}}>Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/ar" lang="ar">العربية</a><a href="/login">Sign in</a><a class="btn sm" href="/signup">Create account</a></div></nav></header>{{end}}
 
-{{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div></footer></div>{{end}}
+{{define "contact"}}{{if or .Email .WA .Address .Socials}}<address class="contact">{{with .Email}}<a href="mailto:{{.}}">{{.}}</a>{{end}}{{with .WA}}<a href="https://wa.me/{{.}}" rel="noopener">WhatsApp <bdi dir="ltr">{{$.WhatsApp}}</bdi></a>{{end}}{{with .Address}}<span>{{.}}</span>{{end}}{{range .Socials}}<a href="{{.URL}}" rel="me noopener">{{.Name}}</a>{{end}}</address>{{end}}{{end}}
 
-{{define "og"}}<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:title" content="Renoxium: your business online, built in a chat">
-<meta property="og:description" content="Orders, bookings and payments for UAE small businesses on their own website, built by describing the business to ChatGPT or Claude, in English and Arabic.">
-<meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">{{end}}
+{{define "footer"}}<div class="wrap"><footer class="site"><span>© {{.Company}}</span><div class="links"><a href="/templates">Templates</a><a href="/connect">Connect</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href="/abuse">Report a site</a><a href="/login">Sign in</a></div>{{template "contact" .}}</footer></div>{{end}}
 
-{{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}{{template "landing-css"}}<link rel="alternate" hreflang="en" href="{{.Base}}/"><link rel="alternate" hreflang="ar" href="{{.Base}}/ar">{{template "og" .Base}}</head><body>
+{{define "og"}}<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:locale" content="en_AE"><meta property="og:locale:alternate" content="ar_AE"><meta property="og:title" content="Renoxium: orders, bookings and payments on your own website">
+<meta property="og:description" content="UAE online store, booking and WhatsApp orders on your own website, with card payments. Built by describing your business to ChatGPT or Claude.">
+<meta property="og:image" content="{{.}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Renoxium: orders, bookings and payments on your own website"><meta name="twitter:description" content="UAE online store, booking and WhatsApp orders on your own website, with card payments. Built by describing your business to ChatGPT or Claude."><meta name="twitter:image" content="{{.}}/og-image.png">{{end}}
+
+{{define "landing"}}{{template "lhead" "Renoxium: orders, bookings and payments on your own website"}}{{template "landing-css"}}<link rel="alternate" hreflang="en" href="{{.Base}}/"><link rel="alternate" hreflang="ar" href="{{.Base}}/ar"><link rel="alternate" hreflang="x-default" href="{{.Base}}/">{{template "og" .Base}}</head><body>
 {{template "nav" "home"}}
 <main id="main">
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
-<h1 id="hero-h" class="sign"><span class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span><span class="rule" aria-hidden="true"></span><span class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span></h1>
+<div class="sign"><h1 id="hero-h" class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</h1><span class="rule" aria-hidden="true"></span><p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</p></div>
 <p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
@@ -243,7 +285,7 @@ footer.site .links{display:flex;gap:6px 20px;flex-wrap:wrap}footer.site a{color:
 <div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
 <div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div></dl></section>
 <section class="group" data-r><h3>Made for the UAE</h3>
-<div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span><span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
+<div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span> <span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
 <dl><div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
 <div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
 <div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
@@ -298,6 +340,7 @@ background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' wid
 background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transparent),transparent);animation:drift 64s ease-in-out infinite alternate}
 @keyframes drift{from{transform:translate(0,0)}to{transform:translate(-14%,9%)}}
 .sign{display:grid;grid-template-columns:1fr 1px 1fr;column-gap:clamp(32px,4vw,64px);align-items:start;font-size:clamp(30px,3.3vw,48px)}
+.sign>h1,.sign>p{margin:0;font-size:inherit;font-weight:600;text-wrap:balance}
 .sign .en{line-height:1.08;letter-spacing:-.03em}
 .sign .ar{font-size:.9em;line-height:1.4;letter-spacing:0;text-align:right;font-weight:600}
 .sign .rule{align-self:stretch;background:var(--gold)}
@@ -440,7 +483,7 @@ if(first)t.classList.add("now");else t.style.setProperty("--i",Math.min(n++,5));
 [].forEach.call(d.querySelectorAll("[data-r],[data-w],[data-seq]"),function(x){io.observe(x)})})()</script>{{end}}
 
 {{define "landing-ar"}}<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Renoxium: الطلبات والحجوزات والمدفوعات على موقعك</title><meta name="description" content="الطلبات والحجوزات والمدفوعات للأنشطة الصغيرة في الإمارات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك. يُبنى الموقع بوصف نشاطك لـ ChatGPT أو Claude: متاجر وحجوزات وتأجير وعروض أسعار وإعلانات عقارية، مع الدفع بالبطاقة أو عند الاستلام، بالعربية والإنجليزية.">
+<title>Renoxium: الطلبات والحجوزات والمدفوعات على موقعك</title><meta name="description" content="متجر إلكتروني وحجوزات وطلبات واتساب في الإمارات على موقعك الخاص، مع الدفع بالبطاقة. يُبنى بوصف نشاطك لـ ChatGPT أو Claude.">
 {{template "lcommon"}}{{template "landing-css"}}<style>
 h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 .sign .en{font-size:.82em;line-height:1.15;text-align:left;font-weight:600}
@@ -456,15 +499,16 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 .tabbed .trade h3{left:auto;right:-9999px}
 .amount{font-size:36px}
 </style>
-<link rel="alternate" hreflang="en" href="{{.Base}}/"><link rel="alternate" hreflang="ar" href="{{.Base}}/ar">
-<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:locale" content="ar_AE"><meta property="og:title" content="Renoxium: نشاطك على الإنترنت، يُبنى في محادثة">
-<meta property="og:description" content="الطلبات والحجوزات والمدفوعات للأنشطة الصغيرة في الإمارات على موقعها الخاص، يُبنى بوصف النشاط لـ ChatGPT أو Claude، بالعربية والإنجليزية.">
-<meta property="og:image" content="{{.Base}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"></head><body>
+<link rel="alternate" hreflang="en" href="{{.Base}}/"><link rel="alternate" hreflang="ar" href="{{.Base}}/ar"><link rel="alternate" hreflang="x-default" href="{{.Base}}/">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Renoxium"><meta property="og:locale" content="ar_AE"><meta property="og:locale:alternate" content="en_AE"><meta property="og:title" content="Renoxium: الطلبات والحجوزات والمدفوعات على موقعك">
+<meta property="og:description" content="متجر إلكتروني وحجوزات وطلبات واتساب في الإمارات على موقعك الخاص، مع الدفع بالبطاقة. يُبنى بوصف نشاطك لـ ChatGPT أو Claude.">
+<meta property="og:image" content="{{.Base}}/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Renoxium: الطلبات والحجوزات والمدفوعات على موقعك"><meta name="twitter:description" content="متجر إلكتروني وحجوزات وطلبات واتساب في الإمارات على موقعك الخاص، مع الدفع بالبطاقة. يُبنى بوصف نشاطك لـ ChatGPT أو Claude."><meta name="twitter:image" content="{{.Base}}/og-image.png"></head><body>
 <a class="skip" href="#main">انتقل إلى المحتوى</a><header class="wrap"><nav class="top" aria-label="القائمة الرئيسية"><a class="logo" href="/ar" aria-label="الصفحة الرئيسية لـ Renoxium" dir="ltr">{{template "brandlogo"}}</a><div class="links">
 <a class="wide" href="/templates">القوالب</a><a class="wide" href="#pricing">الأسعار</a><a class="wide" href="/connect">الربط</a><a href="/" lang="en" dir="ltr">English</a><a href="/login">تسجيل الدخول</a><a class="btn sm" href="/signup">إنشاء حساب</a></div></nav></header>
 <main id="main">
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
-<h1 id="hero-h" class="sign"><span class="ar">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</span><span class="rule" aria-hidden="true"></span><span class="en" lang="en" dir="ltr">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</span></h1>
+<div class="sign"><h1 id="hero-h" class="ar">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</h1><span class="rule" aria-hidden="true"></span><p class="en" lang="en" dir="ltr">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</p></div>
 <p class="how-it">صِف نشاطك التجاري لـ ChatGPT أو Claude. يبني Renoxium موقعك ويربطه بمساعدي الذكاء الاصطناعي، ليجدك العملاء ويحجزوا ويدفعوا. كل طلب يصل إلى لوحة واحدة، وتصلك رسالة واتساب عن كل طلب.</p>
 <div class="cta"><a class="btn" href="/signup">أنشئ حسابك</a><a class="btn line" href="/templates">جرّب نسخة تجريبية</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
@@ -595,7 +639,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <div class="cta"><a class="btn" href="/templates">جرّب نسخة تجريبية</a><a class="btn line" href="/signup">أنشئ حسابك</a></div>
 <p class="note">صفحات إنشاء الحساب والقوالب والربط ولوحة التحكم متاحة بالإنجليزية حالياً. أما المواقع التي تبنيها فتعمل بالعربية والإنجليزية.</p></div></section>
 </main>
-<div class="wrap"><footer class="site"><span>© {{.Legal.Company}}</span><div class="links"><a href="/templates">القوالب</a><a href="/connect">الربط</a><a href="/privacy">الخصوصية</a><a href="/terms">الشروط</a><a href="/support">الدعم</a><a href="/abuse">الإبلاغ عن موقع</a><a href="/" lang="en" dir="ltr">English</a><a href="/login">تسجيل الدخول</a></div></footer></div>
+<div class="wrap"><footer class="site"><span>© {{.Legal.Company}}</span><div class="links"><a href="/templates">القوالب</a><a href="/connect">الربط</a><a href="/privacy">الخصوصية</a><a href="/terms">الشروط</a><a href="/support">الدعم</a><a href="/abuse">الإبلاغ عن موقع</a><a href="/" lang="en" dir="ltr">English</a><a href="/login">تسجيل الدخول</a></div>{{template "contact" .Legal}}</footer></div>
 {{template "landing-js"}}
 </body></html>{{end}}
 

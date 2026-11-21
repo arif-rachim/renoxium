@@ -187,7 +187,11 @@ func main() {
 	site.Version = buildVersion()
 	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
 	site.Legal = web.Legal{Company: os.Getenv("RENOXIUM_LEGAL_NAME"), Address: os.Getenv("RENOXIUM_LEGAL_ADDRESS"),
-		Email: os.Getenv("RENOXIUM_LEGAL_EMAIL"), Reviewed: os.Getenv("RENOXIUM_LEGAL_REVIEWED") == "1"}
+		Email: os.Getenv("RENOXIUM_LEGAL_EMAIL"), Reviewed: os.Getenv("RENOXIUM_LEGAL_REVIEWED") == "1",
+		WhatsApp: os.Getenv("RENOXIUM_WHATSAPP")}
+	if social := strings.TrimSpace(os.Getenv("RENOXIUM_SOCIAL")); social != "" {
+		site.Legal.Social = strings.Split(social, ",")
+	}
 	if ops := strings.TrimSpace(os.Getenv("RENOXIUM_OPERATORS")); ops != "" {
 		site.Operators = strings.Split(ops, ",")
 	}

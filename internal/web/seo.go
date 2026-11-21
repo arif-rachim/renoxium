@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 	"regexp"
+	"runtime/debug"
 	"strings"
 
 	"github.com/arif-rachim/renoxium/internal/seo"
@@ -12,7 +13,7 @@ import (
 
 // publicPages are the site's pages meant for search engines: the only ones
 // in the sitemap, and the ones that get a canonical address.
-var publicPages = []string{"/", "/templates", "/connect", "/support", "/privacy", "/terms"}
+var publicPages = []string{"/", "/ar", "/templates", "/connect", "/support", "/privacy", "/terms"}
 
 func isPublicPage(path string) bool {
 	for _, p := range publicPages {
@@ -33,8 +34,12 @@ func (s *Site) registerSEO() {
 	s.mux.HandleFunc("GET /sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
 		var b strings.Builder
 		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n" + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + "\n")
+		lastmod := ""
+		if d := buildDate(); d != "" {
+			lastmod = "<lastmod>" + d + "</lastmod>"
+		}
 		for _, p := range publicPages {
-			b.WriteString("<url><loc>" + html.EscapeString(s.base+p) + "</loc></url>\n")
+			b.WriteString("<url><loc>" + html.EscapeString(s.base+p) + "</loc>" + lastmod + "</url>\n")
 		}
 		b.WriteString("</urlset>\n")
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -91,7 +96,7 @@ func (s *Site) siteJSONLD(page []byte) any {
 		offers = append(offers, map[string]any{"@type": "Offer", "name": p.Name, "price": p.Price, "priceCurrency": "AED", "description": p.Text})
 	}
 	graph := []any{
-		map[string]any{"@type": "Organization", "@id": s.base + "/#org", "name": "Renoxium", "url": s.base + "/", "logo": s.base + "/og-image.png"},
+		s.organization(),
 		map[string]any{"@type": "WebSite", "@id": s.base + "/#site", "name": "Renoxium", "url": s.base + "/", "inLanguage": []string{"en", "ar"}, "publisher": map[string]any{"@id": s.base + "/#org"}},
 		map[string]any{"@type": "SoftwareApplication", "name": "Renoxium", "url": s.base + "/", "applicationCategory": "BusinessApplication",
 			"operatingSystem": "Web", "description": siteDescription, "offers": offers, "publisher": map[string]any{"@id": s.base + "/#org"}},
@@ -110,6 +115,55 @@ func (s *Site) siteJSONLD(page []byte) any {
 		graph = append(graph, map[string]any{"@type": "FAQPage", "mainEntity": questions})
 	}
 	return map[string]any{"@context": "https://schema.org", "@graph": graph}
+}
+
+// organization is the company as structured data, with the contact details
+// and profile pages that are configured.
+func (s *Site) organization() map[string]any {
+	l := s.legalOrDefaults()
+	org := map[string]any{"@type": "Organization", "@id": s.base + "/#org", "name": "Renoxium", "url": s.base + "/", "logo": s.base + "/og-image.png"}
+	if l.Company != "" && l.Company != "Renoxium" {
+		org["legalName"] = l.Company
+	}
+	if l.Email != "" {
+		org["email"] = l.Email
+	}
+	if l.Address != "" {
+		org["address"] = l.Address
+	}
+	contact := map[string]any{"@type": "ContactPoint", "contactType": "customer support", "availableLanguage": []string{"en", "ar"}}
+	if l.Email != "" {
+		contact["email"] = l.Email
+	}
+	if wa := l.WA(); wa != "" {
+		contact["telephone"] = "+" + wa
+	}
+	if len(contact) > 3 {
+		org["contactPoint"] = contact
+	}
+	var same []string
+	for _, x := range l.Socials() {
+		same = append(same, x.URL)
+	}
+	if len(same) > 0 {
+		org["sameAs"] = same
+	}
+	return org
+}
+
+// buildDate is the day this binary's source was committed (YYYY-MM-DD), the
+// sitemap's lastmod; empty when the build carries no version control stamp.
+func buildDate() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	for _, kv := range info.Settings {
+		if kv.Key == "vcs.time" && len(kv.Value) >= 10 {
+			return kv.Value[:10]
+		}
+	}
+	return ""
 }
 
 // pageBuffer holds a public page until its <head> is completed.
@@ -139,7 +193,7 @@ func (s *Site) servePublic(w http.ResponseWriter, r *http.Request) {
 	if buf.status == http.StatusOK && strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") {
 		h := seo.Head{Canonical: s.base + r.URL.Path, SiteName: "Renoxium"}
 		// Signed-in visitors get their dashboard at /, which has no landing copy.
-		if r.URL.Path == "/" && bytes.Contains(page, []byte(`property="og:title"`)) {
+		if (r.URL.Path == "/" || r.URL.Path == "/ar") && bytes.Contains(page, []byte(`property="og:title"`)) {
 			h.JSONLD = s.siteJSONLD(page)
 		}
 		page = seo.Inject(page, h)
