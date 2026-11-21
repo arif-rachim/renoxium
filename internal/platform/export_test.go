@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -111,4 +112,21 @@ func LeftoverRows(t *testing.T, p *Platform, app string) int {
 		total += n
 	}
 	return total
+}
+
+// AddFileAsBefore stores a file for an app the way uploads were stored
+// before photos were shrunk: as sent, and not yet made to fit.
+func AddFileAsBefore(t *testing.T, p *Platform, app string, raw []byte) string {
+	t.Helper()
+	b, _, err := p.files.Put(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.db.Exec(`INSERT INTO blobs (hash, size, content_type, created_at, fitted) VALUES (?, ?, ?, ?, 0)`, b.Hash, b.Size, b.ContentType, now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.db.Exec(`INSERT INTO app_files (app, hash, created_at) VALUES (?, ?, ?)`, app, b.Hash, now()); err != nil {
+		t.Fatal(err)
+	}
+	return fileURL(b)
 }

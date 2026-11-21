@@ -258,12 +258,12 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, files.MaxSize+1<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, files.MaxUpload+1<<20) // one camera photo, shrunk on the way in
 	if ct := r.Header.Get("Content-Type"); strings.HasPrefix(ct, "multipart/form-data") {
 		if err := r.ParseMultipartForm(1 << 20); err != nil {
 			var tooBig *http.MaxBytesError
 			if errors.As(err, &tooBig) {
-				render(w, http.StatusRequestEntityTooLarge, "error", map[string]any{"Message": files.ErrTooLarge.Error() + ". Go back and choose a smaller image."})
+				render(w, http.StatusRequestEntityTooLarge, "error", map[string]any{"Message": files.ErrPhotoTooLarge.Error() + ". Go back and choose a smaller image, or save the photos one at a time."})
 				return
 			}
 			http.Error(w, "bad form", http.StatusBadRequest)

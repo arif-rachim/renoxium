@@ -3,8 +3,11 @@ package web_test
 import (
 	"bytes"
 	"encoding/base64"
+	"github.com/arif-rachim/renoxium/internal/files"
 	"image"
+	"image/jpeg"
 	"image/png"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -120,6 +123,25 @@ func TestAdminImageUpload(t *testing.T) {
 	if r.StatusCode != 422 || !strings.Contains(page, "only JPEG") {
 		t.Fatalf("bad file: %d %s", r.StatusCode, page)
 	}
+	// A camera photo over 10 MB is accepted and stored smaller, at the largest size ever shown.
+	big := image.NewRGBA(image.Rect(0, 0, 4000, 3000))
+	rand.New(rand.NewSource(5)).Read(big.Pix)
+	var camera bytes.Buffer
+	jpeg.Encode(&camera, big, &jpeg.Options{Quality: 97})
+	if camera.Len() <= files.MaxSize || camera.Len() > files.MaxUpload {
+		t.Fatalf("test photo is %d bytes", camera.Len())
+	}
+	if r, page := submit(map[string]string{"name": "Royal Oud", "photo": url}, camera.Bytes()); r.StatusCode != http.StatusSeeOther {
+		t.Fatalf("camera photo of %d bytes: %d %s", camera.Len(), r.StatusCode, page)
+	}
+	row, _ = e.p.AdminGet(t.Context(), "hana-shop", "products", 1)
+	photo, _ := row["photo"].(string)
+	w := e.appGet("hana-shop.renoxium.test", photo)
+	cfg, _, err := image.DecodeConfig(w.Body)
+	if photo == url || w.Code != 200 || err != nil || cfg.Width != 1920 || cfg.Height != 1440 {
+		t.Fatalf("camera photo stored as %s: %d %v %dx%d", photo, w.Code, err, cfg.Width, cfg.Height)
+	}
+	url = photo
 	// Remove.
 	submit(map[string]string{"name": "Royal Oud", "photo": url, "photo__remove": "1"}, nil)
 	if row, _ := e.p.AdminGet(t.Context(), "hana-shop", "products", 1); row["photo"] != nil {

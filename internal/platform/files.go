@@ -1,9 +1,11 @@
 package platform
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -39,7 +41,7 @@ func (p *Platform) AddFile(app string, r io.Reader) (FileInfo, error) {
 	if count >= MaxFilesPerApp {
 		return FileInfo{}, fmt.Errorf("this app already has %d files; the limit is %d", count, MaxFilesPerApp)
 	}
-	b, existed, err := p.files.Put(r)
+	b, existed, err := p.files.PutImage(r) // a photo wider than the largest size ever shown is stored at that size
 	if err != nil {
 		return FileInfo{}, err
 	}
@@ -50,7 +52,7 @@ func (p *Platform) AddFile(app string, r io.Reader) (FileInfo, error) {
 		return FileInfo{}, fmt.Errorf("storage is full: %d MB of %d MB used, and this file is %.1f MB; delete unused images or upgrade at %s/billing",
 			used>>20, quota>>20, float64(b.Size)/(1<<20), p.cfg.SiteURL)
 	}
-	if _, err := p.db.Exec(`INSERT OR IGNORE INTO blobs (hash, size, content_type, created_at) VALUES (?, ?, ?, ?)`,
+	if _, err := p.db.Exec(`INSERT OR IGNORE INTO blobs (hash, size, content_type, created_at, fitted) VALUES (?, ?, ?, ?, 1)`,
 		b.Hash, b.Size, b.ContentType, now()); err != nil {
 		return FileInfo{}, err
 	}
@@ -133,4 +135,35 @@ func (p *Platform) serveFile(w http.ResponseWriter, r *http.Request, app string)
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	http.ServeContent(w, r, "", time.Time{}, f)
+}
+
+// FitStoredPhotos makes photos stored before uploads were shrunk fit
+// files.MaxSide, one at a time with a pause between them, until none is left
+// or ctx ends, and returns how many files got smaller. A file keeps its
+// address; its recorded size, which storage usage sums, follows the file.
+// Each file is looked at once.
+func (p *Platform) FitStoredPhotos(ctx context.Context, pause time.Duration) int {
+	changed := 0
+	for ctx.Err() == nil {
+		var b files.Blob
+		err := p.db.QueryRow(`SELECT hash, size, content_type FROM blobs WHERE fitted = 0 ORDER BY size DESC LIMIT 1`).Scan(&b.Hash, &b.Size, &b.ContentType)
+		if err != nil {
+			break // none left
+		}
+		size, did, err := p.files.FitStored(b)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			slog.Error("fit stored photo", "hash", b.Hash, "err", err)
+		}
+		if _, err := p.db.Exec(`UPDATE blobs SET size = ?, fitted = 1 WHERE hash = ?`, size, b.Hash); err != nil {
+			break
+		}
+		if did {
+			changed++
+			select {
+			case <-ctx.Done():
+			case <-time.After(pause):
+			}
+		}
+	}
+	return changed
 }

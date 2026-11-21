@@ -291,6 +291,8 @@ Tools for shoppers' AI assistants (MCP):
 
 Images:
 - Upload with upload_file (base64 data, at most 10 MB; JPEG, PNG, GIF, WebP or AVIF). It returns a url such as /_rx/files/<hash>.jpg.
+  A JPEG, PNG or WebP wider or taller than 1920 px is stored at 1920 px on its longest side, upright (a WebP becomes a JPEG);
+  the size returned is the size stored.
   Uploading the same image again returns the same url without storing it twice.
 - Store that url in a column of type image and render it with <img src="{{.image}}" alt="...">. The url works on live, preview and custom domains.
 - Add ?w=WIDTH to an uploaded JPEG, PNG or WebP url for a smaller copy, e.g. <img src="{{.image}}?w=480"> in product lists and ?w=960 on a product page.
