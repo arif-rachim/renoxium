@@ -18,8 +18,8 @@ The rules every new tool keeps:
 | Tool | New input | Output |
 | --- | --- | --- |
 | `create_app` | `from_example` | `version`, `apply` (checks), `outline` |
-| `get_app` | `only: [path]`, `outline: true` | `parts` or `outline` instead of `definition` |
-| `get_example` | `only`, `outline`, `with_reference` | the same |
+| `get_app_outline` (new) | `app`, `version` | `outline` |
+| `get_app_parts` (new) | `app`, `version`, `paths: [path]` | `parts` |
 | `edit_app` (new) | `app`, `base_version`, `edits: [{target, old_text, new_text}]` | apply result plus `applied` (one line per edit) |
 
 **Paths:**
@@ -290,3 +290,17 @@ settings row has a brand colour, since the owner's admin-panel change would then
 It runs against any server with `RENOXIUM_URL` and `RENOXIUM_TOKEN`, and on the test server as
 `e2e/tests/12-agent-tools.spec.mjs`. The same steps run in Go, without a browser, in
 `internal/web/mcpdemo_test.go`.
+
+## Update 2026-11-21: one tool per way of reading, and jobs without a name
+
+OpenAI's directory scan said get_app and test_scheduled_job "appear to execute operations that are not individually
+exposed". get_app's outline and only flags were three ways of reading behind one tool, and test_scheduled_job's job name
+chose which code ran. So:
+
+- get_app returns the whole definition again (as before P1). get_app_outline and get_app_parts {paths} are tools of their
+  own. get_example is back to its earlier shape (list, one example, or reference_only), without outline or only.
+- try_scheduled_jobs replaces test_scheduled_job. It takes only the app and runs every job the definition lists once on
+  preview, in order, returning each result. It is no longer possible to try one job alone.
+
+apply_change, create_app, edit_app and patch_app were marked "needs further review": they accept the app's own code
+(scripts and templates), so a person at OpenAI reviews them. Nothing in their definition was reported as wrong.
