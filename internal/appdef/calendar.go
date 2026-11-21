@@ -1,6 +1,8 @@
 package appdef
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,42 +18,34 @@ type Calendar struct {
 	EndDate    string   `json:"end_date,omitempty" jsonschema:"text or datetime column with the last day of a multi-day booking (rentals), YYYY-MM-DD"`
 	Group      string   `json:"group,omitempty" jsonschema:"column that splits a day into lanes, e.g. staff_id or crew_id; an integer column named <stem>_id shows the name from the table <stem> or <stem>s"`
 	GroupTable string   `json:"group_table,omitempty" jsonschema:"table whose name column titles the lanes when it is not found from the group column's name, e.g. crews"`
-	Title      any      `json:"title,omitempty" jsonschema:"column name, or a list of column names joined with ' · ', shown on each item, e.g. [\"customer_name\", \"item\"]"`
+	Title      Columns  `json:"title,omitempty" jsonschema:"column names shown on each item, joined with ' · ', e.g. [\"customer_name\", \"item\"]"`
 	Status     string   `json:"status,omitempty" jsonschema:"text column that colours items, e.g. status"`
 	HideStatus []string `json:"hide_status,omitempty" jsonschema:"status values hidden unless the owner chooses to show them, e.g. [\"cancelled\", \"failed\", \"expired\"]"`
 }
 
-// TitleColumns returns the title column names, whether Title was given as
-// one name or a list.
-func (c *Calendar) TitleColumns() []string {
-	names, _ := c.titleColumns()
-	return names
+// Columns is a list of column names. Definitions saved before it was a
+// list may hold one name as plain text, which reads as a list of one.
+type Columns []string
+
+func (c *Columns) UnmarshalJSON(data []byte) error {
+	var one string
+	if json.Unmarshal(data, &one) == nil {
+		*c = nil
+		if one != "" {
+			*c = Columns{one}
+		}
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return errors.New("must be a list of column names")
+	}
+	*c = list
+	return nil
 }
 
-func (c *Calendar) titleColumns() ([]string, bool) {
-	switch v := c.Title.(type) {
-	case nil:
-		return nil, true
-	case string:
-		if v == "" {
-			return nil, true
-		}
-		return []string{v}, true
-	case []string:
-		return v, true
-	case []any:
-		names := make([]string, 0, len(v))
-		for _, x := range v {
-			s, ok := x.(string)
-			if !ok {
-				return nil, false
-			}
-			names = append(names, s)
-		}
-		return names, true
-	}
-	return nil, false
-}
+// TitleColumns returns the title column names.
+func (c *Calendar) TitleColumns() []string { return c.Title }
 
 // ColumnType returns the type of a table column, including the automatic
 // id (integer) and created_at (datetime) columns, or "" if there is none.
@@ -158,10 +152,7 @@ func (a *App) validateCalendars() []string {
 				add("group_table needs an integer group column holding the row id, not %q", c.Group)
 			}
 		}
-		titles, ok := c.titleColumns()
-		if !ok {
-			add("title must be a column name or a list of column names")
-		}
+		titles := c.TitleColumns()
 		if len(titles) > 5 {
 			add("title: at most 5 columns")
 		}

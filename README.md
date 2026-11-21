@@ -1,92 +1,220 @@
-<p><img src="brand/renoxium-logo.svg" alt="Renoxium" height="56"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/renoxium-logo-white.svg">
+    <img src="brand/renoxium-logo.svg" alt="Renoxium" height="64">
+  </picture>
+</p>
 
-# Renoxium
+<p align="center">
+  <strong>Build, preview and host business web apps by chatting with an AI assistant.</strong><br>
+  An MCP-native application platform for small businesses — designed for ChatGPT, Claude and any MCP-compatible agent.
+</p>
 
-Build and host web apps for small businesses from a chat with ChatGPT, Claude or any MCP agent.
-The agent sends a declarative app definition (tables, HTML templates, server scripts, routes);
-Renoxium serves it with server-side rendering, one SQLite database per app stage, and a log
-the agent can read to fix its own mistakes.
+<p align="center">
+  <a href="https://renoxium.com">Website</a> ·
+  <a href="https://renoxium.com/templates">Template gallery</a> ·
+  <a href="docs/roadmap.md">Roadmap</a> ·
+  <a href="docs/plans/2026-11-15-renoxium-platform-v1.md">Platform plan</a> ·
+  <a href="deploy/README.md">Deployment</a>
+</p>
 
-Plan: [docs/plans/2026-11-15-renoxium-platform-v1.md](docs/plans/2026-11-15-renoxium-platform-v1.md). Roadmap: [docs/roadmap.md](docs/roadmap.md)
+---
 
-## Status: thin slice
+## Overview
 
-Working today:
+Renoxium lets a small-business owner get a working online store, booking system, quote portal or listings site without writing code or managing servers. The owner describes what they need to their AI assistant; the assistant builds the app through Renoxium's MCP tools; Renoxium hosts it, secures it and handles payments, sign-in, email and WhatsApp.
 
-- Accounts on the Renoxium site (email and password, argon2id), a dashboard listing your apps, email confirmation, and password reset by emailed link (sent through Resend; a reset signs out every session and agent token).
-- OAuth 2.1 for agents, as ChatGPT and Claude expect: protected resource and authorization server metadata, dynamic client registration, PKCE (S256 only), consent screen, rotating refresh tokens, revocation on code replay. The consent screen names the Renoxium account being connected (email, plan, apps) and lists what the assistant can and cannot do; owners see their connected assistants under Account settings and disconnect one at once, without signing the others out.
-- Connection help at `/connect` and `/llms.txt`, written so an assistant that reads them tells the user how to add the connector. A browser or fetch-tool visit to `/mcp` gets the same help with its 401, while MCP clients still get the plain OAuth challenge.
-- Builder MCP endpoint at `/mcp`, OAuth-protected, with `list_apps`, `create_app` (optionally `from_example`, so the preview starts as a finished example), `get_app` (the whole definition), `get_app_outline` (names and sizes), `get_app_parts` (chosen parts such as `templates.css`), `get_example`, `apply_change`, `patch_app`, `edit_app` (exact text replacements in templates, scripts and lib, all or none, against the newest version), `view_page`, `submit_form` and `upload_as_visitor` (what a visitor does on the preview, one tool per operation, with `follow_redirects` and named cookie `session`s), `view_live_page` (read-only), `create_test_visitor`, `screenshot_preview` (a PNG of a real preview page from headless Chromium driven over a pipe; the browser reaches only the preview, served in-process, and public font/script/tile CDNs), `try_scheduled_jobs` (every listed job once on preview; takes only the app), `change_preview_row`, `publish` (also rollback), `rename_app` and `delete_app` (both only return a link the owner confirms with their password; a rename keeps the old addresses redirecting for a year and old Stripe metadata resolving), `upload_file` and `get_logs`. Checks after every change render each GET route, filling `:id` from preview rows and rendering signed-in routes as a visitor, and report template errors and printed keys the data lacks. See [docs/plans/2026-11-20-agent-tools.md](docs/plans/2026-11-20-agent-tools.md). `get_example` returns complete working definitions from `examples/`: `store-uae` (a finished UAE online store: catalog, cart, card payment or cash on delivery, AED with VAT, private orders, English and Arabic, with an order-ahead mode for made-to-order goods), `booking-uae` (appointments and classes), `home-service-uae` (bookings by arrival window with crew dispatch and repeat visits), `reservation-uae` (tour departures and date-range rentals), `quote-portal-uae` (quotes, deposits and a client portal), `listings-uae` (property listings with permit numbers and leads), `catalog` and a CRUD task list; `patch_app` changes one template, script, route list or table without resending the whole definition; `view_page` opens a preview page and `submit_form` sends a form to it as a visitor, `view_live_page` opens a live page read-only. Every tool acts only on apps the signed-in user owns.
-- Preview and live stages per app. Preview runs on a snapshot of live data; publish backs up live data first (the newest 3 backups are kept). Previews are private: the owner opens them from `/apps/<app>/preview` on the Renoxium site, which unlocks the preview in that browser for 12 hours. Publishing needs a confirmed email.
-- Additive schema migrations, seed data.
-- Server scripts in goja, run in a pool of separate worker processes: 2 s time limit, a heap watchdog inside each worker (64 MiB), and the parent kills any worker over 256 MiB resident and starts a new one. At most 2 scripts of one app run at once, so one app cannot occupy every worker. No filesystem, network or timers; a SQLite authorizer allows data statements only.
-- Owner dashboard at `/apps/<app>`: visitors and page views per day, the most viewed pages and where visitors come from (referrer or `utm_source`), card sales per day and new customer accounts over 7, 30 or 90 days, latest payments and rows added per table this week. Visits are counted for live pages (and template demos) that answer a person's GET with HTML: bots, previews, errors and `/_rx/` pages are not counted, and a visitor is counted once a day by a hash of a secret held only in memory, the app, the day, the address and the browser, so nothing that identifies a visitor is stored; counts are kept in memory and written every minute, for 400 days. Lists page, sort (any column, either way) and choose their columns in the database, 25, 50 or 100 rows a page, and become cards on a phone; payments and customer accounts are paged the same way.
-- Admin panel on the Renoxium site at `/apps/<app>`, generated from the live schema: tables with row counts, recent errors, a searchable and paginated list per table, and add/edit/delete forms whose inputs follow column types. Owner only; every change is written to the app log.
-- Image uploads through the `upload_file` tool or the admin panel, stored on local disk under the SHA-256 of their content: identical images are stored once, even across apps, and uploading again returns the same URL. Each app serves only the files recorded for it, at `/_rx/files/<hash>.<ext>` with immutable cache headers. Columns of type `image` hold these URLs.
-- The visitor sign-in pages look like the business: the definition's `brand` (`{table, name, name_ar, color}`) points at the settings row whose name and brand colour they show, read live so the owner's changes in the admin panel follow; a colour too dark for the dark theme turns light there. They speak Arabic, right to left, when the visitor came from the app's Arabic pages (`lang=ar` in the page or the page to return to) or the browser asks for Arabic. Every other page the platform shows on an app's address (private preview, suspended, not yet published, not found and app errors for browsers, the demo inbox, simulated checkout) shares one plain, styled look; programs still get the plain-text answers.
-- Sign-in for an app's own visitors, built in: sign-up, sign-in, email confirmation and password reset. The pages are the platform's own and are served on a separate host per app stage, `<app>--id.<apps domain>` (`<app>--preview--id` for the preview, as private as the preview), where no template or script of the app runs, with a Content-Security-Policy that allows no scripts at all. The app's `/_rx/auth/*` addresses only redirect there; a finished sign-in comes back through `/_rx/auth/callback` with a one-time code that works only in the browser that started it (a state cookie on the app's host), so the app's owner cannot read what visitors type, a password manager fills a visitor's password only on the sign-in host, and a hand-over link sent to someone else signs nobody in. Visitors can also sign in with a 6-digit WhatsApp code (WhatsApp Cloud API), which creates the account on first use. Routes marked `"auth": "user"` require a signed-in visitor, and scripts get `req.user`. Accounts live in `rx_` tables in the app database that scripts cannot read or write (enforced by the SQLite authorizer). Live sends emails through Resend; preview writes them, links included, to the app log. "Forgot password" answers the same and equally fast whether or not the address has an account (the email is sent after the answer), and sign-up stops for a visitor address after five "this email already has an account" answers in an hour.
-- Private visitor uploads (photos and PDFs a visitor chooses to share): signed-in visitors POST one file to `/_rx/upload` (multipart field `file`, JPEG/PNG/WebP/HEIC/PDF detected from the bytes, at most 10 MB, 20 per visitor and 500 per app a day, at most 40 MB kept per visitor, 200 MB taken in per app stage a day, at most half of the account's storage for all visitor files, 5000 kept per app stage; the limits are stored, so a restart does not reset them) and get `{id, name, size, type}`; `/_rx/upload.js` turns `<input type="file" data-rx-upload name="document">` into upload-on-select with a hidden field carrying the id. Files get a random id, are stored per app stage (never deduplicated) and count towards the owner's storage. `/_rx/private/<id>` opens a file only for the visitor who uploaded it (404 for anyone else; exact type, `nosniff`, a sandboxing CSP, PDFs as downloads, `Cache-Control: private`); only the owner opens them from the admin panel at `/apps/<app>/files/<id>`; staff see that a document is attached but never its name or content, and cannot remove or replace it. Columns of type `file` hold the id; scripts check ownership with `files.get(id)` (`{id, name, size, type, user_id, created_at, url}`) and remove files with `files.delete(id)`, never seeing the bytes. Deleting a visitor, an app or an account deletes their files; account exports include the live files; preview uploads stay on preview and are dropped when preview data is rebuilt; agents test them with `upload_as_visitor`.
-- Card payments through Stripe Connect: owners connect their own Stripe account from the admin panel (created with the full Stripe Dashboard, merchant-paid Stripe fees and Stripe-covered losses); scripts call `payments.checkout` for a direct charge on that account and `payments.get` to read status; Stripe webhooks (signature-checked) run the app's `on_payment` script once per status change. Previews simulate checkout, so agents can test the whole flow without money.
-- Renoxium plans billed on the platform's own Stripe account: Free (2% application fee on card payments, a "Made with Renoxium" badge on live pages, 1 app), Pro (AED 99/month, 3 apps) and Business (AED 299/month, 10 apps). Owners subscribe and manage billing at `/billing` (Stripe Checkout and Customer Portal); a signature-checked billing webhook keeps plans in sync, and `renoxium plan EMAIL PLAN` grants a plan without payment.
-- Templates with any HTML/CSS/browser JavaScript, auto-escaped data.
-- One log per app: requests, script errors with stack traces, script console output, and browser errors reported by an injected snippet, linked by request ID.
+Under the hood, the agent submits a **declarative app definition** — tables, HTML templates, server scripts, routes, jobs and tools. Renoxium serves it with server-side rendering, gives each app stage its own SQLite database, runs scripts in a hardened sandbox and keeps a per-app log that the agent reads to diagnose and fix its own mistakes.
 
-- The admin panel lists an app's visitor accounts (email, WhatsApp number, name, confirmed) with search and delete; visitor emails reply to the owner's confirmed address.
+> **Status:** thin slice — the end-to-end platform is working and deployed; scope is expanding along the [roadmap](docs/roadmap.md).
 
-- Abuse limits: 10 apps per account, 2000 files per app, image storage per account by plan (200 MB Free, 2 GB Pro, 10 GB Business), the newest 50 versions per app; 300 requests per minute per visitor address (IPv6 grouped per /64); daily caps on visitor emails (300 per app, 3000 in all) and WhatsApp codes (100 per app, 1000 in all); at most 10 code guesses per number per hour.
-- Platform-side limits on tenant code: pages at most 4 MB, script statements at most 2 s with SQLite length and depth limits, script messages at most 8 MB, at most 4 password hashes at once.
-- Publishing from an agent needs the owner's confirmation: `publish` returns a link to `/apps/<app>/publish`, where the owner (signed in) chooses Publish. Text an agent reads in logs or pages cannot publish by itself.
-- One account runs at most half of the script workers at once, across all its apps. Script workers lock themselves down with Landlock: no files and no TCP, even if the interpreter had a bug.
-- Anyone can report an app at `/abuse`; the operator takes it offline with `renoxium suspend APP "reason"`.
-- Limits that cap money, sender reputation or guesses (daily emails and WhatsApp messages, codes and guesses per number) are stored in the database, so a restart does not reset them. `email.send` has a daily number per account by plan (50 / 500 / 2,000) and its own total, separate from sign-in emails. WhatsApp codes to numbers without an account are limited to a quarter of the monthly quota per day, and a fifth of the month is kept for numbers that have one.
-- The account export leaves out visitors' password hashes, sessions and sign-in links. A deleted app's name is held for its former account for 90 days. `/version` answers only the operator or a request made on the server; `/healthz` gives no reason when unhealthy; mail and WhatsApp provider errors go to the server log, not the app log.
-- MCP tools marked `read_only` cannot change anything: `db.exec`, writes through `db.query` (rolled back), `email.send`, `notify.owner`, `payments.checkout`, `realtime.publish` and `http.fetch` are refused in them.
-- Sign-in limits are per address and per account from that address, with a much higher per-account cap over all addresses, so strangers cannot lock someone out.
-- Browser protections: POSTs from other origins are refused on app hosts and on the site (other apps share the renoxium.app site), cookies use the `__Host-` prefix on HTTPS, and HSTS. `/_rx/log` only accepts reports for pages the app served.
+### Why Renoxium
 
-- Store owners on Pro and Business can add their own domain (Cloudflare for SaaS custom hostnames); once active it becomes the app's live address. The owner first proves the domain is theirs with a TXT record (`_renoxium.<domain>`) derived from their account; only then is it registered with Cloudflare, so a domain whose DNS still points at Renoxium cannot be claimed by another account, and unproven claims do not block the real owner.
+| For business owners | For AI agents | For the operator |
+|---|---|---|
+| A real, branded web app from a conversation | 25+ purpose-built MCP tools with structured feedback | Multi-tenant isolation and per-app resource metering |
+| Card payments into their own Stripe account | Private preview stage with simulated payments and email | Abuse limits, suspension and audit logging |
+| Admin panel, dashboard and calendar generated automatically | Automatic route checks after every change | Growth funnel, unit economics and cost per app |
+| English and Arabic (RTL), AED with VAT | Ready-made UAE templates to start from | Monitoring, backups and alerting built in |
 
-- Owners can get `notify.owner` notices and card payments on WhatsApp (a Utility template), after confirming their number with a code; notices count towards the monthly WhatsApp messages.
-- Images resize on request (`?w=480`), and the admin panel shows table and column labels, help text and drop-down options from the app definition. New sizes are made at most 30 times a minute per app and one at a time; a request that would wait more than 3 s gets the original (uncached) instead.
-- Calendar view: a table with `calendar` metadata (`{date, start, end | duration, end_date, group, group_table, title, status, hide_status}`) gets a Calendar tab in the admin panel next to its list: a day view with lanes by group (staff, crew, item; `<stem>_id` columns show the name from the `<stem>`/`<stem>s` table) along a time axis, and a week view with multi-day ranges spanning days. Dates are local strings as stored, "today" is Asia/Dubai, at most 500 items per view, hidden statuses can be shown, items open the row form and return to the same view; on phones each lane is a plain list. The booking, home-service and reservation templates use it.
+---
 
-- Growth on `/operator/growth` (tabs: funnel, last 12 weeks, unit economics, by template): a funnel per sign-up month (signed up, email confirmed, agent connected, first app, first publish, first customer activity on live, paid plan, still paying after 3 months) with conversion and median time between stages, weekly sign-ups and activations, MRR, ARPA, logo churn, Free-plan card fees, LTV (gross margin entered by the operator) and CAC (marketing spend entered per month) with the LTV:CAC ratio, activation by template, and a per-owner CSV. First-time events are recorded as they happen and backfilled from stored data at startup.
-- Resources on `/operator/resources` (server), `/operator/usage` (apps) and `/operator/prices` ([how to read it](docs/operator-resources.md)): every app stage is metered in memory per hour (requests, bytes sent, script runs, time holding a worker, worker CPU measured in the worker with `getrusage` plus the server's database time, peak heap, timeouts, memory kills and worker restarts, waits for a slot or a worker, refusals, other apps' waits while it held workers, realtime, `http.fetch`, emails, WhatsApp, jobs), written to `app_usage_hourly` every 5 minutes and kept 90 days; with the operator's unit prices each app gets an estimated cost, revenue (plan price split equally over the owner's live apps plus its Free-plan card fees) and margin, flags (noisy neighbour, unprofitable heavy, error-prone, Free plan over fair use), hourly charts and its top routes, jobs and tools. The operator can email the owner, throttle the app alone (1 script at a time and/or a per-minute script budget, until a chosen time; the owner sees a notice in the admin panel) or suspend it, each logged and audited; the monitor emails the operators when one app causes more than 30% of worker waits over 15 minutes or its memory kills spike.
-- Monitoring: every 5 minutes the server checks disk space, backup age (stamps written by `backup.sh`) and error spikes, emails the operators, and shows the state on `/operator`; owners get an email on their live app's first error, then at most daily. `/healthz` answers 503 when the disk is almost full.
-- The store template has product options (sizes, colours) with their own price and stock.
+## How it works
 
-- External APIs: scripts call `http.fetch({url, method, headers, body, secret})` to HTTPS hosts listed in the definition's `hosts` and allowed by the owner at `/apps/<app>/connections`. API keys (`secrets`) are entered by the owner, stored encrypted (AES-GCM, key derived from `preview.key`), bound to one host, added by the platform and never visible to scripts or agents; keys echoed back are masked. The request runs in the server process (workers stay without network), private and local addresses are refused after DNS, redirects are not followed, and waiting does not count towards the script time limit. Limits: 5 calls per run and 8 s of waiting in all, 30 s of waiting a minute per account, 60 calls a minute per app, a monthly quota by plan (1,000 / 20,000 / 100,000) that counts preview too, and 100 a day until the account's email is confirmed. Preview holds a copy of live data and agents change it without asking, so preview only makes real calls while the owner turns on test calls on the connections page (2 hours at a time).
-- Realtime: scripts call `realtime.publish({channel, data})` and pages listen with `EventSource('/_rx/live/<channel>')` (server-sent events served by Go, so a waiting browser costs a goroutine, not a script worker). Channels are private unless named `public:...`, with tokens from `realtime.token(channel)`; each channel keeps its last message; connections are limited per plan. The `delivery-tracking` example has a courier page sharing GPS and a live customer map. An app keeps the last message of its 200 most recently used channels; at most 5,000 streams are open over all apps.
-- Scheduled jobs (`jobs` in the definition: `every: "15m"` or `daily_at: "21:00"` in Asia/Dubai by default) run scripts on live apps, with their last run stored so restarts neither skip nor repeat; agents try them on preview with the `try_scheduled_jobs` tool, which runs every job of the definition once. The store template sends the owner a daily sales and low-stock report. Each account's due jobs run on their own queue and the scheduler does not wait for them, so one account's slow jobs do not delay the others.
-- Admin-change hook: `on_admin_change` names a script that runs right after the owner or staff adds, changes or deletes a row in the admin panel (`req.method` `ADMIN`, `req.body` `{action, table, id, row, before, by}`), so templates email clients when a quote is sent instead of polling with jobs. It runs synchronously with the normal script limits; a failure never undoes the save (it is logged with the request ID and the next admin page shows a notice), and the script's own changes do not run it again. Agents test it on preview with the `change_preview_row` tool (`{action, table, id, values}`), which applies the change with the admin panel's validation.
-- Shared script code: `lib` (`{"<name>": "<javascript>"}`) holds helpers evaluated in name order before every script, job, tool and hook; each entry is compiled as its own program (`lib/<name>`), so errors and stack traces point at the right library and line, compiled programs are cached, and `patch_app` changes one entry. Scripts also get `crypto.randomId(bytes)` (base64url from crypto/rand, 16 bytes by default) and `crypto.sha256(text)`.
-- Refunds, card holds and recurring payments (money actions run only in requests of a signed-in visitor, jobs, `on_payment` and `on_admin_change`, never in public MCP tools or anonymous requests; at most 60 an hour per app stage, stored across restarts): scripts call `payments.refund` (full or partial, never more than what is left; the Free plan's fee is refunded in proportion), `payments.checkout({hold: true})` with `payments.capture` / `payments.release` (authorise now, take all or part later; card holds last about 7 days), and `payments.subscribe` / `payments.subscription` / `payments.cancel_subscription` (Stripe Checkout in subscription mode on the merchant's account, weekly, monthly or yearly, Free-plan fee as `application_fee_percent`). `on_payment` gets `authorized`, `released`, `renewed`, `renewal_failed` and `subscription_cancelled` as well, once per change (webhook events are applied once per event id). The owner's Payments page lists payments and subscriptions with Refund, Capture, Release and Cancel (owner only, CSRF-checked, logged with the owner's email); money actions are limited to 60 an hour per app. Previews simulate all of it, including renewals.
-- Template gallery at `/templates`: every example with gallery words in `examples/examples.go` (title, summary, who it suits) gets a card and a live demo at `demo-<example>.<apps domain>`, created or updated at every start (`EnsureDemos`) and put back to its seed rows every hour (`ResetDemos`). Demos are apps of no account (owner `rx_demo`; app names starting with `demo-` are reserved) running on preview behaviour without the preview lock: card payments are simulated, nothing is emailed or sent on WhatsApp, `http.fetch` makes no calls and jobs do not run. What a demo would have sent (sign-in codes and links, the app's emails, owner notices) goes to a demo inbox at `/_rx/demo/inbox` that only the browser whose request caused it can read; the sign-in pages show it too. Every page carries a demo bar warning that the data is public. The owner's admin panel of a demo (`/templates/<example>/admin`) is open to everyone and read-only: lists, rows and the calendar, no forms, and every changing route still requires the owner. Adding a template: put the JSON in `examples/`, register it and give it a gallery entry (a test fails for a `-uae` example without one); the next deploy publishes its demo.
-- Apps can define public MCP tools (`tools` in the definition, backed by scripts) served at `<app>/mcp`, so shoppers can add a shop to ChatGPT or Claude and ask about its products. The store template has search_products, get_product and store_info.
+```
+ Owner ──chat──▶ ChatGPT / Claude ──MCP (OAuth 2.1)──▶ Renoxium /mcp
+                                                           │
+                         ┌─────────────────────────────────┼──────────────────────────────┐
+                         ▼                                 ▼                              ▼
+                 Preview stage                      Owner confirms                 Live stage
+         (private, snapshot of live data,  ──▶   publish on renoxium.com  ──▶  (public, own domain,
+          simulated payments & email)                                        real payments & email)
+```
 
-## Brand
+1. **Connect.** The owner adds `https://renoxium.com/mcp` as a connector in ChatGPT or Claude and signs in through OAuth.
+2. **Build.** The agent creates an app — from scratch or from a template — and refines it with targeted patches.
+3. **Test.** The agent browses the private preview as a visitor, submits forms, uploads files, runs scheduled jobs and takes screenshots.
+4. **Publish.** The agent requests publication; the owner approves it on renoxium.com. Live data is backed up before every publish.
+5. **Operate.** The owner manages data, payments, visitors and analytics from the admin panel, and asks the agent for changes at any time.
 
-The logo, icons and social images are in [`brand/`](brand/README.md), with rules for using them.
+---
 
-## Run
+## Features
+
+### Agent interface (MCP)
+
+- **OAuth 2.1** as ChatGPT and Claude expect: protected-resource and authorization-server metadata, dynamic client registration, PKCE (S256 only), consent screen, rotating refresh tokens and revocation on code replay.
+- **Builder tools** at `/mcp`: `list_apps`, `create_app` (optionally `from_example`), `get_app`, `get_app_outline`, `get_app_parts`, `get_example`, `apply_change`, `patch_app`, `edit_app`, `view_page`, `submit_form`, `upload_as_visitor`, `view_live_page`, `create_test_visitor`, `screenshot_preview`, `try_scheduled_jobs`, `change_preview_row`, `publish` (including rollback), `rename_app`, `delete_app`, `upload_file` and `get_logs`. See [docs/plans/2026-11-20-agent-tools.md](docs/plans/2026-11-20-agent-tools.md).
+- **Automatic verification:** after every change, each GET route is rendered (filling `:id` from preview rows, signed-in routes as a visitor) and template errors or missing keys are reported back to the agent.
+- **Owner-controlled actions:** publishing, renaming and deleting return a confirmation link the owner approves on renoxium.com. Text an agent reads in logs or pages cannot publish on its own.
+- **Self-describing onboarding:** `/connect` and `/llms.txt` explain how to add the connector, so an assistant can guide the user; browser visits to `/mcp` get the same help.
+- **Public app tools:** apps can expose their own MCP tools at `<app>/mcp`, so customers can add a shop to ChatGPT or Claude and ask about its products.
+
+### Application runtime
+
+- **Declarative definitions** with additive schema migrations and seed data.
+- **Templates** with any HTML, CSS and browser JavaScript, with auto-escaped data.
+- **Server scripts** in JavaScript (goja), executed in a pool of isolated worker processes with Landlock, time and memory limits, and a SQLite authorizer that permits data statements only.
+- **Shared libraries** (`lib`) compiled per entry, with accurate stack traces and caching.
+- **Scheduled jobs** (`every: "15m"`, `daily_at: "21:00"`, Asia/Dubai by default) with persisted last-run state and per-account queues.
+- **Admin-change hook** (`on_admin_change`) to react when the owner or staff edits data.
+- **Realtime** server-sent events via `realtime.publish` and `EventSource('/_rx/live/<channel>')`, with private and public channels.
+- **External APIs** via `http.fetch` to owner-approved HTTPS hosts, with encrypted, host-bound secrets that scripts and agents never see.
+- **Preview and live stages** per app; publishing keeps the three newest backups.
+
+### Commerce and payments
+
+- **Stripe Connect:** owners connect their own Stripe account; scripts create direct charges with `payments.checkout`.
+- **Refunds, card holds and subscriptions:** `payments.refund`, `capture` / `release`, and `subscribe` / `cancel_subscription`, with a Payments page for the owner.
+- **Signature-checked webhooks** run the app's `on_payment` script exactly once per status change.
+- **Simulated checkout** on preview, so agents can test the full flow without real money.
+
+### Identity and visitors
+
+- **Built-in visitor accounts:** sign-up, sign-in, email confirmation, password reset and 6-digit WhatsApp codes.
+- **Isolated sign-in host** per app stage (`<app>--id.<apps domain>`) with a script-free Content-Security-Policy, so app owners cannot read what visitors type.
+- **Branded, bilingual sign-in pages** that follow the business's name and colour and switch to Arabic (RTL) automatically.
+- **Private visitor uploads** (images and PDFs) visible only to the uploader and the owner.
+
+### Owner experience
+
+- **Admin panel** generated from the live schema: searchable, paginated tables, typed forms, labels and help text from the definition, and a full change log.
+- **Calendar view** for bookings, crews and rentals, with day and week views.
+- **Dashboard** with visitors, page views, referrers, card sales and new customers — privacy-preserving, with no visitor identifiers stored.
+- **Images** deduplicated by content hash, auto-oriented, resized to fit and served on demand at any width (`?w=480`).
+- **Custom domains** on paid plans through Cloudflare for SaaS, with TXT-record ownership proof.
+- **WhatsApp notifications** for owner notices and card payments.
+
+---
+
+## Templates
+
+Every template is a complete, working app definition the agent can start from. Each has a live, resettable demo in the [template gallery](https://renoxium.com/templates).
+
+| Template | Use case |
+|---|---|
+| `store-uae` | Online store: catalog, product options, cart, card or cash on delivery, AED with VAT, order-ahead mode, EN/AR |
+| `booking-uae` | Appointments and classes |
+| `home-service-uae` | Bookings by arrival window, crew dispatch, repeat visits |
+| `reservation-uae` | Tour departures and date-range rentals |
+| `quote-portal-uae` | Quotes, deposits and a client portal |
+| `listings-uae` | Property listings with permit numbers and lead capture |
+| `catalog` | Small product catalog with order form and JSON API |
+| Task list | Minimal CRUD reference app |
+
+---
+
+## Security and isolation
+
+Renoxium runs untrusted, agent-written code for many tenants on shared infrastructure. Isolation is enforced in layers:
+
+- **Process sandbox:** scripts run in separate workers locked down with Landlock (no filesystem, no TCP), with a 2 s time limit, 64 MiB heap watchdog and 256 MiB resident cap.
+- **Fair scheduling:** at most two concurrent scripts per app and half the worker pool per account.
+- **Database guardrails:** a SQLite authorizer allows data statements only and hides platform tables (`rx_*`) from app code.
+- **Browser protections:** cross-origin POSTs refused, `__Host-` cookies, HSTS and strict CSP on sign-in pages.
+- **Secrets handling:** API keys encrypted with AES-GCM, bound to one host and injected by the platform.
+- **Abuse limits:** per-visitor request rates, daily email and WhatsApp caps, guess limits and storage quotas — persisted, so restarts do not reset them.
+- **Operator controls:** public abuse reporting at `/abuse`, per-app throttling and suspension, all logged and audited.
+
+---
+
+## Plans
+
+| Plan | Price | Apps | Notes |
+|---|---|---|---|
+| Free | AED 0 | 1 | 2% application fee on card payments; "Made with Renoxium" badge |
+| Pro | AED 99 / month | 3 | Custom domain; higher storage, email and API quotas |
+| Business | AED 299 / month | 10 | Highest quotas |
+
+Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
+
+---
+
+## Operations
+
+- **Monitoring:** disk space, backup age and error spikes checked every five minutes, with operator email alerts and a `/healthz` endpoint.
+- **Resource metering:** requests, CPU, memory, worker time, emails, WhatsApp and API calls per app per hour, with estimated cost, revenue and margin at `/operator/usage`.
+- **Growth analytics:** sign-up-to-paid funnel, MRR, ARPA, churn, LTV and CAC at `/operator/growth`.
+- **Owner alerts:** email on a live app's first error, then at most daily.
+
+---
+
+## Architecture
+
+- **Language:** Go — a single binary with no cgo.
+- **Storage:** SQLite (pure-Go driver), one database per app stage; content-addressed file storage on local disk.
+- **Scripting:** goja JavaScript engine in sandboxed worker processes.
+- **Edge:** Cloudflare Tunnel and Cloudflare for SaaS custom hostnames.
+- **Integrations:** Stripe (Connect and Billing), Resend (email), WhatsApp Cloud API, headless Chromium for preview screenshots.
+
+---
+
+## Getting started
+
+### Run locally
 
 ```bash
 go run ./cmd/renoxium -addr :8080 -data data
 ```
 
-Open `http://localhost:8080` to create an account, then add `http://localhost:8080/mcp` as a connector in an
-MCP client that supports OAuth (ChatGPT and Claude need a public HTTPS address, see below).
+Open <http://localhost:8080> and create an account. Then add `http://localhost:8080/mcp` as a connector in an MCP client that supports OAuth.
 
-Apps are served on `<app>.localhost:8080` and previews on `<app>--preview.localhost:8080`.
-In production Renoxium runs behind Cloudflare Tunnel; see [deploy/README.md](deploy/README.md).
-The connector address for ChatGPT and Claude is then `https://renoxium.com/mcp`.
+> ChatGPT and Claude require a public HTTPS address. In production the connector address is `https://renoxium.com/mcp`.
 
-`examples/catalog.json` is a complete small perfume shop (catalog, product page, order form, JSON API).
+Apps are served at `<app>.localhost:8080` and previews at `<app>--preview.localhost:8080`.
 
-## Test
+### Test
 
 ```bash
 go test ./...
 ```
 
-No cgo: the SQLite driver and the JavaScript engine are pure Go.
+### Deploy
+
+Renoxium runs behind Cloudflare Tunnel in production. See [deploy/README.md](deploy/README.md).
+
+---
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `cmd/renoxium` | Server entry point |
+| `internal/` | Platform packages |
+| `examples/` | App templates and gallery metadata |
+| `docs/` | Plans, roadmap and design notes |
+| `deploy/` | Production deployment |
+| `e2e/` | End-to-end suite against fake Stripe, Resend and WhatsApp |
+| `brand/` | Logo, icons, social images and usage rules |
+
+---
+
+## Brand
+
+Logos, icons and social images are in [`brand/`](brand/), together with the rules for using them.
+
+---
+
+<p align="center">
+  © Renoxium FZC · SRTI Park, Sharjah, UAE · <a href="https://renoxium.com">renoxium.com</a>
+</p>

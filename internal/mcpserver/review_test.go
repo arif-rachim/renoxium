@@ -126,6 +126,10 @@ func checkSchema(t *testing.T, path string, s map[string]any) {
 			if d, _ := p["description"].(string); d == "" {
 				t.Errorf("%s.%s has no description", path, k)
 			}
+			// Directories refuse a parameter whose schema names no type.
+			if _, typed := p["type"]; !typed {
+				t.Errorf("%s.%s has no type", path, k)
+			}
 			checkSchema(t, path+"."+k, p)
 		}
 	}

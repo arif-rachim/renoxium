@@ -219,6 +219,11 @@ func main() {
 	jobsEvery, _ := time.ParseDuration(os.Getenv("JOBS_CHECK_EVERY")) // default 30s
 	go p.RunJobs(context.Background(), jobsEvery)
 	go p.RunTraffic(context.Background(), time.Minute)
+	go func() { // photos stored before uploads were shrunk; a one-off pass, a few a second at most
+		if n := p.FitStoredPhotos(context.Background(), 300*time.Millisecond); n > 0 {
+			slog.Info("stored photos made to fit", "files", n)
+		}
+	}()
 	go p.RunUsage(context.Background()) // resource meter, per app and hour
 	// Funnel events for steps owners took before they were recorded.
 	go func() {
