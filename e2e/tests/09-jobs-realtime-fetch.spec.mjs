@@ -86,14 +86,17 @@ test('agent adds a job, a host and a key; the owner is told what to do; the job 
   expect(applied.owner_actions.join('\n')).toContain(`enter COURIER_KEY at`);
   expect(applied.owner_actions.join('\n')).toContain(`/apps/${app}/connections`);
 
-  // Jobs never run on preview by themselves; the agent runs one.
-  const run = await agent.call('test_scheduled_job', { app, job: 'tick' });
+  // Jobs never run on preview by themselves; the agent tries the app's jobs, each once.
+  const { runs } = await agent.call('try_scheduled_jobs', { app });
+  expect(runs).toHaveLength(1);
+  const run = runs[0];
+  expect(run.job).toBe('tick');
   expect(run.status).toBe(200);
   expect(run.body).toBe('tick 1');
   expect(run.logs.map((l) => l.message).join('\n')).toMatch(/job tick -> ok/);
-  await expect(agent.call('test_scheduled_job', { app, job: 'nope' })).rejects.toThrow(/no job/);
-  // test_scheduled_job has no stage: jobs never run on live by hand.
-  await expect(agent.call('test_scheduled_job', { app, job: 'tick', stage: 'live' })).rejects.toThrow();
+  // It takes only the app: no job name or stage chooses what runs, and jobs never run on live by hand.
+  await expect(agent.call('try_scheduled_jobs', { app, job: 'tick' })).rejects.toThrow();
+  await expect(agent.call('try_scheduled_jobs', { app, stage: 'live' })).rejects.toThrow();
 
   // Before the owner allows the host, the script is told why it cannot call out.
   const quote = await agent.call('view_page', { app, path: '/quote' });
