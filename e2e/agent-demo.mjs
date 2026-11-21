@@ -57,8 +57,8 @@ export async function runDemo(call, { app = 'demo-' + Date.now().toString(36), l
   const d = new Date(Date.now() + 4 * 3600e3 + 3 * 86400e3);
   if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1);
   const date = d.toISOString().slice(0, 10);
-  steps.booked = await step('book, pay cash', 'test_request', {
-    app, method: 'POST', path: '/book', user_email: as, follow_redirects: true, form: {
+  steps.booked = await step('book, pay cash', 'submit_form', {
+    app, path: '/book', as_visitor: as, follow_redirects: true, form: {
       service: '1', qty: '2', zone: '1', date, slot: '10:00', repeat: 'once', payment: 'cash',
       name: 'Fatima', phone: '+971501234567', address: 'Villa 12, Street 4', flat: 'Villa 12',
     },
@@ -78,7 +78,7 @@ export async function runDemo(call, { app = 'demo-' + Date.now().toString(36), l
   }
 
   // 7. Cancel it.
-  steps.cancelled = await step('cancel', 'test_request', { app, method: 'POST', path: bookingPath + '/cancel', user_email: as, follow_redirects: true });
+  steps.cancelled = await step('cancel', 'submit_form', { app, path: bookingPath + '/cancel', as_visitor: as, follow_redirects: true });
   if (steps.cancelled.status !== 200 || !/Cancelled/.test(steps.cancelled.body)) throw new Error('cancel did not show Cancelled');
   log(`done: ${app} preview ${steps.created.preview_url} (live untouched: version ${steps.created.live_version})`);
   return { app, bookingPath, steps };

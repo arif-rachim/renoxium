@@ -595,5 +595,5 @@ LCP ≤ 2.5 s, CLS ≤ 0.1, inline JS ≤ 30 KB, non-image bytes ≤ 150 KB per 
 4. Tests in internal/platform/*_example_test.go still pass; update assertions only where markup really changed.
 5. Screenshots at 390 and 1440, en and ar, plus one other brand_color/font (and heritage or atelier when the template offers
    the luxury layout): no horizontal scroll, AA contrast, focus visible.
-6. test_request shortens inline `<style>` blocks over 1000 bytes to a note of their size, so a long stylesheet no longer hides
+6. view_page shortens inline `<style>` blocks over 1000 bytes to a note of their size, so a long stylesheet no longer hides
    the page content from the agent (bodies are still cut at 20000 characters).

@@ -69,14 +69,14 @@ func TestAgentToolsForLargeApps(t *testing.T) {
 	if date.Weekday() == time.Sunday {
 		date = date.AddDate(0, 0, 1)
 	}
-	booked, errText := call(t, s, "test_request", map[string]any{"app": "maya-clean", "method": "POST", "path": "/book", "user_email": email, "follow_redirects": true,
+	booked, errText := call(t, s, "submit_form", map[string]any{"app": "maya-clean", "path": "/book", "as_visitor": email, "follow_redirects": true,
 		"form": map[string]string{"service": "1", "qty": "2", "zone": "1", "date": date.Format("2006-01-02"), "slot": "10:00", "repeat": "once", "payment": "cash",
 			"name": "Fatima", "phone": "+971501234567", "address": "Villa 12", "flat": "12"}})
 	logs, _ := json.Marshal(booked["logs"])
 	if errText != "" || booked["status"] != float64(200) || !strings.Contains(string(logs), "booking for 1") || !strings.Contains(booked["body"].(string), "Booking #1") {
 		t.Fatalf("booking: %s %v %v", errText, booked["status"], booked["redirects"])
 	}
-	cancelled, _ := call(t, s, "test_request", map[string]any{"app": "maya-clean", "method": "POST", "path": "/bookings/1/cancel", "user_email": email, "follow_redirects": true})
+	cancelled, _ := call(t, s, "submit_form", map[string]any{"app": "maya-clean", "path": "/bookings/1/cancel", "as_visitor": email, "follow_redirects": true})
 	if !strings.Contains(cancelled["body"].(string), "Cancelled") {
 		t.Fatalf("cancel: %v", cancelled["status"])
 	}

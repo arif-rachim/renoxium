@@ -17,7 +17,7 @@ func TestBuilderToolsAreAnnotated(t *testing.T) {
 	if err != nil || len(res.Tools) < 10 {
 		t.Fatalf("tools: %v %d", err, len(res.Tools))
 	}
-	readOnly := map[string]bool{"list_apps": true, "get_app": true, "get_example": true, "get_logs": true}
+	readOnly := map[string]bool{"list_apps": true, "get_app": true, "get_example": true, "get_logs": true, "view_live_page": true}
 	for _, tool := range res.Tools {
 		a := tool.Annotations
 		if a == nil || a.Title == "" || a.DestructiveHint == nil || a.OpenWorldHint == nil {

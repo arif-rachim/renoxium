@@ -78,7 +78,7 @@ const (
 	shotsPerAppPerMin   = 10
 )
 
-var errNoBrowser = errors.New("screenshots are not set up on this server (no Chromium); use test_request to read the page")
+var errNoBrowser = errors.New("screenshots are not set up on this server (no Chromium); use view_page to read the page")
 
 // ScreenshotPreview renders a page of an app's preview and returns a PNG.
 func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in ScreenshotInput) (ScreenshotResult, error) {

@@ -44,9 +44,15 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 	req := func(args map[string]any) map[string]any {
 		t.Helper()
 		args["app"] = "jack-tasks"
-		out, errText := call(t, s, "test_request", args)
+		// A page is opened with view_page, a form sent with submit_form.
+		tool := "view_page"
+		if args["method"] == "POST" {
+			tool = "submit_form"
+		}
+		delete(args, "method")
+		out, errText := call(t, s, tool, args)
 		if errText != "" {
-			t.Fatalf("test_request %v: %s", args, errText)
+			t.Fatalf("%s %v: %s", tool, args, errText)
 		}
 		return out
 	}
@@ -94,15 +100,18 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 		t.Fatalf("api: %v", api["body"])
 	}
 
-	// Live never takes a POST, and nothing is published yet.
-	if _, errText := call(t, s, "test_request", map[string]any{"app": "jack-tasks", "stage": "live", "method": "POST", "path": "/tasks"}); !strings.Contains(errText, "only GET requests may go to live") {
-		t.Fatalf("live POST: %q", errText)
+	// No tool sends a form to live: submit_form has no stage, and view_live_page no form.
+	if _, errText := call(t, s, "submit_form", map[string]any{"app": "jack-tasks", "stage": "live", "path": "/tasks"}); errText == "" {
+		t.Fatal("submit_form took a stage")
+	}
+	if _, errText := call(t, s, "view_live_page", map[string]any{"app": "jack-tasks", "path": "/tasks", "form": map[string]any{"title": "x"}}); errText == "" {
+		t.Fatal("view_live_page took a form")
 	}
 	// Another user's app is not reachable.
 	other := e.browser()
 	e.signup(other, "kim@shop.ae")
 	os := e.mcpSession(e.connect(other, e.registerClient()).AccessToken)
-	if _, errText := call(t, os, "test_request", map[string]any{"app": "jack-tasks", "path": "/"}); !strings.Contains(errText, "not found") {
+	if _, errText := call(t, os, "view_page", map[string]any{"app": "jack-tasks", "path": "/"}); !strings.Contains(errText, "not found") {
 		t.Fatalf("other user: %q", errText)
 	}
 }
@@ -128,7 +137,7 @@ func TestAgentPatchesOnePart(t *testing.T) {
 	if m := strings.Join(toStrings(out["migrations"]), "; "); m != "created table tasks; seeded tasks with 2 rows" {
 		t.Fatalf("migrations: %s", m)
 	}
-	home, _ := call(t, s, "test_request", map[string]any{"app": "lia-tasks", "path": "/"})
+	home, _ := call(t, s, "view_page", map[string]any{"app": "lia-tasks", "path": "/"})
 	if body := home["body"].(string); !strings.Contains(body, "Lia's tasks") || !strings.Contains(body, "Order new oud stock") {
 		t.Fatalf("after patch: %s", body)
 	}
@@ -166,7 +175,7 @@ func toStrings(v any) []string {
 }
 
 // Jobs and admin-panel changes are tested through tools of their own, each
-// on preview only; test_request no longer takes them.
+// on preview only; the visitor tools take neither.
 func TestAgentRunsJobAndChangesRowOnPreview(t *testing.T) {
 	e := newEnv(t)
 	c := e.browser()
@@ -177,25 +186,60 @@ func TestAgentRunsJobAndChangesRowOnPreview(t *testing.T) {
 	if applied, _ := call(t, s, "apply_change", map[string]any{"app": "noor-shop", "definition": ex["definition"]}); applied["ok"] != true {
 		t.Fatalf("apply: %v", applied)
 	}
-	out, errText := call(t, s, "run_job_on_preview", map[string]any{"app": "noor-shop", "job": "daily_report"})
+	out, errText := call(t, s, "test_scheduled_job", map[string]any{"app": "noor-shop", "job": "daily_report"})
 	if errText != "" || out["body"] != "no orders today" {
-		t.Fatalf("run_job_on_preview: %v %s", out, errText)
+		t.Fatalf("test_scheduled_job: %v %s", out, errText)
 	}
-	if _, errText := call(t, s, "run_job_on_preview", map[string]any{"app": "noor-shop", "job": "nope"}); errText == "" {
+	if _, errText := call(t, s, "test_scheduled_job", map[string]any{"app": "noor-shop", "job": "nope"}); errText == "" {
 		t.Fatal("an unknown job ran")
 	}
-	if _, errText := call(t, s, "run_job_on_preview", map[string]any{"app": "noor-shop", "job": "daily_report", "stage": "live"}); errText == "" {
-		t.Fatal("run_job_on_preview took a stage")
+	if _, errText := call(t, s, "test_scheduled_job", map[string]any{"app": "noor-shop", "job": "daily_report", "stage": "live"}); errText == "" {
+		t.Fatal("test_scheduled_job took a stage")
 	}
 	out, errText = call(t, s, "change_preview_row", map[string]any{"app": "noor-shop", "action": "update", "table": "products", "id": 2, "values": map[string]any{"price": 99}})
 	if errText != "" || out["admin"].(map[string]any)["row"].(map[string]any)["price"] != float64(99) {
 		t.Fatalf("change_preview_row: %v %s", out, errText)
 	}
-	// test_request takes only a visitor's request.
-	if _, errText := call(t, s, "test_request", map[string]any{"app": "noor-shop", "job": "daily_report"}); errText == "" {
-		t.Fatal("test_request accepted job")
+	// view_page only opens a page.
+	for _, extra := range []string{"job", "method", "form"} {
+		if _, errText := call(t, s, "view_page", map[string]any{"app": "noor-shop", "path": "/", extra: "POST"}); errText == "" {
+			t.Fatalf("view_page accepted %s", extra)
+		}
 	}
-	if _, errText := call(t, s, "test_request", map[string]any{"app": "noor-shop", "path": "/p/2"}); errText != "" {
+	if _, errText := call(t, s, "view_page", map[string]any{"app": "noor-shop", "path": "/p/2"}); errText != "" {
 		t.Fatal(errText)
+	}
+}
+
+// A file a visitor shares and a look at the live site are tools of their
+// own: upload_as_visitor needs a preview visitor, and view_live_page only reads.
+func TestAgentUploadsAsVisitorAndViewsLive(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "noor@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	if out, errText := call(t, s, "create_app", map[string]any{"app": "noor-shop", "from_example": "store-uae"}); errText != "" {
+		t.Fatal(out, errText)
+	}
+	visitor, errText := call(t, s, "create_test_visitor", map[string]any{"app": "noor-shop", "name": "Fatima"})
+	if errText != "" {
+		t.Fatal(errText)
+	}
+	png := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+	up, errText := call(t, s, "upload_as_visitor", map[string]any{"app": "noor-shop", "as_visitor": visitor["email"], "name": "room.png", "data_base64": png})
+	if errText != "" || up["status"] != float64(200) || !strings.Contains(up["body"].(string), `"id"`) {
+		t.Fatalf("upload_as_visitor: %v %s", up, errText)
+	}
+	if _, errText := call(t, s, "upload_as_visitor", map[string]any{"app": "noor-shop", "name": "room.png", "data_base64": png}); errText == "" {
+		t.Fatal("an upload without a visitor was accepted")
+	}
+	// Nothing is published yet, so the live site has no page to show.
+	live, errText := call(t, s, "view_live_page", map[string]any{"app": "noor-shop", "path": "/"})
+	if errText != "" || live["status"] != float64(404) {
+		t.Fatalf("view_live_page before publishing: %v %s", live, errText)
+	}
+	preview, _ := call(t, s, "view_page", map[string]any{"app": "noor-shop", "path": "/"})
+	if preview["status"] != float64(200) {
+		t.Fatalf("view_page: %v", preview["status"])
 	}
 }

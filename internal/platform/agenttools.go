@@ -140,7 +140,7 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	var visitorToken string
 	if in.UserEmail != "" {
 		if stage != Preview {
-			return TestResponse{}, errors.New("user_email works only on preview")
+			return TestResponse{}, errors.New("as_visitor works only on preview")
 		}
 		st, err := p.loadStage(app, Preview)
 		if err != nil || st == nil {

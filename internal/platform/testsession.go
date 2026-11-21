@@ -24,7 +24,7 @@ import (
 // TestVisitor is a visitor account made on preview for testing.
 type TestVisitor struct {
 	ID       int64  `json:"id"`
-	Email    string `json:"email,omitempty" jsonschema:"pass it as user_email (or as_visitor) to act as this visitor"`
+	Email    string `json:"email,omitempty" jsonschema:"pass it as as_visitor to act as this visitor"`
 	Phone    string `json:"phone,omitempty"`
 	Name     string `json:"name"`
 	Verified bool   `json:"verified"`
@@ -76,7 +76,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	if len(name) > 100 {
 		return TestVisitor{}, errors.New("name: at most 100 characters")
 	}
-	note := "Preview only: this visitor is dropped with the preview data on the next change. Send test_request with user_email set to act as them."
+	note := "Preview only: this visitor is dropped with the preview data on the next change. Call view_page or submit_form with as_visitor set to act as them."
 	var v TestVisitor
 	var e, ph sql.NullString
 	var verified sql.NullString
