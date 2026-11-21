@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -476,7 +478,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App        string     `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		Definition appdef.App `json:"definition" jsonschema:"the complete app definition; replaces the previous version"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "apply_change", Title: toolAnnotations["apply_change"].Title, Annotations: toolAnnotations["apply_change"],
+	mcp.AddTool(s, &mcp.Tool{Name: "apply_change", Title: toolAnnotations["apply_change"].Title, Annotations: toolAnnotations["apply_change"], InputSchema: definitionSchema[applyIn](),
 		Description: "Check a complete app definition, save it as a new version and serve it on the app's private preview address (reachable on the internet with the preview link) with a fresh copy of live data, replacing the previous preview and its data. Renders every page without parameters and reports failures. The live site is not changed. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in applyIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -602,7 +604,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		platform.Patch
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "patch_app", Title: toolAnnotations["patch_app"].Title, Annotations: toolAnnotations["patch_app"],
+	mcp.AddTool(s, &mcp.Tool{Name: "patch_app", Title: toolAnnotations["patch_app"].Title, Annotations: toolAnnotations["patch_app"], InputSchema: definitionSchema[patchIn](),
 		Description: "Change part of the newest app definition and apply it to the app's private preview address (reachable on the internet with the preview link), replacing the previous preview and its data: add or replace templates, scripts and lib entries by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. The live site is not changed. Returns the same result as apply_change. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in patchIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -671,7 +673,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App       string            `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		Path      string            `json:"path" jsonschema:"address the form is sent to on the app's website, e.g. /orders or /book"`
 		Form      map[string]string `json:"form,omitempty" jsonschema:"the form's fields by name, as a browser sends them"`
-		JSON      any               `json:"json,omitempty" jsonschema:"for pages whose browser script sends JSON instead of a form: the JSON body"`
+		JSON      map[string]any    `json:"json,omitempty" jsonschema:"for pages whose browser script sends JSON instead of a form: the JSON object it sends"`
 		AsVisitor string            `json:"as_visitor,omitempty" jsonschema:"send the form signed in as the preview visitor with this email or WhatsApp number (see create_test_visitor)"`
 		Session   string            `json:"session,omitempty" jsonschema:"name of a cookie jar kept between calls for an hour, e.g. s1, as a browser keeps cookies between pages"`
 		Follow    bool              `json:"follow_redirects,omitempty" jsonschema:"follow the redirect after the form (up to 8) within the preview, as a browser does; the answer is the page the visitor lands on"`
@@ -685,7 +687,11 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if in.Path == "" {
 				return nil, platform.TestResponse{}, errors.New("path is required, e.g. /orders")
 			}
-			res, err := p.TestRequest(ctx, in.App, platform.TestRequestInput{Method: "POST", Path: in.Path, Form: in.Form, JSON: in.JSON,
+			var body any // a missing json must stay nil, not become an empty object
+			if in.JSON != nil {
+				body = in.JSON
+			}
+			res, err := p.TestRequest(ctx, in.App, platform.TestRequestInput{Method: "POST", Path: in.Path, Form: in.Form, JSON: body,
 				UserEmail: in.AsVisitor, Session: in.Session, Follow: in.Follow})
 			return nil, res, err
 		})
@@ -889,6 +895,20 @@ var toolAnnotations = map[string]*mcp.ToolAnnotations{
 	"publish":             write("Ask to publish a version (the user confirms)", false, true, false),
 	"rename_app":          write("Ask to rename an app (the user confirms)", false, true, false),
 	"delete_app":          write("Ask to delete an app (the user confirms)", false, true, false),
+}
+
+// definitionSchema is the input schema of a tool that takes (part of) an
+// app definition. It is inferred from T like any other, except that a list
+// of column names may also be given as one name, which every parameter's
+// schema must say: directories refuse a parameter without a type.
+func definitionSchema[T any]() *jsonschema.Schema {
+	schema, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: map[reflect.Type]*jsonschema.Schema{
+		reflect.TypeFor[appdef.Columns](): {Types: []string{"string", "array"}, Items: &jsonschema.Schema{Type: "string"}},
+	}})
+	if err != nil {
+		panic(err)
+	}
+	return schema
 }
 
 func readOnly(title string) *mcp.ToolAnnotations {
