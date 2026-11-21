@@ -759,7 +759,7 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "authbottom"}}</main><aside class="authside" aria-label="About Renoxium"><h2>Orders, bookings and payments in one place.</h2>
 <p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد</p>
 <p>Describe your business to ChatGPT or Claude. Renoxium builds the website, you check the preview, and nothing goes live until you publish.</p>
-<ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
+<ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>No credits: change your site as often as you like</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
 {{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
 {{define "appbottom"}}</main></div>
 <script>(function(){var m=document.querySelector(".appmain");if(!m||!("zoom" in m.style))return;
@@ -996,6 +996,7 @@ body.app:not(.own) .sidenav li a{padding:5px 10px}body.app:not(.own) .sidenav h3
 </div><aside class="side"><section class="panel"><div class="ph"><h2>Build or change an app</h2></div>
 <ol class="steps"><li><div>Add Renoxium to your AI assistant once, with this address:<div class="copy"><input id="mcp" readonly value="{{.MCP}}" aria-label="Connector address" onfocus="this.select()"><button type="button" class="secondary" onclick="var i=document.getElementById('mcp');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent='Copied'">Copy</button></div></div></li>
 <li><div>Ask for a new app or a change.</div></li><li><div>Check the preview, then publish.</div></li></ol>
+<p class="muted"><strong style="color:var(--fg)">No credits.</strong> Ask for changes as often as you like; nothing is counted per request.</p>
 <p class="muted"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></section>
 <section class="panel"><div class="ph"><h2>Start from a template</h2></div><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates →</a></section></aside></div>{{template "appbottom"}}{{end}}
 
@@ -1405,7 +1406,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
 {{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{end}}
 {{define "connect"}}{{if .Shell}}{{template "owntop" .}}{{template "owncss"}}<style>.connect>h1:first-child{display:none}@media(min-width:1400px) and (min-height:600px){.connect.fill{font-size:16.5px;line-height:1.7}}@media(min-width:1100px){.connect{column-count:2;column-gap:44px}.connect h2{break-after:avoid;margin-top:20px}.connect p,.connect ul,.connect ol{break-inside:avoid}.connect>:nth-child(2){margin-top:0}}.connect{font-size:15px}</style>
-<div class="pagehead"><div><h1>Connect and help</h1><p class="sub">Add Renoxium to ChatGPT or Claude once, then ask for a new app or a change.</p></div><div class="acts"><a class="button secondary" href="/support">Support</a></div></div>{{template "connect_body" .}}{{template "appbottom"}}{{else}}{{template "wide" "Connect"}}{{template "connect_body" .}}{{template "bottom"}}{{end}}{{end}}
+<div class="pagehead"><div><h1>Connect and help</h1><p class="sub">Add Renoxium to ChatGPT or Claude once, then ask for a new app or a change. No credits: changes are never counted.</p></div><div class="acts"><a class="button secondary" href="/support">Support</a></div></div>{{template "connect_body" .}}{{template "appbottom"}}{{else}}{{template "wide" "Connect"}}{{template "connect_body" .}}{{template "bottom"}}{{end}}{{end}}
 
 {{define "forgot"}}{{template "auth" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
 <p class="muted">Enter your email and we will send you a link to choose a new password.</p>

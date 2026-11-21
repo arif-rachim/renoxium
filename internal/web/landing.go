@@ -291,7 +291,8 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
 <section class="group" data-r><h3>You stay in control</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
-<dl><div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
+<dl><div><dt>No credits</dt><dd>Change your site as often as you like. Nothing is counted or charged per request.</dd></div>
+<div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
 <div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
 <div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
 <div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div></dl></section>
@@ -299,17 +300,19 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
 <div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
+<p class="nocredit" data-r><strong>No credits. No limit on changes.</strong> Ask your assistant for one change or a hundred a day: Renoxium does not count them and does not charge for them. You pay for the plan, never per request.</p>
 <div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
+<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>Unlimited building and changes</li><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
+<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
+<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
 </div>
 <p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
-<p class="note">Stripe charges its own card fees to your Stripe account on every plan. Building and changing your site through your assistant is unlimited on every plan; you need your own ChatGPT or Claude account.</p></div></section>
+<p class="note">Stripe charges its own card fees to your Stripe account on every plan. You build with your own ChatGPT or Claude account; Claude's free plan is enough.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
 <details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
-<details><summary>Which AI assistant do I need?</summary><p>ChatGPT (a paid plan with developer mode) or Claude, with your own account. You add Renoxium to it once; the <a href="/connect">connect page</a> shows the steps.</p></details>
+<details><summary>Which AI assistant do I need?</summary><p>ChatGPT or Claude, with your own account. Claude's free plan is enough: it lets you add one connector, and that can be Renoxium. In ChatGPT, adding Renoxium by its address needs developer mode, which ChatGPT has on its paid plans. You add Renoxium once; the <a href="/connect">connect page</a> shows the steps.</p></details>
+<details><summary>Are there credits, or a limit on changes?</summary><p>No. Renoxium has no credits. Ask your assistant to build, change and test your site as often as you like, on every plan, the Free plan included. The plans differ in the number of sites, your own domain, staff and the fee on card payments.</p></details>
 <details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
 <details><summary>Can my customers use ChatGPT or Claude to order?</summary><p>They can add your business to ChatGPT or Claude and ask about your products, prices and free times. To book or pay, the assistant sends them to the right page of your site.</p></details>
 <details><summary>What if the assistant makes a mistake?</summary><p>Changes always go to a private preview first, and only you can publish. If something slips through, roll back to an earlier version from your panel; live data is backed up before every publish.</p></details>
@@ -446,6 +449,8 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .amount{font-size:40px;font-weight:600;letter-spacing:-.02em;margin:20px 0 0;line-height:1.1}.amount span{font-size:16px;font-weight:400;color:var(--slate);letter-spacing:0}
 .plan ul{padding:0;margin:20px 0 28px;list-style:none;display:grid;gap:8px;font-size:16px}
 .plan .btn{margin-top:auto}.note{color:var(--slate);font-size:16px;margin:32px 0 0;max-width:48em}
+.nocredit{margin:28px 0 0;padding:20px 24px;border-radius:12px;background:var(--ink);color:var(--on-ink);font-size:18px;line-height:1.55;max-width:none}.nocredit strong{display:block;font-size:clamp(22px,2.2vw,28px);font-weight:600;letter-spacing:-.02em;line-height:1.2;margin-bottom:6px;color:var(--on-ink)}
+.prices{margin-top:20px!important}
 .sum{margin:32px 0 0;padding:20px 24px;border-left:3px solid var(--gold);background:var(--paper);border-radius:4px 12px 12px 4px;max-width:48em}
 .sum b{font-weight:600}
 .note+.note,.sum+.note{margin-top:16px}
@@ -607,7 +612,8 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <div><dt>تسجيل دخول العملاء</dt><dd>بالبريد الإلكتروني أو برمز يصل على واتساب. يرى العملاء طلباتهم وحجوزاتهم.</dd></div></dl></section>
 <section class="group" data-r><h3>التحكم بيدك</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">معاينة</span><i></i><span class="tag">تضغط «نشر»</span><i></i><span class="tag">الإصدار 12 منشور</span></div><div class="row dim"><span>نسخة احتياطية قبل النشر</span><span>العودة إلى الإصدار 11</span></div></div>
-<dl><div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
+<dl><div><dt>بلا أرصدة</dt><dd>عدّل موقعك بقدر ما تشاء. لا يُحسب شيء ولا يُدفع شيء عن كل طلب.</dd></div>
+<div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
 <div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
 <div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div>
 <div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourshop.ae</span> في خطتي Pro و Business.</dd></div></dl></section>
@@ -615,17 +621,19 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
 <div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">ابدأ مجاناً. انتقل إلى خطة أعلى عندما تحتاج مواقع أكثر، أو نطاقك الخاص، أو إلغاء الرسوم على مدفوعات البطاقة.</p></div>
+<p class="nocredit" data-r><strong>بلا أرصدة. بلا حد للتعديلات.</strong> اطلب من مساعدك تعديلاً واحداً أو مئة تعديل في اليوم: Renoxium لا يعدّها ولا يحاسبك عليها. تدفع مقابل الخطة، لا مقابل كل طلب.</p>
 <div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">لتجربته مع عملاء حقيقيين</p><p class="amount">0 درهم</p><ul><li>موقع واحد</li><li>يأخذ Renoxium {{.Fee}}% من مدفوعات البطاقة</li><li>50 رمز دخول عبر واتساب شهرياً</li><li>200 ميغابايت للصور</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">لعدة فروع أو علامات تجارية</p><p class="amount">299 درهماً <span>شهرياً</span></p><ul><li>10 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>2,000 رمز دخول عبر واتساب شهرياً</li><li>10 غيغابايت للصور</li><li>نطاقك الخاص، و10 موظفين لكل موقع</li><li>بلا شارة</li></ul><a class="btn line" href="/signup">اختر Business</a></div>
+<div class="plan" data-r><h3>Free</h3><p class="for">لتجربته مع عملاء حقيقيين</p><p class="amount">0 درهم</p><ul><li>بناء وتعديل بلا حدود</li><li>موقع واحد</li><li>يأخذ Renoxium {{.Fee}}% من مدفوعات البطاقة</li><li>50 رمز دخول عبر واتساب شهرياً</li><li>200 ميغابايت للصور</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
+<div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
+<div class="plan" data-r><h3>Business</h3><p class="for">لعدة فروع أو علامات تجارية</p><p class="amount">299 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>10 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>2,000 رمز دخول عبر واتساب شهرياً</li><li>10 غيغابايت للصور</li><li>نطاقك الخاص، و10 موظفين لكل موقع</li><li>بلا شارة</li></ul><a class="btn line" href="/signup">اختر Business</a></div>
 </div>
 <p class="sum" data-r><b>متى تغطي خطة Pro تكلفتها؟</b> في خطة Free، مبيعات بالبطاقة قدرها 10,000 درهم في الشهر تكلّف {{.FeeOn10k}} درهم رسوماً لـ Renoxium. سعر Pro هو 99 درهماً، فتصبح أوفر عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. الدفع عند الاستلام لا رسوم عليه من Renoxium أبداً.</p>
-<p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. بناء موقعك وتعديله عبر مساعدك غير محدود في كل الخطط؛ وتحتاج إلى حسابك الخاص في ChatGPT أو Claude.</p></div></section>
+<p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. تبني بحسابك الخاص في ChatGPT أو Claude؛ والخطة المجانية في Claude تكفي.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>أسئلة يطرحها أصحاب الأنشطة</h2><div class="faq" data-r>
 <details><summary>هل أحتاج إلى معرفة تقنية؟</summary><p>لا. تصف نشاطك بكلماتك، بالعربية أو الإنجليزية. يتولى المساعد البناء والاختبار، وتراجع النتيجة في معاينة قبل نشرها.</p></details>
-<details><summary>أي مساعد ذكاء اصطناعي أحتاج؟</summary><p>ChatGPT (خطة مدفوعة مع وضع المطوّر) أو Claude، بحسابك الخاص. تضيف Renoxium إليه مرة واحدة؛ و<a href="/connect">صفحة الربط</a> تشرح الخطوات.</p></details>
+<details><summary>أي مساعد ذكاء اصطناعي أحتاج؟</summary><p>ChatGPT أو Claude، بحسابك الخاص. الخطة المجانية في Claude تكفي: تسمح بإضافة موصّل واحد، ويمكن أن يكون Renoxium. وفي ChatGPT تحتاج إضافة Renoxium بعنوانه إلى وضع المطوّر، وهو متاح في خططه المدفوعة. تضيف Renoxium مرة واحدة؛ و<a href="/connect">صفحة الربط</a> تشرح الخطوات.</p></details>
+<details><summary>هل هناك أرصدة أو حد للتعديلات؟</summary><p>لا. لا توجد أرصدة في Renoxium. اطلب من مساعدك بناء موقعك وتعديله واختباره بقدر ما تشاء في كل الخطط، ومنها الخطة المجانية. تختلف الخطط في عدد المواقع والنطاق الخاص والموظفين ورسوم مدفوعات البطاقة.</p></details>
 <details><summary>أتواصل مع عملائي على واتساب وإنستغرام. أين مكان الموقع؟</summary><p>واصل محادثتهم هناك. شارك رابط موقعك في نبذة حسابك وفي ردودك: الموقع وأدوات المساعد الذكي تستقبل الطلب والدفع والحجز وتضعها في لوحتك وجدولك، فلا يضيع شيء في المحادثات.</p></details>
 <details><summary>هل يستطيع عملائي الطلب عبر ChatGPT أو Claude؟</summary><p>يمكنهم إضافة نشاطك إلى ChatGPT أو Claude والسؤال عن منتجاتك وأسعارك وأوقاتك المتاحة. وللحجز أو الدفع يوجّههم المساعد إلى الصفحة المناسبة في موقعك.</p></details>
 <details><summary>ماذا لو أخطأ المساعد؟</summary><p>تذهب التغييرات دائماً إلى معاينة خاصة أولاً، ولا ينشر أحد غيرك. وإن فاتك شيء، عُد إلى إصدار سابق من لوحتك؛ فبياناتك تُنسخ احتياطياً قبل كل نشر.</p></details>
@@ -703,6 +711,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <p><b>My changes are not on my site.</b> Your assistant changes the preview only. Open the confirm link it gives you and choose Publish, signed in to Renoxium, to put the new version live.</p>
 <p><b>My assistant cannot see my apps.</b> Disconnect and connect Renoxium again in the assistant's settings, and sign in with the same email you use on Renoxium.</p>
 <p><b>Something on my site does not work.</b> Ask your assistant to read the app's log and fix it; it can see errors from your visitors' pages. You can also undo a change by publishing an earlier version in your admin panel.</p>
+<p><b>Is there a limit on changes?</b> No. Renoxium has no credits: ask your assistant to build and change your apps as often as you like, on every plan.</p>
 <p><b>I want to stop using Renoxium.</b> On the Account page you can download all your data and delete your account. Removing the connector from your assistant ends its access right away.</p>
 <h2>More</h2><p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/abuse">Report a site</a>{{with .Abuse}} (or <a href="mailto:{{.}}">{{.}}</a>){{end}}</p></main></div>
 {{template "footer" .Legal}}</body></html>{{end}}
