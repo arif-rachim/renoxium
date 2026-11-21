@@ -205,6 +205,23 @@ ENV
 
 The texts live in `internal/web/landing.go`, with `/support`, which shows the same email.
 
+### Contact details and profiles on the public site
+
+The footer of the public pages shows the email and address above. A WhatsApp number and the company's profile pages are
+optional; when set they appear in the footer and in the home page's structured data (`contactPoint`, `sameAs`), which helps
+search engines connect the site with those profiles:
+
+```bash
+sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
+RENOXIUM_WHATSAPP=+9715XXXXXXXX
+RENOXIUM_SOCIAL=https://www.linkedin.com/company/your-page,https://www.instagram.com/your-page
+ENV
+sudo systemctl restart renoxium
+```
+
+`RENOXIUM_SOCIAL` is a comma-separated list of `https` addresses; anything else is ignored. Nothing is shown for a setting
+that is empty.
+
 ### ChatGPT app directory
 
 To list Renoxium in ChatGPT's app directory, OpenAI asks for a domain check and a test account:
