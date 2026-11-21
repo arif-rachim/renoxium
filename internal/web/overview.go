@@ -18,7 +18,8 @@ type appCard struct {
 	Sales              string // card sales of the last 30 days, "" without payments
 	SalesCount         int
 	Visitors           int
-	Errors             int // recent live errors
+	Errors             int    // recent live errors
+	Cover              string // address of the picture of its home page, "" without one
 }
 
 func appStatus(info platform.AppInfo) (status, text string) {
@@ -34,6 +35,9 @@ func appStatus(info platform.AppInfo) (status, text string) {
 
 func (s *Site) appCard(ctx context.Context, info platform.AppInfo) appCard {
 	c := appCard{AppInfo: info}
+	if info.PreviewVersion > 0 && s.platform.ScreenshotsOn() {
+		c.Cover = fmt.Sprintf("/apps/%s/cover.jpg?v=%d", info.App, info.PreviewVersion)
+	}
 	c.Status, c.StatusText = appStatus(info)
 	if u, err := url.Parse(info.LiveURL); err == nil {
 		c.Host = u.Host

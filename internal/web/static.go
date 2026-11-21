@@ -101,6 +101,20 @@ var demoNameAR = map[string]string{
 	"listings-uae":     "تجربة الوسيط العقاري",
 }
 
+// screensWide are the demos' home pages at desktop size (960x600), for the
+// template cards in the console.
+var screensWide = map[string]screen{
+	"store-uae":         wide("wide-store-home.webp", "The Al Noor Perfumes demo shop on a desktop"),
+	"booking-uae":       wide("wide-booking.webp", "The Lamsa Beauty Lounge demo on a desktop"),
+	"home-service-uae":  wide("wide-home-service.webp", "The Bayti Home Services demo on a desktop"),
+	"reservation-uae":   wide("wide-reservation.webp", "The Sahara Bay Tours and Rentals demo on a desktop"),
+	"quote-portal-uae":  wide("wide-quote-portal.webp", "The Bayan Business Setup demo on a desktop"),
+	"listings-uae":      wide("wide-listing.webp", "The Marsa Homes demo on a desktop"),
+	"delivery-tracking": wide("wide-delivery.webp", "The Al Noor Flowers delivery tracking demo on a desktop"),
+}
+
+func wide(file, alt string) screen { return screen{File: file, Alt: alt, W: 960, H: 600} }
+
 // exampleJob is what the owner does with each template, as the landing
 // page and the gallery group them, in their words.
 var exampleJob = map[string]string{

@@ -19,7 +19,7 @@ func (s *Site) registerGallery() {
 
 type galleryCard struct {
 	Name, Title, Summary, DemoURL, AdminURL, Prompt, Job, Suits string
-	Screen                                                      screen
+	Screen, Wide                                                screen // a phone screenshot, and a desktop one for the console
 }
 
 // galleryGroup is the templates for one job of the owner, in gallery order.
@@ -45,7 +45,7 @@ func (s *Site) galleryCards() []galleryCard {
 	for _, e := range examples.Gallery() {
 		out = append(out, galleryCard{Name: e.Name, Title: e.Gallery.Title, Summary: e.Gallery.Summary, Suits: suits(e.Gallery.For),
 			DemoURL: s.platform.DemoURL(e.Name), AdminURL: "/templates/" + e.Name + "/admin",
-			Screen: screens[e.Name], Job: exampleJob[e.Name],
+			Screen: screens[e.Name], Wide: screensWide[e.Name], Job: exampleJob[e.Name],
 			Prompt: "Use Renoxium to build me a website from the " + e.Name + " template for my business, <your business name>."})
 	}
 	return out

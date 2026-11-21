@@ -42,6 +42,7 @@ type Site struct {
 	secure   bool
 	accounts *accounts.Store
 	platform *platform.Platform
+	covers   coverCache // pictures of the apps' home pages for Your apps
 	mcp      http.Handler
 	mux      *http.ServeMux
 	limiter  *limiter
@@ -832,7 +833,8 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--fg);white-space:nowrap}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.live::before{background:var(--live)}.pill.wait{background:var(--sun-soft);border-color:transparent}.pill.wait::before{background:var(--sun)}
 .pill.plain::before{display:none}
-.formcard{max-width:720px}.settings{max-width:720px}.settings .card{margin-bottom:16px}@media(min-width:760px){.formcard{padding:28px 32px}}
+.formcard{max-width:720px}.fields{columns:300px;column-gap:32px}.fld{break-inside:avoid;padding-bottom:14px}.fld>label:first-child{margin-top:0}.fld .check{margin-top:4px}.fld textarea{min-height:72px}.fld .thumb{max-height:96px}
+.howto{margin:0;padding-inline-start:20px;display:grid;gap:10px}.pagehead .acts form.inline button{margin:0}.settings{max-width:720px}.settings .card{margin-bottom:16px}@media(min-width:760px){.formcard{padding:28px 32px}}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .tables a{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--fg)}
 .tables a:hover{border-color:var(--accent)}.tables strong{display:block;font-weight:500}.tables span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -919,6 +921,7 @@ body.app .sidenav{position:static;height:100%;max-height:none;overflow:auto;scro
 .bento{display:grid;gap:14px;grid-auto-rows:minmax(0,1fr)}.ovw{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}.ovw .tables{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}@media(max-width:999px){.ovw{grid-template-columns:1fr}.ovw>*{grid-area:auto!important}}.bento>*{min-height:0;min-width:0;margin:0!important}
 .col{display:flex;flex-direction:column}.col>*{flex:none}.col>.grow{flex:1 1 0;min-height:0;overflow:auto;scrollbar-width:thin}
 .fill .tablebox,.tablebox.fill{max-height:none}
+body.app:not(.own) .sidenav li a{padding:5px 10px}body.app:not(.own) .sidenav h3{margin:12px 0 4px}body.app:not(.own) .sidenav .who{margin-bottom:12px}
 .grow thead th{position:sticky;top:0;background:var(--card);z-index:1}
 .fitchart{display:flex;flex-direction:column}.fitchart>.chart{flex:1 1 0;min-height:0;display:flex;flex-direction:column;margin:0}
 .fitchart>.chart>.plot,.fitchart>.chart>.empty{flex:1 1 0;min-height:48px;height:auto}
@@ -951,8 +954,13 @@ body.app .sidenav{position:static;height:100%;max-height:none;overflow:auto;scro
 
 {{define "dashboard"}}{{template "owntop" .}}{{template "owncss"}}<style>
 .dash{display:grid;gap:20px}@media(min-width:1100px){.dash{grid-template-columns:minmax(0,1fr) 320px;align-items:start}}
-.apps{display:grid;gap:16px}@media(min-width:640px){.apps{grid-template-columns:1fr 1fr}}
-.appcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s,box-shadow .15s}
+.apps{display:grid;gap:16px}@media(min-width:640px){.apps{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+.appcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.appcard .body{padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px}
+.appcard .cover{flex:none;aspect-ratio:16/10;position:relative;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);border-bottom:1px solid var(--line);text-decoration:none;overflow:hidden}
+.appcard .cover span{font-size:72px;font-weight:600;line-height:1;text-transform:uppercase;color:var(--muted);opacity:.35}
+.appcard .cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+
 .appcard:hover{border-color:color-mix(in srgb,var(--fg) 35%,var(--line));box-shadow:0 10px 28px -20px rgb(19 32 58 / .5)}
 .appcard h2{font-size:18px;margin:0}.appcard h2 a{color:var(--fg);text-decoration:none}.appcard h2 a:hover{color:var(--accent)}
 .appcard .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap}.appcard .host{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere;margin:2px 0 0}
@@ -966,7 +974,7 @@ body.app .sidenav{position:static;height:100%;max-height:none;overflow:auto;scro
 .steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;background:var(--accent-soft);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
 .copy{display:flex;gap:6px;margin-top:8px}.copy input{font-size:13px;font-family:ui-monospace,monospace;padding:8px 10px;margin:0}.copy button{margin:0;padding:8px 12px;font-size:13px}
 .side{display:grid;gap:16px}.side .panel+.panel{margin-top:0}
-@media(min-width:1100px) and (min-height:600px){.dash{grid-template-rows:minmax(0,1fr)}.dash>.bcell{display:flex;flex-direction:column;height:100%}.dash .apps{flex:1 1 auto;grid-auto-rows:minmax(210px,1fr)}.dash .empty{flex:1}
+@media(min-width:1100px) and (min-height:600px){.dash{grid-template-rows:minmax(0,1fr)}.dash>.bcell{display:flex;flex-direction:column;height:100%}.dash .apps{flex:none;align-content:start}.dash .empty{flex:1}
 .side{height:100%;grid-template-rows:minmax(0,1.4fr) minmax(0,1fr);overflow:hidden}.side .panel{overflow:auto;scrollbar-width:thin}}
 </style>
 <div class="pagehead"><div><h1>Your apps</h1><p class="sub"><a href="/billing">{{.Plan}} plan</a> · {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} used</p></div>
@@ -988,12 +996,12 @@ body.app .sidenav{position:static;height:100%;max-height:none;overflow:auto;scro
 <p class="muted"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></section>
 <section class="panel"><div class="ph"><h2>Start from a template</h2></div><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates →</a></section></aside></div>{{template "appbottom"}}{{end}}
 
-{{define "app_card"}}<article class="appcard"><div class="top"><div><h2><a href="/apps/{{.App}}">{{.App}}</a></h2>{{if .LiveVersion}}<p class="host">{{.Host}}</p>{{end}}</div>
+{{define "app_card"}}<article class="appcard"><a class="cover" href="/apps/{{.App}}" tabindex="-1" aria-hidden="true"><span>{{slice .App 0 1}}</span>{{with .Cover}}<img src="{{.}}" alt="" loading="lazy" onerror="this.remove()">{{end}}</a><div class="body"><div class="top"><div><h2><a href="/apps/{{.App}}">{{.App}}</a></h2>{{if .LiveVersion}}<p class="host">{{.Host}}</p>{{end}}</div>
 <span class="pill {{.Status}}">{{.StatusText}}</span></div>
 {{if .LiveVersion}}<dl class="figs"><div><dt>Sales, 30 days</dt><dd>{{if .SalesCount}}{{.Sales}}{{else}}None yet{{end}}</dd></div><div><dt>Customers</dt><dd>{{.Visitors}}</dd></div>
 <div><dt>Recent errors</dt><dd{{if .Errors}} class="bad"{{end}}>{{.Errors}}</dd></div></dl>
 {{else}}<p class="draft">Preview version {{.PreviewVersion}} is ready to check. Publish it when you are happy and it goes live at {{.Host}}.</p>{{end}}
-<div class="acts"><a class="button" href="/apps/{{.App}}">Manage</a>{{if .LiveVersion}}<a href="{{.LiveURL}}/">Open site</a>{{end}}<a href="/apps/{{.App}}/preview">Preview</a></div></article>{{end}}
+<div class="acts"><a class="button" href="/apps/{{.App}}">Manage</a>{{if .LiveVersion}}<a href="{{.LiveURL}}/">Open site</a>{{end}}<a href="/apps/{{.App}}/preview">Preview</a></div></div></article>{{end}}
 
 {{define "signup"}}{{template "auth" "Create account"}}<form class="card" method="post" action="/signup"><h1>Create your account</h1>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
@@ -1147,34 +1155,36 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 </div>{{end}}</div>
 <p class="fine">Payment is handled by Stripe. Cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_connections"}}{{template "apptop" .}}<div class="settings">
-<div class="card"><h1>Connections</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
-<p>Your app can call other services, such as a courier or SMS service, only with your permission. Allow a site only if you trust it:
-your app can send it data, including your customers' details.</p>
-{{if not .Hosts}}<p class="muted">This app does not use other sites.</p>{{else}}
+{{define "admin_connections"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Connections</h1><p class="sub">Your app can call other services, such as a courier or SMS service, only with your permission. Allow a site only if you trust it: your app can send it data, including your customers' details.</p></div></div>
+{{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
+<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+<section class="panel bcell"><div class="ph"><h2>Sites your app calls</h2></div>{{if not .Hosts}}<p class="muted">This app does not use other sites.</p>{{else}}
 <div class="scroll"><table><thead><tr><th>Site</th><th>Used for</th><th></th></tr></thead><tbody>
 {{range .Hosts}}<tr><td><strong>{{.Host}}</strong></td><td>{{.Purpose}}</td><td>{{if .Allowed}}<span class="ok">allowed</span> <span class="muted">by {{.AllowedBy}}</span>
 <form method="post" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="revoke"><input type="hidden" name="host" value="{{.Host}}"><button class="danger">Stop</button></form>
 {{else}}<form method="post" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="allow"><input type="hidden" name="host" value="{{.Host}}"><button>Allow</button></form>{{end}}</td></tr>{{end}}
 </tbody></table></div>{{end}}
-{{if .Secrets}}<h2 style="margin-top:20px">API keys</h2><p class="muted">Keys are stored encrypted. Your app's scripts and the AI agent never see them: Renoxium adds a key only to requests to its own site.</p>
-{{range .Secrets}}<div class="card" style="margin:10px 0"><p><strong>{{.Name}}</strong> <span class="muted">for {{.Host}}</span>{{if .Set}}{{if .Mismatch}} · <span class="error">entered for {{.SavedHost}}; enter it again</span>{{else}} · <span class="ok">saved</span>{{with .Hint}} <span class="muted">(ends in {{.}})</span>{{end}}{{end}}{{end}}</p>
-{{with .Help}}<p class="muted">{{.}}</p>{{end}}
-<form method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="secret"><input type="hidden" name="name" value="{{.Name}}">
-<label for="v-{{.Name}}">{{if .Set}}Replace the key{{else}}Key{{end}}</label><input id="v-{{.Name}}" name="value" type="password" autocomplete="off" required{{if eq .Prefix "Basic"}} placeholder="user:password"{{end}}><button>Save</button></form>
-{{if .Set}}<form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="delete-secret"><input type="hidden" name="name" value="{{.Name}}"><button class="danger">Remove key</button></form>{{end}}</div>{{end}}{{end}}
-{{if .Hosts}}<h2 style="margin-top:20px">Test calls from the preview</h2>
+{{if .Hosts}}<h2 style="margin:22px 0 8px">Test calls from the preview</h2>
 <p class="muted">The preview holds a copy of your live data, and your AI agent can change the preview without asking you. So the preview only calls these sites while you turn test calls on. Turn it on when you and your agent are testing a connection.</p>
 {{if .PreviewUntil}}<p><span class="ok">On until {{.PreviewUntil}} UTC.</span></p>
 <form method="post" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="preview-off"><button class="danger">Turn off now</button></form>
 {{else}}<form method="post" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="preview-on"><button>Turn on for 2 hours</button></form>{{end}}{{end}}
 <p class="muted" style="margin-top:16px">External calls from your apps this month, preview included: {{.Used}} of {{.Quota}}.</p>
-</div></div>{{template "appbottom"}}{{end}}
+</section>
+<section class="panel bcell"><div class="ph"><h2>API keys</h2></div><p class="muted">Keys are stored encrypted. Your app's scripts and the AI agent never see them: Renoxium adds a key only to requests to its own site.</p>
+{{if .Secrets}}{{range .Secrets}}<div class="card" style="margin:10px 0"><p><strong>{{.Name}}</strong> <span class="muted">for {{.Host}}</span>{{if .Set}}{{if .Mismatch}} · <span class="error">entered for {{.SavedHost}}; enter it again</span>{{else}} · <span class="ok">saved</span>{{with .Hint}} <span class="muted">(ends in {{.}})</span>{{end}}{{end}}{{end}}</p>
+{{with .Help}}<p class="muted">{{.}}</p>{{end}}
+<form method="post"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="secret"><input type="hidden" name="name" value="{{.Name}}">
+<label for="v-{{.Name}}">{{if .Set}}Replace the key{{else}}Key{{end}}</label><input id="v-{{.Name}}" name="value" type="password" autocomplete="off" required{{if eq .Prefix "Basic"}} placeholder="user:password"{{end}}><button>Save</button></form>
+{{if .Set}}<form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="delete-secret"><input type="hidden" name="name" value="{{.Name}}"><button class="danger">Remove key</button></form>{{end}}</div>{{end}}{{else}}<p class="muted">This app needs no keys.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_alerts"}}{{template "apptop" .}}<div class="settings">
-<div class="card"><h1>Notifications</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
-<p>Notices from your app, such as new orders, are emailed to <strong>{{.Email}}</strong>.</p>
-{{if not .Available}}<p class="muted">WhatsApp notices are not available on this Renoxium server yet.</p>
+{{define "admin_alerts"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Notifications</h1><p class="sub">Where Renoxium tells you about new orders, bookings and problems on your site.</p></div></div>
+{{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
+<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+<section class="panel bcell"><div class="ph"><h2>Email</h2><span class="pill live">on</span></div><p>Notices from your app, such as new orders, are emailed to <strong>{{.Email}}</strong>.</p><p class="muted">This is the address of your Renoxium account. Change it in <a href="/account">Account settings</a>.</p></section>
+<section class="panel bcell"><div class="ph"><h2>WhatsApp</h2></div>{{if not .Available}}<p class="muted">WhatsApp notices are not available on this Renoxium server yet.</p>
 {{else if not .Phone}}<p>Get them on WhatsApp too. We send a code to confirm the number.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="send">
 <label for="phone">WhatsApp number</label><input id="phone" name="phone" type="tel" placeholder="+971 50 123 4567" required autocomplete="tel"><button>Send code</button></form>
@@ -1185,11 +1195,13 @@ your app can send it data, including your customers' details.</p>
 {{else}}<p>WhatsApp notices go to <strong>{{.Phone.Phone}}</strong> <span class="ok">on</span></p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Turn off WhatsApp notices</button></form>{{end}}
 {{if .Available}}<p class="muted">Each WhatsApp notice counts as one of your plan's WhatsApp messages: {{.Used}} of {{.Quota}} used this month.</p>{{end}}
-</div></div>{{template "appbottom"}}{{end}}
+</section></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_domain"}}{{template "apptop" .}}<div class="settings">
-<div class="card"><h1>Your own domain</h1>{{with .Error}}<p class="error">{{.}}</p>{{end}}
-{{if not .Available}}<p>Custom domains are not available on this Renoxium server yet.</p>
+{{define "admin_domain"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Your own domain</h1><p class="sub">Serve this app on a domain you own instead of its Renoxium address.</p></div></div>
+{{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
+<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+<section class="panel bcell"><div class="ph"><h2>Domain</h2></div>{{if not .Available}}<p>Custom domains are not available on this Renoxium server yet.</p>
 {{else if not .Allowed}}<p>Custom domains are included in the <a href="/billing">Pro and Business plans</a>.</p>
 {{else if not .Domain}}<p>Serve this app on a domain you own, such as <strong>www.yourshop.com</strong>. A subdomain like www works with every domain provider.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="add">
@@ -1209,12 +1221,18 @@ your app can send it data, including your customers' details.</p>
 </tbody></table></div>{{with .Problems}}<p class="muted">Not ready yet: {{range $i, $p := .}}{{if $i}}; {{end}}{{$p}}{{end}}</p>{{end}}
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="check"><button>Check now</button></form>{{end}}
 <form method="post" style="margin-top:16px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Remove domain</button></form>{{end}}{{end}}
-</div></div>{{template "appbottom"}}{{end}}
+</section>
+<section class="panel bcell"><div class="ph"><h2>How it works</h2></div><ol class="howto"><li>Add the domain here. A subdomain like www works with every domain provider.</li><li>At the company where you bought the domain, add the DNS records this page shows.</li><li>Choose Check now. DNS changes can take from minutes to a few hours.</li><li>Once it is active, your app answers on the domain over HTTPS, and links in emails and payments use it.</li></ol>
+<p class="muted">The app's Renoxium address keeps working.</p></section></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_delete"}}{{template "apptop" .}}<div class="settings">
-<div class="card"><h1>Export this app first</h1><p class="muted">A zip file with the app's definition, its live data and the list of its files. Keep it before you delete anything.</p>
-<a class="button secondary" href="/apps/{{.App}}/export">Download export</a></div>
-<form class="card danger-zone" method="post" action="/apps/{{.App}}/delete" style="margin-top:16px"><h1>Delete app for good</h1>
+{{define "admin_delete"}}{{template "apptop" .}}<style>.warnbox{border:1px solid var(--danger,#b42318);background:color-mix(in srgb,var(--danger,#b42318) 8%,transparent);border-radius:12px;padding:12px 16px;margin:0 0 16px}
+.warnbox ul{margin:6px 0 10px;padding-left:20px}.warnbox p{margin:6px 0}button.danger[disabled]{opacity:.45;cursor:not-allowed}</style>
+
+<div class="pagehead"><div><h1>Delete app</h1><p class="sub">Export the app first, then delete it for good.</p></div></div>
+<div class="bento fill" style="grid-template-columns:minmax(260px,1fr) minmax(0,2fr)">
+<section class="panel bcell"><div class="ph"><h2>Export this app first</h2></div><p class="muted">A zip file with the app's definition, its live data and the list of its files. Keep it before you delete anything.</p>
+<a class="button secondary" href="/apps/{{.App}}/export" style="margin-top:4px">Download export</a></section>
+<form class="panel danger-zone bcell" method="post" action="/apps/{{.App}}/delete"><div class="ph"><h2>Delete app for good</h2></div>
 <div class="warnbox" role="alert"><p><strong>This cannot be undone.</strong> Renoxium cannot bring this app back, not even on request.</p>
 <p>Deleting <strong>{{.App}}</strong> removes at once:</p><ul>
 <li>the website{{with .Info.LiveURL}} at <strong>{{.}}</strong>{{end}}; your customers will get "not found"</li>
@@ -1228,37 +1246,40 @@ your app can send it data, including your customers' details.</p>
 <label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger" id="delete-btn" disabled>Delete {{.App}} for good</button>
 <script>(function(){var i=document.getElementById("confirm"),b=document.getElementById("delete-btn");function f(){b.disabled=i.value.trim()!==i.dataset.name}i.addEventListener("input",f);f()})()</script>{{end}}</form>
-<style>.warnbox{border:1px solid var(--danger,#b42318);background:color-mix(in srgb,var(--danger,#b42318) 8%,transparent);border-radius:12px;padding:12px 16px;margin:0 0 16px}
-.warnbox ul{margin:6px 0 10px;padding-left:20px}.warnbox p{margin:6px 0}button.danger[disabled]{opacity:.45;cursor:not-allowed}</style>
 </div>{{template "appbottom"}}{{end}}
 
-{{define "admin_rename"}}{{template "apptop" .}}<div class="settings">
-<form class="card" method="post" action="/apps/{{.App}}/rename"><h1>Rename app</h1>
-<p>The app's name is its address: <strong>{{.Info.LiveURL}}</strong>. A new name gives it a new address.</p>
+{{define "admin_rename"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Rename app</h1><p class="sub">The app's name is its address: <strong>{{.Info.LiveURL}}</strong>. A new name gives it a new address.</p></div></div>
+<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+<form class="panel bcell" method="post" action="/apps/{{.App}}/rename"><div class="ph"><h2>New name</h2></div>
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <label for="to">New name</label><input id="to" name="to" value="{{.To}}" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="[a-z][a-z0-9-]{1,38}[a-z0-9]">
 <p class="help muted">3-40 lowercase letters, digits and hyphens. The address becomes <strong>{{if .To}}{{.To}}{{else}}new-name{{end}}.{{.Domain}}</strong>.</p>
-<div class="note"><p><strong>What changes</strong></p><ul>
-<li>The old addresses send visitors to the same page on the new ones for {{.RedirectDays}} days, and nobody else can take the old name in that time.</li>
-<li>Signed-in customers sign in again once.</li>
-<li>Data, versions, files, staff, payments and your own domain stay as they are.</li>
-<li>You can rename an app once every 30 days.</li></ul></div>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 <label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
 <button>Rename {{.App}}{{if .Ready}} to {{.To}}{{end}}</button></form>
-</div>{{template "appbottom"}}{{end}}
+<section class="panel bcell"><div class="ph"><h2>What changes</h2></div><ul class="howto">
+<li>The old addresses send visitors to the same page on the new ones for {{.RedirectDays}} days, and nobody else can take the old name in that time.</li>
+<li>Signed-in customers sign in again once.</li>
+<li>Data, versions, files, staff, payments and your own domain stay as they are.</li>
+<li>You can rename an app once every 30 days.</li></ul></section></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_staff"}}{{template "apptop" .}}<div class="settings">
-<div class="card"><h1>Staff</h1><p class="muted">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p>
-{{with .Error}}<p class="error">{{.}}</p>{{end}}
+{{define "admin_staff"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Staff</h1><p class="sub">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p></div></div>
+{{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
+<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+<section class="panel bcell"><div class="ph"><h2>Staff members</h2><span class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff need the <a href="/billing">Pro or Business plan</a>{{end}}.</span></div>
 {{if .Staff}}<ul class="plain">{{range .Staff}}<li><span>{{.}}</span><form method="post" action="/apps/{{$.App}}/staff/remove" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.}}"><button class="secondary">Remove</button></form></li>{{end}}</ul>
-{{else}}<p>No staff yet.</p>{{end}}
-<p class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff need the <a href="/billing">Pro or Business plan</a>{{end}}.</p>
+{{else}}<p>No staff yet.</p>{{end}}</section>
+<section class="panel bcell"><div class="ph"><h2>Add a staff member</h2></div>
 {{if lt (len .Staff) .Limit}}<form method="post" action="/apps/{{.App}}/staff"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email address</label>
 <input id="email" name="email" type="email" required><button>Add staff member</button></form>
-<p class="muted">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>{{end}}</div></div>{{template "appbottom"}}{{end}}
+<p class="muted" style="margin-top:12px">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>
+{{else if eq .Limit 0}}<p class="muted">Staff accounts are part of the <a href="/billing">Pro and Business plans</a>.</p>{{else}}<p class="muted">Your plan's staff accounts are all in use. Remove one to add another.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
 
-{{define "admin_payments"}}{{template "apptop" .}}<div class="pagehead"><div><h1>Payments</h1><p class="sub">Card payments through your Stripe account.</p></div></div><div class="card">
+{{define "admin_payments"}}{{template "apptop" .}}<div class="pagehead"><div><h1>Payments</h1><p class="sub">Card payments through your Stripe account.</p></div></div>
+<div class="bento fill" style="grid-template-columns:minmax(280px,1fr) minmax(0,2.4fr)">
+<section class="panel bcell"><div class="ph"><h2>Stripe</h2></div>
 {{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
 {{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and on the Free plan Renoxium takes {{.Fee}}% of each card payment (<a href="/billing">no fee on Pro and Business</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
 <div class="note"><p><strong>Before you start, have these ready.</strong> Stripe checks every business by law, and its form takes 15–30 minutes. In the UAE it usually asks for:</p>
@@ -1270,8 +1291,9 @@ your app can send it data, including your customers' details.</p>
 {{else}}<p>Your Stripe account is connected but not ready to take payments yet{{if .Account.DetailsSubmitted}}: Stripe is reviewing your details{{end}}.</p>
 <form method="post" action="/apps/{{.App}}/payments/connect"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Continue Stripe setup</button></form>{{end}}
 {{with .Notice}}<p class="ok" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
-</div><div class="pagehead" style="margin:28px 0 12px"><h2 style="margin:0;font-size:20px">All payments <span class="muted" style="font-weight:400">({{.Total}})</span></h2><nav class="seg" aria-label="Status">{{range .Filters}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
-{{if .Payments}}<div class="tablebox"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th><th></th></tr></thead><tbody>
+</section>
+<section class="panel bcell" data-long><div class="ph" style="align-items:center"><h2 style="margin:0">All payments <span class="muted" style="font-weight:400">({{.Total}})</span></h2><nav class="seg" aria-label="Status">{{range .Filters}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav></div>
+{{if .Payments}}<div class="tablebox" style="border:0"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Started</th><th></th></tr></thead><tbody>
 {{range .Payments}}<tr><td class="t" data-label="Order">{{.Reference}}</td><td data-label="Status"><span class="tag">{{if eq .Status "authorized"}}card hold{{with .HoldExpiresAt}}, take by {{.}} UTC{{end}}{{else}}{{.Status}}{{end}}</span></td>
 <td class="num" data-label="Amount"><span>{{printf "%.2f" .Amount}} <span class="cur">{{.Currency}}</span></span>{{if gt .Refunded 0.0}}<br><span class="muted">{{printf "%.2f" .Refunded}} refunded</span>{{end}}</td><td data-label="Customer">{{.CustomerEmail}}</td><td data-label="Started">{{.CreatedAt}}</td>
 <td class="act">{{if gt .Refundable 0.0}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/refund" class="inline" onsubmit="return confirm('Refund this payment to the card?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
@@ -1280,31 +1302,33 @@ your app can send it data, including your customers' details.</p>
 <input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Authorized}}" aria-label="Amount to take (empty = all {{printf "%.2f" .Authorized}})" style="width:7em;margin:0"> <button style="margin:0;padding:4px 10px">Capture</button></form>
 <form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/release" class="inline" onsubmit="return confirm('Release the hold? Nothing is charged.')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin:0;padding:4px 10px">Release</button></form>{{end}}</td></tr>{{end}}
 </tbody></table></div>{{template "pager" .Pager}}<p class="muted" style="margin-top:12px">Refund: leave the amount empty to refund everything that is left, or type part of it. On the Free plan Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
-{{else}}<div class="panel"><p class="muted" style="margin:0">{{if .Filter}}No payments with this status.{{else}}No payments yet.{{end}}</p></div>{{end}}
+{{else}}<p class="muted" style="margin:0">{{if .Filter}}No payments with this status.{{else}}No payments yet.{{end}}</p>{{end}}
 {{if .Subscriptions}}<h2 style="margin:28px 0 12px;font-size:20px">Subscriptions</h2><div class="tablebox"><table class="rx"><thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Next payment</th><th>Customer</th><th></th></tr></thead><tbody>
 {{range .Subscriptions}}<tr><td class="t" data-label="Reference">{{.Reference}}</td><td data-label="Status">{{.Status}}{{if .CancelAtPeriodEnd}}{{if ne .Status "canceled"}}, ends at period end{{end}}{{end}}</td>
 <td data-label="Amount"><span>{{printf "%.2f" .Amount}} <span class="cur">{{.Currency}}</span></span> every {{if gt .IntervalCount 1}}{{.IntervalCount}} {{.Interval}}s{{else}}{{.Interval}}{{end}}<br><span class="muted">{{.PaymentsMade}} paid</span></td>
 <td data-label="Next payment">{{if and (ne .Status "canceled") (not .CancelAtPeriodEnd)}}{{.CurrentPeriodEnd}}{{else}}—{{end}}</td><td data-label="Customer">{{.CustomerEmail}}</td>
 <td class="act">{{if ne .Status "canceled"}}<form method="post" action="/apps/{{$.App}}/subscriptions/{{.ID}}/cancel" class="inline" onsubmit="return confirm('Cancel this subscription?')"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <select name="when" aria-label="When" style="margin:0;width:auto"><option value="period_end">At period end</option><option value="now">Now</option></select> <button class="danger" style="margin:0;padding:4px 10px">Cancel</button></form>{{end}}</td></tr>{{end}}
-</tbody></table></div><p class="muted" style="margin-top:12px">Cancelling never refunds a payment already made; refund it above if needed.</p>{{end}}{{template "appbottom"}}{{end}}
+</tbody></table></div><p class="muted" style="margin-top:12px">Cancelling never refunds a payment already made; refund it above if needed.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_visitors"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Customer accounts</h1><p class="sub">People who signed up on your site. Passwords are never shown to anyone.</p></div></div>
 <div class="toolbar"><form class="search" method="get" role="search"><input name="q" value="{{.Query}}" placeholder="Search email, number or name" aria-label="Search"><button class="secondary">Search</button></form></div>
-{{if .Visitors}}<div class="tablebox"><table class="rx"><thead><tr><th>Name</th><th>#</th><th>Email</th><th>WhatsApp</th><th>Confirmed</th><th>Files</th><th>Joined</th><th></th></tr></thead><tbody>
+{{if .Visitors}}<div class="tablebox fill"><table class="rx"><thead><tr><th>Name</th><th>#</th><th>Email</th><th>WhatsApp</th><th>Confirmed</th><th>Files</th><th>Joined</th><th></th></tr></thead><tbody>
 {{range .Visitors}}<tr><td class="t" data-label="Name">{{if .Name}}{{.Name}}{{else}}—{{end}}</td><td class="id" data-label="#">#{{.ID}}</td><td data-label="Email">{{.Email}}</td><td data-label="WhatsApp">{{.Phone}}</td><td data-label="Confirmed"><span class="tag">{{if .Verified}}Yes{{else}}No{{end}}</span></td><td class="num" data-label="Files">{{.Files}}</td><td data-label="Joined">{{.CreatedAt}}</td>
 <td class="act"><form method="post" action="/apps/{{$.App}}/visitors/{{.ID}}/delete" onsubmit="return confirm('Delete this account and the files this person uploaded?')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger" style="margin:0;padding:5px 12px">Delete</button></form></td></tr>{{end}}
 </tbody></table></div>{{template "pager" .Pager}}
 {{else}}<div class="panel"><p style="margin:0">{{if .Query}}Nobody matches "{{.Query}}".{{else}}No customer accounts yet. They appear when people sign up on your site.{{end}}</p></div>{{end}}
 {{template "appbottom"}}{{end}}
 
-{{define "admin_form"}}{{template "apptop" .}}<p class="crumbs"><a href="/apps/{{.App}}/t/{{.Table}}">{{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>
-<form class="card formcard" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>{{if .Demo}}<fieldset disabled style="border:0;padding:0;margin:0">{{end}}
-{{if .Saved}}<p class="ok">Saved.</p>{{end}}{{with .Notice}}<p class="error">{{.}}</p>{{end}}{{if .HasErrors}}<p class="error">Check the highlighted fields.{{with .Error}} {{.}}{{end}}</p>{{end}}
-{{with .Created}}<p class="muted">Created {{.}}</p>{{end}}
+{{define "admin_form"}}{{template "apptop" .}}<p class="crumbs"><a href="/apps/{{.App}}/t/{{.Table}}">← {{.Label}}</a>{{with .Back}} / <a href="{{.}}">Back to calendar</a>{{end}}</p>
+<div class="pagehead"><div><h1>{{if .ID}}{{.Label}} #{{.ID}}{{else}}New {{.Label}}{{end}}</h1>{{with .Created}}<p class="sub">Created {{.}}</p>{{end}}</div>
+<div class="acts">{{if and .ID (not .Demo)}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger" style="padding:10px 18px">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
+{{if not .Demo}}<button form="rowform" style="margin:0">Save</button>{{end}}</div></div>
+{{if .Saved}}<p class="flash ok">Saved.</p>{{end}}{{with .Notice}}<p class="flash bad error">{{.}}</p>{{end}}{{if .HasErrors}}<p class="flash bad error">Check the highlighted fields.{{with .Error}} {{.}}{{end}}</p>{{end}}
+<form id="rowform" class="card formcard fill bcell" method="post"{{if .HasImage}} enctype="multipart/form-data"{{end}}>{{if .Demo}}<fieldset disabled style="border:0;padding:0;margin:0">{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}
-{{range .Fields}}{{if eq .Input "checkbox"}}<label class="check"><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
+<div class="fields">{{range .Fields}}<div class="fld">{{if eq .Input "checkbox"}}<label class="check"><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
 {{else}}<label for="f-{{.Name}}">{{.Label}}{{if .Required}} *{{end}}</label>
 {{if eq .Input "image"}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">
 {{if .Value}}<img class="thumb" src="{{$.LiveURL}}{{.Value}}?w=320" alt=""><label class="check"><input type="checkbox" name="{{.Name}}__remove" value="1"> Remove image</label>{{end}}
@@ -1315,9 +1339,8 @@ your app can send it data, including your customers' details.</p>
 {{else if eq .Input "select"}}<select id="f-{{.Name}}" name="{{.Name}}"{{if .Required}} required{{end}}>{{if not .Required}}<option value=""></option>{{end}}{{$v := .Value}}{{range .Options}}<option{{if eq . $v}} selected{{end}}>{{.}}</option>{{end}}</select>
 {{else if eq .Input "textarea"}}<textarea id="f-{{.Name}}" name="{{.Name}}"{{if eq .Type "json"}} class="json"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
 {{else}}<input id="f-{{.Name}}" name="{{.Name}}" type="{{.Input}}" value="{{.Value}}"{{if eq .Type "real"}} step="any"{{end}}{{if eq .Type "integer"}} step="1"{{end}}{{if .Required}} required{{end}}>{{end}}{{end}}
-{{with .Help}}<p class="muted help">{{.}}</p>{{end}}{{with .Error}}<p class="field-error">{{.}}</p>{{end}}{{end}}
-{{if .Demo}}</fieldset>{{else}}<button>Save</button>{{end}}</form>
-{{if and .ID (not .Demo)}}<form method="post" action="/apps/{{.App}}/t/{{.Table}}/{{.ID}}/delete" style="margin-top:16px"><input type="hidden" name="csrf" value="{{.CSRF}}">{{with .Back}}<input type="hidden" name="back" value="{{.}}">{{end}}<button class="danger">Delete {{.Label}} #{{.ID}}</button></form>{{end}}
+{{with .Help}}<p class="muted help">{{.}}</p>{{end}}{{with .Error}}<p class="field-error">{{.}}</p>{{end}}</div>{{end}}</div>
+{{if .Demo}}</fieldset>{{end}}</form>
 {{template "appbottom"}}{{end}}
 
 {{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
@@ -1325,7 +1348,7 @@ your app can send it data, including your customers' details.</p>
 @media(min-width:680px){.tcards{grid-template-columns:1fr 1fr}}@media(min-width:1000px){.tcards{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1180px){.tcards{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .tcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;scroll-margin-top:16px}
 .tcard:target{border-color:var(--gold)}
-.tcard .pic{flex:1 1 0;min-height:56px;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
+.tcard .pic{display:block;flex:1 1 0;min-height:70px;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
 .tcard .pic img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
 .tcard .tx{padding:12px 14px 14px}
 .tcard h3{font-size:16px;margin:0 0 2px}.tcard .job{font-size:12.5px;color:var(--muted);margin:0 0 6px}
@@ -1333,13 +1356,13 @@ your app can send it data, including your customers' details.</p>
 .tcard .tlinks{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13.5px;align-items:center}
 .tcard .tlinks button{margin:0;min-height:0;padding:0;border:0;background:none;color:var(--fg);font-size:13.5px;font-weight:400;text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
 .tcard.more{justify-content:center;padding:18px;background:var(--accent-soft);border-style:dashed}.tcard.more h3{font-size:17px;margin-bottom:6px}.tcard.more p{font-size:14px;color:var(--muted);margin:0 0 10px}
-@media(max-width:999px){.tcard .pic{flex:none;height:180px}}
+@media(max-width:999px){.tcard .pic{flex:none;height:auto;aspect-ratio:16/10}}
 </style>
 <script>document.addEventListener("click",function(e){var b=e.target.closest("[data-prompt]");if(!b)return;var t=b.getAttribute("data-prompt");if(navigator.clipboard)navigator.clipboard.writeText(t);b.textContent="Copied: paste it to your assistant"})</script>
 <div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
 <div class="tcards bento fill">{{range .Groups}}{{$job := .Job}}{{range .Cards}}<article class="tcard" id="{{.Name}}">
-<div class="pic">{{if .Screen.File}}<img src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">{{end}}</div>
+<a class="pic" href="{{.DemoURL}}/" tabindex="-1">{{if .Wide.File}}<img src="{{.Wide.Src}}" width="{{.Wide.W}}" height="{{.Wide.H}}" alt="{{.Wide.Alt}}" loading="lazy">{{end}}</a>
 <div class="tx"><h3>{{.Title}}</h3><p class="job">{{$job}}</p><p class="sum" title="{{.Summary}}">{{.Summary}}</p>
 <div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Admin panel</a><button type="button" data-prompt="{{.Prompt}}">Copy the request</button></div></div></article>{{end}}{{end}}
 <article class="tcard more"><h3>Something in between?</h3><p>Start from the closest template and tell your assistant what to change: other fields on a form, your own sections and texts, your colours and photos.</p><a href="/connect">How to connect ChatGPT or Claude</a></article></div>

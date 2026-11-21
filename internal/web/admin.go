@@ -17,6 +17,7 @@ import (
 
 func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}", s.adminApp)
+	s.mux.HandleFunc("GET /apps/{app}/cover.jpg", s.appCoverImage)
 	s.mux.HandleFunc("GET /apps/{app}/sales", s.adminApp)
 	s.mux.HandleFunc("GET /apps/{app}/status", s.adminApp)
 	s.mux.HandleFunc("GET /apps/{app}/t/{table}", s.adminList)
