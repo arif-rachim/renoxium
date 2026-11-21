@@ -25,10 +25,10 @@ import (
 const instructions = `Renoxium builds and hosts web apps (online stores, booking sites, quote portals) for small businesses from a conversation.
 
 Every action is one of these tools; there are no other operations:
-- read only: list_apps, get_app, get_example, get_logs, view_live_page
+- read only: list_apps, get_app, get_app_outline, get_app_parts, get_example, get_logs, view_live_page
 - change the user's apps: create_app, apply_change, patch_app, edit_app, upload_file, publish, rename_app, delete_app
 - test on the private preview: view_page, submit_form, upload_as_visitor, create_test_visitor, screenshot_preview,
-  test_scheduled_job, change_preview_row
+  try_scheduled_jobs, change_preview_row
 
 How to work:
 1. Ask the user only what the business needs: its name, what it sells or offers, prices, delivery fee, language. No technical questions.
@@ -43,14 +43,14 @@ How to work:
    (store.free_delivery_over; 0 or empty means the fee is always charged) and the products. Brand colour, font and logo go in
    the settings row (store-uae: store), not in the CSS.
 3. Call list_apps to find the user's apps. For a new app from an example call create_app {app, from_example}: the preview
-   starts as that example, so you never send it back. Definitions are 100-200 KB: read parts with get_app {outline: true}
-   and get_app {only: ["scripts.book"]}. Change them with edit_app (exact text replacements, all or none), or patch_app to
+   starts as that example, so you never send it back. Definitions are 100-200 KB: read them in parts with
+   get_app_outline and get_app_parts. Change them with edit_app (exact text replacements, all or none), or patch_app to
    replace whole entries; apply_change only for a definition written from scratch. Before changing an app, if this
    conversation does not have the reference yet, call get_example with reference_only true. Restyle in the empty
    css_extra template, not by rewriting css. For product photos call upload_file and put the url in the seed rows.
 4. These changes reach only the app's private preview, and every page is checked (with parameters and signed in). Test
    with view_page and submit_form (follow_redirects true), create_test_visitor (then as_visitor), screenshot_preview
-   (see a page on a phone), test_scheduled_job and change_preview_row. Show the user the preview_url, and call publish
+   (see a page on a phone), try_scheduled_jobs and change_preview_row. Show the user the preview_url, and call publish
    when they agree. publish changes nothing live: it returns confirm_url, and the new version goes live only when the user
    opens that link and confirms, signed in to Renoxium. Never say the app is live before they have confirmed.
    rename_app and delete_app also only return a link the user confirms; ask before calling them.
@@ -109,12 +109,12 @@ Exact data types in scripts:
 
 Working on a large definition (one short example each):
 - Start from an example: create_app {"app": "sparkle-clean", "from_example": "home-service-uae"} returns version 1 and an outline.
-- Read parts: get_app {"app": "sparkle-clean", "outline": true}, then get_app {"app": "sparkle-clean", "only": ["templates.css_extra",
+- Read parts: get_app_outline {"app": "sparkle-clean"}, then get_app_parts {"app": "sparkle-clean", "paths": ["templates.css_extra",
   "scripts.book", "seed.texts"]}. Paths: templates[.name], scripts[.name], lib[.name], tables[.name], seed[.table], routes, jobs, tools,
-  hosts, secrets, on_payment, on_admin_change, brand. get_example takes the same only and outline.
+  hosts, secrets, on_payment, on_admin_change, brand.
 - Edit lines: edit_app {"app": "sparkle-clean", "base_version": 1, "edits": [{"target": "templates.css", "old_text": "--radius:14px",
   "new_text": "--radius:20px"}, {"target": "scripts.book", "old_text": "const f = req.form", "new_text": "const f = req.form /* ... */"}]}.
-  old_text must occur exactly once in its target (copy it from get_app {only}); all edits apply or none; an empty old_text creates a
+  old_text must occur exactly once in its target (copy it from get_app_parts); all edits apply or none; an empty old_text creates a
   new entry or fills an empty one; base_version must be the newest version (each change returns the next one). A bare target such
   as "css" means the template of that name, else the script.
 - Restyle: every example's head includes the template css_extra (empty) after css. Put your rules there with edit_app
@@ -242,7 +242,7 @@ Scheduled jobs:
   app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.
   every is at least 1m (5m on the Free plan). A new job first runs after its interval or at its next daily time.
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
-- Jobs never run on preview by themselves: test one with test_scheduled_job {"job": "daily_report"}. The owner sees last and next runs on the app page.
+- Jobs never run on preview by themselves: try them with try_scheduled_jobs {"app": "..."}, which runs every listed job once and returns each result. The owner sees last and next runs on the app page.
 
 Admin changes (on_admin_change), e.g. email the client when the owner sets a quote to sent or assigns a crew:
 - Set "on_admin_change": "<script name>". It runs right after the owner or staff adds, changes or deletes a row in the admin panel,
@@ -363,7 +363,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.AppInfo
 		Version int                   `json:"version,omitempty" jsonschema:"version on preview when from_example was given; use it as base_version for edit_app"`
 		Apply   *platform.ApplyResult `json:"apply,omitempty" jsonschema:"result of applying the example to the preview (checks of every page)"`
-		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read one with get_app {only: [\"templates.css\"]}"`
+		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read them with get_app_parts {paths: [\"templates.css\"]}"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new app for the signed-in user and return its live and preview addresses. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
@@ -388,39 +388,86 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		})
 
 	type getAppIn struct {
-		App     string   `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
-		Version int      `json:"version,omitempty" jsonschema:"version to read; omit for the newest"`
-		Only    []string `json:"only,omitempty" jsonschema:"return only these parts instead of the whole definition, e.g. [\"templates.css\", \"scripts.book\", \"lib.dates\", \"seed.texts\", \"tables\"]; paths: templates[.name], scripts[.name], lib[.name], tables[.name], seed[.table], routes, jobs, tools, hosts, secrets, on_payment, on_admin_change, brand"`
-		Outline bool     `json:"outline,omitempty" jsonschema:"true: return only the names and sizes of the parts (small); then read what you need with only"`
+		App     string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
+		Version int    `json:"version,omitempty" jsonschema:"version to read; omit for the newest"`
 	}
 	type getAppOut struct {
 		platform.AppInfo
-		Version    int               `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
-		Definition *appdef.App       `json:"definition,omitempty"`
-		Outline    *platform.Outline `json:"outline,omitempty"`
-		Parts      map[string]any    `json:"parts,omitempty" jsonschema:"the parts asked for with only, by path"`
+		Version    int         `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
+		Definition *appdef.App `json:"definition,omitempty"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "get_app", Title: toolAnnotations["get_app"].Title, Annotations: toolAnnotations["get_app"], Description: "Read one of the user's apps: its addresses, live and preview versions and a stored definition. Definitions are large (100-200 KB): use outline true for names and sizes, then only [...] for the parts you need. Reads only."},
+	// readDefinition returns an app's addresses and a stored version of its
+	// definition, nil before the first change.
+	readDefinition := func(req *mcp.CallToolRequest, app string, version int) (platform.AppInfo, *appdef.App, int, error) {
+		if err := owns(p, req, app); err != nil {
+			return platform.AppInfo{}, nil, 0, err
+		}
+		info, err := p.Info(app)
+		if err != nil {
+			return info, nil, 0, err
+		}
+		if info.PreviewVersion == 0 && version == 0 {
+			return info, nil, 0, nil
+		}
+		def, n, err := p.Definition(app, version)
+		return info, def, n, err
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "get_app", Title: toolAnnotations["get_app"].Title, Annotations: toolAnnotations["get_app"], Description: "Read one of the user's apps: its addresses, live and preview versions and its whole stored definition (often 100-200 KB; get_app_outline and get_app_parts read less). Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in getAppIn) (*mcp.CallToolResult, getAppOut, error) {
-			if err := owns(p, req, in.App); err != nil {
-				return nil, getAppOut{}, err
-			}
-			info, err := p.Info(in.App)
+			info, def, n, err := readDefinition(req, in.App, in.Version)
 			if err != nil {
 				return nil, getAppOut{}, err
 			}
-			out := getAppOut{AppInfo: info}
-			if info.PreviewVersion > 0 || in.Version > 0 {
-				def, n, err := p.Definition(in.App, in.Version)
-				if err != nil {
-					return nil, getAppOut{}, err
-				}
-				out.Version = n
-				if err := shapeDefinition(def, in.Only, in.Outline, &out.Definition, &out.Outline, &out.Parts); err != nil {
-					return nil, getAppOut{}, err
-				}
+			return nil, getAppOut{AppInfo: info, Version: n, Definition: def}, nil
+		})
+
+	type outlineOut struct {
+		platform.AppInfo
+		Version int               `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
+		Outline *platform.Outline `json:"outline,omitempty"`
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "get_app_outline", Title: toolAnnotations["get_app_outline"].Title, Annotations: toolAnnotations["get_app_outline"],
+		Description: "Read the outline of one of the user's app definitions: the names and sizes of its templates, scripts and lib entries, its tables and columns, seed row counts, routes, jobs and tools. A few KB instead of the whole definition; read the parts you need with get_app_parts. Reads only."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in getAppIn) (*mcp.CallToolResult, outlineOut, error) {
+			info, def, n, err := readDefinition(req, in.App, in.Version)
+			if err != nil {
+				return nil, outlineOut{}, err
+			}
+			out := outlineOut{AppInfo: info, Version: n}
+			if def != nil {
+				o := platform.OutlineOf(def)
+				out.Outline = &o
 			}
 			return nil, out, nil
+		})
+
+	type partsIn struct {
+		App     string   `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
+		Version int      `json:"version,omitempty" jsonschema:"version to read; omit for the newest"`
+		Paths   []string `json:"paths" jsonschema:"the parts to return, e.g. [\"templates.css\", \"scripts.book\", \"lib.dates\", \"seed.texts\", \"tables\"]; paths: templates[.name], scripts[.name], lib[.name], tables[.name], seed[.table], routes, jobs, tools, hosts, secrets, on_payment, on_admin_change, brand"`
+	}
+	type partsOut struct {
+		Version int            `json:"version" jsonschema:"version the parts are from. Pass it as base_version to edit_app"`
+		Parts   map[string]any `json:"parts" jsonschema:"the parts asked for, by path"`
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "get_app_parts", Title: toolAnnotations["get_app_parts"].Title, Annotations: toolAnnotations["get_app_parts"],
+		Description: "Read chosen parts of one of the user's app definitions by path, e.g. one template, one script and the seed rows of one table, instead of the whole definition. Unknown paths are an error that lists the names there are. Reads only."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in partsIn) (*mcp.CallToolResult, partsOut, error) {
+			if len(in.Paths) == 0 {
+				return nil, partsOut{}, errors.New("paths is required, e.g. [\"scripts.book\"]; get_app_outline lists the names")
+			}
+			_, def, n, err := readDefinition(req, in.App, in.Version)
+			if err != nil {
+				return nil, partsOut{}, err
+			}
+			if def == nil {
+				return nil, partsOut{}, errors.New("the app has no definition yet")
+			}
+			parts, err := platform.SelectParts(def, in.Paths)
+			if err != nil {
+				return nil, partsOut{}, err
+			}
+			return nil, partsOut{Version: n, Parts: parts}, nil
 		})
 
 	type applyIn struct {
@@ -511,22 +558,17 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 
 	type exampleIn struct {
-		Name          string   `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
-		ReferenceOnly bool     `json:"reference_only,omitempty" jsonschema:"true: return only the reference for writing app definitions, e.g. before changing an existing app with patch_app"`
-		Only          []string `json:"only,omitempty" jsonschema:"return only these parts of the example, as in get_app, e.g. [\"routes\", \"scripts.book\"]; the reference is left out unless with_reference is true"`
-		Outline       bool     `json:"outline,omitempty" jsonschema:"true: return only the names and sizes of the example's parts"`
-		WithReference bool     `json:"with_reference,omitempty" jsonschema:"with only or outline: also return the reference"`
+		Name          string `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
+		ReferenceOnly bool   `json:"reference_only,omitempty" jsonschema:"true: return only the reference for writing app definitions, e.g. before changing an existing app with patch_app"`
 	}
 	type exampleOut struct {
 		Examples   []map[string]string `json:"examples,omitempty"`
 		Name       string              `json:"name,omitempty"`
 		Definition *appdef.App         `json:"definition,omitempty" jsonschema:"a complete app definition, valid for apply_change"`
-		Outline    *platform.Outline   `json:"outline,omitempty"`
-		Parts      map[string]any      `json:"parts,omitempty"`
 		Reference  string              `json:"reference,omitempty" jsonschema:"how app definitions are written: tables, templates, scripts, visitor accounts, payments, emails, uploads"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "get_example", Title: toolAnnotations["get_example"].Title, Annotations: toolAnnotations["get_example"],
-		Description: "List the finished example apps (names and descriptions only), or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. With reference_only true it returns only the reference. Examples are large: outline true gives names and sizes, only [...] gives chosen parts; to build from an example, prefer create_app {from_example} over copying it. Reads only."},
+		Description: "List the finished example apps (names and descriptions only), or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. With reference_only true it returns only the reference. To build from an example, prefer create_app {from_example}, then read it with get_app_outline and get_app_parts. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in exampleIn) (*mcp.CallToolResult, exampleOut, error) {
 			if _, err := userOf(req); err != nil {
 				return nil, exampleOut{}, err
@@ -551,14 +593,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err := json.Unmarshal(e.JSON, &def); err != nil {
 				return nil, exampleOut{}, err
 			}
-			out := exampleOut{Name: e.Name}
-			if err := shapeDefinition(&def, in.Only, in.Outline, &out.Definition, &out.Outline, &out.Parts); err != nil {
-				return nil, exampleOut{}, err
-			}
-			if out.Definition != nil || in.WithReference {
-				out.Reference = reference
-			}
-			return nil, out, nil
+			return nil, exampleOut{Name: e.Name, Definition: &def, Reference: reference}, nil
 		})
 
 	type patchIn struct {
@@ -709,21 +744,17 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				&mcp.TextContent{Text: string(summary)}}}, res, nil
 		})
 
-	type jobIn struct {
-		App string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
-		Job string `json:"job" jsonschema:"which of the scheduled jobs listed in the app's definition to try, by its name there (get_app shows them), e.g. daily_report"`
+	type jobsOut struct {
+		Runs []platform.JobRun `json:"runs" jsonschema:"one entry per scheduled job, in the order the definition lists them: its result and its log"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "test_scheduled_job", Title: toolAnnotations["test_scheduled_job"].Title, Annotations: toolAnnotations["test_scheduled_job"],
-		Description: "Try one scheduled job of the user's own app once on its private preview, to see that it works before publishing: a daily report, a reminder, cancelling unpaid orders. The job is part of the app's saved definition and normally runs by itself on the live site at its set time; this tool takes no code and no command, only which listed job to try. The job may add, change or delete preview data; the preview data is discarded on the next change and nothing on the live site is modified. Returns the job's result and its log."},
-		func(ctx context.Context, req *mcp.CallToolRequest, in jobIn) (*mcp.CallToolResult, platform.TestResponse, error) {
+	mcp.AddTool(s, &mcp.Tool{Name: "try_scheduled_jobs", Title: toolAnnotations["try_scheduled_jobs"].Title, Annotations: toolAnnotations["try_scheduled_jobs"],
+		Description: "Try the user's app's scheduled jobs on its private preview, to see that they work before publishing (a daily report, a reminder, cancelling unpaid orders): every job listed in the app's saved definition runs once, in the order listed, as its schedule would run it on the live site. It takes only the app: no job name, code or command. The jobs may add, change or delete preview data; the preview data is discarded on the next change and nothing on the live site is modified. Returns each job's result and log."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in appName) (*mcp.CallToolResult, jobsOut, error) {
 			if err := owns(p, req, in.App); err != nil {
-				return nil, platform.TestResponse{}, err
+				return nil, jobsOut{}, err
 			}
-			if in.Job == "" {
-				return nil, platform.TestResponse{}, errors.New("job is required")
-			}
-			res, err := p.TestRequest(ctx, in.App, platform.TestRequestInput{Job: in.Job})
-			return nil, res, err
+			runs, err := p.TryScheduledJobs(ctx, in.App)
+			return nil, jobsOut{Runs: runs}, err
 		})
 
 	type rowIn struct {
@@ -789,27 +820,6 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	return s
 }
 
-// shapeDefinition puts the whole definition, its outline or the parts
-// asked for into the output, so large definitions are read in pieces.
-func shapeDefinition(def *appdef.App, only []string, outline bool, whole **appdef.App, o **platform.Outline, parts *map[string]any) error {
-	switch {
-	case outline && len(only) > 0:
-		return errors.New("use outline or only, not both")
-	case outline:
-		ol := platform.OutlineOf(def)
-		*o = &ol
-	case len(only) > 0:
-		got, err := platform.SelectParts(def, only)
-		if err != nil {
-			return err
-		}
-		*parts = got
-	default:
-		*whole = def
-	}
-	return nil
-}
-
 var errNoUser = errors.New("not signed in: connect Renoxium again to sign in")
 
 // userOf returns the Renoxium user the request's OAuth token belongs to.
@@ -857,6 +867,8 @@ func Handler(s *mcp.Server, verify auth.TokenVerifier, resourceMetadataURL strin
 var toolAnnotations = map[string]*mcp.ToolAnnotations{
 	"list_apps":           readOnly("List your apps"),
 	"get_app":             readOnly("Read an app"),
+	"get_app_outline":     readOnly("Read the outline of an app"),
+	"get_app_parts":       readOnly("Read parts of an app"),
 	"get_example":         readOnly("Get an example app"),
 	"get_logs":            readOnly("Read an app's log"),
 	"create_app":          write("Create an app", false, false, false),
@@ -870,7 +882,7 @@ var toolAnnotations = map[string]*mcp.ToolAnnotations{
 	"upload_as_visitor":   write("Upload a file as a test visitor", false, false, false),
 	"create_test_visitor": write("Add a test visitor to the preview", false, false, false),
 	"screenshot_preview":  write("See a preview page", false, true, true),
-	"test_scheduled_job":  write("Try a scheduled job on the preview", true, false, true),
+	"try_scheduled_jobs":  write("Try the scheduled jobs on the preview", true, false, true),
 	"change_preview_row":  write("Change a preview row as the owner", true, false, true),
 	"publish":             write("Ask to publish a version (the user confirms)", false, true, false),
 	"rename_app":          write("Ask to rename an app (the user confirms)", false, true, false),

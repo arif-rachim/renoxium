@@ -53,11 +53,11 @@ func TestWhatReviewersRead(t *testing.T) {
 	}
 
 	want := map[string]struct{ readOnly, destructive, openWorld bool }{
-		"list_apps": {true, false, false}, "get_app": {true, false, false}, "get_example": {true, false, false}, "get_logs": {true, false, false},
+		"list_apps": {true, false, false}, "get_app": {true, false, false}, "get_app_outline": {true, false, false}, "get_app_parts": {true, false, false}, "get_example": {true, false, false}, "get_logs": {true, false, false},
 		"create_app": {false, false, false}, "apply_change": {false, true, true}, "patch_app": {false, true, true},
 		"upload_file": {false, false, true}, "publish": {false, false, false},
 		"view_page": {false, false, true}, "view_live_page": {true, false, false}, "submit_form": {false, true, true},
-		"upload_as_visitor": {false, false, false}, "test_scheduled_job": {false, true, true}, "change_preview_row": {false, true, true},
+		"upload_as_visitor": {false, false, false}, "try_scheduled_jobs": {false, true, true}, "change_preview_row": {false, true, true},
 		"edit_app": {false, true, true}, "create_test_visitor": {false, false, false}, "screenshot_preview": {false, false, true},
 		"rename_app": {false, false, false}, "delete_app": {false, false, false},
 	}
@@ -78,13 +78,22 @@ func TestWhatReviewersRead(t *testing.T) {
 	}
 	// What a visitor does is one tool per operation: none takes an HTTP
 	// method, a stage or a command that would choose the operation.
-	visitorTools := map[string]bool{"view_page": true, "view_live_page": true, "submit_form": true, "upload_as_visitor": true, "test_scheduled_job": true}
+	// Reading an app is one tool per operation too, with no mode switch.
+	for _, tool := range res.Tools {
+		b, _ := json.Marshal(tool.InputSchema)
+		for _, mode := range []string{`"outline"`, `"only"`, `"with_reference"`} {
+			if strings.HasPrefix(tool.Name, "get_") && strings.Contains(string(b), mode) {
+				t.Errorf("%s takes %s: each way of reading is a tool of its own", tool.Name, mode)
+			}
+		}
+	}
+	visitorTools := map[string]bool{"view_page": true, "view_live_page": true, "submit_form": true, "upload_as_visitor": true, "try_scheduled_jobs": true}
 	for _, tool := range res.Tools {
 		if !visitorTools[tool.Name] {
 			continue
 		}
 		b, _ := json.Marshal(tool.InputSchema)
-		for _, generic := range []string{`"method"`, `"stage"`, `"command"`, `"admin"`, `"files"`} {
+		for _, generic := range []string{`"method"`, `"stage"`, `"command"`, `"admin"`, `"files"`, `"job"`} {
 			if strings.Contains(string(b), generic) {
 				t.Errorf("%s takes %s: each operation is a tool of its own", tool.Name, generic)
 			}
@@ -96,7 +105,7 @@ func TestWhatReviewersRead(t *testing.T) {
 	says := map[string]string{"create_app": "never executed by you", "apply_change": "never executed by you", "patch_app": "never executed by you",
 		"publish": "changes nothing live", "view_page": "nothing on the live site is modified",
 		"view_live_page": "nothing on the live site is modified", "submit_form": "nothing on the live site is modified",
-		"upload_as_visitor": "never reaches the live site", "test_scheduled_job": "nothing on the live site is modified", "change_preview_row": "nothing on the live site is modified",
+		"upload_as_visitor": "never reaches the live site", "try_scheduled_jobs": "nothing on the live site is modified", "change_preview_row": "nothing on the live site is modified",
 		"edit_app": "never executed by you", "create_test_visitor": "never reaches the live site", "screenshot_preview": "the live site is never opened",
 		"rename_app": "This call changes nothing", "delete_app": "This call changes nothing"}
 	for _, tool := range res.Tools {

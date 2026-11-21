@@ -186,15 +186,17 @@ func TestAgentRunsJobAndChangesRowOnPreview(t *testing.T) {
 	if applied, _ := call(t, s, "apply_change", map[string]any{"app": "noor-shop", "definition": ex["definition"]}); applied["ok"] != true {
 		t.Fatalf("apply: %v", applied)
 	}
-	out, errText := call(t, s, "test_scheduled_job", map[string]any{"app": "noor-shop", "job": "daily_report"})
-	if errText != "" || out["body"] != "no orders today" {
-		t.Fatalf("test_scheduled_job: %v %s", out, errText)
+	out, errText := call(t, s, "try_scheduled_jobs", map[string]any{"app": "noor-shop"})
+	runs, _ := out["runs"].([]any)
+	if errText != "" || len(runs) != 1 || runs[0].(map[string]any)["job"] != "daily_report" || runs[0].(map[string]any)["body"] != "no orders today" ||
+		runs[0].(map[string]any)["schedule"] != "daily at 21:00 Asia/Dubai" {
+		t.Fatalf("try_scheduled_jobs: %v %s", out, errText)
 	}
-	if _, errText := call(t, s, "test_scheduled_job", map[string]any{"app": "noor-shop", "job": "nope"}); errText == "" {
-		t.Fatal("an unknown job ran")
-	}
-	if _, errText := call(t, s, "test_scheduled_job", map[string]any{"app": "noor-shop", "job": "daily_report", "stage": "live"}); errText == "" {
-		t.Fatal("test_scheduled_job took a stage")
+	// It takes only the app: no job name, stage or command chooses what runs.
+	for _, extra := range []string{"job", "stage"} {
+		if _, errText := call(t, s, "try_scheduled_jobs", map[string]any{"app": "noor-shop", extra: "x"}); errText == "" {
+			t.Fatalf("try_scheduled_jobs took %s", extra)
+		}
 	}
 	out, errText = call(t, s, "change_preview_row", map[string]any{"app": "noor-shop", "action": "update", "table": "products", "id": 2, "values": map[string]any{"price": 99}})
 	if errText != "" || out["admin"].(map[string]any)["row"].(map[string]any)["price"] != float64(99) {

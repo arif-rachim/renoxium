@@ -471,6 +471,46 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	return p.ApplyChange(ctx, app, def)
 }
 
+// JobRun is the result of one scheduled job tried on preview.
+type JobRun struct {
+	Job      string `json:"job"`
+	Schedule string `json:"schedule" jsonschema:"when it runs on the live site, e.g. every 15m or daily at 21:00 Asia/Dubai"`
+	TestResponse
+}
+
+// TryScheduledJobs runs every job of the preview's definition once, in the
+// order listed, as their schedules would on live. It takes no job name:
+// the jobs are whatever the saved definition lists.
+func (p *Platform) TryScheduledJobs(ctx context.Context, app string) ([]JobRun, error) {
+	if _, err := p.Info(app); err != nil {
+		return nil, err
+	}
+	st, err := p.loadStage(app, Preview)
+	if err != nil || st == nil {
+		return nil, errors.New("preview has no version yet: call apply_change first")
+	}
+	if len(st.def.Jobs) == 0 {
+		return nil, errors.New("the app's definition lists no scheduled jobs")
+	}
+	out := make([]JobRun, 0, len(st.def.Jobs))
+	for _, j := range st.def.Jobs {
+		res, err := p.testJob(ctx, app, Preview, j.Name)
+		if err != nil {
+			return out, err
+		}
+		schedule := "every " + j.Every
+		if j.DailyAt != "" {
+			tz := j.Timezone
+			if tz == "" {
+				tz = "Asia/Dubai"
+			}
+			schedule = "daily at " + j.DailyAt + " " + tz
+		}
+		out = append(out, JobRun{Job: j.Name, Schedule: schedule, TestResponse: res})
+	}
+	return out, nil
+}
+
 // testJob runs one job on preview, as the scheduler would on live.
 func (p *Platform) testJob(ctx context.Context, app, stage, name string) (TestResponse, error) {
 	if stage != Preview {
