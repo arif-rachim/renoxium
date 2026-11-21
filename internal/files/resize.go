@@ -60,16 +60,31 @@ func (s *Store) Variant(b Blob, width int, mayCreate func() bool) (*os.File, str
 	if b.ContentType == "image/png" {
 		ctype, ext = "image/png", "png"
 	}
-	path := filepath.Join(s.dir, "variants", b.Hash[0:2], b.Hash+"-"+strconv.Itoa(width)+"."+ext)
-	if f, err := os.Open(path); err == nil {
-		return f, ctype, nil
-	}
 	src, err := s.Open(b.Hash)
 	if err != nil {
 		return nil, "", err
 	}
+	// A JPEG stored with an orientation note (uploads from before photos were
+	// turned upright on upload) is turned here; its copies have their own
+	// names, so copies made before this was done are not served again.
+	turn, suffix := 1, ""
+	if b.ContentType == "image/jpeg" {
+		if turn = jpegOrientation(src); turn > 1 {
+			suffix = "-u"
+		}
+		src.Seek(0, 0)
+	}
+	path := filepath.Join(s.dir, "variants", b.Hash[0:2], b.Hash+"-"+strconv.Itoa(width)+suffix+"."+ext)
+	if f, err := os.Open(path); err == nil {
+		src.Close()
+		return f, ctype, nil
+	}
 	cfg, _, err := image.DecodeConfig(src)
-	if err != nil || cfg.Width <= width || cfg.Width*cfg.Height > MaxPixels {
+	shown := cfg.Width // the width as the image is seen
+	if turn >= 5 {
+		shown = cfg.Height
+	}
+	if err != nil || shown <= width || cfg.Width*cfg.Height > MaxPixels {
 		src.Seek(0, 0)
 		return src, b.ContentType, nil
 	}
@@ -94,8 +109,11 @@ func (s *Store) Variant(b Blob, width int, mayCreate func() bool) (*os.File, str
 	if err != nil {
 		return nil, "", err
 	}
-	height := max(1, cfg.Height*width/cfg.Width)
-	dst := image.NewRGBA(image.Rect(0, 0, width, height))
+	w, h := width, max(1, cfg.Height*width/cfg.Width)
+	if turn >= 5 { // stored on its side: the stored height becomes the width seen
+		w, h = max(1, cfg.Width*width/cfg.Height), width
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	if ctype == "image/jpeg" { // no transparency in JPEG: start from white
 		draw.Draw(dst, dst.Bounds(), image.White, image.Point{}, draw.Src)
 	}
@@ -112,7 +130,7 @@ func (s *Store) Variant(b Blob, width int, mayCreate func() bool) (*os.File, str
 	if ctype == "image/png" {
 		err = (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(tmp, dst)
 	} else {
-		err = jpeg.Encode(tmp, dst, &jpeg.Options{Quality: 82})
+		err = jpeg.Encode(tmp, upright(dst, turn), &jpeg.Options{Quality: 82})
 	}
 	if err == nil {
 		err = tmp.Close()
@@ -141,6 +159,15 @@ func Deferred(f *os.File, b Blob, width int) bool {
 	pos, _ := f.Seek(0, 1)
 	defer f.Seek(pos, 0)
 	f.Seek(0, 0)
+	turn := 1
+	if b.ContentType == "image/jpeg" {
+		turn = jpegOrientation(f)
+		f.Seek(0, 0)
+	}
 	cfg, _, err := image.DecodeConfig(f)
-	return err == nil && cfg.Width > width && cfg.Width*cfg.Height <= MaxPixels
+	shown := cfg.Width
+	if turn >= 5 {
+		shown = cfg.Height
+	}
+	return err == nil && shown > width && cfg.Width*cfg.Height <= MaxPixels
 }

@@ -39,7 +39,7 @@ func (p *Platform) AddFile(app string, r io.Reader) (FileInfo, error) {
 	if count >= MaxFilesPerApp {
 		return FileInfo{}, fmt.Errorf("this app already has %d files; the limit is %d", count, MaxFilesPerApp)
 	}
-	b, existed, err := p.files.Put(r)
+	b, existed, err := p.files.PutImage(r) // a photo wider than the largest size ever shown is stored at that size
 	if err != nil {
 		return FileInfo{}, err
 	}
