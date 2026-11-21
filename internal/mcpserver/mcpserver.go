@@ -105,7 +105,7 @@ Exact data types in scripts:
   for 8 to 64 bytes). Use it for secret links, codes and tokens, never Math.random or realtime.token.
   crypto.sha256(text) returns lowercase hex, e.g. store only the hash of a lookup code and compare hashes.
 - Return {template: "name", data: {...}} for HTML (full page or fragment), {json: value}, {text: "..."}, or {redirect: "/path"} (303 after a POST);
-  add status to change the HTTP status.
+  add status to change the HTTP status. 502 and 504 are served as 503, so the page reaches visitors (Cloudflare replaces 502 and 504 pages).
 
 Working on a large definition (one short example each):
 - Start from an example: create_app {"app": "sparkle-clean", "from_example": "home-service-uae"} returns version 1 and an outline.

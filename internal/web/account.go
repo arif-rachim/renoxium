@@ -156,7 +156,7 @@ func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.cancelSubscriptions(r.Context(), u.ID); err != nil {
 		slog.Error("cancel subscription before delete", "user", u.ID, "err", err)
-		s.renderAccount(w, r, u, http.StatusBadGateway, map[string]any{"DeleteError": "Your paid plan could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
+		s.renderAccount(w, r, u, http.StatusServiceUnavailable, map[string]any{"DeleteError": "Your paid plan could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
 		return
 	}
 	apps, err := s.platform.Apps(u.ID)

@@ -140,10 +140,10 @@ var authText = map[string][2]string{
 
 // authArabic translates the messages the handlers write in English.
 var authArabic = map[string]string{
-	"Too many new WhatsApp sign-ups right now. Please sign up with your email instead.": "عدد كبير من التسجيلات عبر واتساب الآن. يرجى التسجيل بالبريد الإلكتروني.",
-	"We could not send a WhatsApp message to this number. Check it and try again.":      "تعذر إرسال رسالة واتساب إلى هذا الرقم. تحقق منه وحاول مرة أخرى.",
-	"Too many attempts. Try again in an hour.":                                          "محاولات كثيرة. حاول مرة أخرى بعد ساعة.",
-	"The form expired. Go back, reload the page and try again.":                         "انتهت صلاحية النموذج. ارجع وأعد تحميل الصفحة ثم حاول مرة أخرى.",
+	"Too many new WhatsApp sign-ups right now. Please sign up with your email instead.":                              "عدد كبير من التسجيلات عبر واتساب الآن. يرجى التسجيل بالبريد الإلكتروني.",
+	"We could not send a WhatsApp code just now. Check the number and try again, or continue with your email below.": "تعذر إرسال رمز واتساب الآن. تحقق من الرقم وحاول مرة أخرى، أو تابع باستخدام بريدك الإلكتروني أدناه.",
+	"Too many attempts. Try again in an hour.":                                                                       "محاولات كثيرة. حاول مرة أخرى بعد ساعة.",
+	"The form expired. Go back, reload the page and try again.":                                                      "انتهت صلاحية النموذج. ارجع وأعد تحميل الصفحة ثم حاول مرة أخرى.",
 	"Please try again":                                                  "يرجى المحاولة مرة أخرى",
 	"This code has expired. Ask for a new one.":                         "انتهت صلاحية هذا الرمز. اطلب رمزًا جديدًا.",
 	"That code is not right. Check the WhatsApp message and try again.": "الرمز غير صحيح. تحقق من رسالة واتساب وحاول مرة أخرى.",

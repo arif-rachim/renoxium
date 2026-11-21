@@ -265,6 +265,12 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 	if status < 200 || status > 599 {
 		status = http.StatusOK
 	}
+	if status == http.StatusBadGateway || status == http.StatusGatewayTimeout {
+		// Cloudflare, in front of every app, replaces a 502 or 504 from the
+		// origin with its own error page, so the app's page would never
+		// reach the visitor. 503 is passed through.
+		status = http.StatusServiceUnavailable
+	}
 	switch {
 	case resp.Template != "":
 		return checkMissingKeys(r.Context(), p.render(st, status, resp.Template, resp.Data, rid), resp.Template, resp.Data)

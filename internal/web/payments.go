@@ -173,7 +173,7 @@ func (s *Site) connectStripe(w http.ResponseWriter, r *http.Request) {
 	link, err := s.platform.StripeOnboardingURL(r.Context(), app, u.Email, page+"?returned=1", page+"/connect")
 	if err != nil {
 		slog.Error("stripe onboarding", "app", app, "err", err)
-		render(w, http.StatusBadGateway, "error", map[string]any{"Message": "Stripe could not start the setup: " + err.Error()})
+		render(w, http.StatusServiceUnavailable, "error", map[string]any{"Message": "Stripe could not start the setup: " + err.Error()})
 		return
 	}
 	http.Redirect(w, r, link, http.StatusSeeOther)
