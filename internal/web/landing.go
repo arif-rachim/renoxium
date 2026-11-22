@@ -367,8 +367,8 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 @media(max-width:760px){.sign{grid-template-columns:1fr;row-gap:20px}.sign .rule{height:2px;width:56px;justify-self:end}}
 .how-it{font-size:19px;line-height:1.55;color:var(--slate);max-width:40em;margin:clamp(28px,4vw,44px) 0 28px}
 .ways{display:grid;gap:64px;margin-top:clamp(64px,8vw,104px)}
-@media(min-width:900px){.ways{grid-template-columns:repeat(3,1fr);gap:48px}}
-.way .shot{width:100%;max-width:300px;aspect-ratio:600/1040;object-fit:cover;object-position:top;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
+@media(min-width:760px){.ways{grid-template-columns:repeat(2,1fr);gap:56px 48px}}
+.way .shot{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:14px;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
 @media(hover:hover){.way:hover .shot{transform:translateY(-6px)}}
 .way h2{font-size:26px;margin:32px 0 8px}
 .way p{margin:0;color:var(--slate);max-width:28em}
@@ -428,11 +428,11 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .tabs button[aria-selected=true]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .trade{display:grid;gap:32px;margin-top:40px;align-items:start}
 .trade+.trade{border-top:1px solid var(--line);padding-top:40px}.tabbed .trade+.trade{border-top:0;padding-top:0}
-@media(min-width:900px){.trade{grid-template-columns:240px 1fr;gap:72px}}
-.trade .shot{width:100%;max-width:240px;aspect-ratio:600/900;object-fit:cover;object-position:top}
-@media(max-width:899px){.trade .shot{max-width:200px}}
+@media(min-width:900px){.trade{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:56px}}
+.trade .shot{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:14px}
+
 .trade h3{font-size:26px}.tabbed .trade h3{position:absolute;left:-9999px}
-.trade .cols{display:grid;gap:32px}@media(min-width:640px){.trade .cols{grid-template-columns:1fr 1fr;gap:48px}}
+.trade .cols{display:grid;gap:28px}@media(min-width:640px){.trade .cols{grid-template-columns:1fr 1fr;gap:36px}}
 .trade h4{margin:0;font-size:15px;font-weight:500;color:var(--slate)}
 .trade ul{list-style:none;padding:0;margin:10px 0 0}
 .trade li{padding:13px 0;border-top:1px solid var(--line)}
