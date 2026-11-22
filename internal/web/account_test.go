@@ -56,7 +56,7 @@ func TestAccountPage(t *testing.T) {
 		t.Fatalf("agent token survived: %d", r.StatusCode)
 	}
 
-	// Export: a zip with the account, the app definition and its live database.
+	// Export: a zip with the account, the app definition, its live database and its files.
 	r, _ = c.Get(e.base + "/account/export")
 	raw, _ := io.ReadAll(r.Body)
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))

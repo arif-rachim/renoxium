@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
@@ -74,7 +75,7 @@ func (p *Platform) DeleteApp(app string) error {
 }
 
 // ExportApp writes an app into a zip: its newest definition, a consistent
-// copy of its live database, and the list of its uploaded files.
+// copy of its live database, and its uploaded files with their list.
 func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) error {
 	info, err := p.Info(app)
 	if err != nil {
@@ -100,6 +101,24 @@ func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) er
 	if files, err := p.Files(app); err == nil {
 		if err := add("files.json", files); err != nil {
 			return err
+		}
+		// The files themselves, under the name their address ends with, so the
+		// export is everything the app needs to run somewhere else.
+		for _, fi := range files {
+			name := strings.TrimPrefix(fi.URL, FilesPrefix)
+			hash, _, _ := strings.Cut(name, ".")
+			fh, err := p.files.Open(hash)
+			if err != nil {
+				continue // a file removed while exporting
+			}
+			w, err := zw.Create(app + "/files/" + name)
+			if err == nil {
+				_, err = io.Copy(w, fh)
+			}
+			fh.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if err := p.exportPrivateFiles(app, zw, add); err != nil {

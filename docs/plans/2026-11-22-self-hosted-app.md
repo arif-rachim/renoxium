@@ -2,7 +2,7 @@
 
 **Goal:** an owner can take one app out of Renoxium (definition, data and photos) and run it on a server they control, with the same pages and admin panel, without Renoxium's account system.
 
-**Status:** plan only. Nothing here is built, and the business questions below are not decided.
+**Status:** decided and being built, step by step (see Order of work).
 
 **Done when:**
 - An owner downloads one file from the console that holds everything the app needs: definition, live data, uploaded photos and visitors' private files.
@@ -35,23 +35,12 @@
 | Outside API calls from scripts (`http.fetch`) | Hosts and keys the owner approved in the console | A settings file with the same hosts and keys |
 | Visitors' passwords | Stored hashed; removed from exports | Visitors set a new password by emailed link after the move |
 
-## Decisions to make before building
-These are business choices, not technical ones. The plan below assumes the first option of each; change them here if wrong.
-
-1. **Who may self-host.**
-   - Paid plans only (assumed): export of data stays free for everyone; the single-app mode needs a licence key issued to Pro and Business accounts.
-   - Everyone: simplest, strongest trust message, no protection of subscription income.
-   - Nobody for now: build only the complete export, as a backup.
-2. **Licence of the binary.**
-   - A source-available licence that allows running it for one's own business and forbids offering it as a hosting service (assumed).
-   - Closed binary under a commercial licence.
-   - Open source.
-3. **Support.**
-   - None for self-hosted sites beyond the written guide (assumed).
-   - Paid support.
-4. **Editing with an AI assistant after the move.**
-   - Not in single-app mode (assumed): the owner changes the definition file by hand, or moves back.
-   - Later: a local MCP endpoint protected by a token, so the owner's assistant can still edit the site.
+## Decisions (made by the owner on 2026-11-22)
+1. **Who may self-host:** paid plans only. Export of data stays free for everyone; the single-app mode runs only with an export from a Pro or Business account.
+2. **Licence of the binary:** source-available. It may be run for one's own business and may not be offered as a hosting service.
+3. **Support:** none for self-hosted sites beyond the written guide.
+4. **Editing with an AI assistant after the move:** not available in single-app mode. The owner changes the definition file by hand, or stays on Renoxium.
+5. **Build:** all of v1, in several pull requests, in the order of work below.
 
 ## Scope
 ### In (v1)
@@ -77,7 +66,7 @@ These are business choices, not technical ones. The plan below assumes the first
 4. **Admin sign-in.** The admin panel today requires a Renoxium account that owns the app. In single-app mode the owner is one local account: `renoxium set-admin -data <dir> -email …` sets its email and password, and the existing admin pages check that account. Staff accounts from the export are kept and get a password the same way.
 5. **Services.** Stripe: the owner's secret key charges directly on their account, without the platform fee and without Connect; the webhook secret comes from the environment. Email: `RESEND_API_KEY` and a sender address. WhatsApp: optional; without it the sign-in pages offer email only and order notices go by email.
 6. **Preview.** Single-app mode has only the live stage. A changed definition is checked with the same checks as today and applied with `renoxium apply <definition.json> -data <dir>`, which keeps the previous version for a rollback.
-7. **Licence check** (if decision 1 is "paid plans only"): the export carries a signed note of the account's plan and date; `serve-app` refuses an export without one. It is checked offline, so a self-hosted site never depends on Renoxium being reachable.
+7. **Licence check:** the export carries a signed note of the account's plan and date; `serve-app` refuses an export without one. It is checked offline, so a self-hosted site never depends on Renoxium being reachable.
 8. **Guide.** `docs/self-host.md`: server, binary, import, admin account, Caddy, Stripe webhook, sender domain, backups (copy the data directory), updates.
 9. **Tests.** Export a demo app, import it, serve it, and compare its pages with the hosted ones; sign in to the admin panel; run a job; pay with the fake Stripe; confirm that no Renoxium address is called.
 
@@ -101,8 +90,6 @@ These are business choices, not technical ones. The plan below assumes the first
 4. Stripe, email and WhatsApp settings.
 5. Apply and rollback of a definition.
 6. Licence check, guide and end-to-end test.
-
-Steps 2 to 6 wait for the decisions above.
 
 ## Open questions deferred
 - Whether a self-hosted site may show "Made with Renoxium" or must.
