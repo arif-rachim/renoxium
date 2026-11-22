@@ -70,3 +70,4 @@ Unsplash photos are under the [Unsplash License](https://unsplash.com/license) (
 | quote-bookkeeping.webp | https://images.rawpixel.com/editor_1024/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvcHgxMTA5OTI4LWltYWdlLWt3dnc5cGM1LmpwZw.jpg ("Accountant", rawpixel public domain, via Openverse) | CC0 1.0 | 3:2 crop, the receipt text blurred |
 | clinic-hero.webp | Original illustration drawn for Renoxium (a waiting room with the queue screen and a phone ticket), SVG rendered to WebP | Renoxium's own work | 1600 px wide |
 | clinic-story.webp | Original illustration drawn for Renoxium (a reception desk with the take-a-number tablet and a QR code stand), SVG rendered to WebP | Renoxium's own work | 1000 px wide |
+| clinic-gp.webp, clinic-dental.webp, clinic-physio.webp, clinic-lab.webp | Original icon illustrations drawn for Renoxium (stethoscope, tooth, a person stretching, a syringe), SVG rendered to WebP | Renoxium's own work | 480 px square |

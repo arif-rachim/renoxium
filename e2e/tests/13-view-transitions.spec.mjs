@@ -24,6 +24,7 @@ const NAVS = [
   ['demo-listings-uae', '/', 'aimg-', /^\/agents\/\d+$/],
   ['demo-listings-uae', '/l/1', 'aimg-', /^\/agents\/\d+$/],
   ['demo-quote-portal-uae', '/', 'kimg-', /^\/packages\/\d+$/],
+  ['demo-clinic-queue-uae', '/', 'simg-', /^\/s\/\d+$/],
 ];
 
 // Runs in every document before its scripts: notes each reveal of the page (a load, or a return from the back/forward
@@ -147,6 +148,7 @@ const TITLES = [
   ['reservation-uae', 'ittl-', /^\/item\/\d+$/],
   ['listings-uae', 'lttl-', /^\/l\/\d+$/],
   ['quote-portal-uae', 'kttl-', /^\/packages\/\d+$/],
+  ['clinic-queue-uae', 'sttl-', /^\/s\/\d+$/],
 ];
 
 // The named title: a box of its own (class vtt) that hugs its text, so the snapshot is the words and nothing else, and

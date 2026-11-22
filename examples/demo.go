@@ -86,6 +86,11 @@ var demoImageSets = map[string][]DemoImageSet{
 	}}},
 	"clinic-queue-uae": {{Table: "clinic", Key: "name", Rows: map[string]map[string]string{
 		"Shifa Family Clinic": {"hero_image": "clinic-hero.webp", "story_image": "clinic-story.webp"},
+	}}, {Table: "services", Key: "name", Rows: map[string]map[string]string{
+		"General practice":         {"image": "clinic-gp.webp"},
+		"Dental":                   {"image": "clinic-dental.webp"},
+		"Physiotherapy":            {"image": "clinic-physio.webp"},
+		"Blood tests and vaccines": {"image": "clinic-lab.webp"},
 	}}},
 	"listings-uae": {{Table: "agency", Key: "name", Rows: map[string]map[string]string{
 		"Marsa Homes": {"hero_image": "listings-hero.webp", "story_image": "listings-story.webp", "interior_image": "listing-living-room.webp"},

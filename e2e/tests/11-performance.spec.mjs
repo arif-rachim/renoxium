@@ -47,7 +47,8 @@ test('templates with the motion kit stay within the performance budget on a phon
   test.setTimeout(480_000);
   for (const [demo, paths] of [['demo-store-uae', ['/', '/p/1', '/?lang=ar']], ['demo-booking-uae', ['/', '/s/1', '/?lang=ar']],
     ['demo-home-service-uae', ['/', '/s/1', '/?lang=ar']], ['demo-reservation-uae', ['/', '/item/1', '/?lang=ar']],
-    ['demo-listings-uae', ['/', '/search', '/l/1', '/agents/1', '/?lang=ar']], ['demo-quote-portal-uae', ['/', '/packages/1', '/?lang=ar']]]) {
+    ['demo-listings-uae', ['/', '/search', '/l/1', '/agents/1', '/?lang=ar']], ['demo-quote-portal-uae', ['/', '/packages/1', '/?lang=ar']],
+    ['demo-clinic-queue-uae', ['/', '/s/1', '/?lang=ar']]]) {
   const base = appURL(demo);
   await demoReady(browser, base);
   for (const path of paths) {

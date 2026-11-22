@@ -106,11 +106,14 @@ func TestClinicQueueFlow(t *testing.T) {
 			t.Errorf("ticket lacks %q", want)
 		}
 	}
-	if e.get("/ticket?k=nope", "").Status != 404 || e.get("/ticket", "").Status != 404 {
+	if e.get("/ticket?k=nope", "").Status != 404 || e.get("/ticket?k=nope&json=1", "").Status != 404 {
 		t.Error("a wrong ticket link is found")
 	}
+	if r := e.get("/ticket", ""); r.Status != 200 || !strings.Contains(r.Body, "Open the link on the phone you took your number with") {
+		t.Errorf("ticket page without a link: %d", r.Status)
+	}
 	var api map[string]any
-	json.Unmarshal([]byte(e.get("/api/ticket?k="+k4, "").Body), &api)
+	json.Unmarshal([]byte(e.get("/ticket?json=1&k="+k4, "").Body), &api)
 	if api["ahead"] != 3.0 || api["code"] != "A004" || api["name"] != nil {
 		t.Errorf("api ticket: %v", api)
 	}
@@ -136,7 +139,7 @@ func TestClinicQueueFlow(t *testing.T) {
 	// Staff: only the emails on the staff list.
 	const nurse = "nurse@shifa.ae"
 	e.signup(nurse)
-	if r := e.get("/staff", nurse); r.Status != 403 || !strings.Contains(r.Body, "not on the clinic&#39;s staff list") {
+	if r := e.get("/staff", nurse); strings.Contains(r.Body, "Call next patient") || !strings.Contains(r.Body, "not on the clinic&#39;s staff list") {
 		t.Fatalf("staff page for a stranger: %d", r.Status)
 	}
 	if r := e.post("/staff/act", nurse, map[string]string{"action": "next", "room": "1"}); r.Status != 403 {

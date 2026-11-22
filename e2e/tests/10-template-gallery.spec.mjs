@@ -15,7 +15,7 @@ test('template gallery and demos', async ({ browser }) => {
   await page.getByRole('link', { name: 'Templates' }).first().click();
   await expect(page).toHaveURL(/\/templates$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Templates', exact: true })).toBeVisible();
-  for (const title of ['Online store', 'Appointments and classes', 'Home services', 'Tours and rentals', 'Quotes and client portal', 'Property listings']) {
+  for (const title of ['Online store', 'Appointments and classes', 'Home services', 'Tours and rentals', 'Quotes and client portal', 'Property listings', 'Walk-in queue']) {
     await expect(page.locator('.tcard', { hasText: title })).toBeVisible();
   }
 
