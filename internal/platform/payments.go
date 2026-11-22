@@ -339,6 +339,7 @@ func (p *Platform) afterStatusChange(ctx context.Context, st *stage, id, event s
 	if event == "paid" && pm.minor > 0 {
 		if st.name == Live {
 			p.funnel(p.ownerOf(st.app), FunnelActivity, st.app, "card")
+			p.noteOwnerActive(p.ownerOf(st.app))
 		}
 		subject := fmt.Sprintf("Payment received: %s %.2f for %s", strings.ToUpper(pm.Currency), pm.Amount, pm.Reference)
 		p.whatsappOwner(st, subject)

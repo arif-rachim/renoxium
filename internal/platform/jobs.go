@@ -107,6 +107,9 @@ func (p *Platform) runDueJobs(ctx context.Context, now time.Time, wait bool) int
 	queues := map[string][]dueJob{}
 	started := 0
 	for _, a := range live {
+		if p.ownerPaused(p.ownerOf(a.app)) {
+			continue // deactivated for inactivity: nothing runs until it is reactivated
+		}
 		for _, j := range p.jobsOf(a.app, a.version) {
 			if p.jobDue(a.app, j, now) {
 				owner := p.ownerOf(a.app)

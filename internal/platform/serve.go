@@ -55,6 +55,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.suspendedPage(w)
 		return true
 	}
+	if stageName == Live && p.ownerPaused(p.ownerOf(app)) {
+		p.pausedPage(w)
+		return true
+	}
 	if stageName == Live && p.planLapsed(app) {
 		p.lapsedPage(w)
 		return true

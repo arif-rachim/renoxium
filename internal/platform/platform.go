@@ -91,6 +91,14 @@ type Config struct {
 	// Free-plan apps pay a cut of card payments, show a small badge and
 	// are limited in number. Nil means no plans: nothing is limited.
 	OwnerPlan func(ownerID string) string
+	// OwnerActive records activity of an account (a publish, a paid card
+	// payment in a live app), which keeps it from being deactivated. Nil: not
+	// recorded.
+	OwnerActive func(ownerID string)
+	// OwnerDeactivated reports whether an account was deactivated for
+	// inactivity: its live apps then show a "paused" page and run no
+	// scheduled jobs. Nil: never.
+	OwnerDeactivated func(ownerID string) bool
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
 	OwnerEmail func(ownerID string) (address string, ok bool)
@@ -143,6 +151,7 @@ type Platform struct {
 	hosts  sync.Map       // host -> hostEntry
 	owners sync.Map       // app -> owner
 	lapsed sync.Map       // app -> lapsedState (see planLapsed)
+	paused sync.Map       // owner -> pausedState (see ownerPaused)
 	// liveHosts maps an app to its active custom domain.
 	liveHosts sync.Map
 	errors    errorCounter
@@ -701,6 +710,10 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 	if p.isSuspended(name) {
 		return PublishResult{}, errors.New("this app is suspended")
 	}
+	if p.ownerPaused(p.ownerOf(name)) {
+		return PublishResult{}, fmt.Errorf("the owner's Renoxium account is deactivated after a long time without use; "+
+			"the owner signs in at %s and presses Reactivate on the dashboard, then publishes again", p.cfg.SiteURL)
+	}
 	if pl := p.planFor(name, def); !pl.Ready {
 		return PublishResult{}, errors.New(pl.Problem)
 	}
@@ -725,6 +738,7 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 	}
 	p.dropStage(name, Live)
 	p.funnel(p.ownerOf(name), FunnelPublish, name, guessTemplate(def))
+	p.noteOwnerActive(p.ownerOf(name))
 	return PublishResult{LiveVersion: version, LiveURL: p.URL(name, Live), Migrations: migrations}, nil
 }
 

@@ -198,8 +198,9 @@ func (f *fakeStripe) server(t *testing.T) *httptest.Server {
 func TestLiveCheckoutThroughStripe(t *testing.T) {
 	fs := &fakeStripe{}
 	srv := fs.server(t)
+	var active []string // accounts.NoteActivity in the server: a paid card payment keeps the account
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
-		Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: srv.URL}}, sandbox.NewGoja())
+		Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: srv.URL}, OwnerActive: func(id string) { active = append(active, id) }}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,6 +209,7 @@ func TestLiveCheckoutThroughStripe(t *testing.T) {
 	p.CreateApp("usr_test", "oud")
 	p.ApplyChange(ctx, "oud", shopWithCheckout())
 	p.Publish("oud", 0)
+	active = nil // the publish
 	host := "oud.renoxium.test"
 
 	// Before the owner connects Stripe, checkout explains what is missing.
@@ -273,10 +275,16 @@ func TestLiveCheckoutThroughStripe(t *testing.T) {
 	if status() != "awaiting payment" {
 		t.Fatal("unpaid session marked paid")
 	}
+	if len(active) != 0 {
+		t.Fatalf("an unpaid checkout counted as activity: %v", active)
+	}
 	p.HandleStripeEvent(ctx, event("checkout.session.async_payment_succeeded", "acct_merchant", "paid"))
 	p.HandleStripeEvent(ctx, event("checkout.session.completed", "acct_merchant", "paid")) // retried delivery
 	if status() != "paid" {
 		t.Fatalf("status = %q", status())
+	}
+	if len(active) != 1 || active[0] != "usr_test" {
+		t.Fatalf("paid card payment recorded activity %v", active)
 	}
 	logs, _ = p.Logs("oud", logFilterAll())
 	if n := countMessages(logs, "console: on_payment paid 500 aed"); n != 1 {
