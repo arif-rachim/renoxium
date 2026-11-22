@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/arif-rachim/renoxium/internal/licence"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -43,6 +44,7 @@ func main() {
 	workers := flag.Int("workers", 4, "number of script worker processes")
 	requireSandbox := flag.Bool("require-sandbox", false, "refuse to run scripts when the kernel sandbox for script workers (Landlock) is unavailable")
 	abuseEmail := flag.String("abuse-email", "", "address that receives abuse reports from /abuse; empty only logs them")
+	selfHosted := flag.Bool("self-hosted", false, "run the one app of a data directory made with import, on the owner's own server (docs/self-host.md)")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "usage: renoxium [flags]                    serve\n"+
 			"       renoxium [flags] suspend APP REASON  take an app offline (a running server notices within 30s)\n"+
@@ -51,7 +53,13 @@ func main() {
 			"       renoxium [flags] reviewer EMAIL [APP] create or reset an account for a directory's reviewers, with an example store\n"+
 			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
 			"       renoxium shot-helper SOCKET          run Chromium for screenshots as a service of its own (deploy/renoxium-shots.service)\n"+
-			"       renoxium version                     print the commit this binary was built from\n\nflags:\n")
+			"       renoxium version                     print the commit this binary was built from\n\n"+
+			"on the owner's own server (docs/self-host.md):\n"+
+			"       renoxium [flags] import EXPORT.zip ADMIN_EMAIL [YOUR_DOMAIN] [APP]  create a data directory from an export\n"+
+			"       renoxium [flags] apply DEFINITION.json   check a changed definition and make it live\n"+
+			"       renoxium [flags] rollback [VERSION]      make an earlier version live again\n"+
+			"       renoxium [flags] admin-password EMAIL    give the admin account a new password\n"+
+			"       renoxium licence-key                     make a key pair for signing exports' licences\n\nflags:\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -65,8 +73,19 @@ func main() {
 			fmt.Println(buildVersion())
 			os.Exit(0)
 		}
-		if args[0] == "reviewer" {
+		switch args[0] {
+		case "reviewer":
 			os.Exit(reviewerCommand(*dataDir, *appsDomain, args[1:]))
+		case "import":
+			os.Exit(importCommand(*dataDir, *appsDomain, args[1:]))
+		case "apply":
+			os.Exit(applyCommand(*dataDir, *appsDomain, args[1:]))
+		case "rollback":
+			os.Exit(rollbackCommand(*dataDir, *appsDomain, args[1:]))
+		case "admin-password":
+			os.Exit(adminPasswordCommand(*dataDir, args[1:]))
+		case "licence-key":
+			os.Exit(licenceKeyCommand())
 		}
 		os.Exit(adminCommand(*dataDir, args))
 	}
@@ -113,6 +132,16 @@ func main() {
 	default:
 		cfg.Chromium = os.Getenv("RENOXIUM_CHROMIUM")
 		slog.Warn("Chromium for screenshots runs inside this process; the screenshot helper (RENOXIUM_SHOT_SOCKET) keeps it away from the apps' data")
+	}
+	cfg.SelfHosted = *selfHosted
+	if seed := os.Getenv("RENOXIUM_LICENCE_KEY"); seed != "" && !*selfHosted {
+		key, err := licence.KeyFromSeed(seed)
+		if err != nil {
+			slog.Error("RENOXIUM_LICENCE_KEY", "err", err)
+			os.Exit(1)
+		}
+		cfg.LicenceKey = key
+		slog.Info("exports from paid accounts carry a licence to run on the owner's server")
 	}
 	cfg.ScriptsPerOwner = max(1, *workers/2)
 	cfg.ScriptsPerApp = cfg.ScriptsPerOwner
@@ -182,6 +211,15 @@ func main() {
 	}
 	defer p.Close()
 	site := web.New(*baseURL, acc, p)
+	if *selfHosted {
+		app, err := selfHostedApp(*dataDir, p)
+		if err != nil {
+			slog.Error("self-hosted", "err", err)
+			os.Exit(1)
+		}
+		site.SingleApp = app
+		slog.Info("self-hosted: one app on its owner's server", "app", app, "site", p.URL(app, platform.Live), "admin", *baseURL)
+	}
 	site.TrustedIPHeader = *trustedIPHeader
 	site.Mailer = mailer
 	site.Version = buildVersion()
@@ -226,22 +264,27 @@ func main() {
 	}()
 	go p.RunUsage(context.Background()) // resource meter, per app and hour
 	// Funnel events for steps owners took before they were recorded.
-	go func() {
-		if err := p.BackfillFunnel(context.Background()); err != nil {
-			slog.Error("backfill funnel events", "err", err)
-		}
-	}()
-	// Template demos: one public app per gallery example, brought up to
-	// date at every start and put back to seed data every hour.
-	go func() {
-		if err := p.EnsureDemos(context.Background(), examples.Gallery()); err != nil {
-			slog.Error("template demos", "err", err)
-		}
-	}()
+	if !*selfHosted {
+		go func() {
+			if err := p.BackfillFunnel(context.Background()); err != nil {
+				slog.Error("backfill funnel events", "err", err)
+			}
+		}()
+		// Template demos: one public app per gallery example, brought up to
+		// date at every start and put back to seed data every hour.
+		go func() {
+			if err := p.EnsureDemos(context.Background(), examples.Gallery()); err != nil {
+				slog.Error("template demos", "err", err)
+			}
+		}()
+	}
 	go func() {
 		for range time.Tick(time.Hour) {
 			acc.Cleanup()
 			p.Cleanup(context.Background())
+			if *selfHosted {
+				continue
+			}
 			if err := p.ResetDemos(context.Background()); err != nil {
 				slog.Error("reset template demos", "err", err)
 			}
