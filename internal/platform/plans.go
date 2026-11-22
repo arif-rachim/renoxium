@@ -19,7 +19,7 @@ const (
 const FreePlanFeePercent = 2
 
 // AppsPerPlan is how many apps an account may create on each plan.
-var AppsPerPlan = map[string]int{planFree: 1, planPro: 3, planBusiness: 10}
+var AppsPerPlan = map[string]int{planFree: 3, planPro: 10, planBusiness: 50}
 
 type cachedPlan struct {
 	plan string

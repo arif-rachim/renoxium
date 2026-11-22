@@ -248,7 +248,7 @@ const NameHold = 90 * 24 * time.Hour
 // Quotas per account and per app. There is no billing yet, so these keep
 // one account from filling the server's disk.
 const (
-	MaxAppsPerOwner = 10
+	MaxAppsPerOwner = 50 // the largest plan's limit
 	keepVersions    = 50 // older versions are deleted, except the live one
 	keepBackups     = 3  // publish backups kept per app
 	MaxFilesPerApp  = 2000

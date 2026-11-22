@@ -143,9 +143,9 @@ Renoxium runs untrusted, agent-written code for many tenants on shared infrastru
 
 | Plan | Price | Apps | Notes |
 |---|---|---|---|
-| Free | AED 0 | 1 | 2% application fee on card payments; "Made with Renoxium" badge |
-| Pro | AED 99 / month | 3 | Custom domain; higher storage, email and API quotas |
-| Business | AED 299 / month | 10 | Highest quotas |
+| Free | AED 0 | 3 | 2% application fee on card payments; "Made with Renoxium" badge |
+| Pro | AED 99 / month | 10 | Custom domain; higher storage, email and API quotas |
+| Business | AED 299 / month | 50 | Highest quotas |
 
 **No credits.** Building and changing apps through the agent is unlimited on every plan, the Free plan included, and is never
 charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. Claude's free

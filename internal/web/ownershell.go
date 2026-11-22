@@ -100,7 +100,7 @@ func planCards(current string) []planCard {
 		return append(out, "Your own domain", "No fee on card payments", "No Renoxium badge")
 	}
 	cards := []planCard{
-		{ID: accounts.PlanFree, Name: "Free", Price: "0", Tagline: "Try Renoxium with one app.", Features: f(accounts.PlanFree)},
+		{ID: accounts.PlanFree, Name: "Free", Price: "0", Tagline: "Try Renoxium for free.", Features: f(accounts.PlanFree)},
 		{ID: accounts.PlanPro, Name: "Pro", Price: strconv.Itoa(accounts.PlanPriceAED[accounts.PlanPro]), Tagline: "For a growing business with a few sites.", Features: f(accounts.PlanPro), Popular: true},
 		{ID: accounts.PlanBusiness, Name: "Business", Price: strconv.Itoa(accounts.PlanPriceAED[accounts.PlanBusiness]), Tagline: "For teams running many sites.", Features: f(accounts.PlanBusiness)},
 	}

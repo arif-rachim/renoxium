@@ -40,14 +40,19 @@ func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 		}
 	}
 
-	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, a badge, and one app only.
+	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, a badge, and three apps only.
 	do(t, p, "POST", "free-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
 		t.Fatalf("free plan fee = %q", fee)
 	}
-	if _, err := p.CreateApp("usr_free", "free-second"); err == nil || !strings.Contains(err.Error(), "free plan allows 1") ||
+	for _, name := range []string{"free-second", "free-third"} {
+		if _, err := p.CreateApp("usr_free", name); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	if _, err := p.CreateApp("usr_free", "free-fourth"); err == nil || !strings.Contains(err.Error(), "free plan allows 3") ||
 		!strings.Contains(err.Error(), "https://www.renoxium.test/billing") {
-		t.Fatalf("second free app: %v", err)
+		t.Fatalf("fourth free app: %v", err)
 	}
 	// Pro: no fee, no badge, more apps.
 	do(t, p, "POST", "pro-shop.renoxium.test", "/buy", url.Values{})

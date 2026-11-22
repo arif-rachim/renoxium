@@ -149,8 +149,8 @@ testing a full payment in the sandbox, and create the live webhook the same way.
 
 Accounts pay Renoxium through subscriptions on the Renoxium platform's own Stripe account. Free accounts
 pay a 2% Renoxium fee on their shops' card payments (taken by Stripe as an application fee), show a small
-"Made with Renoxium" badge on live pages and may create 1 app; Pro (AED 99 a month, 3 apps) and Business
-(AED 299 a month, 10 apps) pay no fee and show no badge. Owners manage their plan at `/billing`.
+"Made with Renoxium" badge on live pages and may create 3 apps; Pro (AED 99 a month, 10 apps) and Business
+(AED 299 a month, 50 apps) pay no fee and show no badge. Owners manage their plan at `/billing`.
 
 In the Stripe Dashboard of the platform account (start in the sandbox):
 
