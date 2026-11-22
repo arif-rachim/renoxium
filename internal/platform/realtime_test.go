@@ -179,6 +179,8 @@ func TestDeliveryTrackingExample(t *testing.T) {
 	if len(problems) > 0 {
 		t.Fatal(problems)
 	}
+	// Delivery 3 is turned into a real order: real orders are never listed.
+	def.Seed["deliveries"][2]["sample"] = false
 	p.CreateApp("usr_test", "flowers")
 	if res, err := p.ApplyChange(ctx, "flowers", def); err != nil || !res.OK {
 		t.Fatal(err, res)
@@ -196,6 +198,18 @@ func TestDeliveryTrackingExample(t *testing.T) {
 	}
 	if r := req(platform.TestRequestInput{Path: "/track/1?code=ABC123"}); r.Status != 200 || !strings.Contains(r.Body, "/_rx/live/delivery-1?token=") {
 		t.Fatalf("track page: %d", r.Status)
+	}
+	// The home page lists the sample deliveries, each linking to its tracker,
+	// and a sample's tracker can simulate the courier; a real order is neither.
+	home := req(platform.TestRequestInput{Path: "/"})
+	if home.Status != 200 || strings.Count(home.Body, `class="fl-card"`) != 4 || !strings.Contains(home.Body, `href="/track/2?code=ROSE24"`) || strings.Contains(home.Body, "ORCH88") {
+		t.Fatalf("home samples: %d", home.Status)
+	}
+	if r := req(platform.TestRequestInput{Path: "/track/2?code=ROSE24"}); !strings.Contains(r.Body, `id="sim"`) || !strings.Contains(r.Body, "24 red roses in a hat box") {
+		t.Fatal("sample tracker has no simulation")
+	}
+	if r := req(platform.TestRequestInput{Path: "/track/3?code=ORCH88"}); r.Status != 200 || strings.Contains(r.Body, `id="sim"`) {
+		t.Fatal("a real delivery offers a simulation")
 	}
 	for _, path := range []string{"/track/1?code=WRONG", "/courier/1?key=wrong"} {
 		if r := req(platform.TestRequestInput{Path: path}); r.Status != 404 {
