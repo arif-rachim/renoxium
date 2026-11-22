@@ -652,29 +652,20 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 </body></html>{{end}}
 
 {{define "gallery"}}{{template "lhead" "Templates | Renoxium"}}<style>
-.intro{padding:clamp(32px,5vw,64px) 0 0}.intro h1{font-size:clamp(36px,4.5vw,56px);line-height:1.08;letter-spacing:-.03em}
-.group{padding:56px 0 0}.group>h2{padding-top:28px;border-top:1px solid var(--line)}
-.cards{display:grid;gap:56px 48px;margin-top:36px}@media(min-width:720px){.cards{grid-template-columns:1fr 1fr}}@media(min-width:1040px){.cards{grid-template-columns:repeat(3,1fr)}}
-.tcard{scroll-margin-top:24px}.tcard:target h3{text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:6px}
-.tcard .shot{width:100%;max-width:280px;aspect-ratio:600/1000;object-fit:cover;object-position:top}
-.tcard h3{margin:28px 0 8px}.tcard p{margin:0 0 8px;color:var(--slate);font-size:16px}
-.tlinks{display:flex;flex-wrap:wrap;gap:6px 24px;margin:14px 0 18px}
-.prompt{font-size:15px;color:var(--slate);margin:0}
-.prompt q{display:block;margin-top:6px;padding:12px 14px;border-radius:12px;background:var(--mist);color:var(--ink);quotes:none}
-.mix{padding:72px 0 0}.mix p{color:var(--slate);max-width:40em;margin:12px 0 0}
-.yours{margin:72px 0 0;padding:56px 0 72px;border-top:1px solid var(--line)}.yours .cta{margin-top:28px}
-</style>{{template "og" .Base}}</head><body>
+.thead{display:flex;flex-wrap:wrap;gap:16px 24px;justify-content:space-between;align-items:flex-end;padding:clamp(28px,4vw,48px) 0 20px}
+.thead h1{font-size:clamp(30px,3.6vw,40px);line-height:1.1;letter-spacing:-.03em}.thead .sub{margin:8px 0 0;max-width:46em;color:var(--slate)}
+.tcards{--card:var(--paper);--muted:var(--slate);--fg:var(--ink);--bg:var(--mist);--radius:12px;--accent-soft:var(--mist)}
+` + galleryCardsCSS + `
+.tcard .pic{flex:none;height:auto;aspect-ratio:16/10}.tcard .tx{flex:1}
+.tcard h3{font-weight:600}.tcard a{color:var(--ink)}.tcard .tlinks button{font-family:inherit;cursor:pointer}
+.yours{margin:56px 0 0;padding:40px 0 64px;border-top:1px solid var(--line)}.yours .cta{margin-top:24px}
+</style>` + galleryCopyScript + `{{template "og" .Base}}</head><body>
 {{template "nav" "templates"}}
 <main id="main" class="wrap">
-<div class="intro"><h1>Templates</h1>
-<p class="sub">Each template is a finished website for a UAE business, in English and Arabic, taking card payments or cash. Use the demo like a customer, then open the owner's admin panel. Nothing is charged or sent, and demo data is deleted every hour.</p></div>
-{{range .Groups}}<section class="group" aria-label="{{.Job}}"><h2>{{.Job}}</h2><div class="cards">{{range .Cards}}<article class="tcard" id="{{.Name}}">
-{{if .Screen.File}}<img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}" loading="lazy">{{end}}
-<h3>{{.Title}}</h3><p>{{.Summary}}</p><p>For {{.Suits}}.</p>
-<div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Owner's admin panel</a></div>
-<p class="prompt">To build yours, ask your assistant:<q>{{.Prompt}}</q></p></article>{{end}}</div></section>{{end}}
-<section class="mix" aria-labelledby="mix-h"><h2 id="mix-h">Something in between?</h2><p>Start from the closest template and tell your assistant what to change: other fields on a form, your own sections and texts, your colours and photos.</p></section>
-<section class="yours" aria-labelledby="yours-h"><h2 id="yours-h">Make it yours</h2><p class="sub">Connect Renoxium to ChatGPT or Claude and ask for a template by name with your business name, services and prices. Your assistant builds your own copy; you check the preview and publish it.</p>
+<div class="thead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
+<a class="btn line" href="/connect">How to connect</a></div>
+<div class="tcards">` + galleryCardsHTML + `</div>
+<section class="yours" aria-labelledby="yours-h"><h2 id="yours-h">Make it yours</h2><p class="sub">Connect Renoxium to ChatGPT or Claude and ask for a template by name with your business name, services and prices. Your assistant builds your own copy; you check the preview and publish it. Demos charge and send nothing, and demo data is deleted every hour.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/connect">Connect ChatGPT or Claude</a></div></section>
 </main>
 {{template "footer" .Legal}}
