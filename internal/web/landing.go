@@ -301,6 +301,9 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
 <div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
 <p class="nocredit" data-r><strong>No credits. No limit on changes.</strong> Ask your assistant for one change or a hundred a day: Renoxium does not count them and does not charge for them. You pay for the plan, never per request.</p>
+<ul class="never" data-r><li><strong>Never paused.</strong> There is no balance to run out, so your site keeps working whether you change it every day or not for months.</li>
+<li><strong>Public on the Free plan.</strong> Publish and anyone can open your site at yourname.renoxium.app, not only people you invite.</li>
+<li><strong>Cards on the Free plan.</strong> Take card payments from day one. Renoxium takes 2% only when you are paid; cash on delivery is never charged.</li></ul>
 <div class="prices">
 <div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>Unlimited building and changes</li><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
 <div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
@@ -450,7 +453,9 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .plan ul{padding:0;margin:20px 0 28px;list-style:none;display:grid;gap:8px;font-size:16px}
 .plan .btn{margin-top:auto}.note{color:var(--slate);font-size:16px;margin:32px 0 0;max-width:48em}
 .nocredit{margin:28px 0 0;padding:20px 24px;border-radius:12px;background:var(--ink);color:var(--on-ink);font-size:18px;line-height:1.55;max-width:none}.nocredit strong{display:block;font-size:clamp(22px,2.2vw,28px);font-weight:600;letter-spacing:-.02em;line-height:1.2;margin-bottom:6px;color:var(--on-ink)}
-.prices{margin-top:20px!important}
+.never{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:12px}@media(min-width:900px){.never{grid-template-columns:repeat(3,1fr);gap:24px}}
+.never li{border-top:2px solid var(--gold);padding-top:12px;color:var(--slate);font-size:16px;line-height:1.5}.never strong{display:block;color:var(--ink);font-size:18px;font-weight:600;margin-bottom:2px}
+.prices{margin-top:28px!important}
 .sum{margin:32px 0 0;padding:20px 24px;border-left:3px solid var(--gold);background:var(--paper);border-radius:4px 12px 12px 4px;max-width:48em}
 .sum b{font-weight:600}
 .note+.note,.sum+.note{margin-top:16px}
@@ -622,6 +627,9 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
 <div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">ابدأ مجاناً. انتقل إلى خطة أعلى عندما تحتاج مواقع أكثر، أو نطاقك الخاص، أو إلغاء الرسوم على مدفوعات البطاقة.</p></div>
 <p class="nocredit" data-r><strong>بلا أرصدة. بلا حد للتعديلات.</strong> اطلب من مساعدك تعديلاً واحداً أو مئة تعديل في اليوم: Renoxium لا يعدّها ولا يحاسبك عليها. تدفع مقابل الخطة، لا مقابل كل طلب.</p>
+<ul class="never" data-r><li><strong>لا يتوقف أبداً.</strong> لا يوجد رصيد ينفد، فيبقى موقعك يعمل سواء عدّلته كل يوم أو لم تعدّله لأشهر.</li>
+<li><strong>متاح للجميع في الخطة المجانية.</strong> انشر موقعك ويستطيع أي شخص فتحه على yourname.renoxium.app، لا من تدعوهم فقط.</li>
+<li><strong>البطاقات في الخطة المجانية.</strong> استقبل مدفوعات البطاقة من اليوم الأول. يأخذ Renoxium نسبة 2% فقط عندما يدفع لك العميل، والدفع عند الاستلام بلا رسوم أبداً.</li></ul>
 <div class="prices">
 <div class="plan" data-r><h3>Free</h3><p class="for">لتجربته مع عملاء حقيقيين</p><p class="amount">0 درهم</p><ul><li>بناء وتعديل بلا حدود</li><li>موقع واحد</li><li>يأخذ Renoxium {{.Fee}}% من مدفوعات البطاقة</li><li>50 رمز دخول عبر واتساب شهرياً</li><li>200 ميغابايت للصور</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
 <div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
@@ -659,10 +667,11 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 .tcard .pic{flex:none;height:auto;aspect-ratio:16/10}.tcard .tx{flex:1}
 .tcard h3{font-weight:600}.tcard a{color:var(--ink)}.tcard .tlinks button{font-family:inherit;cursor:pointer}
 .yours{margin:56px 0 0;padding:40px 0 64px;border-top:1px solid var(--line)}.yours .cta{margin-top:24px}
+.tcard p.use{margin:2px 0 10px}.tcard .usebtn{display:inline-flex;align-items:center;min-height:38px;padding:7px 14px;border-radius:8px;background:var(--ink);color:var(--on-ink);text-decoration:none;font-size:14.5px;font-weight:500}.tcard .usebtn:hover{background:color-mix(in srgb,var(--ink) 86%,var(--paper))}
 </style>` + galleryCopyScript + `{{template "og" .Base}}</head><body>
 {{template "nav" "templates"}}
 <main id="main" class="wrap">
-<div class="thead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
+<div class="thead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer and open its owner's admin panel. Choose Use this template to get your own copy on a private preview at once, then change it with your assistant.</p></div>
 <a class="btn line" href="/connect">How to connect</a></div>
 <div class="tcards">` + galleryCardsHTML + `</div>
 <section class="yours" aria-labelledby="yours-h"><h2 id="yours-h">Make it yours</h2><p class="sub">Connect Renoxium to ChatGPT or Claude and ask for a template by name with your business name, services and prices. Your assistant builds your own copy; you check the preview and publish it. Demos charge and send nothing, and demo data is deleted every hour.</p>

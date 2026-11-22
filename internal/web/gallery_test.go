@@ -117,3 +117,64 @@ func TestDemoAdminPanelIsReadOnly(t *testing.T) {
 		t.Fatal("visitors of a demo for a signed-in account")
 	}
 }
+
+// "Use this template" makes the owner's own app from a template on its
+// private preview, without an assistant, and the app page says what to do
+// next. Signed out, the button leads to sign-up and back to the template.
+func TestUseTemplate(t *testing.T) {
+	e := newEnv(t)
+	r, _ := http.Get(e.base + "/templates")
+	if page := read(t, r); !strings.Contains(page, `href="/signup?next=%2Ftemplates%3Fuse%3Dstore-uae"`) {
+		t.Fatal("signed out, the template has no Use link to sign-up")
+	}
+	owner := e.browser()
+	e.signup(owner, "huda@shop.ae")
+	r, _ = owner.Get(e.base + "/templates?use=store-uae")
+	if page := read(t, r); !strings.Contains(page, `action="/templates/store-uae/use"`) || !strings.Contains(page, `id="n-store-uae" name="app"`) {
+		t.Fatal("signed in, the template has no Use form")
+	}
+	csrf := e.csrf(owner, "/templates")
+	use := func(example, name string) (*http.Response, string) {
+		r, err := owner.PostForm(e.base+"/templates/"+example+"/use", url.Values{"csrf": {csrf}, "app": {name}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r, read(t, r)
+	}
+	if r, _ := use("store-uae", "Bad Name!"); r.StatusCode != 400 {
+		t.Fatalf("a bad name: %d", r.StatusCode)
+	}
+	if r, _ := use("no-such-template", "huda-perfumes"); r.StatusCode != 404 {
+		t.Fatalf("an unknown template: %d", r.StatusCode)
+	}
+	r, _ = use("store-uae", "huda-perfumes")
+	if r.StatusCode != 303 || r.Header.Get("Location") != "/apps/huda-perfumes?new=store-uae" {
+		t.Fatalf("after Use: %d to %s", r.StatusCode, r.Header.Get("Location"))
+	}
+	r, _ = owner.Get(e.base + r.Header.Get("Location"))
+	if page := read(t, r); !strings.Contains(page, "huda-perfumes is ready on its private preview") || !strings.Contains(page, "Online store template") {
+		t.Fatalf("the app page lacks the next steps: %d", r.StatusCode)
+	}
+	r, _ = owner.Get(e.base + "/apps/huda-perfumes")
+	if strings.Contains(read(t, r), "is ready on its private preview") {
+		t.Error("the next steps show on every visit")
+	}
+	info, err := e.p.Info("huda-perfumes")
+	if err != nil || info.PreviewVersion != 1 || info.LiveVersion != 0 {
+		t.Fatalf("the new app: %+v %v", info, err)
+	}
+	// A name in use is refused, with the reason on the card the owner chose.
+	other := e.browser()
+	e.signup(other, "zaid@shop.ae")
+	r, err = other.PostForm(e.base+"/templates/booking-uae/use", url.Values{"csrf": {e.csrf(other, "/templates")}, "app": {"huda-perfumes"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page := read(t, r); r.StatusCode != 400 || !strings.Contains(page, "That name is taken") || !strings.Contains(page, `value="huda-perfumes" autofocus`) {
+		t.Fatalf("a taken name: %d", r.StatusCode)
+	}
+	// Without the form's token nothing is made.
+	if r, _ := owner.PostForm(e.base+"/templates/booking-uae/use", url.Values{"app": {"huda-two"}}); r.StatusCode != 403 {
+		t.Fatalf("without csrf: %d", r.StatusCode)
+	}
+}

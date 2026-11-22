@@ -277,7 +277,7 @@ func (s *Site) checkCSRF(r *http.Request) bool {
 }
 
 // safeNext only allows returning to the authorize endpoint or a page of
-// the signed-in site (admin panel, account, billing, operator).
+// the signed-in site (admin panel, account, billing, operator, templates).
 func safeNext(next string) string {
 	if strings.ContainsAny(next, "\\\r\n") || strings.Contains(next, "//") {
 		return "/"
@@ -285,7 +285,7 @@ func safeNext(next string) string {
 	if strings.HasPrefix(next, "/oauth/authorize?") || strings.HasPrefix(next, "/apps/") {
 		return next
 	}
-	for _, page := range []string{"/account", "/billing", "/operator"} {
+	for _, page := range []string{"/account", "/billing", "/operator", "/templates"} {
 		if next == page || strings.HasPrefix(next, page+"?") {
 			return next
 		}
@@ -837,6 +837,7 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.live::before{background:var(--live)}.pill.wait{background:var(--sun-soft);border-color:transparent}.pill.wait::before{background:var(--sun)}
 .pill.plain::before{display:none}
 .formcard{max-width:720px}.fields{columns:300px;column-gap:32px}.fld{break-inside:avoid;padding-bottom:14px}.fld>label:first-child{margin-top:0}.fld .check{margin-top:4px}.fld textarea{min-height:72px}.fld .thumb{max-height:96px}
+.welcome{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;background:var(--fg);color:var(--bg);border-radius:var(--radius);padding:16px 20px;margin:0 0 16px;font-size:15px;line-height:1.55}.welcome strong{color:var(--bg)}.welcome>div:first-child{flex:1 1 420px}.welcome .acts{display:flex;gap:8px;flex-wrap:wrap}.welcome .button{margin:0;background:var(--bg);color:var(--fg);border-color:var(--bg)}.welcome .button.secondary{background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 55%,transparent)}
 .howto{margin:0;padding-inline-start:20px;display:grid;gap:10px}.pagehead .acts form.inline button{margin:0}.settings{max-width:720px}.settings .card{margin-bottom:16px}@media(min-width:760px){.formcard{padding:28px 32px}}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .tables a{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--fg)}
@@ -1061,6 +1062,9 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="acts"><nav class="seg" aria-label="Period">{{range .Periods}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 {{if and .Shell.IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}
 {{if not .Shell.Demo}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>{{end}}</div></div>
+{{if .Welcome}}<div class="welcome"><div><strong>{{.Info.App}} is ready on its private preview.</strong> It is the {{.Welcome}} template with sample texts and prices, and nothing is live yet.
+Next: connect your AI assistant and ask it to change the names, prices and photos to yours. Claude's free plan is enough, and there are no credits: change it as often as you like.</div>
+<div class="acts"><a class="button" href="/apps/{{.Info.App}}/preview" target="_blank" rel="noopener">Open the preview</a><a class="button secondary" href="/connect">Connect your assistant</a></div></div>{{end}}
 {{template "tabs" .Tabs}}
 {{if and .Problems (ne .Tab "status")}}<p class="flash bad"><span><strong>Recent errors:</strong> {{len .Problems}} on your site. <a href="/apps/{{.Info.App}}/status">See them</a>, then ask your assistant to check the Renoxium logs and fix them.</span></p>{{end}}
 {{if eq .Tab "sales"}}<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><section class="panel bcell"><div class="ph"><h2>Most viewed pages</h2><span class="muted">page views</span></div>{{if .Pages}}<ul class="bars">{{range .Pages}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul>{{else}}<p class="muted">No visits yet.</p>{{end}}</section><section class="panel bcell"><div class="ph"><h2>Where visitors come from</h2><span class="muted">page views</span></div>{{if .Sources}}<ul class="bars">{{range .Sources}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul><p class="muted" style="margin:12px 0 0">Add <code>?utm_source=instagram</code> to links you share to see each channel here.</p>{{else}}<p class="muted">No visits yet.</p>{{end}}</section>{{if .Shell.IsOwner}}<section class="panel bcell"><div class="ph"><h2>Latest payments</h2><a href="/apps/{{.Info.App}}/payments">All payments</a></div>{{if .Recent}}<div class="tablebox" style="border:0;max-height:none"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Date</th></tr></thead><tbody>
@@ -1379,9 +1383,11 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 
 {{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
 ` + galleryCardsCSS + `
+.tcard form.use{display:flex;gap:6px;margin:2px 0 8px}.tcard form.use input{margin:0;padding:7px 10px;font-size:13.5px;min-width:0;flex:1}.tcard form.use button{margin:0;min-height:36px;padding:6px 12px;font-size:13.5px;white-space:nowrap}
+.tcard .field-error{margin:-4px 0 8px;font-size:13px}.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 ` + galleryCopyScript + `
-<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
+<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Name your app and choose Use this template: it is ready on a private preview at once. Then change names, prices and photos with your assistant.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
 <div class="tcards bento fill">` + galleryCardsHTML + `</div>
 {{template "appbottom"}}{{end}}
