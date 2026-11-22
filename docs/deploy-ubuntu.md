@@ -156,8 +156,11 @@ In the Stripe Dashboard of the platform account (start in the sandbox):
 
 1. **Product catalog:** create the products "Renoxium Pro" and "Renoxium Business", each with a recurring
    monthly price in AED (99 and 299). Copy both price IDs (`price_...`).
+   To offer payment by the year at 20% off, add a second recurring price to each product, billed
+   yearly: AED 950 for Pro and AED 2,870 for Business. Copy those two price IDs as well. Yearly payment
+   is offered only when both are set.
 2. **Settings, Billing, Customer portal:** activate it. Allow updating payment methods, viewing invoices,
-   cancelling, and switching between the two prices.
+   cancelling, and switching between the prices (add the yearly ones too, if you created them).
 3. **Developers, Webhooks:** add a second endpoint, separate from the payments one:
    - URL: `https://www.renoxium.com/stripe/billing-webhook`
    - Listen to: **Events on your account**
@@ -171,6 +174,8 @@ Add them to `/etc/renoxium/env` and restart:
 sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
 STRIPE_PRICE_PRO=price_your_pro_price
 STRIPE_PRICE_BUSINESS=price_your_business_price
+STRIPE_PRICE_PRO_YEARLY=price_your_pro_yearly_price
+STRIPE_PRICE_BUSINESS_YEARLY=price_your_business_yearly_price
 STRIPE_BILLING_WEBHOOK_SECRET=whsec_your_billing_secret
 ENV
 ```

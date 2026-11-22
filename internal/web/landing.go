@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/arif-rachim/renoxium/internal/accounts"
 	"html/template"
 	"io"
 	"net/http"
@@ -83,7 +84,9 @@ func (s *Site) landingData(ar bool) map[string]any {
 	}
 	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "ProFrom": thousands(pro * 100 / fee),
 		"Legal": s.legalOrDefaults(), "Paths": s.sitePaths(cards, ar), "Trades": s.siteTrades(cards, ar),
-		"Calendar": calendar, "Base": s.base}
+		"Calendar": calendar, "Base": s.base,
+		"Yearly": s.Billing.yearly(), "YearlySave": accounts.YearlyDiscountPercent,
+		"ProYear": thousands(accounts.PlanPriceYearAED(accounts.PlanPro)), "BusinessYear": thousands(accounts.PlanPriceYearAED(accounts.PlanBusiness))}
 }
 
 // thousands writes n with a comma between thousands: 4950 is "4,950".
@@ -309,7 +312,8 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>10 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>About 5,000 photos</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
 <div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>50 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>About 10,000 photos</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
 </div>
-<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
+{{if .Yearly}}<p class="sum" data-r><b>Pay yearly and save {{.YearlySave}}%.</b> Pro is AED {{.ProYear}} a year and Business is AED {{.BusinessYear}} a year, instead of twelve monthly payments.</p>
+{{end}}<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
 <p class="note">Stripe charges its own card fees to your Stripe account on every plan. You build with your own ChatGPT or Claude account; Claude's free plan is enough.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
@@ -635,7 +639,8 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
 <div class="plan" data-r><h3>Business</h3><p class="for">لعدة فروع أو علامات تجارية</p><p class="amount">299 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>10 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>2,000 رمز دخول عبر واتساب شهرياً</li><li>10 غيغابايت للصور</li><li>نطاقك الخاص، و10 موظفين لكل موقع</li><li>بلا شارة</li></ul><a class="btn line" href="/signup">اختر Business</a></div>
 </div>
-<p class="sum" data-r><b>متى تغطي خطة Pro تكلفتها؟</b> في خطة Free، مبيعات بالبطاقة قدرها 10,000 درهم في الشهر تكلّف {{.FeeOn10k}} درهم رسوماً لـ Renoxium. سعر Pro هو 99 درهماً، فتصبح أوفر عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. الدفع عند الاستلام لا رسوم عليه من Renoxium أبداً.</p>
+{{if .Yearly}}<p class="sum" data-r><b>ادفع سنوياً ووفّر {{.YearlySave}}%.</b> خطة Pro بسعر {{.ProYear}} درهماً في السنة وخطة Business بسعر {{.BusinessYear}} درهماً في السنة، بدلاً من اثني عشر دفعة شهرية.</p>
+{{end}}<p class="sum" data-r><b>متى تغطي خطة Pro تكلفتها؟</b> في خطة Free، مبيعات بالبطاقة قدرها 10,000 درهم في الشهر تكلّف {{.FeeOn10k}} درهم رسوماً لـ Renoxium. سعر Pro هو 99 درهماً، فتصبح أوفر عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. الدفع عند الاستلام لا رسوم عليه من Renoxium أبداً.</p>
 <p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. تبني بحسابك الخاص في ChatGPT أو Claude؛ والخطة المجانية في Claude تكفي.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>أسئلة يطرحها أصحاب الأنشطة</h2><div class="faq" data-r>

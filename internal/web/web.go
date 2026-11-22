@@ -1240,7 +1240,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">Your Renoxium plan, what you have used this month, and payments.</p></div></div>
 {{with .Notice}}<p class="flash" role="status">{{.}}</p>{{end}}
 <div class="bento fill bill"><div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
-<p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else}}/ month{{end}}</span></p>
+<p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{.PaidPrice}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else if .Billing.Yearly}}/ year{{else}}/ month{{end}}</span></p>
 {{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
 {{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
 <p class="muted">No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
@@ -1252,16 +1252,16 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{range .Meters}}<div class="meter{{if .Warn}} warn{{end}}"><div class="top"><span>{{.Label}}</span><span><b>{{.Used}}{{.Unit}}</b> of {{.Quota}}{{.Unit}}</span></div><div class="tr" role="progressbar" aria-label="{{.Label}}" aria-valuenow="{{.Pct}}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{.Pct}}%"></i></div></div>{{end}}
 </div></section>
 
-</div><section class="panel col"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
+</div><section class="panel col"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed by Stripe{{if .Yearly}} by the month or by the year{{else}} monthly{{end}}. Cancel any time.</span></div>
 {{if not .Ready}}<p class="flash">Paid plans are not available yet.</p>{{end}}
 <div class="tiers grow" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
-<h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">AED {{.Price}} <small>/ month</small></p>
+<h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">AED {{.Price}} <small>/ month</small></p>{{if and $.Yearly .PriceYear}}<p class="fine" style="margin:0">or AED {{.PriceYear}} a year: save {{$.YearlySave}}%</p>{{end}}
 <ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>
 {{if .Current}}<span class="is">Current plan</span>
 {{else if eq .ID "free"}}{{if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Cancel in billing</button></form>{{else}}<span class="is">Always free</span>{{end}}
 {{else if not $.Ready}}<span class="is">Not available yet</span>
 {{else if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Switch to {{.Name}}</button></form>
-{{else}}<form method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="plan" value="{{.ID}}"><button{{if not .Popular}} class="secondary"{{end}}>Choose {{.Name}}</button></form>{{end}}
+{{else}}<form method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="plan" value="{{.ID}}"><button{{if not .Popular}} class="secondary"{{end}}>Choose {{.Name}}</button></form>{{if $.Yearly}}<form method="post" action="/billing/checkout" style="margin-top:8px"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="plan" value="{{.ID}}"><input type="hidden" name="period" value="year"><button class="secondary">Pay yearly, AED {{.PriceYear}}</button></form>{{end}}{{end}}
 </div>{{end}}</div>
 <p class="fine">Payment is handled by Stripe. Cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
 

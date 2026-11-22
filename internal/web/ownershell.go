@@ -75,11 +75,13 @@ func newMeter(label string, used, quota int64, unit string) meter {
 // planCard is one column of the plan comparison on the billing page.
 type planCard struct {
 	ID, Name, Price, Tagline string
+	PriceYear                string // for a year paid at once; "" for the free plan
 	Features                 []string
 	Current, Popular         bool
+	CurrentYearly            bool // the account's own plan, paid by the year
 }
 
-func planCards(current string) []planCard {
+func planCards(current string, yearly bool) []planCard {
 	f := func(plan string) []string {
 		staff := "No staff accounts"
 		if n := platform.StaffPerPlan[plan]; n > 0 {
@@ -106,6 +108,10 @@ func planCards(current string) []planCard {
 	}
 	for i := range cards {
 		cards[i].Current = cards[i].ID == current
+		cards[i].CurrentYearly = cards[i].Current && yearly
+		if cards[i].ID != accounts.PlanFree {
+			cards[i].PriceYear = thousands(accounts.PlanPriceYearAED(cards[i].ID))
+		}
 	}
 	return cards
 }
