@@ -308,14 +308,14 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <section class="group" data-r><h3>Made for the UAE</h3>
 <div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span> <span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
 <dl><div><dt>AED with 5% VAT</dt><dd>Prices in dirhams, and tax invoices for what you sell once you add your TRN.</dd></div>
-<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div></dl></section>
+<div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
+<div><dt>Your own domain</dt><dd>www.yourname.ae instead of a Renoxium address.</dd></div></dl></section>
 <section class="group" data-r><h3>You stay in control</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
 <dl><div><dt>No credits</dt><dd>Change your site as often as you like. Nothing is counted or charged per request.</dd></div>
 <div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
 <div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
-<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
-<div><dt>Your own domain</dt><dd>www.yourname.ae instead of a Renoxium address.</dd></div></dl></section>
+<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
@@ -667,14 +667,14 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <section class="group" data-r><h3>مصمَّم للإمارات</h3>
 <div class="spec" aria-hidden="true"><div class="bi"><span>250.00 د.إ</span><span lang="en" dir="ltr">AED 250.00</span></div><div class="row dim"><span>شامل ضريبة القيمة المضافة 5%</span><span lang="en" dir="ltr">Includes 5% VAT</span></div></div>
 <dl><div><dt>الدرهم مع ضريبة 5%</dt><dd>الأسعار بالدرهم، وفواتير ضريبية لما تبيعه بعد إضافة رقم التسجيل الضريبي.</dd></div>
-<div><dt>العربية والإنجليزية</dt><dd>تخطيط من اليمين إلى اليسار بالعربية، والتبديل بنقرة واحدة.</dd></div></dl></section>
+<div><dt>العربية والإنجليزية</dt><dd>تخطيط من اليمين إلى اليسار بالعربية، والتبديل بنقرة واحدة.</dd></div>
+<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourname.ae</span> بدلاً من عنوان على Renoxium.</dd></div></dl></section>
 <section class="group" data-r><h3>التحكم بيدك</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">معاينة</span><i></i><span class="tag">تضغط «نشر»</span><i></i><span class="tag">الإصدار 12 منشور</span></div><div class="row dim"><span>نسخة احتياطية قبل النشر</span><span>العودة إلى الإصدار 11</span></div></div>
 <dl><div><dt>بلا أرصدة</dt><dd>عدّل موقعك بقدر ما تشاء. لا يُحسب شيء ولا يُدفع شيء عن كل طلب.</dd></div>
 <div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
 <div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
-<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div>
-<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourname.ae</span> بدلاً من عنوان على Renoxium.</dd></div></dl></section>
+<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
