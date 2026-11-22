@@ -206,9 +206,8 @@ test('realtime: a courier moves the marker on the customer\'s map, and only the 
   await offlineMap(customer.ctx);
   const courier = await person(browser, { geolocation: { latitude: 25.2048, longitude: 55.2708 }, permissions: ['geolocation'] });
 
-  // The customer finds the delivery with the order number and code.
+  // The customer finds the delivery with the tracking code alone.
   await customer.page.goto(live + '/');
-  await customer.page.fill('#id', '1');
   await customer.page.fill('#code', 'abc123');
   await customer.page.getByRole('button', { name: 'Track delivery' }).click();
   await expect(customer.page).toHaveURL(/\/track\/1\?code=ABC123/);

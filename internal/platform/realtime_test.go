@@ -193,8 +193,12 @@ func TestDeliveryTrackingExample(t *testing.T) {
 		}
 		return r
 	}
-	if r := req(platform.TestRequestInput{Path: "/track?id=1&code=abc123"}); r.Status != 303 || r.Location != "/track/1?code=ABC123" {
+	// The form sends only the tracking code; it alone finds the delivery.
+	if r := req(platform.TestRequestInput{Path: "/track?code=abc123"}); r.Status != 303 || r.Location != "/track/1?code=ABC123" {
 		t.Fatalf("track form: %+v", r)
+	}
+	if r := req(platform.TestRequestInput{Path: "/track?code=NOPE99"}); r.Status != 404 {
+		t.Fatalf("unknown code: %d", r.Status)
 	}
 	if r := req(platform.TestRequestInput{Path: "/track/1?code=ABC123"}); r.Status != 200 || !strings.Contains(r.Body, "/_rx/live/delivery-1?token=") {
 		t.Fatalf("track page: %d", r.Status)
@@ -205,8 +209,8 @@ func TestDeliveryTrackingExample(t *testing.T) {
 	if home.Status != 200 || strings.Count(home.Body, `class="fl-card"`) != 4 || !strings.Contains(home.Body, `href="/track/2?code=ROSE24"`) || strings.Contains(home.Body, "ORCH88") {
 		t.Fatalf("home samples: %d", home.Status)
 	}
-	// Next to the form each sample shows its order number and code, so nobody has to guess.
-	if !strings.Contains(home.Body, `data-id="1" data-code="ABC123"`) || strings.Contains(home.Body, `data-code="ORCH88"`) {
+	// Next to the form each sample shows its tracking code, so nobody has to guess.
+	if !strings.Contains(home.Body, `data-code="ABC123"`) || strings.Contains(home.Body, `data-code="ORCH88"`) {
 		t.Fatal("the form does not offer the sample numbers and codes")
 	}
 	if r := req(platform.TestRequestInput{Path: "/track/2?code=ROSE24"}); !strings.Contains(r.Body, `id="sim"`) || !strings.Contains(r.Body, "24 red roses in a hat box") {
@@ -241,7 +245,7 @@ func TestDeliveryTrackingExample(t *testing.T) {
 	if r := req(platform.TestRequestInput{Path: "/track/1?code=ABC123&lang=ar"}); r.Status != 200 || !strings.Contains(r.Body, `dir="rtl"`) || !strings.Contains(r.Body, "تم التوصيل") {
 		t.Fatalf("Arabic track page: %d", r.Status)
 	}
-	if r := req(platform.TestRequestInput{Path: "/track?id=1&code=ABC123&lang=ar"}); r.Location != "/track/1?code=ABC123&lang=ar" {
+	if r := req(platform.TestRequestInput{Path: "/track?code=ABC123&lang=ar"}); r.Location != "/track/1?code=ABC123&lang=ar" {
 		t.Fatalf("Arabic track form: %+v", r)
 	}
 	if r := req(platform.TestRequestInput{Path: "/courier/1?key=courier-demo-key-change-me&lang=ar"}); r.Status != 200 || !strings.Contains(r.Body, "تأكيد التوصيل") {
