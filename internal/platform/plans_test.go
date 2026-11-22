@@ -52,7 +52,15 @@ func TestPlansDecideFeeAndPublishing(t *testing.T) {
 	if _, err := p.Publish("free-shop", 0); err != nil {
 		t.Fatalf("shop: %v", err)
 	}
+	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["free"] {
+		t.Fatalf("shop without Stripe: quota %d", q)
+	}
 	connect("free-shop")
+	platform.ForgetPlan("usr_free")
+	// Once Stripe takes its payments, the shop gets the Pro limits.
+	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["pro"] {
+		t.Fatalf("shop with Stripe: quota %d", q)
+	}
 	// An account on a paid plan needs neither.
 	if _, err := p.Publish("pro-shop", 0); err != nil {
 		t.Fatalf("pro: %v", err)
@@ -148,7 +156,7 @@ func TestWhatsAppQuotaPerPlan(t *testing.T) {
 	delete(def.Templates, "auth_login")
 	p.CreateApp("usr_free", "club")
 	p.ApplyChange(context.Background(), "club", def)
-	platform.ReadyShop(t, p, "club")
+	p.SetAppKind("club", platform.KindShop) // a shop without Stripe keeps the free limits
 	if _, err := p.Publish("club", 0); err != nil {
 		t.Fatal(err)
 	}

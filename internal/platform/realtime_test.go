@@ -89,7 +89,7 @@ func TestRealtime(t *testing.T) {
 	if res, err := p.ApplyChange(ctx, "deliv", liveApp()); err != nil || !res.OK {
 		t.Fatal(err, res)
 	}
-	platform.ReadyShop(t, p, "deliv")
+	p.SetAppKind("deliv", platform.KindShop) // a shop without Stripe keeps the free limits
 	if _, err := p.Publish("deliv", 0); err != nil {
 		t.Fatal(err)
 	}

@@ -198,7 +198,7 @@ sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com busin
 
 ### Licences for self-hosted apps
 
-Owners on Pro or Business can run their app on their own server ([docs/self-host.md](self-host.md)). Their
+Owners of a paid work app, or on Pro or Business, can run it on their own server ([docs/self-host.md](self-host.md)). Their
 export then carries a `licence.json` signed with Renoxium's licence key, which the self-hosted server checks
 offline. Set the key's seed in `/etc/renoxium/env` and restart:
 

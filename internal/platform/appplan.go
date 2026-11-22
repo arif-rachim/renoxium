@@ -13,7 +13,8 @@ import (
 //     its Renoxium address;
 //   - a shop: it takes money from its customers through payments.checkout,
 //     and Renoxium takes ShopFeePercent of each card payment (it may go live
-//     before Stripe is connected);
+//     before Stripe is connected; once Stripe takes its payments it gets the
+//     Pro limits);
 //   - a work app: it does not charge its customers (a CRM, a queue, staff
 //     attendance) and pays a monthly subscription, WorkAppPriceAED.
 //
@@ -192,28 +193,36 @@ func (p *Platform) PaidWorkApps() int {
 }
 
 // quotaPlan is the plan whose limits an account's apps get: an account on
-// the free plan that pays for a work app gets the Pro limits.
+// the free plan that pays for a work app, or has a shop whose Stripe account
+// takes payments (Stripe has checked who it is), gets the Pro limits.
 func (p *Platform) quotaPlan(owner string) string {
 	plan := p.planOf(owner)
 	if plan != planFree {
 		return plan
 	}
 	var n int
-	p.db.QueryRow(`SELECT count(*) FROM apps WHERE owner = ? AND plan_kind = ? AND work_status IN ('active', 'trialing', 'past_due')`,
-		owner, KindWork).Scan(&n)
+	p.db.QueryRow(`SELECT count(*) FROM apps a LEFT JOIN payment_accounts pa ON pa.app = a.name WHERE a.owner = ? AND
+		((a.plan_kind = ? AND a.work_status IN ('active', 'trialing', 'past_due')) OR (a.plan_kind = ? AND pa.charges_enabled = 1))`,
+		owner, KindWork, KindShop).Scan(&n)
 	if n > 0 {
 		return planPro
 	}
 	return plan
 }
 
-// appQuotaPlan is the plan whose per-app limits the app gets.
+// appQuotaPlan is the plan whose per-app limits the app gets: a paid work
+// app, or a shop whose Stripe account takes payments, gets the Pro limits.
 func (p *Platform) appQuotaPlan(app string) string {
 	if plan := p.planOf(p.ownerOf(app)); plan != planFree {
 		return plan
 	}
 	if p.workPaid(app) {
 		return planPro
+	}
+	if p.appKind(app) == KindShop {
+		if pa, err := p.PaymentAccount(app); err == nil && pa.StripeAccount != "" && pa.ChargesEnabled {
+			return planPro
+		}
 	}
 	return planFree
 }

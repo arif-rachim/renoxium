@@ -52,7 +52,7 @@ func TestScheduledJobs(t *testing.T) {
 	if err != nil || res.Status != 200 || res.Body != "counted 1" || len(res.Logs) == 0 {
 		t.Fatalf("test job: %v %+v", err, res)
 	}
-	platform.ReadyShop(t, p, "shop")
+	p.SetAppKind("shop", platform.KindShop) // a shop without Stripe keeps the free limits
 	if _, err := p.Publish("shop", 0); err != nil {
 		t.Fatal(err)
 	}

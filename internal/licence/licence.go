@@ -39,9 +39,9 @@ var PublicKeys = []string{
 
 // Errors.
 var (
-	ErrUnsigned = errors.New("this export has no licence for running it on your own server; export it again from a Pro or Business account")
+	ErrUnsigned = errors.New("this export has no licence for running it on your own server; export it again from a paid work app or a Pro or Business account")
 	ErrBadSig   = errors.New("the licence in this export is not signed by Renoxium")
-	ErrPlan     = errors.New("running an app on your own server needs the Pro or Business plan")
+	ErrPlan     = errors.New("running an app on your own server needs a paid work app or the Pro or Business plan")
 )
 
 // SelfHostPlans are the plans whose exports may run on the owner's server.

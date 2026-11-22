@@ -220,7 +220,7 @@ func TestWhatsAppNewNumbers(t *testing.T) {
 	defer p.Close()
 	p.CreateApp("usr_free", "club")
 	p.ApplyChange(context.Background(), "club", membersApp())
-	platform.ReadyShop(t, p, "club")
+	p.SetAppKind("club", platform.KindShop) // a shop without Stripe keeps the free limits
 	if _, err := p.Publish("club", 0); err != nil {
 		t.Fatal(err)
 	}

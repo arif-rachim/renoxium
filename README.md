@@ -161,7 +161,7 @@ on its paid plans.
 
 Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
 
-Pro and Business owners can also run their app on their own server: the export carries a signed licence, and the same binary with `-self-hosted` serves that one app with its admin panel, payments on the owner's own Stripe account and email through their own sender. See [docs/self-host.md](docs/self-host.md).
+Owners of a paid work app, or on Pro or Business, can also run it on their own server: the export carries a signed licence, and the same binary with `-self-hosted` serves that one app with its admin panel, payments on the owner's own Stripe account and email through their own sender. See [docs/self-host.md](docs/self-host.md).
 
 ---
 
