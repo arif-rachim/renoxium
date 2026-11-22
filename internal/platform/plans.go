@@ -14,8 +14,9 @@ const (
 	planBusiness = "business"
 )
 
-// FreePlanFeePercent is Renoxium's cut of card payments in apps whose owner
-// is on the free plan. Paid plans pay no cut.
+// FreePlanFeePercent is Renoxium's cut of card payments in shops of accounts
+// on the free plan. Work apps and accounts on a paid or granted plan pay no
+// cut.
 const FreePlanFeePercent = 2
 
 // AppsPerPlan is how many apps an account may create on each plan.

@@ -293,7 +293,7 @@ func (p *Platform) scriptCapture(ctx context.Context, st *stage, arg any) (any, 
 }
 
 // capturePayment takes minor (0 = all) of a card hold; the rest of the
-// hold is released. On the Free plan the fee is 2% of what is taken.
+// hold is released. In a shop the fee is 2% of what is taken.
 func (p *Platform) capturePayment(ctx context.Context, st *stage, id string, minor int64, by string) (Payment, error) {
 	defer lockMoney(st, id)()
 	pm, err := p.paymentByID(ctx, st, id)

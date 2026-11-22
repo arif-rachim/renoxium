@@ -88,8 +88,9 @@ type Config struct {
 	LicenceKey ed25519.PrivateKey
 
 	// OwnerPlan returns an account's plan: "free", "pro" or "business".
-	// Free-plan apps pay a cut of card payments, show a small badge and
-	// are limited in number. Nil means no plans: nothing is limited.
+	// On the free plan each app is a static site, a shop (a cut of card
+	// payments) or a work app (a subscription), and apps are limited in
+	// number. Nil means no plans: nothing is limited.
 	OwnerPlan func(ownerID string) string
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
@@ -468,8 +469,8 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if p.cfg.OwnerPlan != nil {
 		plan := p.planOf(owner)
 		if limit := AppsPerPlan[plan]; count >= limit {
-			return AppInfo{}, fmt.Errorf("the %s plan allows %d app(s) and this account has %d; upgrade the plan at %s/billing to create more",
-				plan, limit, count, p.cfg.SiteURL)
+			return AppInfo{}, fmt.Errorf("this account may have %d apps and has %d; for more, contact Renoxium at %s/support",
+				limit, count, p.cfg.SiteURL)
 		}
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {

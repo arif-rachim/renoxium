@@ -210,6 +210,17 @@ func (p *Platform) quotaPlan(owner string) string {
 	return plan
 }
 
+// moreHint says where the owner gets more than the limits of plan (a
+// quotaPlan or appQuotaPlan): on the free limits, by making the app a shop
+// that takes card payments or a work app; otherwise only a larger plan
+// agreed with Renoxium has more.
+func (p *Platform) moreHint(plan, app string) string {
+	if plan == planFree {
+		return fmt.Sprintf("make %s a shop that takes card payments or a work app at %s/apps/%s/plan", app, p.cfg.SiteURL, app)
+	}
+	return fmt.Sprintf("contact Renoxium at %s/support", p.cfg.SiteURL)
+}
+
 // appQuotaPlan is the plan whose per-app limits the app gets: a paid work
 // app, or a shop whose Stripe account takes payments, gets the Pro limits.
 func (p *Platform) appQuotaPlan(app string) string {

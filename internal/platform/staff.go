@@ -74,7 +74,10 @@ func (p *Platform) AddStaff(app, email, by string) error {
 		if limit == WorkAppMaxUsers && p.workPaid(app) {
 			return fmt.Errorf("a work app may have at most %d staff members for now", limit)
 		}
-		return fmt.Errorf("your plan allows %d staff members per app; upgrade at %s/billing", limit, p.cfg.SiteURL)
+		if p.planOf(p.ownerOf(app)) == planFree && p.appKind(app) == KindShop {
+			return fmt.Errorf("a shop may have %d staff members; for more, make %s a work app at %s/apps/%s/plan", limit, app, p.cfg.SiteURL, app)
+		}
+		return fmt.Errorf("this app may have %d staff members; for more, contact Renoxium at %s/support", limit, p.cfg.SiteURL)
 	}
 	_, err = p.db.Exec(`INSERT OR IGNORE INTO app_staff (app, email, added_by) VALUES (?, ?, ?)`, app, email, by)
 	return err

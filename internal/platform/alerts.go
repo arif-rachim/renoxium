@@ -59,7 +59,7 @@ func (p *Platform) StartAlertPhone(ctx context.Context, app, raw string) error {
 	}
 	if p.cfg.OwnerPlan != nil {
 		if used, quota := p.WhatsAppUsage(owner); used >= quota {
-			return fmt.Errorf("your apps used all %d WhatsApp messages of this month; upgrade at %s/billing", quota, p.cfg.SiteURL)
+			return fmt.Errorf("your apps used all %d WhatsApp messages of this month; for more, %s", quota, p.moreHint(p.quotaPlan(owner), app))
 		}
 	}
 	code := sixDigits()

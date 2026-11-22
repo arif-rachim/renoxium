@@ -302,8 +302,9 @@ func TestThrottleLimitsOnlyThatAppAndExpires(t *testing.T) {
 		t.Fatal("the refusal is not explained in the app log")
 	}
 	tr, ok := p.ThrottleOf("hog-shop")
-	if !ok || !strings.Contains(tr.Notice(), "1 script at a time and 3 script runs a minute") || !strings.Contains(tr.Notice(), "slow loops") {
-		t.Fatalf("notice %q", tr.Notice())
+	if !ok || !strings.Contains(tr.Notice("https://www.renoxium.test"), "1 script at a time and 3 script runs a minute") || !strings.Contains(tr.Notice("https://www.renoxium.test"), "slow loops") ||
+		!strings.Contains(tr.Notice("https://www.renoxium.test"), "https://www.renoxium.test/support") {
+		t.Fatalf("notice %q", tr.Notice("https://www.renoxium.test"))
 	}
 
 	// It ends by itself at its time.

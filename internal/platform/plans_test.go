@@ -111,7 +111,7 @@ func TestPlansDecideFeeAndPublishing(t *testing.T) {
 			t.Fatalf("free app %d: %v", i, err)
 		}
 	}
-	if _, err := p.CreateApp("usr_free", "free-too-many"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/billing") {
+	if _, err := p.CreateApp("usr_free", "free-too-many"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/support") {
 		t.Fatalf("app over the free limit: %v", err)
 	}
 }
@@ -211,11 +211,21 @@ func TestStaffLimitPerPlan(t *testing.T) {
 		t.Fatalf("shop staff limit = %d", got)
 	}
 	for _, e := range []string{"a@x.ae", "b@x.ae"} {
+		if err := p.AddStaff("free-shop", e, "usr_free"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A full shop is pointed to its Plan page: a work app has more staff.
+	if err := p.AddStaff("free-shop", "c@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/apps/free-shop/plan") {
+		t.Fatalf("third shop staff: %v", err)
+	}
+	for _, e := range []string{"a@x.ae", "b@x.ae"} {
 		if err := p.AddStaff("pro-shop", e, "usr_pro"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := p.AddStaff("pro-shop", "c@x.ae", "usr_pro"); err == nil || !strings.Contains(err.Error(), "allows 2") {
+	if err := p.AddStaff("pro-shop", "c@x.ae", "usr_pro"); err == nil || !strings.Contains(err.Error(), "may have 2 staff members") ||
+		!strings.Contains(err.Error(), "https://www.renoxium.test/support") {
 		t.Fatalf("third pro staff: %v", err)
 	}
 	if err := p.AddStaff("pro-shop", "A@X.ae", "usr_pro"); err != nil || !p.IsStaff("pro-shop", "a@x.ae") {
@@ -228,7 +238,7 @@ func TestStaffLimitPerPlan(t *testing.T) {
 
 func TestStorageQuotaPerAccount(t *testing.T) {
 	plans := map[string]string{"usr_free": "free"}
-	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://www.renoxium.test",
 		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
@@ -238,7 +248,8 @@ func TestStorageQuotaPerAccount(t *testing.T) {
 	platform.StorageMBPerPlan["free"] = 0 // every new byte is over quota
 	defer func() { platform.StorageMBPerPlan["free"] = old }()
 	p.CreateApp("usr_free", "shop-a")
-	if _, err := p.AddFile("shop-a", bytes.NewReader(pngFile(t, 1))); err == nil || !strings.Contains(err.Error(), "storage is full") {
+	if _, err := p.AddFile("shop-a", bytes.NewReader(pngFile(t, 1))); err == nil || !strings.Contains(err.Error(), "storage is full") ||
+		!strings.Contains(err.Error(), "https://www.renoxium.test/apps/shop-a/plan") {
 		t.Fatalf("over quota: %v", err)
 	}
 	platform.StorageMBPerPlan["free"] = 1
