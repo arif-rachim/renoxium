@@ -96,11 +96,16 @@ func Open(path string) (*Store, error) {
 			return nil, err
 		}
 	}
-	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN verified_at TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN verified_at TEXT`); err != nil && !isDuplicateColumn(err) {
 		db.Close()
 		return nil, err
 	}
 	s := &Store{db: db, now: time.Now}
+	// Before Cleanup: expired sessions still tell when an account was last used.
+	if err := s.ensureActivity(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	s.Cleanup()
 	if err := s.ensureBilling(); err != nil {
 		db.Close()
@@ -130,6 +135,8 @@ func (s *Store) Cleanup() {
 
 // Close closes the database.
 func (s *Store) Close() error { return s.db.Close() }
+
+func isDuplicateColumn(err error) bool { return strings.Contains(err.Error(), "duplicate column") }
 
 func randomToken(prefix string) string {
 	var b [32]byte
@@ -166,8 +173,8 @@ func (s *Store) CreateUser(email, pw string) (User, error) {
 		return User{}, err
 	}
 	u := User{ID: randomToken("usr_")[:24], Email: email}
-	_, err = s.db.Exec(`INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`,
-		u.ID, u.Email, password.Hash(pw), s.now().UTC().Format(time.RFC3339))
+	_, err = s.db.Exec(`INSERT INTO users (id, email, password_hash, created_at, active_at) VALUES (?, ?, ?, ?, ?)`,
+		u.ID, u.Email, password.Hash(pw), s.now().UTC().Format(time.RFC3339), s.now().Unix())
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return User{}, ErrEmailTaken

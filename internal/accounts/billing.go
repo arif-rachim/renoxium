@@ -199,19 +199,34 @@ func (s *Store) DeleteUser(userID string) error {
 type UserRow struct {
 	ID, Email, CreatedAt, Plan, Status string
 	Verified                           bool
+	ActiveAt, DeactivatedAt            time.Time // last activity; when deactivated (zero: active)
 }
 
 // Users lists accounts for the operator, newest first, optionally filtered
 // by email.
 func (s *Store) Users(search string, limit int) ([]UserRow, error) {
-	q := `SELECT u.id, u.email, u.created_at, u.verified_at IS NOT NULL, coalesce(b.plan, 'free'), coalesce(b.status, '')
-		FROM users u LEFT JOIN billing b ON b.user_id = u.id`
+	return s.users(search, false, limit)
+}
+
+// DeactivatedUsers lists deactivated accounts for the operator, most
+// recently deactivated first, optionally filtered by email.
+func (s *Store) DeactivatedUsers(search string, limit int) ([]UserRow, error) {
+	return s.users(search, true, limit)
+}
+
+func (s *Store) users(search string, deactivated bool, limit int) ([]UserRow, error) {
+	q := `SELECT u.id, u.email, u.created_at, u.verified_at IS NOT NULL, coalesce(b.plan, 'free'), coalesce(b.status, ''),
+		u.active_at, u.deactivated_at FROM users u LEFT JOIN billing b ON b.user_id = u.id WHERE 1`
 	var args []any
 	if search != "" {
-		q += ` WHERE u.email LIKE ? ESCAPE '\'`
+		q += ` AND u.email LIKE ? ESCAPE '\'`
 		args = append(args, "%"+strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(search))+"%")
 	}
-	q += ` ORDER BY u.created_at DESC LIMIT ?`
+	if deactivated {
+		q += ` AND u.deactivated_at != 0 ORDER BY u.deactivated_at DESC LIMIT ?`
+	} else {
+		q += ` ORDER BY u.created_at DESC LIMIT ?`
+	}
 	args = append(args, limit)
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
@@ -221,9 +236,11 @@ func (s *Store) Users(search string, limit int) ([]UserRow, error) {
 	out := []UserRow{}
 	for rows.Next() {
 		var u UserRow
-		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.Verified, &u.Plan, &u.Status); err != nil {
+		var active, deact int64
+		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.Verified, &u.Plan, &u.Status, &active, &deact); err != nil {
 			return nil, err
 		}
+		u.ActiveAt, u.DeactivatedAt = unixOrZero(active), unixOrZero(deact)
 		out = append(out, u)
 	}
 	return out, rows.Err()
