@@ -17,6 +17,7 @@ func (s *Site) registerOperator() {
 	s.mux.HandleFunc("GET /operator/apps", s.operatorPage("apps"))
 	s.mux.HandleFunc("POST /operator/plan", s.operatorPlan)
 	s.mux.HandleFunc("POST /operator/suspend", s.operatorSuspend)
+	s.mux.HandleFunc("POST /operator/reactivate", s.operatorReactivate)
 	s.mux.HandleFunc("POST /operator/abuse/{id}/resolve", s.operatorResolve)
 	s.mux.HandleFunc("GET /operator/growth", s.growthPage("funnel"))
 	s.mux.HandleFunc("GET /operator/growth/weeks", s.growthPage("weeks"))
@@ -50,6 +51,7 @@ type operatorApp struct {
 	platform.AppRow
 	OwnerEmail string
 	LiveURL    string
+	Paused     bool // the owner's account is deactivated for inactivity
 }
 
 // operatorTabs are the parts of the operator's Platform section.
@@ -80,7 +82,14 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 		mrr += accounts.PlanPriceAED[plan] * n
 	}
 	mrr += platform.WorkAppPriceAED * s.platform.PaidWorkApps() // work apps, each its own subscription
-	users, _ := s.accounts.Users(q, 100)
+	deactivatedOnly := r.URL.Query().Get("deactivated") == "1"
+	var users []accounts.UserRow
+	if deactivatedOnly {
+		users, _ = s.accounts.DeactivatedUsers(q, 100)
+	} else {
+		users, _ = s.accounts.Users(q, 100)
+	}
+	deactivated, _ := s.accounts.DeactivatedAccounts()
 	appSearch := q
 	if u, err := s.accounts.UserByEmail(q); err == nil {
 		appSearch = u.ID // searching an owner's email lists their apps
@@ -95,7 +104,7 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 			}
 		}
 		info, _ := s.platform.Info(a.Name)
-		apps = append(apps, operatorApp{AppRow: a, OwnerEmail: emails[a.Owner], LiveURL: info.LiveURL})
+		apps = append(apps, operatorApp{AppRow: a, OwnerEmail: emails[a.Owner], LiveURL: info.LiveURL, Paused: s.platform.OwnerPaused(a.Owner)})
 	}
 	reports, _ := s.platform.AbuseReports(50)
 	open := 0
@@ -110,7 +119,7 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 	}
 	csrf := s.csrfToken(w, r)
 	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": csrf, "Accounts": total, "PerPlan": perPlan,
-		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open,
+		"Paying": paying, "MRR": mrr, "Deactivated": len(deactivated), "DeactivatedOnly": deactivatedOnly, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open,
 		"Tab": tab, "Tabs": operatorTabs(tab), "Here": map[string]string{"overview": "/operator", "accounts": "/operator/accounts", "apps": "/operator/apps"}[tab],
 		"SearchHint": map[string]string{"accounts": "Search by email", "apps": "Search by app name or owner's email"}[tab],
 		"Shell":      s.ownerShell(op, "Platform", "/operator", csrf)})

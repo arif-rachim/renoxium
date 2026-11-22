@@ -275,6 +275,7 @@ func (s *Site) verify(ctx context.Context, token string, _ *http.Request) (*auth
 	if err != nil {
 		return nil, auth.ErrInvalidToken
 	}
+	s.accounts.NoteActivity(user) // an agent working for the account is activity
 	return &auth.TokenInfo{UserID: user, Expiration: expires, Scopes: []string{scope}}, nil
 }
 
@@ -286,7 +287,13 @@ func (s *Site) currentUser(r *http.Request) (accounts.User, bool) {
 		return accounts.User{}, false
 	}
 	u, err := s.accounts.SessionUser(c.Value)
-	return u, err == nil
+	if err != nil {
+		return accounts.User{}, false
+	}
+	// Using the signed-in site counts as signing in: a session lasts
+	// SessionTTL, so an owner who works every day may never sign in again.
+	s.noteActivity(u)
+	return u, true
 }
 
 // cookieName adds the __Host- prefix on HTTPS, so no other host (such as
@@ -404,7 +411,9 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 		customers += c.Visitors
 	}
 	csrf := s.csrfToken(w, r)
-	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": cards, "MCP": s.base + "/mcp", "CSRF": csrf, "Plan": plan,
+	act, _ := s.accounts.Activity(u.ID)
+	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": cards, "Deactivated": act.Deactivated(), "InactiveMonths": accounts.InactiveMonths,
+		"Reactivated": r.URL.Query().Get("reactivated") == "1", "MCP": s.base + "/mcp", "CSRF": csrf, "Plan": plan,
 		"Shared": sharedCards, "AppLimit": platform.AppsPerPlan[s.accounts.Plan(u.ID)], "Live": live, "Errors": errs, "Customers": customers,
 		"Shell": s.ownerShell(u, "Your apps", "/", csrf)})
 }
@@ -475,6 +484,7 @@ func (s *Site) startSession(w http.ResponseWriter, r *http.Request, u accounts.U
 		http.Error(w, "could not sign you in", http.StatusInternalServerError)
 		return
 	}
+	s.noteActivity(u)
 	s.setCookie(w, sessionCookie, secret, accounts.SessionTTL)
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -1056,6 +1066,7 @@ body.menu-open .sidenav .signout button{width:100%;margin-top:24px;padding:12px}
 </style>
 <div class="pagehead"><div><h1>Your apps</h1><p class="sub"><a href="/billing">{{.Plan}} plan</a> · {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} used</p></div>
 <div class="acts"><a class="button secondary" href="/templates">Browse templates</a><a class="button" href="/connect">New app</a></div></div>
+{{if .Deactivated}}<form class="flash bad" method="post" action="/account/reactivate" style="justify-content:space-between;align-items:center;flex-wrap:wrap"><span><strong>Your account is deactivated.</strong> It was not used for {{.InactiveMonths}} months, so your live apps show a "paused" page to visitors. Nothing was deleted: reactivate it and they are back at once.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button style="margin:0">Reactivate</button></form>{{else if .Reactivated}}<p class="flash ok" role="status">Your account is active again, and so are your live apps.</p>{{end}}
 {{if not .User.Verified}}<form class="flash" method="post" action="/verify/resend" style="justify-content:space-between;align-items:center;flex-wrap:wrap"><span><strong>Confirm your email.</strong> You need it to publish apps and to reset your password if you forget it.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0">Send the link again</button></form>{{end}}
 {{if .Apps}}<div class="kpis"><div class="kpi"><div class="l">Apps</div><div class="v">{{len .Apps}}</div><div class="n">of {{.AppLimit}} on your plan</div></div>
 <div class="kpi"><div class="l">Live</div><div class="v">{{.Live}}</div><div class="n">published sites</div></div>
@@ -1184,7 +1195,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="pagehead"><div><h1>Platform</h1><p class="sub">Accounts, apps and abuse reports across Renoxium.</p></div></div>{{template "tabs" .Tabs}}
 {{if eq .Tab "overview"}}{{with .Health}}{{range .Problems}}<p class="flash bad error">{{.}}</p>{{end}}{{end}}
 <div class="kpis">
-<div class="kpi"><div class="l">Accounts</div><div class="v">{{.Accounts}}</div><div class="n">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
+<div class="kpi"><div class="l">Accounts</div><div class="v">{{.Accounts}}</div><div class="n">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}} · <a href="/operator/accounts?deactivated=1">{{.Deactivated}} deactivated</a></div></div>
 <div class="kpi"><div class="l">Subscription revenue</div><div class="v">AED {{.MRR}}</div><div class="n">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
 <div class="kpi"><div class="l">Apps</div><div class="v">{{.Stats.Apps}}</div><div class="n">{{.Stats.LiveApps}} live · {{.Stats.SuspendedApps}} suspended · {{.Stats.StripeReady}} take cards</div></div>
 <div class="kpi"><div class="l">WhatsApp codes</div><div class="v">{{.Stats.WhatsAppCodes}}</div><div class="n">this month, all accounts</div></div>
@@ -1195,16 +1206,18 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if not .Resolved}}<form method="post" action="/operator/abuse/{{.ID}}/resolve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin-top:0">Mark handled</button></form>{{end}}</div>{{end}}{{else}}<p class="muted">No abuse reports.</p>{{end}}</div></section>
 <section class="panel col"><div class="ph"><h2>Recent alerts</h2><span class="muted">disk, backups and error spikes, checked every 5 minutes</span></div><div class="grow" data-long>{{with .Health}}{{if .Alerts}}<ul class="alerts" style="padding-inline-start:18px">{{range .Alerts}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">No alerts.</p>{{end}}{{else}}<p class="muted">Monitoring is off on this server.</p>{{end}}
 <p class="muted" style="margin-top:14px">Card fees and subscription payments are in the Stripe Dashboard.</p></div></section></div>
-{{else if eq .Tab "accounts"}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
-<section class="panel col fill"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
+{{else if eq .Tab "accounts"}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .DeactivatedOnly}}<input type="hidden" name="deactivated" value="1">{{end}}{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}{{if .DeactivatedOnly}}<a href="/operator/accounts">All accounts</a>{{else}}<a href="/operator/accounts?deactivated=1">Deactivated ({{.Deactivated}})</a>{{end}}</form>
+<section class="panel col fill"><div class="ph"><h2>{{if .DeactivatedOnly}}Deactivated accounts{{else}}Accounts{{end}}</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Last active</th><th>Give plan</th></tr></thead><tbody>
 {{range .Users}}<tr><td class="em"><a href="/operator/apps?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td><span class="tag">{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</span></td><td class="muted">{{.CreatedAt}}</td>
+<td>{{if .DeactivatedAt.IsZero}}<span class="muted">{{if not .ActiveAt.IsZero}}{{.ActiveAt.UTC.Format "2 Jan 2006"}}{{end}}</span>{{else}}<span class="error">deactivated {{.DeactivatedAt.UTC.Format "2 Jan 2006"}}</span>
+<form method="post" action="/operator/reactivate" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">{{if $.DeactivatedOnly}}<input type="hidden" name="deactivated" value="1">{{end}}<button class="secondary">Reactivate</button></form>{{end}}</td>
 <td><form method="post" action="/operator/plan" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">
 <select name="plan" aria-label="Plan"><option value="free">free</option><option value="pro">pro</option><option value="business">business</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
 </tbody></table></div></section>
 
 {{else}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
 <section class="panel col fill"><div class="ph"><h2>Apps</h2></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
-{{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
+{{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}{{if .Paused}} <span class="error">paused: account deactivated</span>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
 <td>{{if .LiveVersion}}<span class="pill live">v{{.LiveVersion}}</span>{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}<span class="ok">ready</span>{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
 <td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
 {{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}

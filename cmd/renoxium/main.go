@@ -200,6 +200,10 @@ func main() {
 	}
 	defer acc.Close()
 	cfg.OwnerPlan = acc.Plan
+	// Accounts unused for accounts.InactiveMonths are deactivated (see the
+	// daily check below); publishes and card payments keep them.
+	cfg.OwnerActive = func(id string) { acc.NoteActivity(id) }
+	cfg.OwnerDeactivated = acc.IsDeactivated
 	cfg.WorkSeats = cfg.Stripe != nil && os.Getenv("STRIPE_PRICE_WORK_SEAT") != "" // extra staff of work apps can be paid for
 	cfg.OwnerEmail = func(id string) (string, bool) {
 		u, err := acc.User(id)
@@ -281,11 +285,22 @@ func main() {
 		}()
 	}
 	go func() {
+		var inactivityChecked time.Time
 		for range time.Tick(time.Hour) {
 			acc.Cleanup()
 			p.Cleanup(context.Background())
 			if *selfHosted {
 				continue
+			}
+			// Daily: warn and deactivate accounts without activity.
+			if time.Since(inactivityChecked) >= 24*time.Hour {
+				inactivityChecked = time.Now()
+				res, err := site.CheckInactivity(context.Background(), time.Now())
+				if err != nil {
+					slog.Error("inactivity check", "err", err)
+				} else if res != (web.InactivityResult{}) {
+					slog.Info("inactivity check", "warned", res.Warned, "deactivated", res.Deactivated, "reactivated", res.Reactivated)
+				}
 			}
 			if err := p.ResetDemos(context.Background()); err != nil {
 				slog.Error("reset template demos", "err", err)

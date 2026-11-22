@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/platform"
 	"html/template"
 	"io"
@@ -110,7 +111,8 @@ func (s *Site) legalOrDefaults() Legal {
 func (s *Site) legalPage(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		landingPages.ExecuteTemplate(w, name, map[string]any{"Legal": s.legalOrDefaults(), "Base": s.base})
+		landingPages.ExecuteTemplate(w, name, map[string]any{"Legal": s.legalOrDefaults(), "Base": s.base, "Fee": platform.ShopFeePercent,
+			"InactiveMonths": accounts.InactiveMonths, "WarnDays": accounts.WarnDays})
 	}
 }
 
@@ -727,6 +729,6 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <h2>Plans and billing</h2><p>Work app subscriptions and other paid plans are billed monthly in advance through Stripe and renew until you cancel. You can cancel at any time; a subscription stays active until the end of the paid month, and a work app whose subscription has ended is paused until it is renewed. Prices may change with 30 days' notice.</p>
 <h2>Acceptable use</h2><p>Do not use Renoxium for illegal goods or services, fraud, phishing, malware, content that infringes others' rights, or to send spam. We may suspend a store or account that breaks these rules or that is reported and found to be harmful, and we will tell you why.</p>
 <h2>Availability and liability</h2><p>We work to keep the service running and your data safe, but the service is provided as it is, without a guarantee that it will always be available or error-free. To the extent the law allows, Renoxium is not liable for indirect losses or lost profits, and its total liability is limited to the fees you paid in the three months before the claim.</p>
-<h2>Ending</h2><p>You can delete your account at any time. We may end the service for an account with notice, or right away for serious breaches of these terms.</p>
+<h2>Ending</h2><p>You can delete your account at any time. We may end the service for an account with notice, or right away for serious breaches of these terms. An account on the free plan without a paid work app that has no activity for {{.InactiveMonths}} months (no sign-in by you or your staff, no change by your assistant, no publish and no card payment through Renoxium's checkout) is deactivated, after an email {{.WarnDays}} days before: its live apps show a "paused" page until you sign in and press Reactivate, and nothing is deleted.</p>
 <h2>Law</h2><p>These terms are governed by the laws of the United Arab Emirates.{{with .Legal.Email}} Questions: <a href="mailto:{{.}}">{{.}}</a>.{{end}}</p></main></div></body></html>{{end}}
 `))

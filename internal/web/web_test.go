@@ -54,6 +54,8 @@ func newEnvPlans(t *testing.T, plans bool, opts ...func(*platform.Config)) *env 
 	cfg := platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}
 	if plans {
 		cfg.OwnerPlan = acc.Plan
+		cfg.OwnerActive = func(id string) { acc.NoteActivity(id) }
+		cfg.OwnerDeactivated = acc.IsDeactivated
 	}
 	for _, o := range opts {
 		o(&cfg)

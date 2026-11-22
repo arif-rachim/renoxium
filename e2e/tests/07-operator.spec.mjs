@@ -36,6 +36,8 @@ test('operator panel', async ({ browser }) => {
   await expect(page.locator('tr', { hasText: shop.app })).toContainText('v1');
   await search('Accounts');
   await expect(page.locator('table').first()).toContainText(shop.email);
+  // Each account shows when it was last active (accounts unused for 6 months are deactivated).
+  await expect(page.locator('table').first().locator('th', { hasText: 'Last active' })).toBeVisible();
 
   // Give Pro without payment: the owner sees it, and it survives a billing sync.
   const userRow = page.locator('tr', { hasText: shop.email }).first();

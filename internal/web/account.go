@@ -19,6 +19,7 @@ func (s *Site) registerAccount() {
 	s.mux.HandleFunc("POST /account/password", s.changePassword)
 	s.mux.HandleFunc("GET /account/export", s.exportAccount)
 	s.mux.HandleFunc("POST /account/delete", s.deleteAccount)
+	s.mux.HandleFunc("POST /account/reactivate", s.reactivate)
 	s.mux.HandleFunc("POST /account/assistants/disconnect", s.disconnectAssistant)
 }
 
