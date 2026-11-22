@@ -160,15 +160,7 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
 - Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
 - Test with create_test_visitor and as_visitor (above), or follow the real sign-up in a session.
 
-How an app is paid for (decides whether publish works on a free account):
-- A static site (only templates and GET template routes: no tables, scripts, lib, jobs, tools, hosts or sign-in) is free and
-  keeps its Renoxium address.
-- Any other app goes live only after the owner chooses on its Plan page, <site>/apps/<app>/plan: a shop, when it takes money
-  from its customers by card (Renoxium takes 2% of card payments; Stripe must be connected), or a work app (AED 99 a month with 5 staff, AED 25 for each one more up to 10;
-  for apps that do not charge customers, and for shops paid only in cash or by bank transfer). Ask the user which it is and
-  send them to that page before publishing; publish fails with the same advice when no plan is chosen.
-
-Payments (card payments through the owner's own Stripe account; in a shop Renoxium takes a 2% fee; work apps and paid plans pay none):
+Payments (card payments through the owner's own Stripe account; on the Free plan Renoxium takes a 2% fee, on paid plans none):
 - Never collect card details yourself. In a script, create the order first, then call
   payments.checkout({items: [{name, price, quantity}], reference, success_path, cancel_path, customer_email})
   and return {redirect: result.url}. price is in AED with at most 2 decimals (250 or 99.5, not fils); quantity defaults to 1;
@@ -192,7 +184,7 @@ Payments (card payments through the owner's own Stripe account; in a shop Renoxi
 - Refunds (e.g. a customer cancels): payments.refund({reference, amount, reason}) refunds the newest paid payment for the reference;
   without amount, everything not yet refunded; amount in AED with at most 2 decimals, never more than what is left (else it throws).
   It returns {status: "partially_refunded"|"refunded", refunded_amount, amount}. on_payment then runs once with that event (after
-  your script finishes). In a shop Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
+  your script finishes). On the Free plan Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
 - Card holds (e.g. a car rental deposit): payments.checkout({..., hold: true}) only authorises the card; on_payment gets "authorized".
   Then payments.capture({reference, amount}) takes all or part of it (e.g. a damage charge; on_payment gets "paid" with the amount
   taken, the rest is released) or payments.release({reference}) cancels it (on_payment gets "released"). Cards drop a hold after about
@@ -250,7 +242,7 @@ Realtime (live updates in the browser, e.g. a courier on a map, a queue number, 
 Scheduled jobs:
 - "jobs": [{name, script, every: "15m"} or {name, script, daily_at: "21:00", timezone: "Asia/Dubai" (default)}] run scripts on the live
   app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.
-  every is at least 1m (5m on a free account, except in a paid work app). A new job first runs after its interval or at its next daily time.
+  every is at least 1m (5m on the Free plan). A new job first runs after its interval or at its next daily time.
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
 - Jobs never run on preview by themselves: try them with try_scheduled_jobs {"app": "..."}, which runs every listed job once and returns each result. The owner sees last and next runs on the app page.
 
