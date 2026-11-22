@@ -195,7 +195,7 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <div class="sign"><h1 id="hero-h" class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</h1><span class="rule" aria-hidden="true"></span><p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</p></div>
 <p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
-<p class="also-work">Not selling online? Renoxium also builds <a href="#work">work apps that take no payments</a>, like a clinic queue or staff attendance.</p>
+<p class="paidfirst"><strong>You get paid first. Then we do.</strong> A shop has no monthly fee: Renoxium takes {{.Fee}}% only when a customer pays you by card. Cash on delivery costs you nothing, and there are no credits to buy.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -272,24 +272,6 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 </div>{{end}}
 </div></section>
 
-<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
-<div data-r><h2 id="work-h">Not selling online? Run your work on it</h2>
-<p class="sub">A clinic queue, staff attendance, a simple CRM, a members' portal: describe it to your assistant the same way, and it builds the app around how you work.</p></div>
-<div class="wk">
-<figure class="queue" data-r aria-hidden="true"><p class="qh"><span>Today's queue</span><span class="dim">Dr. Huda · Room 2</span></p>
-<div class="qrow now"><span class="qn">14</span><span>Fatima K.</span><span class="tag">With the doctor</span></div>
-<div class="qrow"><span class="qn">15</span><span>Omar S.</span><span class="tag">Next</span></div>
-<div class="qrow"><span class="qn">16</span><span>Rania M.</span><span class="dim">About 20 min</span></div>
-<div class="qrow"><span class="qn">17</span><span>Yusuf A.</span><span class="dim">About 35 min</span></div></figure>
-<ul class="uses">
-<li data-r><h3>Clinic queue</h3><p>Patients take a number on their phone and see when it is their turn. The front desk calls the next one.</p></li>
-<li data-r><h3>Staff attendance</h3><p>Staff check in and out on their phone. You see who is in today and each person's hours for the month.</p></li>
-<li data-r><h3>Simple CRM</h3><p>Every customer, call and follow-up in one list, with an email when a follow-up is due.</p></li>
-<li data-r><h3>Members' portal</h3><p>Members sign in to see their membership, when it renews and your notices.</p></li>
-</ul></div>
-<div class="wkprice" data-r><p><strong>A work app: AED {{.WorkPrice}} a month per app, {{.WorkUsers}} staff included.</strong> Each one more is AED {{.SeatPrice}} a month. Nothing is charged on what your customers pay you.</p><a class="btn line" href="/templates">See the templates</a></div>
-</div></section>
-
 <section class="block" aria-labelledby="has-h"><div class="wrap">
 <div data-r><h2 id="has-h">What every shop and work app has</h2>
 <p class="sub">A free static site is pages and photos. A shop or a work app comes with all of the below; card payments, deposits and card refunds come with a shop.</p></div>
@@ -317,6 +299,18 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
 <div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div></dl></section>
 </div></div></section>
+
+<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
+<div data-r><h2 id="work-h">Not selling online? Run your work on it</h2>
+<p class="sub">A clinic queue, staff attendance, a simple CRM, a members' portal: describe it to your assistant the same way, and it builds the app around how you work.</p></div>
+<ul class="uses">
+<li data-r><h3>Clinic queue</h3><p>Patients take a number on their phone and see when it is their turn. The front desk calls the next one.</p></li>
+<li data-r><h3>Staff attendance</h3><p>Staff check in and out on their phone. You see who is in today and each person's hours for the month.</p></li>
+<li data-r><h3>Simple CRM</h3><p>Every customer, call and follow-up in one list, with an email when a follow-up is due.</p></li>
+<li data-r><h3>Members' portal</h3><p>Members sign in to see their membership, when it renews and your notices.</p></li>
+</ul>
+<div class="wkprice" data-r><p><strong>A work app: AED {{.WorkPrice}} a month per app, {{.WorkUsers}} staff included.</strong> Each one more is AED {{.SeatPrice}} a month. Nothing is charged on what your customers pay you.</p><a class="btn line" href="/templates#clinic-queue-uae">Try the clinic queue</a></div>
+</div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
 <div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">You pay for each app by what it does: nothing for a simple site, a share of card payments for a shop, a monthly price for a work app.</p></div>
@@ -373,8 +367,8 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 @media(max-width:760px){.sign{grid-template-columns:1fr;row-gap:20px}.sign .rule{height:2px;width:56px;justify-self:end}}
 .how-it{font-size:19px;line-height:1.55;color:var(--slate);max-width:40em;margin:clamp(28px,4vw,44px) 0 28px}
 .ways{display:grid;gap:64px;margin-top:clamp(64px,8vw,104px)}
-@media(min-width:900px){.ways{grid-template-columns:repeat(3,1fr);gap:48px}}
-.way .shot{width:100%;max-width:300px;aspect-ratio:600/1040;object-fit:cover;object-position:top;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
+@media(min-width:760px){.ways{grid-template-columns:repeat(2,1fr);gap:56px 48px}}
+.way .shot{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:14px;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
 @media(hover:hover){.way:hover .shot{transform:translateY(-6px)}}
 .way h2{font-size:26px;margin:32px 0 8px}
 .way p{margin:0;color:var(--slate);max-width:28em}
@@ -434,19 +428,19 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .tabs button[aria-selected=true]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .trade{display:grid;gap:32px;margin-top:40px;align-items:start}
 .trade+.trade{border-top:1px solid var(--line);padding-top:40px}.tabbed .trade+.trade{border-top:0;padding-top:0}
-@media(min-width:900px){.trade{grid-template-columns:240px 1fr;gap:72px}}
-.trade .shot{width:100%;max-width:240px;aspect-ratio:600/900;object-fit:cover;object-position:top}
-@media(max-width:899px){.trade .shot{max-width:200px}}
+@media(min-width:900px){.trade{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:56px}}
+.trade .shot{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:14px}
+
 .trade h3{font-size:26px}.tabbed .trade h3{position:absolute;left:-9999px}
-.trade .cols{display:grid;gap:32px}@media(min-width:640px){.trade .cols{grid-template-columns:1fr 1fr;gap:48px}}
+.trade .cols{display:grid;gap:28px}@media(min-width:640px){.trade .cols{grid-template-columns:1fr 1fr;gap:36px}}
 .trade h4{margin:0;font-size:15px;font-weight:500;color:var(--slate)}
 .trade ul{list-style:none;padding:0;margin:10px 0 0}
 .trade li{padding:13px 0;border-top:1px solid var(--line)}
 .trade .go{margin:28px 0 0;display:flex;gap:10px 24px;flex-wrap:wrap}
 .tabbed .trade:not([hidden]){animation:tabin .35s cubic-bezier(.2,.7,.2,1)}
 @keyframes tabin{from{opacity:0;transform:translateY(8px)}}
-.also-work{margin:-12px 0 28px;color:var(--slate);font-size:17px;max-width:40em}
-.workapp+.block{padding-top:0}.workapp+.block>.wrap{border-top:1px solid var(--line);padding-top:clamp(64px,8vw,104px)}
+.paidfirst{margin:-8px 0 28px;padding:14px 18px;border-inline-start:3px solid var(--gold);background:color-mix(in srgb,var(--gold) 9%,transparent);border-radius:4px 10px 10px 4px;color:var(--slate);font-size:17px;line-height:1.55;max-width:44em}[dir=rtl] .paidfirst{border-radius:10px 4px 4px 10px}.paidfirst strong{display:block;color:var(--ink);font-size:clamp(20px,2vw,24px);font-weight:600;letter-spacing:-.01em;margin-bottom:2px}
+.workapp{padding:clamp(48px,6vw,72px) 0}.workapp .sub{font-size:17px}
 .wk{display:grid;gap:40px;margin-top:40px;align-items:start}@media(min-width:960px){.wk{grid-template-columns:minmax(0,420px) 1fr;gap:72px}}
 .queue{margin:0;background:var(--mist);border-radius:12px;padding:20px;display:grid;gap:8px;font-size:15px;min-width:0}
 .queue .qh{margin:0 0 6px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600}
@@ -454,9 +448,9 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .qrow{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--paper);border-radius:8px;padding:10px 14px;border-inline-start:3px solid transparent}
 .qrow.now{border-inline-start-color:var(--gold)}.qrow .tag{background:var(--paper)}
 .qn{font-weight:600;font-variant-numeric:tabular-nums;min-width:2ch}
-.uses{list-style:none;padding:0;margin:0;display:grid;gap:24px}@media(min-width:640px){.uses{grid-template-columns:1fr 1fr;gap:32px}}
-.uses li{border-top:1px solid var(--ink);padding-top:14px}.uses h3{margin:0 0 4px;font-size:18px;font-weight:600;line-height:1.3}.uses p{margin:0;color:var(--slate);font-size:16px}
-.wkprice{margin:48px 0 0;padding:20px 24px;border-inline-start:3px solid var(--gold);background:var(--mist);border-radius:4px 12px 12px 4px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:space-between}
+.uses{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:20px}@media(min-width:640px){.uses{grid-template-columns:1fr 1fr;gap:28px}}@media(min-width:1000px){.uses{grid-template-columns:repeat(4,1fr)}}
+.uses li{border-top:1px solid var(--ink);padding-top:12px}.uses h3{margin:0 0 4px;font-size:17px;font-weight:600;line-height:1.3}.uses p{margin:0;color:var(--slate);font-size:16px}
+.wkprice{margin:28px 0 0;padding:20px 24px;border-inline-start:3px solid var(--gold);background:var(--mist);border-radius:4px 12px 12px 4px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:space-between}
 [dir=rtl] .wkprice{border-radius:12px 4px 4px 12px}
 .wkprice p{margin:0;max-width:44em;color:var(--slate)}.wkprice strong{display:block;color:var(--ink);font-size:19px;font-weight:600;margin-bottom:2px}
 .groups{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.groups{grid-template-columns:1fr 1fr;gap:24px}}
@@ -554,7 +548,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <div class="sign"><h1 id="hero-h" class="ar">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</h1><span class="rule" aria-hidden="true"></span><p class="en" lang="en" dir="ltr">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</p></div>
 <p class="how-it">صِف نشاطك التجاري لـ ChatGPT أو Claude. يبني Renoxium موقعك ويربطه بمساعدي الذكاء الاصطناعي، ليجدك العملاء ويحجزوا ويدفعوا. كل طلب يصل إلى لوحة واحدة، وتصلك رسالة واتساب عن كل طلب.</p>
-<p class="also-work">لا تبيع عبر الإنترنت؟ يبني Renoxium أيضاً <a href="#work">تطبيقات عمل لا تتقاضى أي مدفوعات</a>، مثل طابور انتظار لعيادة أو تسجيل حضور الموظفين.</p>
+<p class="paidfirst"><strong>يدفع لك عميلك أولاً، ثم تدفع لنا.</strong> لا رسوم شهرية على المتجر: يأخذ Renoxium نسبة {{.Fee}}% فقط عندما يدفع لك العميل بالبطاقة. والدفع عند الاستلام بلا أي رسوم، ولا توجد أرصدة لتشتريها.</p>
 <div class="cta"><a class="btn" href="/signup">أنشئ حسابك</a><a class="btn line" href="/templates">جرّب نسخة تجريبية</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -631,24 +625,6 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 </div>{{end}}
 </div></section>
 
-<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
-<div data-r><h2 id="work-h">لا تبيع عبر الإنترنت؟ أدِر عملك عليه</h2>
-<p class="sub">طابور انتظار لعيادة، أو تسجيل حضور الموظفين، أو نظام بسيط لإدارة العملاء، أو بوابة للأعضاء: صِفه لمساعدك بالطريقة نفسها، فيبني التطبيق على طريقة عملك.</p></div>
-<div class="wk">
-<figure class="queue" data-r aria-hidden="true"><p class="qh"><span>طابور اليوم</span><span class="dim">د. هدى · الغرفة 2</span></p>
-<div class="qrow now"><span class="qn">14</span><span>فاطمة ك.</span><span class="tag">عند الطبيبة</span></div>
-<div class="qrow"><span class="qn">15</span><span>عمر س.</span><span class="tag">التالي</span></div>
-<div class="qrow"><span class="qn">16</span><span>رانيا م.</span><span class="dim">نحو 20 دقيقة</span></div>
-<div class="qrow"><span class="qn">17</span><span>يوسف أ.</span><span class="dim">نحو 35 دقيقة</span></div></figure>
-<ul class="uses">
-<li data-r><h3>طابور العيادة</h3><p>يأخذ المريض رقماً من هاتفه ويرى متى يحين دوره، ويستدعي موظف الاستقبال المريض التالي.</p></li>
-<li data-r><h3>حضور الموظفين</h3><p>يسجّل الموظفون حضورهم وانصرافهم من هواتفهم، وترى من حضر اليوم وساعات كل موظف خلال الشهر.</p></li>
-<li data-r><h3>إدارة العملاء</h3><p>كل عميل ومكالمة ومتابعة في قائمة واحدة، مع رسالة بريد إلكتروني عندما يحين موعد المتابعة.</p></li>
-<li data-r><h3>بوابة الأعضاء</h3><p>يسجّل الأعضاء الدخول ليروا عضويتهم وموعد تجديدها وإعلاناتك.</p></li>
-</ul></div>
-<div class="wkprice" data-r><p><strong>تطبيق عمل: {{.WorkPrice}} درهماً شهرياً لكل تطبيق، و{{.WorkUsers}} موظفين ضمن السعر.</strong> وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً. لا يُقتطع شيء مما يدفعه لك عملاؤك.</p><a class="btn line" href="/templates">شاهد القوالب</a></div>
-</div></section>
-
 <section class="block" aria-labelledby="has-h"><div class="wrap">
 <div data-r><h2 id="has-h">ما يتضمنه كل متجر وكل تطبيق عمل</h2>
 <p class="sub">الموقع الثابت المجاني صفحات وصور فقط. أما المتجر وتطبيق العمل فيأتيان بكل ما يلي، والدفع بالبطاقة والعربون واسترداد مبالغ البطاقة خاصة بالمتجر.</p></div>
@@ -676,6 +652,18 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
 <div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div></dl></section>
 </div></div></section>
+
+<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
+<div data-r><h2 id="work-h">لا تبيع عبر الإنترنت؟ أدِر عملك عليه</h2>
+<p class="sub">طابور انتظار لعيادة، أو تسجيل حضور الموظفين، أو نظام بسيط لإدارة العملاء، أو بوابة للأعضاء: صِفه لمساعدك بالطريقة نفسها، فيبني التطبيق على طريقة عملك.</p></div>
+<ul class="uses">
+<li data-r><h3>طابور العيادة</h3><p>يأخذ المريض رقماً من هاتفه ويرى متى يحين دوره، ويستدعي موظف الاستقبال المريض التالي.</p></li>
+<li data-r><h3>حضور الموظفين</h3><p>يسجّل الموظفون حضورهم وانصرافهم من هواتفهم، وترى من حضر اليوم وساعات كل موظف خلال الشهر.</p></li>
+<li data-r><h3>إدارة العملاء</h3><p>كل عميل ومكالمة ومتابعة في قائمة واحدة، مع رسالة بريد إلكتروني عندما يحين موعد المتابعة.</p></li>
+<li data-r><h3>بوابة الأعضاء</h3><p>يسجّل الأعضاء الدخول ليروا عضويتهم وموعد تجديدها وإعلاناتك.</p></li>
+</ul>
+<div class="wkprice" data-r><p><strong>تطبيق عمل: {{.WorkPrice}} درهماً شهرياً لكل تطبيق، و{{.WorkUsers}} موظفين ضمن السعر.</strong> وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً. لا يُقتطع شيء مما يدفعه لك عملاؤك.</p><a class="btn line" href="/templates#clinic-queue-uae">جرّب طابور العيادة</a></div>
+</div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
 <div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">تدفع عن كل تطبيق بحسب ما يفعله: لا شيء للموقع البسيط، ونسبة من مدفوعات البطاقة للمتجر، وسعر شهري لتطبيق العمل.</p></div>

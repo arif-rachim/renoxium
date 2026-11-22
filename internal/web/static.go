@@ -76,7 +76,7 @@ var screens = map[string]screen{
 	"listings-uae":      phone("screen-listing.webp", "The home page of the Marsa Homes demo: Homes in Dubai, known street by street, with Browse properties and List your property buttons, a photo of Downtown Dubai at sunset and a search bar for purpose, location, type and price"),
 	"clinic-queue-uae":  phone("screen-clinic.webp", "The home page of the Shifa Family Clinic demo in deep green on mint: See a doctor today. Skip the waiting room., a Take a number button, a See the queue now button and a photo of a smiling patient talking with her dentist, with A008 to Room 1 called on a chip over the photo"),
 	"delivery-tracking": phone("screen-delivery.webp", "Delivery #1 of the Al Noor Flowers demo for Mariam: the courier's position on a map of Dubai and the progress Preparing, On the way, Delivered, with On the way reached"),
-	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
+	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 1055,
 		Alt: "The owner's admin panel of the Lamsa Beauty Lounge demo: the bookings calendar for one day, one lane each for Layla, Maryam and Priya, with nine appointments from 10:00 to 19:00, each with the customer's name and service, marked confirmed or pending"},
 }
 
@@ -89,7 +89,7 @@ var screensAR = map[string]screen{
 	"quote-portal-uae": phone("screen-quote-portal-ar.webp", "الصفحة الرئيسية لتجربة بيان لتأسيس الأعمال بالعربية: شركتك في دبي بتأسيس واضح، مع زر اطلب عرض سعر وصورة لأفق دبي ليلاً"),
 	"clinic-queue-uae": phone("screen-clinic-ar.webp", "الصفحة الرئيسية لتجربة عيادة شفاء العائلية بالعربية بالأخضر الداكن على النعناعي: قابل الطبيب اليوم. ودون قاعة انتظار.، مع زر احصل على رقم وصورة مريضة مبتسمة مع طبيب الأسنان"),
 	"listings-uae":     phone("screen-listing-ar.webp", "الصفحة الرئيسية لتجربة مرسى هومز بالعربية: منازل في دبي نعرفها شارعاً شارعاً، مع زر تصفح العقارات وصورة لوسط دبي عند الغروب"),
-	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
+	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 1055,
 		Alt: "لوحة تحكم صالون لمسة التجريبي: تقويم الحجوزات ليوم واحد، بعمود لكل من ليلى ومريم وبريا، وتسعة مواعيد من 10:00 إلى 19:00 مع اسم العميلة والخدمة وحالة الحجز"},
 }
 
@@ -115,6 +115,18 @@ var screensWide = map[string]screen{
 	"listings-uae":      wide("wide-listing.webp", "The Marsa Homes demo on a desktop"),
 	"clinic-queue-uae":  wide("wide-clinic.webp", "The Shifa Family Clinic queue demo on a desktop"),
 	"delivery-tracking": wide("wide-delivery.webp", "The Al Noor Flowers delivery tracking demo on a desktop"),
+}
+
+// screensWideAR are the same demos in Arabic, for the Arabic home page.
+var screensWideAR = map[string]screen{
+	"store-uae":         wide("wide-store-home-ar.webp", "متجر عطور النور التجريبي بالعربية على شاشة حاسوب"),
+	"booking-uae":       wide("wide-booking-ar.webp", "تجربة صالون لمسة بيوتي لاونج بالعربية على شاشة حاسوب"),
+	"home-service-uae":  wide("wide-home-service-ar.webp", "تجربة بيتي للخدمات المنزلية بالعربية على شاشة حاسوب"),
+	"reservation-uae":   wide("wide-reservation-ar.webp", "تجربة صحارى باي للرحلات والتأجير بالعربية على شاشة حاسوب"),
+	"quote-portal-uae":  wide("wide-quote-portal-ar.webp", "تجربة بيان لتأسيس الأعمال بالعربية على شاشة حاسوب"),
+	"listings-uae":      wide("wide-listing-ar.webp", "تجربة مرسى هومز بالعربية على شاشة حاسوب"),
+	"delivery-tracking": wide("wide-delivery-ar.webp", "تجربة تتبع توصيل زهور النور بالعربية على شاشة حاسوب"),
+	"clinic-queue-uae":  wide("wide-clinic-ar.webp", "تجربة طابور عيادة شفاء العائلية بالعربية على شاشة حاسوب"),
 }
 
 func wide(file, alt string) screen { return screen{File: file, Alt: alt, W: 960, H: 600} }
@@ -174,21 +186,25 @@ func (s *Site) sitePaths(cards []galleryCard, ar bool) []sitePath {
 	}
 	if ar {
 		return []sitePath{
-			{ID: "sell", Title: "أبيع منتجات", Screen: screensAR["store-uae"], Demos: pick("store-uae"),
+			{ID: "sell", Title: "أبيع منتجات", Screen: screensWideAR["store-uae"], Demos: pick("store-uae"),
 				Text: "متجر بسلة مشتريات وصفحة دفع، لمتجر عطور أو بوتيك أو كعك يُطلب قبل أيام. يدفع العملاء بالبطاقة أو نقداً عند الاستلام."},
-			{ID: "book", Title: "أستقبل حجوزات", Screen: screensAR["booking-uae"], Demos: pick("booking-uae", "home-service-uae", "reservation-uae"),
+			{ID: "book", Title: "أستقبل حجوزات", Screen: screensWideAR["booking-uae"], Demos: pick("booking-uae", "home-service-uae", "reservation-uae"),
 				Text: "يختار العملاء وقتاً متاحاً ويدفعون عربوناً، لصالون أو شركة تنظيف أو رحلة سفاري."},
-			{ID: "quote", Title: "أرسل عروض أسعار", Screen: screensAR["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
+			{ID: "quote", Title: "أرسل عروض أسعار", Screen: screensWideAR["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
 				Text: "يطلب العملاء عرض سعر ويقبلونه ويدفعون العربون عبر الإنترنت، لمكتب تأسيس شركات أو وسيط عقاري."},
+			{ID: "walkin", Title: "أستقبل الزوار بلا موعد", Screen: screensWideAR["clinic-queue-uae"], Demos: pick("clinic-queue-uae"),
+				Text: "يأخذ المراجع رقماً من هاتفه وتصله رسالة واتساب عندما يقترب دوره، لعيادة أو صالون حلاقة أو مركز خدمة."},
 		}
 	}
 	return []sitePath{
-		{ID: "sell", Title: "I sell products", Screen: screens["store-ar"], Demos: pick("store-uae"),
+		{ID: "sell", Title: "I sell products", Screen: screensWide["store-uae"], Demos: pick("store-uae"),
 			Text: "A shop with a cart and checkout for a perfume shop, a boutique or cakes ordered days ahead. Customers pay by card or cash on delivery."},
-		{ID: "book", Title: "I take bookings", Screen: screens["booking-uae"], Demos: pick("booking-uae", "home-service-uae", "reservation-uae"),
+		{ID: "book", Title: "I take bookings", Screen: screensWide["booking-uae"], Demos: pick("booking-uae", "home-service-uae", "reservation-uae"),
 			Text: "Customers pick a free time and pay a deposit, for a salon, a cleaning company or a desert safari."},
-		{ID: "quote", Title: "I send quotes", Screen: screens["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
+		{ID: "quote", Title: "I send quotes", Screen: screensWide["quote-portal-uae"], Demos: pick("quote-portal-uae", "listings-uae"),
 			Text: "Clients ask for a quote, accept it and pay a deposit online, for a business setup firm or a property broker."},
+		{ID: "walkin", Title: "I serve walk-ins", Screen: screensWide["clinic-queue-uae"], Demos: pick("clinic-queue-uae"),
+			Text: "Visitors take a number on their phone and get a WhatsApp message when their turn is near, for a clinic, a barber or a service counter."},
 	}
 }
 
@@ -258,9 +274,9 @@ func (s *Site) siteTrades(cards []galleryCard, ar bool) []trade {
 		byName[c.Name] = c
 	}
 	var out []trade
-	list, shots, query := trades, screens, ""
+	list, shots, query := trades, screensWide, ""
 	if ar {
-		list, shots, query = tradesAR, screensAR, "?lang=ar"
+		list, shots, query = tradesAR, screensWideAR, "?lang=ar"
 	}
 	for _, t := range list {
 		c, ok := byName[t.Example]

@@ -21,3 +21,4 @@ schedule every demo gets around the current day (`internal/platform/demodata.go`
 | screen-admin-calendar.webp | booking-uae: the owner's admin panel, bookings calendar day view (1280x800 desktop, cropped to the calendar, 1400 pixels wide), showing the demo's own bookings for the day |
 | screen-booking-ar.webp, screen-home-service-ar.webp, screen-reservation-ar.webp, screen-quote-portal-ar.webp, screen-listing-ar.webp, screen-clinic-ar.webp | the same home pages in Arabic (`?lang=ar`), for the Arabic home page `/ar` |
 | wide-*.webp (eight files) | each demo's home page at desktop size (1280x800, stored 960x600), for the template cards in the console |
+| wide-*-ar.webp (eight files), wide-clinic.webp | the demos' home pages at desktop size in Arabic (`?lang=ar`) and the clinic queue demo, for the Arabic home page and the template cards; all wide-*.webp were taken again on 22 Nov 2026 |
