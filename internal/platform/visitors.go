@@ -106,6 +106,7 @@ func (p *Platform) Cleanup(ctx context.Context) {
 		st.admin.ExecContext(ctx, `DELETE FROM rx_email_tokens WHERE expires_at < ? OR used = 1`, now)
 		st.admin.ExecContext(ctx, `DELETE FROM rx_phone_codes WHERE expires_at < ?`, now)
 		cleanAuthCodes(ctx, st)
+		cleanConversations(ctx, st)
 	}
 	p.mu.Lock()
 	for k, e := range p.rids {

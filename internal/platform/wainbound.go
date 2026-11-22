@@ -8,14 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 // The WhatsApp webhook of the platform number, after its signature was
-// checked (web.Site). Phase 1 reads delivery statuses and opt-outs: the
-// "Stop messages" button and STOP words. Any other message gets one fixed
-// answer a day pointing to the business, because nobody reads the platform
-// number.
+// checked (web.Site): delivery statuses, opt-outs (the "Stop messages"
+// button and STOP words), and customers' messages, which routeInbound hands
+// to one app (waconversation.go). An app that takes no messages gets one
+// fixed answer a day pointing to the business.
 
 // stopWords end WhatsApp messages from the apps that wrote to the number.
 var stopWords = map[string]bool{"stop": true, "stop all": true, "unsubscribe": true, "stop messages": true,
@@ -111,22 +112,7 @@ func (p *Platform) waInbound(ctx context.Context, m whatsapp.Inbound) {
 		p.waReply(ctx, phone, "You will not get more WhatsApp messages from "+strings.Join(names, ", ")+".")
 		return
 	}
-	// One answer a day: the platform number is not read by anyone.
-	if !p.allowDurable("wa-answer:"+phone, 1, 24*time.Hour) {
-		return
-	}
-	apps := p.recentApps(phone)
-	if len(apps) == 0 {
-		p.waReply(ctx, phone, "This WhatsApp number only sends updates for businesses that use Renoxium, and replies here are not read.")
-		return
-	}
-	a := apps[0]
-	st, err := p.loadStage(a.app, a.stage)
-	if err != nil || st == nil {
-		return
-	}
-	p.waReply(ctx, phone, "This WhatsApp number only sends updates from "+p.businessName(ctx, st)+
-		", and replies here are not read. To contact them, use the details on "+p.URL(a.app, a.stage)+" . Reply STOP to stop these messages.")
+	p.routeInbound(ctx, m, phone)
 }
 
 type appStage struct{ app, stage string }
@@ -188,4 +174,15 @@ func (p *Platform) WhatsAppLink(id string) (string, bool) {
 		return "", false
 	}
 	return p.URL(app, stageName) + link, true
+}
+
+// requestLogs are the app log events of one request.
+func (p *Platform) requestLogs(app, rid string) []applog.Event {
+	out := []applog.Event{}
+	if l, err := p.log(app); err == nil {
+		if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
+			out = events
+		}
+	}
+	return out
 }

@@ -88,3 +88,27 @@ func TestSendTemplateAndText(t *testing.T) {
 		t.Fatalf("requests:\n%s\nwant\n%s", b, want)
 	}
 }
+
+func TestInteractiveAndButtons(t *testing.T) {
+	body := []byte(`{"entry":[{"changes":[{"field":"messages","value":{"metadata":{"phone_number_id":"100"},
+		"contacts":[{"wa_id":"971501234567","profile":{"name":"Sara"}}],
+		"messages":[{"from":"971501234567","id":"w1","type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"rx-btn:m1:book","title":"Book"}}}]}}]}]}`)
+	in, _, err := Events(body)
+	if err != nil || len(in) != 1 || in[0].Interactive.ButtonReply.ID != "rx-btn:m1:book" || in[0].Name != "Sara" {
+		t.Fatalf("interactive = %+v %v", in, err)
+	}
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{"messages":[{"id":"wamid.b"}]}`))
+	}))
+	defer srv.Close()
+	c := &CloudAPI{Token: "t", PhoneNumberID: "100", BaseURL: srv.URL}
+	if id, err := c.SendButtons(context.Background(), "+971501234567", "Pick one", []Button{{ID: "a", Title: "Yes"}, {ID: "b", Title: "No"}}); err != nil || id != "wamid.b" {
+		t.Fatal(id, err)
+	}
+	b, _ := json.Marshal(got["interactive"])
+	if string(b) != `{"action":{"buttons":[{"reply":{"id":"a","title":"Yes"},"type":"reply"},{"reply":{"id":"b","title":"No"},"type":"reply"}]},"body":{"text":"Pick one"},"type":"button"}` {
+		t.Fatalf("interactive request = %s", b)
+	}
+}

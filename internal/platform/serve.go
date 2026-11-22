@@ -313,7 +313,7 @@ func (p *Platform) render(st *stage, status int, name string, data any, rid stri
 	if err := t.Execute(buf, data); err != nil {
 		return failure(http.StatusInternalServerError, "template "+name+": "+err.Error())
 	}
-	page, injected := injectTelemetry(p.injectOptin(st, buf.buf), rid)
+	page, injected := injectTelemetry(p.injectChat(st, p.injectOptin(st, buf.buf)), rid)
 	if injected {
 		p.issueRID(st.app, rid)
 		if st.name == Live && p.cfg.OwnerPlan != nil && p.planOf(p.ownerOf(st.app)) == planFree {
@@ -620,6 +620,8 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.whatsappConsent(ctx, arg)
 	case "whatsapp.status":
 		return h.whatsappStatus(ctx, arg)
+	case "whatsapp.reply":
+		return h.whatsappReply(ctx, arg)
 	case "http.fetch":
 		return h.httpFetch(ctx, arg)
 	case "realtime.publish":

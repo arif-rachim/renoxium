@@ -77,6 +77,17 @@ type Inbound struct {
 		Payload string `json:"payload"`
 		Text    string `json:"text"`
 	} `json:"button"`
+	// Interactive is set when the customer taps a reply button the
+	// business sent (SendButtons).
+	Interactive struct {
+		Type        string `json:"type"`
+		ButtonReply struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"button_reply"`
+	} `json:"interactive"`
+	// Name is the sender's WhatsApp profile name (copied from contacts by Events).
+	Name string `json:"-"`
 	// PhoneNumberID is the business number it was sent to (copied from the
 	// change's metadata by Events).
 	PhoneNumberID string `json:"-"`
@@ -126,6 +137,11 @@ func Events(body []byte) (in []Inbound, st []Status, err error) {
 			id := c.Value.Metadata.PhoneNumberID
 			for _, m := range c.Value.Messages {
 				m.PhoneNumberID = id
+				for _, ct := range c.Value.Contacts {
+					if ct.WaID != "" && ct.WaID == m.From {
+						m.Name = ct.Profile.Name
+					}
+				}
 				in = append(in, m)
 			}
 			for _, s := range c.Value.Statuses {

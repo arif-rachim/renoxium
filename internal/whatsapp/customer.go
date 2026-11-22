@@ -27,6 +27,16 @@ type Message struct {
 type CustomerSender interface {
 	SendTemplate(ctx context.Context, phone string, m Message) (string, error)
 	SendText(ctx context.Context, phone, text string) (string, error)
+	// SendButtons sends text with up to three reply buttons; a tap comes
+	// back in the webhook as an interactive button_reply with the ID.
+	SendButtons(ctx context.Context, phone, text string, buttons []Button) (string, error)
+}
+
+// Button is a reply button: ID comes back when it is tapped, Title (at
+// most 20 characters) is what the customer sees.
+type Button struct {
+	ID    string
+	Title string
 }
 
 // SendTemplate implements CustomerSender.
@@ -68,6 +78,31 @@ func (c *CloudAPI) SendText(ctx context.Context, phone, text string) (string, er
 		"type": "text",
 		"text": map[string]any{"body": text, "preview_url": false},
 	})
+}
+
+// SendButtons implements CustomerSender.
+func (c *CloudAPI) SendButtons(ctx context.Context, phone, text string, buttons []Button) (string, error) {
+	if r := []rune(text); len(r) > 1024 {
+		text = string(r[:1023]) + "…"
+	}
+	list := []any{}
+	for _, b := range buttons {
+		list = append(list, map[string]any{"type": "reply", "reply": map[string]string{"id": b.ID, "title": b.Title}})
+	}
+	return c.post(ctx, phone, "", "", map[string]any{
+		"type": "interactive",
+		"interactive": map[string]any{
+			"type":   "button",
+			"body":   map[string]string{"text": text},
+			"action": map[string]any{"buttons": list},
+		},
+	})
+}
+
+// SendButtons implements CustomerSender.
+func (Log) SendButtons(_ context.Context, phone, text string, buttons []Button) (string, error) {
+	slog.Info("whatsapp buttons not sent (WhatsApp is not configured)", "to", phone, "text", text, "buttons", len(buttons))
+	return "", nil
 }
 
 // SendTemplate implements CustomerSender.

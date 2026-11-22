@@ -29,6 +29,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/seo"
 	"github.com/arif-rachim/renoxium/internal/stripe"
 	"github.com/arif-rachim/renoxium/internal/web"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 func main() {
@@ -188,6 +189,9 @@ func main() {
 			slog.Info("WhatsApp messages to customers on", "templates", tmpl)
 		}
 		cfg.WhatsAppPhoneNumberID = wa.PhoneNumberID
+		if n, ok := whatsapp.Normalize(os.Getenv("WHATSAPP_PLATFORM_NUMBER")); ok {
+			cfg.WhatsAppPlatformNumber = n
+		}
 	} else {
 		slog.Warn("WhatsApp is not configured: sign-in with WhatsApp works on previews only (codes in the app log)")
 	}

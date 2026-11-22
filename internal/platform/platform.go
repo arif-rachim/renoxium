@@ -84,6 +84,10 @@ type Config struct {
 	// WhatsAppPhoneNumberID is the platform number's ID: webhooks naming
 	// another number are ignored. Empty accepts every number.
 	WhatsAppPhoneNumberID string
+	// WhatsAppPlatformNumber is the platform number as customers dial it
+	// (+971...), for the apps' "Chat on WhatsApp" links. Empty shows the
+	// links' labels without a link.
+	WhatsAppPlatformNumber string
 	// FetchTransport replaces http.fetch's own transport, which refuses
 	// private addresses. Tests only.
 	FetchTransport http.RoundTripper
@@ -351,6 +355,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	if err := pl.ensureAlertTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := pl.ensureConversationTables(); err != nil {
 		db.Close()
 		return nil, err
 	}

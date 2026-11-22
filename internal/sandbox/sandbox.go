@@ -33,7 +33,7 @@ var platformFunctions = map[string][]string{
 	"realtime": {"publish", "token"},
 	"http":     {"fetch"},
 	"files":    {"get", "delete", "url"},
-	"whatsapp": {"send", "consent", "status"},
+	"whatsapp": {"send", "consent", "status", "reply"},
 }
 
 // Request is what a script's handle(req) receives.

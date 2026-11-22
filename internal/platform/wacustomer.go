@@ -439,9 +439,11 @@ func waErrorCode(err error) string {
 // TestWhatsApp is a WhatsApp message preview did not send.
 type TestWhatsApp struct {
 	To   string `json:"to"`
-	Kind string `json:"kind" jsonschema:"confirmation, reminder or update"`
+	Kind string `json:"kind" jsonschema:"confirmation, reminder or update (templates), reply (whatsapp.reply or on_message) or auto (an automatic reply)"`
 	Text string `json:"text" jsonschema:"the message as the customer would read it"`
-	Link string `json:"link" jsonschema:"the app path the message's View button opens"`
+	Link string `json:"link,omitempty" jsonschema:"the app path the message's View button opens"`
+	// Buttons are the reply buttons of a whatsapp.reply message.
+	Buttons []string `json:"buttons,omitempty" jsonschema:"titles of the reply buttons the customer would see"`
 }
 
 // waOutbox keeps preview's messages per request ID until a test tool reads

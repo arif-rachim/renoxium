@@ -367,6 +367,7 @@ type Patch struct {
 	Lib             map[string]string           `json:"lib,omitempty" jsonschema:"lib entries (shared script code) to add or replace, by name"`
 	DeleteLib       []string                    `json:"delete_lib,omitempty" jsonschema:"names of lib entries to remove"`
 	OnAdminChange   *string                     `json:"on_admin_change,omitempty" jsonschema:"if set, replaces on_admin_change; empty turns it off"`
+	WhatsApp        *appdef.WhatsApp            `json:"whatsapp,omitempty" jsonschema:"if set, replaces the whole whatsapp section; {} turns WhatsApp replies off"`
 }
 
 // ApplyPatch merges a patch into the newest version and applies the result
@@ -404,6 +405,12 @@ func (p *Platform) ApplyPatch(ctx context.Context, app string, patch Patch) (App
 	}
 	if patch.OnAdminChange != nil {
 		def.OnAdminChange = *patch.OnAdminChange
+	}
+	if patch.WhatsApp != nil {
+		def.WhatsApp = patch.WhatsApp
+		if def.WhatsApp.OnMessage == "" && len(def.WhatsApp.AutoReplies) == 0 {
+			def.WhatsApp = nil
+		}
 	}
 	var problems []string
 	for _, k := range patch.DeleteTemplates {

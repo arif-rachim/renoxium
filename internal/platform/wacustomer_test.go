@@ -46,6 +46,17 @@ func (c *customerBox) SendText(_ context.Context, phone, text string) (string, e
 	return "wamid.text", nil
 }
 
+func (c *customerBox) SendButtons(_ context.Context, phone, text string, buttons []whatsapp.Button) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var ids []string
+	for _, b := range buttons {
+		ids = append(ids, b.ID+"="+b.Title)
+	}
+	c.texts = append(c.texts, phone+" "+text+" ["+strings.Join(ids, " | ")+"]")
+	return "wamid.buttons", nil
+}
+
 func (c *customerBox) sent() ([]sentTemplate, []string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -80,7 +91,7 @@ func newWAPlatform(t *testing.T, plan string) (*platform.Platform, *customerBox)
 	t.Helper()
 	box := &customerBox{}
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
-		WhatsAppCustomers: box, WhatsAppPhoneNumberID: "100200300",
+		WhatsAppCustomers: box, WhatsAppPhoneNumberID: "100200300", WhatsAppPlatformNumber: "+971500000000",
 		WhatsAppCustomerTemplates: map[string]string{"confirmation": "rx_confirmation", "reminder": "rx_reminder", "update": "rx_update"},
 		OwnerPlan:                 func(string) string { return plan }}, sandbox.NewGoja())
 	if err != nil {

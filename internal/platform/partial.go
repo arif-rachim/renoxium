@@ -32,6 +32,7 @@ type Outline struct {
 	Hosts         []string       `json:"hosts,omitempty"`
 	OnPayment     string         `json:"on_payment,omitempty"`
 	OnAdminChange string         `json:"on_admin_change,omitempty"`
+	WhatsApp      string         `json:"whatsapp,omitempty" jsonschema:"on_message script and number of automatic replies"`
 }
 
 // TableOutline is a table's name and column names.
@@ -45,6 +46,9 @@ func OutlineOf(def *appdef.App) Outline {
 	raw, _ := json.Marshal(def)
 	o := Outline{Bytes: len(raw), Templates: sizes(def.Templates), Scripts: sizes(def.Scripts), Lib: sizes(def.Lib),
 		OnPayment: def.OnPayment, OnAdminChange: def.OnAdminChange}
+	if w := def.WhatsApp; w != nil {
+		o.WhatsApp = fmt.Sprintf("on_message %q, %d automatic replies", w.OnMessage, len(w.AutoReplies))
+	}
 	for _, t := range def.Tables {
 		to := TableOutline{Name: t.Name, Columns: []string{}}
 		for _, c := range t.Columns {
@@ -94,7 +98,7 @@ func sizes(m map[string]string) map[string]int {
 
 // PartPaths explains the paths SelectParts accepts, for error messages and
 // tool descriptions.
-const PartPaths = `templates, templates.<name>, scripts, scripts.<name>, lib, lib.<name>, tables, tables.<name>, seed, seed.<table>, routes, jobs, tools, hosts, secrets, on_payment, on_admin_change, brand`
+const PartPaths = `templates, templates.<name>, scripts, scripts.<name>, lib, lib.<name>, tables, tables.<name>, seed, seed.<table>, routes, jobs, tools, hosts, secrets, on_payment, on_admin_change, whatsapp, brand`
 
 // MaxParts is how many paths one read may ask for.
 const MaxParts = 40
@@ -179,6 +183,8 @@ func selectPart(def *appdef.App, path string) (any, error) {
 		return def.OnPayment, nil
 	case "on_admin_change":
 		return def.OnAdminChange, nil
+	case "whatsapp":
+		return def.WhatsApp, nil
 	case "brand":
 		return def.Brand, nil
 	}

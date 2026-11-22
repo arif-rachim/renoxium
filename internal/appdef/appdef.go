@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // MaxSize is the largest accepted definition, in bytes of JSON.
@@ -30,6 +31,8 @@ type App struct {
 	// Lib and OnAdminChange: shared script code and the admin-change hook.
 	Lib           map[string]string `json:"lib,omitempty" jsonschema:"shared server JavaScript by name (helper functions and constants used by several scripts); evaluated in name order before every script, job, tool and hook; must not define handle"`
 	OnAdminChange string            `json:"on_admin_change,omitempty" jsonschema:"script run right after the owner or staff adds, changes or deletes a row in the admin panel; req.body holds {action, table, id, row, before, by}"`
+	// WhatsApp handles messages customers send to the app on WhatsApp.
+	WhatsApp *WhatsApp `json:"whatsapp,omitempty" jsonschema:"what the app does with WhatsApp messages customers send it: automatic replies, then a script; without it customers who write get a fixed answer"`
 	// Brand names the row the platform's own pages (sign-in, sign-up) take
 	// the business's name and colour from.
 	SEO   *SEO   `json:"seo,omitempty" jsonschema:"how search engines, link previews and AI assistants see the live app: sitemap, languages, fallback description and image"`
@@ -120,6 +123,53 @@ type Brand struct {
 	Name   string `json:"name" jsonschema:"text column with the business's name"`
 	NameAr string `json:"name_ar,omitempty" jsonschema:"text column with the business's Arabic name"`
 	Color  string `json:"color,omitempty" jsonschema:"text column with the brand colour as #rrggbb"`
+}
+
+// WhatsApp is how an app answers customers who write to it on WhatsApp.
+type WhatsApp struct {
+	OnMessage   string      `json:"on_message,omitempty" jsonschema:"script run for each WhatsApp message a customer sends the app that no automatic reply answered; req.body holds {from, name, type, text, button, thread, consented}; return {json: {reply, buttons}} to answer"`
+	AutoReplies []AutoReply `json:"auto_replies,omitempty" jsonschema:"answers sent without a script, tried in order before on_message; the first that applies is sent"`
+}
+
+// AutoReply is an answer sent without a script: to messages with one of
+// the words in Match, or to any message outside the opening hours.
+type AutoReply struct {
+	Match        []string `json:"match,omitempty" jsonschema:"lowercase words or short phrases; the reply is sent when the message contains one of them as whole words, e.g. [\"hours\", \"open\", \"location\"]"`
+	OutsideHours *Hours   `json:"outside_hours,omitempty" jsonschema:"send the reply to any message outside these opening hours"`
+	Reply        string   `json:"reply" jsonschema:"the answer, at most 1000 characters"`
+}
+
+// Hours are opening hours on some days of the week.
+type Hours struct {
+	Days     []string `json:"days" jsonschema:"open days: sun, mon, tue, wed, thu, fri, sat"`
+	From     string   `json:"from" jsonschema:"opening time HH:MM"`
+	To       string   `json:"to" jsonschema:"closing time HH:MM, later than from"`
+	Timezone string   `json:"timezone,omitempty" jsonschema:"IANA time zone, default Asia/Dubai"`
+}
+
+// MaxAutoReplies is how many automatic replies an app may have.
+const MaxAutoReplies = 20
+
+// WeekDays are the day names Hours.Days accepts, Sunday first.
+var WeekDays = []string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
+
+// Open reports whether t falls inside the hours.
+func (h *Hours) Open(t time.Time) bool {
+	loc, err := time.LoadLocation(h.Timezone)
+	if h.Timezone == "" || err != nil {
+		loc, _ = time.LoadLocation("Asia/Dubai")
+	}
+	if loc == nil {
+		loc = time.UTC
+	}
+	l := t.In(loc)
+	day := WeekDays[l.Weekday()]
+	open := false
+	for _, d := range h.Days {
+		open = open || strings.EqualFold(d, day)
+	}
+	now := l.Format("15:04")
+	return open && now >= h.From && now < h.To
 }
 
 // MaxLibs is how many lib entries an app may have.
@@ -452,6 +502,54 @@ func (a *App) Validate() []string {
 			}
 			if b.Name == "" {
 				add("brand: name is required")
+			}
+		}
+	}
+	if w := a.WhatsApp; w != nil {
+		if w.OnMessage != "" {
+			if _, ok := a.Scripts[w.OnMessage]; !ok {
+				add("whatsapp.on_message: script %q is not defined", w.OnMessage)
+			}
+		}
+		if len(w.AutoReplies) > MaxAutoReplies {
+			add("whatsapp.auto_replies: at most %d", MaxAutoReplies)
+		}
+		for i, r := range w.AutoReplies {
+			where := fmt.Sprintf("whatsapp.auto_replies[%d]", i)
+			if strings.TrimSpace(r.Reply) == "" || utf8.RuneCountInString(r.Reply) > 1000 {
+				add("%s: reply is required, at most 1000 characters", where)
+			}
+			if (len(r.Match) == 0) == (r.OutsideHours == nil) {
+				add("%s: give either match or outside_hours", where)
+			}
+			for _, m := range r.Match {
+				if strings.TrimSpace(m) == "" || m != strings.ToLower(m) || len(m) > 60 {
+					add("%s: match %q must be a lowercase word or phrase of at most 60 characters", where, m)
+				}
+			}
+			if h := r.OutsideHours; h != nil {
+				_, errFrom := time.Parse("15:04", h.From)
+				_, errTo := time.Parse("15:04", h.To)
+				if errFrom != nil || errTo != nil || h.From >= h.To {
+					add("%s: outside_hours needs from and to as HH:MM, from before to", where)
+				}
+				if len(h.Days) == 0 {
+					add("%s: outside_hours needs the open days", where)
+				}
+				for _, d := range h.Days {
+					known := false
+					for _, w := range WeekDays {
+						known = known || strings.EqualFold(d, w)
+					}
+					if !known {
+						add("%s: day %q is not one of %s", where, d, strings.Join(WeekDays, ", "))
+					}
+				}
+				if h.Timezone != "" {
+					if _, err := time.LoadLocation(h.Timezone); err != nil {
+						add("%s: unknown time zone %q", where, h.Timezone)
+					}
+				}
 			}
 		}
 	}

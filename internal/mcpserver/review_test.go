@@ -59,7 +59,7 @@ func TestWhatReviewersRead(t *testing.T) {
 		"view_page": {false, false, true}, "view_live_page": {true, false, false}, "submit_form": {false, true, true},
 		"upload_as_visitor": {false, false, false}, "try_scheduled_jobs": {false, true, true}, "change_preview_row": {false, true, true},
 		"edit_app": {false, true, true}, "create_test_visitor": {false, false, false}, "screenshot_preview": {false, false, true},
-		"rename_app": {false, false, false}, "delete_app": {false, false, false},
+		"rename_app": {false, false, false}, "delete_app": {false, false, false}, "send_test_whatsapp_message": {false, true, true},
 	}
 	if len(res.Tools) != len(want) {
 		t.Fatalf("%d tools, want %d", len(res.Tools), len(want))
@@ -87,7 +87,8 @@ func TestWhatReviewersRead(t *testing.T) {
 			}
 		}
 	}
-	visitorTools := map[string]bool{"view_page": true, "view_live_page": true, "submit_form": true, "upload_as_visitor": true, "try_scheduled_jobs": true}
+	visitorTools := map[string]bool{"view_page": true, "view_live_page": true, "submit_form": true, "upload_as_visitor": true, "try_scheduled_jobs": true,
+		"send_test_whatsapp_message": true}
 	for _, tool := range res.Tools {
 		if !visitorTools[tool.Name] {
 			continue
@@ -107,7 +108,8 @@ func TestWhatReviewersRead(t *testing.T) {
 		"view_live_page": "nothing on the live site is modified", "submit_form": "nothing on the live site is modified",
 		"upload_as_visitor": "never reaches the live site", "try_scheduled_jobs": "nothing on the live site is modified", "change_preview_row": "nothing on the live site is modified",
 		"edit_app": "never executed by you", "create_test_visitor": "never reaches the live site", "screenshot_preview": "the live site is never opened",
-		"rename_app": "This call changes nothing", "delete_app": "This call changes nothing"}
+		"rename_app": "This call changes nothing", "delete_app": "This call changes nothing",
+		"send_test_whatsapp_message": "nothing on the live site is modified"}
 	for _, tool := range res.Tools {
 		if want, ok := says[tool.Name]; ok && !strings.Contains(tool.Description, want) {
 			t.Errorf("%s's description does not say %q", tool.Name, want)

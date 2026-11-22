@@ -402,6 +402,14 @@ var platformTables = []string{
 	// account's consent goes with the account.
 	`CREATE TABLE IF NOT EXISTS rx_wa_consent (phone TEXT PRIMARY KEY, user_id INTEGER REFERENCES rx_users(id) ON DELETE CASCADE,
 		source TEXT NOT NULL, wording TEXT NOT NULL DEFAULT '', consented_at INTEGER NOT NULL DEFAULT 0, opted_out_at INTEGER NOT NULL DEFAULT 0)`,
+	// WhatsApp conversations with customers: one thread per number, its
+	// messages both ways. last_in_at opens the app's 24-hour reply window.
+	`CREATE TABLE IF NOT EXISTS rx_wa_threads (phone TEXT PRIMARY KEY, user_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT 'bot', last_in_at INTEGER NOT NULL DEFAULT 0, last_out_at INTEGER NOT NULL DEFAULT 0,
+		created_at INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE TABLE IF NOT EXISTS rx_wa_messages (id INTEGER PRIMARY KEY, phone TEXT NOT NULL, dir TEXT NOT NULL, kind TEXT NOT NULL,
+		body TEXT NOT NULL, at INTEGER NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS rx_wa_messages_phone ON rx_wa_messages (phone, at)`,
 }
 
 type execer interface {

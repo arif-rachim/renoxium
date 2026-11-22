@@ -30,21 +30,21 @@ Every action is one of these tools; there are no other operations:
 - read only: list_apps, get_app, get_app_outline, get_app_parts, get_example, get_logs, view_live_page
 - change the user's apps: create_app, apply_change, patch_app, edit_app, upload_file, publish, rename_app, delete_app
 - test on the private preview: view_page, submit_form, upload_as_visitor, create_test_visitor, screenshot_preview,
-  try_scheduled_jobs, change_preview_row
+  try_scheduled_jobs, change_preview_row, send_test_whatsapp_message
 
 How to work:
 1. Ask the user only what the business needs: its name, what it sells or offers, prices, delivery fee, language. No technical questions.
 2. Call get_example without a name to list the finished examples. store-uae: shops (for made-to-order goods set
    store.preorder_days); booking-uae: salons, spas, tutors; home-service-uae: cleaning, AC, handyman; reservation-uae: tours,
    yacht trips, rentals; quote-portal-uae: business services and agencies; listings-uae: real-estate brokers.
-   If no finished example fits what the user wants (e.g. a clinic queue, staff attendance, a members' portal), write a new
+   If no finished example fits (e.g. a clinic queue, staff attendance, a members' portal), write a new
    definition from scratch following the reference (get_example with reference_only true): start from the small examples
    tasks (forms and records) or catalog (pages and a JSON API) for the structure, and use the platform's built-in visitor accounts,
    payments and emails instead of building your own.
    For store-uae ask for the shop's name, WhatsApp number, delivery fee, the order amount above which delivery is free
    (store.free_delivery_over; 0 or empty means the fee is always charged) and the products. Brand colour, font and logo go in
    the settings row (store-uae: store), not in the CSS.
-3. Call list_apps to find the user's apps. For a new app from an example call create_app {app, from_example}: the preview
+3. Call list_apps for the user's apps. For a new app from an example call create_app {app, from_example}: the preview
    starts as that example, so you never send it back. Definitions are 100-200 KB: read them in parts with
    get_app_outline and get_app_parts. Change them with edit_app (exact text replacements, all or none), or patch_app to
    replace whole entries; apply_change only for a definition written from scratch. Before changing an app, if this
@@ -56,7 +56,7 @@ How to work:
    when they agree. publish changes nothing live: it returns confirm_url, and the new version goes live only when the user
    opens that link and confirms, signed in to Renoxium. Never say the app is live before they have confirmed.
    rename_app and delete_app also only return a link the user confirms; ask before calling them.
-5. When something is wrong, read get_logs.
+5. If something is wrong, read get_logs.
 
 App definitions: the scripts, lib, jobs and tools inside a definition are the app's own server-side code for the business's
 visitors. They run only inside that app's sandbox on renoxium.com when a visitor uses the app (or on the app's own schedule).
@@ -230,6 +230,21 @@ WhatsApp messages to customers (from Renoxium's WhatsApp number; live sends them
   "not_available" or "name_review" (preview: {sent: false, preview: true, id}). It throws only for bad arguments. Send the
   email as well, or instead when sent is false. whatsapp.status({phone}) returns {consented, opted_out}.
 - Monthly messages per account: 30 Free, 500 Pro, 2,000 Business; to one number from one app at most 3/5/10 a day.
+- Customers can write back. "whatsapp": {on_message: "wa_in", auto_replies: [...]} in the definition decides the answer:
+  - auto_replies are tried first, in order: {match: ["hours", "open", "location"], reply: "..."} answers a message that contains
+    one of the words, {outside_hours: {days: ["sat","sun","mon","tue","wed","thu"], from: "10:00", to: "22:00"}, reply: "..."}
+    answers any message outside the opening hours (time zone Asia/Dubai unless timezone is given). At most 20.
+  - Otherwise the on_message script runs with req.method "WHATSAPP" and req.body {from, name, type: "text"|"button"|"media",
+    text, button: {id, title} or null, thread: {status, window_until}, consented}. Return {json: {reply: "...", buttons:
+    [{id, title}]}} to answer (at most 3 buttons, titles at most 20 characters; a tap comes back as type "button" with that
+    id), or {text: "..."} to answer nothing. It cannot use payments.refund and the other money calls.
+  - whatsapp.reply({to, text, buttons}) answers in any script, but only within 24 hours of the customer's last message to this
+    app: otherwise {sent: false, reason: "window_closed"} (use whatsapp.send). Text at most 1000 characters; links only to the
+    app itself (req.origin). Replies count towards the monthly messages.
+  - <rx-whatsapp-chat>Chat with us on WhatsApp</rx-whatsapp-chat> in a template becomes a link that opens WhatsApp with a first
+    message for this app. Without a whatsapp section, customers who write get a fixed answer pointing to the app.
+  - Test with send_test_whatsapp_message {app, from, text} (or button_id): it runs the automatic replies and on_message on
+    preview and returns the replies in "whatsapp". Nothing is sent.
 
 Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an ERP:
 - List each external host in "hosts": [{host: "api.example.com", purpose: "one sentence for the owner"}]. Only HTTPS on port 443.
@@ -795,6 +810,20 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			return nil, res, err
 		})
 
+	type waIn struct {
+		App string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
+		platform.TestWhatsAppInput
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "send_test_whatsapp_message", Title: toolAnnotations["send_test_whatsapp_message"].Title, Annotations: toolAnnotations["send_test_whatsapp_message"],
+		Description: "Pretend a customer sent one WhatsApp message to the user's app, on its private preview: the app's automatic replies and its whatsapp on_message script run as they would on live, and the result lists the replies the customer would get, with the log. Use it to check how the app answers WhatsApp messages. Nothing is sent to WhatsApp; the script can change preview data, which is discarded on the next change, and nothing on the live site is modified."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in waIn) (*mcp.CallToolResult, platform.TestResponse, error) {
+			if err := owns(p, req, in.App); err != nil {
+				return nil, platform.TestResponse{}, err
+			}
+			res, err := p.TestWhatsAppMessage(ctx, in.App, in.TestWhatsAppInput)
+			return nil, res, err
+		})
+
 	type uploadIn struct {
 		App        string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		DataBase64 string `json:"data_base64" jsonschema:"the image file content, base64-encoded (standard alphabet, padding optional)"`
@@ -889,28 +918,29 @@ func Handler(s *mcp.Server, verify auth.TokenVerifier, resourceMetadataURL strin
 // allowed. publish is neither: it only returns a link, and live changes
 // when the user confirms there.
 var toolAnnotations = map[string]*mcp.ToolAnnotations{
-	"list_apps":           readOnly("List your apps"),
-	"get_app":             readOnly("Read an app"),
-	"get_app_outline":     readOnly("Read the outline of an app"),
-	"get_app_parts":       readOnly("Read parts of an app"),
-	"get_example":         readOnly("Get an example app"),
-	"get_logs":            readOnly("Read an app's log"),
-	"create_app":          write("Create an app", false, false, false),
-	"apply_change":        write("Apply a new app version to the preview", true, false, true),
-	"patch_app":           write("Change part of an app on the preview", true, false, true),
-	"edit_app":            write("Edit lines of an app on the preview", true, false, true),
-	"upload_file":         write("Upload an image", false, true, true),
-	"view_page":           write("Open a preview page", false, false, true),
-	"view_live_page":      readOnly("Open a live page"),
-	"submit_form":         write("Send a form on the preview", true, false, true),
-	"upload_as_visitor":   write("Upload a file as a test visitor", false, false, false),
-	"create_test_visitor": write("Add a test visitor to the preview", false, false, false),
-	"screenshot_preview":  write("See a preview page", false, true, true),
-	"try_scheduled_jobs":  write("Try the scheduled jobs on the preview", true, false, true),
-	"change_preview_row":  write("Change a preview row as the owner", true, false, true),
-	"publish":             write("Ask to publish a version (the user confirms)", false, true, false),
-	"rename_app":          write("Ask to rename an app (the user confirms)", false, true, false),
-	"delete_app":          write("Ask to delete an app (the user confirms)", false, true, false),
+	"list_apps":                  readOnly("List your apps"),
+	"get_app":                    readOnly("Read an app"),
+	"get_app_outline":            readOnly("Read the outline of an app"),
+	"get_app_parts":              readOnly("Read parts of an app"),
+	"get_example":                readOnly("Get an example app"),
+	"get_logs":                   readOnly("Read an app's log"),
+	"create_app":                 write("Create an app", false, false, false),
+	"apply_change":               write("Apply a new app version to the preview", true, false, true),
+	"patch_app":                  write("Change part of an app on the preview", true, false, true),
+	"edit_app":                   write("Edit lines of an app on the preview", true, false, true),
+	"upload_file":                write("Upload an image", false, true, true),
+	"view_page":                  write("Open a preview page", false, false, true),
+	"view_live_page":             readOnly("Open a live page"),
+	"submit_form":                write("Send a form on the preview", true, false, true),
+	"upload_as_visitor":          write("Upload a file as a test visitor", false, false, false),
+	"create_test_visitor":        write("Add a test visitor to the preview", false, false, false),
+	"screenshot_preview":         write("See a preview page", false, true, true),
+	"try_scheduled_jobs":         write("Try the scheduled jobs on the preview", true, false, true),
+	"change_preview_row":         write("Change a preview row as the owner", true, false, true),
+	"send_test_whatsapp_message": write("Send a test WhatsApp message to the preview", true, false, true),
+	"publish":                    write("Ask to publish a version (the user confirms)", false, true, false),
+	"rename_app":                 write("Ask to rename an app (the user confirms)", false, true, false),
+	"delete_app":                 write("Ask to delete an app (the user confirms)", false, true, false),
 }
 
 // definitionSchema is the input schema of a tool that takes (part of) an
