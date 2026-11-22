@@ -1317,7 +1317,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <section class="panel bcell"><div class="ph"><h2>WhatsApp to customers</h2>{{if .CustomerPaused}}<span class="pill">paused</span>{{end}}</div>
 <p>Your app can send confirmations, reminders and updates on WhatsApp to customers who ticked the WhatsApp box on its forms. Every message names your business and has a Stop button.</p>
 {{with .CustomerPaused}}<p class="flash bad error">Paused by Renoxium: {{.}}. Emails are still sent. Reply to Renoxium's email to ask for them to be turned on again.</p>{{end}}
-<p class="muted">{{.CustomerUsed}} of {{.CustomerQuota}} messages to customers used this month.</p></section></div>{{template "appbottom"}}{{end}}
+{{if .CustomerAvailable}}<p class="muted">{{.CustomerUsed}} of {{.CustomerQuota}} messages to customers used this month.</p>{{else}}<p class="muted">Not available on this Renoxium server yet: your app's previews show the messages instead.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_domain"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Your own domain</h1><p class="sub">Serve this app on a domain you own instead of its Renoxium address.</p></div></div>

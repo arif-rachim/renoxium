@@ -518,6 +518,11 @@ func (p *Platform) PausedWhatsApp() map[string]string {
 	return out
 }
 
+// WhatsAppCustomersAvailable reports whether live apps can message customers.
+func (p *Platform) WhatsAppCustomersAvailable() bool {
+	return p.cfg.WhatsAppCustomers != nil && len(p.cfg.WhatsAppCustomerTemplates) > 0
+}
+
 // WhatsAppCustomerUsage is an account's whatsapp.send messages this month
 // and its quota.
 func (p *Platform) WhatsAppCustomerUsage(owner string) (used, quota int) {
