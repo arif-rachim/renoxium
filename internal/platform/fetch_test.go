@@ -198,3 +198,43 @@ func TestFetchValidation(t *testing.T) {
 		}
 	}
 }
+
+// A Free account's app may not call a payment service: on Free, card
+// payments go through payments.checkout, which carries Renoxium's fee.
+func TestFreePlanCannotCallPaymentServices(t *testing.T) {
+	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://renoxium.test",
+		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	ctx := context.Background()
+	def := fetchApp("api.courier.ae")
+	def.Hosts = append(def.Hosts, appdef.Host{Host: "api-v2.ziina.com", Purpose: "Card payments"})
+	for owner, app := range map[string]string{"usr_free": "free-shop", "usr_pro": "pro-shop"} {
+		p.CreateApp(owner, app)
+		if res, err := p.ApplyChange(ctx, app, def); err != nil || !res.OK {
+			t.Fatal(err, res)
+		}
+	}
+	if err := p.AllowHost("free-shop", "api-v2.ziina.com", "o@x"); err == nil || !strings.Contains(err.Error(), "is a payment service") ||
+		!strings.Contains(err.Error(), "https://renoxium.test/billing") {
+		t.Fatalf("free account allowed a payment host: %v", err)
+	}
+	if err := p.AllowHost("free-shop", "api.courier.ae", "o@x"); err != nil {
+		t.Fatalf("free account, other host: %v", err)
+	}
+	if err := p.AllowHost("pro-shop", "api-v2.ziina.com", "o@x"); err != nil {
+		t.Fatalf("paid account: %v", err)
+	}
+	r, err := p.TestRequest(ctx, "free-shop", platform.TestRequestInput{Method: "POST", Path: "/call", JSON: map[string]any{"url": "https://api-v2.ziina.com/api/payment_intent"}})
+	if err != nil || !strings.Contains(r.Body, "is a payment service") {
+		t.Fatalf("free account called a payment host: %v %+v", err, r)
+	}
+	for host, want := range map[string]bool{"ziina.com": true, "API.Stripe.com": true, "notziina.com": false, "api.courier.ae": false} {
+		if platform.PaymentHost(host) != want {
+			t.Fatalf("PaymentHost(%q) != %v", host, want)
+		}
+	}
+}

@@ -82,7 +82,7 @@ func (s *Site) landingData(ar bool) map[string]any {
 	if ar {
 		calendar = screensAR["admin-calendar"]
 	}
-	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "ProFrom": thousands(pro * 100 / fee),
+	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "FeeOn1k": 1000 * fee / 100, "ProFrom": thousands(pro * 100 / fee),
 		"Legal": s.legalOrDefaults(), "Paths": s.sitePaths(cards, ar), "Trades": s.siteTrades(cards, ar),
 		"Calendar": calendar, "Base": s.base,
 		"Yearly": s.Billing.yearly(), "YearlySave": accounts.YearlyDiscountPercent,
@@ -302,18 +302,15 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
-<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
-<p class="nocredit" data-r><strong>No credits. No limit on changes.</strong> Ask your assistant for one change or a hundred a day: Renoxium does not count them and does not charge for them. You pay for the plan, never per request.</p>
+<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Free to build and free to run. Renoxium takes {{.Fee}}% only when a customer pays you by card.</p></div>
+<p class="nocredit" data-r><strong>No credits. No limit on changes.</strong> Ask your assistant for one change or a hundred a day: Renoxium does not count them and does not charge for them. You are never charged per request.</p>
 <ul class="never" data-r><li><strong>Never paused.</strong> There is no balance to run out, so your site keeps working whether you change it every day or not for months.</li>
-<li><strong>Public on the Free plan.</strong> Publish and anyone can open your site at yourname.renoxium.app, not only people you invite.</li>
-<li><strong>Cards on the Free plan.</strong> Take card payments from day one. Renoxium takes 2% only when you are paid; cash on delivery is never charged.</li></ul>
-<div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>About 400 photos</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>10 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>About 5,000 photos</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>50 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>About 10,000 photos</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
+<li><strong>Public from day one.</strong> Publish and anyone can open your site at yourname.renoxium.app, not only people you invite.</li>
+<li><strong>Nothing to pay before you sell.</strong> A site that only shows your business costs nothing. Cash on delivery is never charged.</li></ul>
+<div class="prices" style="grid-template-columns:minmax(0,36em)">
+<div class="plan pick" data-r><h3>Free</h3><p class="for">For every business, from the first day</p><p class="amount">AED 0 <span>+ {{.Fee}}% of card payments</span></p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>Orders, bookings, an admin panel and customer sign-in</li><li>Card payments through Renoxium's checkout, to your own Stripe account</li><li>On AED 1,000 of card sales Renoxium takes AED {{.FeeOn1k}}; with no card sales, nothing</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn" href="/signup">Create your account</a></div>
 </div>
-{{if .Yearly}}<p class="sum" data-r><b>Pay yearly and save {{.YearlySave}}%.</b> Pro is AED {{.ProYear}} a year and Business is AED {{.BusinessYear}} a year, instead of twelve monthly payments.</p>
-{{end}}<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
+<p class="sum" data-r><b>Want your own domain and no badge?</b> Pro is AED 99 a month{{if .Yearly}}, or AED {{.ProYear}} a year{{end}}, with no Renoxium fee on card payments. It is cheaper than {{.Fee}}% once your card sales pass AED {{.ProFrom}} a month. Choose it from your account at any time.</p>
 <p class="note">Stripe charges its own card fees to your Stripe account on every plan. You build with your own ChatGPT or Claude account; Claude's free plan is enough.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
@@ -629,18 +626,15 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
-<div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">ابدأ مجاناً. انتقل إلى خطة أعلى عندما تحتاج مواقع أكثر، أو نطاقك الخاص، أو إلغاء الرسوم على مدفوعات البطاقة.</p></div>
-<p class="nocredit" data-r><strong>بلا أرصدة. بلا حد للتعديلات.</strong> اطلب من مساعدك تعديلاً واحداً أو مئة تعديل في اليوم: Renoxium لا يعدّها ولا يحاسبك عليها. تدفع مقابل الخطة، لا مقابل كل طلب.</p>
+<div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">البناء مجاني والتشغيل مجاني. يأخذ Renoxium نسبة {{.Fee}}% فقط عندما يدفع لك العميل بالبطاقة.</p></div>
+<p class="nocredit" data-r><strong>بلا أرصدة. بلا حد للتعديلات.</strong> اطلب من مساعدك تعديلاً واحداً أو مئة تعديل في اليوم: Renoxium لا يعدّها ولا يحاسبك عليها. لا رسوم على أي طلب.</p>
 <ul class="never" data-r><li><strong>لا يتوقف أبداً.</strong> لا يوجد رصيد ينفد، فيبقى موقعك يعمل سواء عدّلته كل يوم أو لم تعدّله لأشهر.</li>
-<li><strong>متاح للجميع في الخطة المجانية.</strong> انشر موقعك ويستطيع أي شخص فتحه على yourname.renoxium.app، لا من تدعوهم فقط.</li>
-<li><strong>البطاقات في الخطة المجانية.</strong> استقبل مدفوعات البطاقة من اليوم الأول. يأخذ Renoxium نسبة 2% فقط عندما يدفع لك العميل، والدفع عند الاستلام بلا رسوم أبداً.</li></ul>
-<div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">لتجربته مع عملاء حقيقيين</p><p class="amount">0 درهم</p><ul><li>بناء وتعديل بلا حدود</li><li>موقع واحد</li><li>يأخذ Renoxium {{.Fee}}% من مدفوعات البطاقة</li><li>50 رمز دخول عبر واتساب شهرياً</li><li>200 ميغابايت للصور</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">لعدة فروع أو علامات تجارية</p><p class="amount">299 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>10 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>2,000 رمز دخول عبر واتساب شهرياً</li><li>10 غيغابايت للصور</li><li>نطاقك الخاص، و10 موظفين لكل موقع</li><li>بلا شارة</li></ul><a class="btn line" href="/signup">اختر Business</a></div>
+<li><strong>متاح للجميع من اليوم الأول.</strong> انشر موقعك ويستطيع أي شخص فتحه على yourname.renoxium.app، لا من تدعوهم فقط.</li>
+<li><strong>لا تدفع شيئاً قبل أن تبيع.</strong> الموقع الذي يعرّف بنشاطك فقط لا يكلّف شيئاً. والدفع عند الاستلام بلا رسوم أبداً.</li></ul>
+<div class="prices" style="grid-template-columns:minmax(0,36em)">
+<div class="plan pick" data-r><h3>Free</h3><p class="for">لكل نشاط، من اليوم الأول</p><p class="amount">0 درهم <span>+ {{.Fee}}% من مدفوعات البطاقة</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>طلبات وحجوزات ولوحة تحكم وتسجيل دخول للعملاء</li><li>مدفوعات البطاقة عبر صفحة الدفع في Renoxium، إلى حسابك في Stripe</li><li>عن كل 1,000 درهم مبيعات بالبطاقة يأخذ Renoxium {{.FeeOn1k}} درهماً، وبلا مبيعات بالبطاقة لا يأخذ شيئاً</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn" href="/signup">أنشئ حسابك</a></div>
 </div>
-{{if .Yearly}}<p class="sum" data-r><b>ادفع سنوياً ووفّر {{.YearlySave}}%.</b> خطة Pro بسعر {{.ProYear}} درهماً في السنة وخطة Business بسعر {{.BusinessYear}} درهماً في السنة، بدلاً من اثني عشر دفعة شهرية.</p>
-{{end}}<p class="sum" data-r><b>متى تغطي خطة Pro تكلفتها؟</b> في خطة Free، مبيعات بالبطاقة قدرها 10,000 درهم في الشهر تكلّف {{.FeeOn10k}} درهم رسوماً لـ Renoxium. سعر Pro هو 99 درهماً، فتصبح أوفر عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. الدفع عند الاستلام لا رسوم عليه من Renoxium أبداً.</p>
+<p class="sum" data-r><b>تريد نطاقك الخاص وبلا شارة؟</b> خطة Pro بسعر 99 درهماً شهرياً{{if .Yearly}}، أو {{.ProYear}} درهماً في السنة{{end}}، وبلا رسوم من Renoxium على مدفوعات البطاقة. تصبح أوفر من نسبة {{.Fee}}% عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. اخترها من حسابك في أي وقت.</p>
 <p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. تبني بحسابك الخاص في ChatGPT أو Claude؛ والخطة المجانية في Claude تكفي.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>أسئلة يطرحها أصحاب الأنشطة</h2><div class="faq" data-r>

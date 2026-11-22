@@ -221,6 +221,8 @@ Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an
   (or query: "api_key" instead of header; prefix "Basic" means the owner enters user:password). Never put keys in scripts, seed or templates.
 - The owner must allow each host and enter each key at /apps/<app>/connections; apply_change lists what is missing in owner_actions.
   Tell the user exactly that, with the link. Until then http.fetch throws an error saying what is missing.
+- Payment services (Ziina, Mamo, PayTabs and the like) can be called only on a paid plan. On the Free plan take card
+  payments with payments.checkout; do not build another checkout with http.fetch, the platform refuses those hosts.
 - In a script: const r = http.fetch({url, method: "POST", headers: {...}, body: {...} (objects are sent as JSON) or "text",
   secret: "EXAMPLE_KEY", timeout_ms: 5000}). It returns {status, ok, headers, body (text), json (when the answer is JSON), truncated}.
   Redirects are not followed (you get the 3xx). The platform adds the key; the script never sees it.

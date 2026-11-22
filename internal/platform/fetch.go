@@ -135,8 +135,41 @@ func (p *Platform) Connections(app string) ([]HostState, []SecretState, error) {
 	return hosts, secrets, nil
 }
 
+// paymentHosts are the domains of payment services. Renoxium is paid on the
+// Free plan by its fee on card payments taken with payments.checkout, so the
+// scripts of a Free account may not take payments through another service.
+var paymentHosts = []string{"stripe.com", "ziina.com", "mamopay.com", "nomod.com", "paytabs.com", "telr.com", "tap.company",
+	"paymob.com", "foloosi.com", "payby.com", "botim.money", "zbooni.com", "network.ae", "ngenius-payments.com", "magnati.com",
+	"checkout.com", "payfort.com", "amazonpaymentservices.com", "myfatoorah.com", "hyperpay.com", "noonpayments.com",
+	"paypal.com", "payoneer.com", "adyen.com", "squareup.com", "razorpay.com", "2checkout.com", "paddle.com",
+	"lemonsqueezy.com", "tabby.ai", "tamara.co"}
+
+// PaymentHost reports whether host belongs to a payment service.
+func PaymentHost(host string) bool {
+	host = strings.ToLower(host)
+	for _, d := range paymentHosts {
+		if host == d || strings.HasSuffix(host, "."+d) {
+			return true
+		}
+	}
+	return false
+}
+
+// paymentHostRefused explains why a Free account's app may not call a
+// payment service, or returns nil when it may.
+func (p *Platform) paymentHostRefused(app, host string) error {
+	if p.cfg.OwnerPlan == nil || !PaymentHost(host) || p.planOf(p.ownerOf(app)) != planFree {
+		return nil
+	}
+	return fmt.Errorf("%s is a payment service: on the Free plan card payments are taken with payments.checkout; "+
+		"a paid plan at %s/billing can call it", host, p.cfg.SiteURL)
+}
+
 // AllowHost lets the app's scripts call a host listed in its definition.
 func (p *Platform) AllowHost(app, host, by string) error {
+	if err := p.paymentHostRefused(app, host); err != nil {
+		return err
+	}
 	def, _, err := p.Definition(app, 0)
 	if err != nil {
 		return err
@@ -228,6 +261,9 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	}
 	if !listed {
 		return nil, fetchError("%s is not in the app's hosts; add it to hosts with a purpose, then the owner allows it", host)
+	}
+	if err := p.paymentHostRefused(st.app, host); err != nil {
+		return nil, fetchError("%v", err)
 	}
 	var allowed int
 	p.db.QueryRow(`SELECT count(*) FROM app_hosts WHERE app = ? AND host = ?`, st.app, host).Scan(&allowed)

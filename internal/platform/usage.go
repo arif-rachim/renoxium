@@ -13,7 +13,7 @@ var WhatsAppCodesPerPlan = map[string]int{planFree: 50, planPro: 500, planBusine
 
 // StorageMBPerPlan is how much file storage all apps of one account may use.
 // A file used by several of the account's apps counts once.
-var StorageMBPerPlan = map[string]int64{planFree: 200, planPro: 2560, planBusiness: 5120}
+var StorageMBPerPlan = map[string]int64{planFree: 2560, planPro: 2560, planBusiness: 5120}
 
 // PhotoBytes is the size one stored photo is counted as when a storage
 // quota is shown to owners as a number of photos. It is an estimate: a photo

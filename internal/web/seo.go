@@ -78,9 +78,8 @@ const siteDescription = "Renoxium builds and hosts websites for UAE small busine
 
 // sitePlans mirrors the pricing section of the landing page.
 var sitePlans = []struct{ Name, Price, Text string }{
-	{"Free", "0", "Unlimited building and changes; 3 sites; Renoxium takes 2% of card payments; 50 WhatsApp sign-in codes a month; about 400 photos; a small \"Made with Renoxium\" badge."},
-	{"Pro", "99", "Unlimited building and changes; 10 sites; no Renoxium fee on card payments; 500 WhatsApp sign-in codes a month; about 5,000 photos; your own domain; 2 staff per site; no badge."},
-	{"Business", "299", "Unlimited building and changes; 50 sites; no Renoxium fee on card payments; 2,000 WhatsApp sign-in codes a month; about 10,000 photos; your own domain; 10 staff per site; no badge."},
+	{"Free", "0", "Unlimited building and changes; 3 sites; orders, bookings, an admin panel and customer sign-in; Renoxium takes 2% of card payments taken through its checkout and nothing when there are none; a small \"Made with Renoxium\" badge."},
+	{"Pro", "99", "Unlimited building and changes; 10 sites; no Renoxium fee on card payments; your own domain; 2 staff per site; no badge."},
 }
 
 var (
