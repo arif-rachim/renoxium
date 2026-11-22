@@ -1320,8 +1320,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{else}}<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="shop"><button class="secondary">Make it a shop</button></form>{{end}}</section>
 <section class="panel bcell"><div class="ph"><h2>Work app</h2>{{if eq .Plan.Kind "work"}}<span class="pill {{if .Plan.WorkPaid}}live{{else}}wait{{end}}">{{if .Plan.WorkPaid}}{{.Plan.WorkStatus}}{{else}}chosen{{end}}</span>{{end}}</div>
 <p class="price">AED {{.Price}} <small>/ month</small></p>
-<ul><li>For an app that does not charge its customers: a CRM, a queue, staff attendance, a members' portal</li><li>Also for a shop paid only in cash or by bank transfer</li><li>Your own domain, {{.Users}} staff included</li></ul>
-{{if .Plan.WorkPaid}}<p class="muted">{{with .PeriodEnd}}Renews {{.}}. {{end}}Paid by card through Stripe.</p>
+<ul><li>For an app that does not charge its customers: a CRM, a queue, staff attendance, a members' portal</li><li>Also for a shop paid only in cash or by bank transfer</li><li>Your own domain, {{.Users}} staff included{{if .Seats}}; each one more AED {{.SeatPrice}} a month, up to {{.MaxUsers}}{{end}}</li></ul>
+{{if .Plan.WorkPaid}}<p class="muted">{{if .Plan.WorkSeats}}AED {{.Monthly}} a month: AED {{.Price}} with {{.Users}} staff, plus {{.Plan.WorkSeats}} more at AED {{.SeatPrice}}. {{end}}{{with .PeriodEnd}}Renews {{.}}. {{end}}Paid by card through Stripe.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="manage"><button class="secondary">Manage subscription</button></form>
 {{else if not .Ready}}<p class="muted">Work app subscriptions are not available on this server yet.</p>
 {{else}}<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="subscribe"><button>{{if eq .Plan.Kind "work"}}Subscribe, AED {{.Price}} a month{{else}}Make it a work app, AED {{.Price}} a month{{end}}</button></form>{{end}}</section>
@@ -1401,7 +1401,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="pagehead"><div><h1>Staff</h1><p class="sub">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p></div></div>
 {{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
 <div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
-<section class="panel bcell"><div class="ph"><h2>Staff members</h2><span class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff need the <a href="/billing">Pro or Business plan</a>{{end}}.</span></div>
+<section class="panel bcell"><div class="ph"><h2>Staff members</h2><span class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff come with a shop or a work app: see <a href="/apps/{{.App}}/plan">Plan</a>{{end}}.</span></div>
+{{with .SeatNote}}<p class="muted">{{.}}</p>{{end}}
 {{if .Staff}}<ul class="plain">{{range .Staff}}<li><span>{{.}}</span><form method="post" action="/apps/{{$.App}}/staff/remove" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.}}"><button class="secondary">Remove</button></form></li>{{end}}</ul>
 {{else}}<p>No staff yet.</p>{{end}}</section>
 <section class="panel bcell"><div class="ph"><h2>Add a staff member</h2></div>

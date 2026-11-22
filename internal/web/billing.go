@@ -22,6 +22,9 @@ type Billing struct {
 	// PriceWorkApp is the Stripe price ID of a work app's monthly subscription
 	// (platform.WorkAppPriceAED).
 	PriceWorkApp string
+	// PriceWorkSeat is the Stripe price ID of each staff member of a work app
+	// beyond the included ones (platform.WorkSeatPriceAED a month).
+	PriceWorkSeat string
 }
 
 func (b Billing) ready() bool { return b.Stripe != nil && b.PricePro != "" && b.PriceBusiness != "" }

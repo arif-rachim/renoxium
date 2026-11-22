@@ -147,7 +147,7 @@ Each app is paid for by what it does. A free account may have 10 apps; no app ca
 |---|---|---|
 | Static site | Free | Only pages and photos (no tables, scripts, jobs or sign-in); keeps its Renoxium address |
 | Shop | AED 0 + 2% of card payments | Takes money from its customers; the fee is a Stripe application fee. Custom domain, 2 staff |
-| Work app | AED 99 / month per app | Does not charge its customers (CRM, queue, attendance), or a shop paid only in cash or by transfer. Custom domain, 5 staff, Pro limits; paused when its subscription ends |
+| Work app | AED 99 / month per app | Does not charge its customers (CRM, queue, attendance), or a shop paid only in cash or by transfer. Custom domain, 5 staff included and AED 25 a month for each one more (up to 10, billed as a second item of the same subscription), Pro limits; paused when its subscription ends |
 | Larger businesses | By agreement | An operator grants the account the Pro or Business plan: every app covered, no fee |
 
 The owner chooses shop or work app on the app's Plan page (`/apps/<app>/plan`) before a non-static app first goes live.

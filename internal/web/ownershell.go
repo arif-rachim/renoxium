@@ -87,7 +87,7 @@ func planCards() []planCard {
 		{ID: "shop", Name: "Shop", Price: "AED 0 + " + fee + "% of card payments", Tagline: "Takes money from its customers.",
 			Features: []string{"Nothing to pay when nobody pays you", "Your own domain", strconv.Itoa(platform.ShopStaff) + " staff"}},
 		{ID: "work", Name: "Work app", Price: "AED " + price + " a month", Tagline: "Does not charge its customers.",
-			Features: []string{"CRM, queue, staff attendance, members' portal", "Or a shop paid only in cash or by transfer", "Your own domain", users + " staff included"}},
+			Features: []string{"CRM, queue, staff attendance, members' portal", "Or a shop paid only in cash or by transfer", "Your own domain", users + " staff included, AED " + strconv.Itoa(platform.WorkSeatPriceAED) + " a month each one more"}},
 		{ID: "enterprise", Name: "Larger businesses", Price: "By agreement", Tagline: "Many staff or branches.",
 			Features: []string{"A price agreed with Renoxium", "Higher limits"}},
 	}

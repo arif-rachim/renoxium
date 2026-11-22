@@ -33,6 +33,12 @@ const (
 	WorkAppPriceAED = 99
 	// WorkAppUsers is how many staff members a work app's price includes.
 	WorkAppUsers = 5
+	// WorkSeatPriceAED is the monthly price of each staff member beyond
+	// WorkAppUsers; keep the Stripe price in step with it.
+	WorkSeatPriceAED = 25
+	// WorkAppMaxUsers is the most staff members a work app may have, until
+	// staff can be given roles of their own.
+	WorkAppMaxUsers = 10
 	// ShopStaff is how many staff members a shop may have.
 	ShopStaff = 2
 )
@@ -53,6 +59,9 @@ type AppPlan struct {
 	WorkStatus       string
 	WorkPeriodEnd    time.Time
 	WorkPaid         bool
+	// WorkSeats is how many staff members beyond WorkAppUsers the
+	// subscription pays for, as last recorded.
+	WorkSeats int
 	// Ready is whether the app may be published; Problem says what to do
 	// when it may not.
 	Ready   bool
@@ -62,12 +71,13 @@ type AppPlan struct {
 type appPlanRow struct {
 	kind, sub, status string
 	end               int64
+	seats             int
 }
 
 func (p *Platform) appPlanRow(app string) appPlanRow {
 	var r appPlanRow
-	p.db.QueryRow(`SELECT plan_kind, work_sub, work_status, work_period_end FROM apps WHERE name = ?`, app).
-		Scan(&r.kind, &r.sub, &r.status, &r.end)
+	p.db.QueryRow(`SELECT plan_kind, work_sub, work_status, work_period_end, work_seats FROM apps WHERE name = ?`, app).
+		Scan(&r.kind, &r.sub, &r.status, &r.end, &r.seats)
 	return r
 }
 
@@ -81,9 +91,12 @@ func (p *Platform) workPaid(app string) bool {
 
 // AppPlan describes how the app is paid for, judged on its newest version.
 func (p *Platform) AppPlan(app string) (AppPlan, error) {
+	if _, err := p.Info(app); err != nil {
+		return AppPlan{}, err
+	}
 	def, _, err := p.Definition(app, 0)
 	if err != nil {
-		return AppPlan{}, err
+		def = &appdef.App{} // nothing applied yet
 	}
 	return p.planFor(app, def), nil
 }
@@ -92,7 +105,7 @@ func (p *Platform) AppPlan(app string) (AppPlan, error) {
 func (p *Platform) planFor(app string, def *appdef.App) AppPlan {
 	r := p.appPlanRow(app)
 	pl := AppPlan{Kind: r.kind, Static: def.Static(), WorkSubscription: r.sub, WorkStatus: r.status,
-		WorkPaid: r.kind == KindWork && workPaying[r.status]}
+		WorkPaid: r.kind == KindWork && workPaying[r.status], WorkSeats: r.seats}
 	if r.end > 0 {
 		pl.WorkPeriodEnd = time.Unix(r.end, 0)
 	}
@@ -146,6 +159,20 @@ func (p *Platform) SetWorkSubscription(app, subscription, status string, periodE
 		plan_kind = CASE WHEN ? THEN 'work' ELSE plan_kind END WHERE name = ?`, subscription, status, end, workPaying[status], app)
 	p.lapsed.Delete(app)
 	return err
+}
+
+// SetWorkSeats records how many extra staff members the app's work app
+// subscription pays for.
+func (p *Platform) SetWorkSeats(app string, seats int) error {
+	_, err := p.db.Exec(`UPDATE apps SET work_seats = ? WHERE name = ?`, max(seats, 0), app)
+	return err
+}
+
+// WorkSeatsNeeded is how many extra staff members a work app with its
+// current staff must pay for.
+func (p *Platform) WorkSeatsNeeded(app string) int {
+	staff, _ := p.Staff(app)
+	return max(len(staff)-WorkAppUsers, 0)
 }
 
 // AppOfWorkSubscription is the app a work app subscription pays for, or "".

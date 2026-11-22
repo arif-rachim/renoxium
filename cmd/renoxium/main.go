@@ -200,6 +200,7 @@ func main() {
 	}
 	defer acc.Close()
 	cfg.OwnerPlan = acc.Plan
+	cfg.WorkSeats = cfg.Stripe != nil && os.Getenv("STRIPE_PRICE_WORK_SEAT") != "" // extra staff of work apps can be paid for
 	cfg.OwnerEmail = func(id string) (string, bool) {
 		u, err := acc.User(id)
 		return u.Email, err == nil && u.Verified
@@ -234,9 +235,10 @@ func main() {
 		site.Operators = strings.Split(ops, ",")
 	}
 	site.Billing = web.Billing{Stripe: cfg.Stripe, PricePro: os.Getenv("STRIPE_PRICE_PRO"), PriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
-		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET"), PriceWorkApp: os.Getenv("STRIPE_PRICE_WORK_APP")}
+		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET"), PriceWorkApp: os.Getenv("STRIPE_PRICE_WORK_APP"),
+		PriceWorkSeat: os.Getenv("STRIPE_PRICE_WORK_SEAT")}
 	if cfg.Stripe != nil {
-		slog.Info("Renoxium plans", "pro_price_set", site.Billing.PricePro != "", "business_price_set", site.Billing.PriceBusiness != "", "work_app_price_set", site.Billing.PriceWorkApp != "",
+		slog.Info("Renoxium plans", "pro_price_set", site.Billing.PricePro != "", "business_price_set", site.Billing.PriceBusiness != "", "work_app_price_set", site.Billing.PriceWorkApp != "", "work_seat_price_set", site.Billing.PriceWorkSeat != "",
 			"billing_webhook_secret_set", site.Billing.WebhookSecret != "")
 	}
 	site.AbuseEmail = *abuseEmail

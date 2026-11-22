@@ -164,7 +164,7 @@ How an app is paid for (decides whether publish works on a free account):
 - A static site (only templates and GET template routes: no tables, scripts, lib, jobs, tools, hosts or sign-in) is free and
   keeps its Renoxium address.
 - Any other app goes live only after the owner chooses on its Plan page, <site>/apps/<app>/plan: a shop, when it takes money
-  from its customers by card (Renoxium takes 2% of card payments; Stripe must be connected), or a work app (AED 99 a month;
+  from its customers by card (Renoxium takes 2% of card payments; Stripe must be connected), or a work app (AED 99 a month with 5 staff, AED 25 for each one more up to 10;
   for apps that do not charge customers, and for shops paid only in cash or by bank transfer). Ask the user which it is and
   send them to that page before publishing; publish fails with the same advice when no plan is chosen.
 

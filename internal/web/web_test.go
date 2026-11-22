@@ -44,7 +44,7 @@ func newEnv(t *testing.T) *env { return newEnvPlans(t, false) }
 
 // newEnvPlans is newEnv where, with plans, the platform reads each owner's
 // plan from the accounts store, as the server does.
-func newEnvPlans(t *testing.T, plans bool) *env {
+func newEnvPlans(t *testing.T, plans bool, opts ...func(*platform.Config)) *env {
 	t.Helper()
 	dir := t.TempDir()
 	acc, err := accounts.Open(filepath.Join(dir, "accounts.db"))
@@ -54,6 +54,9 @@ func newEnvPlans(t *testing.T, plans bool) *env {
 	cfg := platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}
 	if plans {
 		cfg.OwnerPlan = acc.Plan
+	}
+	for _, o := range opts {
+		o(&cfg)
 	}
 	p, err := platform.New(cfg, sandbox.NewGoja())
 	if err != nil {

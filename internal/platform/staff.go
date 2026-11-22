@@ -42,6 +42,8 @@ func (p *Platform) StaffLimit(app string) int {
 		return StaffPerPlan[plan]
 	}
 	switch {
+	case p.workPaid(app) && p.cfg.WorkSeats:
+		return WorkAppMaxUsers
 	case p.workPaid(app):
 		return WorkAppUsers
 	case p.appKind(app) == KindShop:
@@ -68,6 +70,9 @@ func (p *Platform) AddStaff(app, email, by string) error {
 	if limit := p.StaffLimit(app); len(staff) >= limit {
 		if limit == 0 {
 			return fmt.Errorf("staff accounts come with a shop or a work app; choose one at %s/apps/%s/plan", p.cfg.SiteURL, app)
+		}
+		if limit == WorkAppMaxUsers && p.workPaid(app) {
+			return fmt.Errorf("a work app may have at most %d staff members for now", limit)
 		}
 		return fmt.Errorf("your plan allows %d staff members per app; upgrade at %s/billing", limit, p.cfg.SiteURL)
 	}

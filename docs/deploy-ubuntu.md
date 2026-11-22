@@ -156,7 +156,8 @@ every app. Owners see their apps' plans at `/billing`.
 In the Stripe Dashboard of the platform account (start in the sandbox):
 
 1. **Product catalog:** create the product "Renoxium work app" with a recurring monthly price of AED 99, and
-   copy its price ID (`price_...`). Accounts that already pay for "Renoxium Pro" or "Renoxium Business"
+   the product "Renoxium work app staff" with a recurring monthly price of AED 25 (one per staff member beyond
+   the five included). Copy both price IDs (`price_...`). Accounts that already pay for "Renoxium Pro" or "Renoxium Business"
    (AED 99 and AED 299 a month) keep them; set those price IDs too so their subscriptions are recognised.
 2. **Settings, Billing, Customer portal:** activate it. Allow updating payment methods, viewing invoices,
    and cancelling.
@@ -172,6 +173,7 @@ Add them to `/etc/renoxium/env` and restart:
 ```bash
 sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
 STRIPE_PRICE_WORK_APP=price_your_work_app_price
+STRIPE_PRICE_WORK_SEAT=price_your_work_app_staff_price
 STRIPE_PRICE_PRO=price_your_pro_price
 STRIPE_PRICE_BUSINESS=price_your_business_price
 STRIPE_BILLING_WEBHOOK_SECRET=whsec_your_billing_secret
@@ -182,7 +184,8 @@ ENV
 sudo systemctl restart renoxium && sudo journalctl -u renoxium -n 30 --no-pager | grep -i plans
 ```
 
-The log line `Renoxium plans` must show the work app price and the webhook secret as set. Subscription revenue appears in Stripe under
+The log line `Renoxium plans` must show the work app price, the work app staff price and the webhook secret as
+set. Without the staff price a work app keeps to its five included staff. Subscription revenue appears in Stripe under
 Billing, Subscriptions; the 2% fees under Connect, Collected fees.
 
 To give an account a plan without payment (your own account, partners, trials):

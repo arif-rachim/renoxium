@@ -81,7 +81,7 @@ const siteDescription = "Renoxium builds and hosts websites for UAE small busine
 var sitePlans = []struct{ Name, Price, Text string }{
 	{"Static site", "0", "Pages and photos at yourname.renoxium.app; no database, sign-in or server code. Unlimited building and changes, no Renoxium branding."},
 	{"Shop", "0", "For an app that takes money from its customers: Renoxium takes 2% of card payments and nothing when there are none. Orders, bookings, an admin panel, customer sign-in, your own domain, 2 staff."},
-	{"Work app", "99", "For an app that does not charge its customers (a CRM, a queue, staff attendance) or a shop paid only in cash or by transfer: AED 99 an app a month, your own domain, 5 staff included."},
+	{"Work app", "99", "For an app that does not charge its customers (a CRM, a queue, staff attendance) or a shop paid only in cash or by transfer: AED 99 an app a month, your own domain, 5 staff included and AED 25 a month for each one more (up to 10)."},
 }
 
 var (

@@ -79,6 +79,9 @@ type Config struct {
 	// go to the Stripe key's own account (stripe.DirectAccount), without
 	// Connect and without a platform fee.
 	SelfHosted bool
+	// WorkSeats is set when extra staff members of a work app can be paid
+	// for (WorkSeatPriceAED each); without it a work app has WorkAppUsers.
+	WorkSeats bool
 	// LicenceKey signs the licence an export from a paid account carries,
 	// which lets it run on its owner's server (internal/licence). Nil: exports
 	// carry none.
@@ -297,7 +300,7 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	}
 	// How an app is paid for (see appplan.go).
 	for _, col := range []string{`plan_kind TEXT NOT NULL DEFAULT ''`, `work_sub TEXT NOT NULL DEFAULT ''`,
-		`work_status TEXT NOT NULL DEFAULT ''`, `work_period_end INTEGER NOT NULL DEFAULT 0`} {
+		`work_status TEXT NOT NULL DEFAULT ''`, `work_period_end INTEGER NOT NULL DEFAULT 0`, `work_seats INTEGER NOT NULL DEFAULT 0`} {
 		if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN ` + col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			db.Close()
 			return nil, err

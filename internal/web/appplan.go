@@ -1,6 +1,8 @@
 package web
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -26,7 +28,8 @@ func (s *Site) renderAppPlan(w http.ResponseWriter, r *http.Request, app string,
 	render(w, status, "admin_plan", map[string]any{"Shell": s.shell(u, app, "Plan", "/apps/"+app+"/plan", false), "App": app,
 		"Plan": pl, "CSRF": s.csrfToken(w, r), "Error": errText, "Ready": s.Billing.workReady(),
 		"Fee": platform.ShopFeePercent, "Price": platform.WorkAppPriceAED, "Users": platform.WorkAppUsers, "ShopStaff": platform.ShopStaff,
-		"PeriodEnd": formatDate(pl.WorkPeriodEnd)})
+		"PeriodEnd": formatDate(pl.WorkPeriodEnd), "SeatPrice": platform.WorkSeatPriceAED, "MaxUsers": platform.WorkAppMaxUsers,
+		"Seats": s.Billing.PriceWorkSeat != "", "Monthly": platform.WorkAppPriceAED + pl.WorkSeats*platform.WorkSeatPriceAED})
 }
 
 func (s *Site) appPlanPage(w http.ResponseWriter, r *http.Request) {
@@ -129,5 +132,35 @@ func (s *Site) syncWorkApps(userID string, subs []stripe.Subscription) {
 		if err := s.platform.SetWorkSubscription(app, sub.ID, sub.Status, sub.PeriodEnd()); err != nil {
 			slog.Error("work app subscription", "user", userID, "app", app, "err", err)
 		}
+		_, seats, _ := sub.Item(s.Billing.PriceWorkSeat)
+		s.platform.SetWorkSeats(app, int(seats))
 	}
+}
+
+// syncWorkSeats makes the app's work app subscription pay for its staff
+// beyond the included ones: it adds, changes or removes the seat item.
+func (s *Site) syncWorkSeats(ctx context.Context, app string) error {
+	pl, err := s.platform.AppPlan(app)
+	if err != nil || !pl.WorkPaid || pl.WorkSubscription == "" || pl.Included {
+		return err
+	}
+	want := s.platform.WorkSeatsNeeded(app)
+	if want == pl.WorkSeats && want == 0 {
+		return nil
+	}
+	if s.Billing.Stripe == nil || s.Billing.PriceWorkSeat == "" {
+		return errors.New("extra staff members cannot be paid for on this server")
+	}
+	sub, err := s.Billing.Stripe.Subscription(ctx, pl.WorkSubscription)
+	if err != nil {
+		return err
+	}
+	item, have, _ := sub.Item(s.Billing.PriceWorkSeat)
+	if have != int64(want) {
+		if err := s.Billing.Stripe.SetSubscriptionQuantity(ctx, sub.ID, item, s.Billing.PriceWorkSeat, int64(want)); err != nil {
+			return err
+		}
+		slog.Info("work app seats", "app", app, "seats", want)
+	}
+	return s.platform.SetWorkSeats(app, want)
 }
