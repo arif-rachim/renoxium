@@ -778,6 +778,11 @@ fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fo
 {{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a><nav aria-label="Site"><a href="/support">Support</a></nav>
 <button type="button" class="menubtn" aria-expanded="false" aria-controls="sidemenu" aria-label="Menu"><span></span><span></span><span></span></button></div></header>
 <script>document.addEventListener("click",function(e){var b=e.target.closest(".menubtn");if(!b)return;var o=document.body.classList.toggle("menu-open");b.setAttribute("aria-expanded",o?"true":"false")});
+document.addEventListener("DOMContentLoaded",function(){
+// Side-scrolling tab and period rows open scrolled to the chosen item, so a tap does not lose the place.
+[].forEach.call(document.querySelectorAll(".tabs,.seg,.sidenav nav"),function(row){if(row.scrollWidth<=row.clientWidth+1)return;
+var cur=row.querySelector("[aria-current]");if(!cur)return;var r=row.getBoundingClientRect(),c=cur.getBoundingClientRect();
+row.scrollLeft+=c.left-r.left-(r.width-c.width)/2})});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.body.classList.contains("menu-open")){document.body.classList.remove("menu-open");var b=document.querySelector(".menubtn");if(b){b.setAttribute("aria-expanded","false");b.focus()}}})</script>{{end}}
 {{define "authsigned"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/support">Support</a></nav></div></header><div class="authwrap"><main>{{end}}
 {{define "pubnav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="button sm" href="/signup">Create account</a></nav></div></header>{{end}}

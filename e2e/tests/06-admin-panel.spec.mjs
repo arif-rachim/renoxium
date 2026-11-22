@@ -195,6 +195,11 @@ test('the console on a phone: one column, nothing wider than the screen', async 
     await page.goto(`/apps/${shop.app}`);
     const products = page.locator('.sidenav').getByRole('link', { name: 'Products', exact: true });
     await expect(products).toBeHidden();
+    // A side-scrolling row opens scrolled to the chosen item, so the tap does not lose the place.
+    await page.goto(`/apps/${shop.app}/payments`);
+    await page.locator('.seg a', { hasText: 'Refunded' }).click();
+    const kept = await page.evaluate(() => { const a = document.querySelector('.seg a[aria-current]'); const r = a.closest('.seg').getBoundingClientRect(), c = a.getBoundingClientRect(); return a.textContent.trim() + (c.left >= r.left - 1 && c.right <= r.right + 1 ? ' visible' : ' hidden'); });
+    expect(kept).toBe('Refunded visible');
     await page.getByRole('button', { name: 'Menu' }).click();
     await expect(products).toBeVisible();
     await products.click();
