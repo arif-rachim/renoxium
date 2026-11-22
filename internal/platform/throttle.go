@@ -118,8 +118,9 @@ func (p *Platform) cleanThrottles() {
 	p.db.Exec(`DELETE FROM app_throttles WHERE until <= ?`, time.Now().Unix())
 }
 
-// ThrottleNotice is what the owner reads about a throttle in the admin panel.
-func (t Throttle) Notice() string {
+// Notice is what the owner reads about a throttle in the admin panel; site
+// is Renoxium's address.
+func (t Throttle) Notice(site string) string {
 	var what string
 	switch {
 	case t.Slots > 0 && t.PerMinute > 0:
@@ -133,7 +134,7 @@ func (t Throttle) Notice() string {
 	if t.Reason != "" {
 		msg += " (" + t.Reason + ")"
 	}
-	return msg + ". Visitors may see slower pages or an error while it is busy. Ask the agent that built it to make its scripts lighter, or upgrade the plan; reply to Renoxium's email if you have questions."
+	return msg + ". Visitors may see slower pages or an error while it is busy. Ask the agent that built it to make its scripts lighter. If the business needs this much, contact Renoxium about a larger plan at " + site + "/support."
 }
 
 func plural(n int) string {

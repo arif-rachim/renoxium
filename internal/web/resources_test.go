@@ -88,7 +88,7 @@ func TestOperatorResources(t *testing.T) {
 		page += read(t, r)
 	}
 	for _, want := range []string{"zara-shop", "Script time per hour", "Requests per hour", "GET /busy/:n", "Email the owner", "Throttle for a while", "Suspend",
-		"uses a lot of the shared server", "/billing", "Operator audit"} {
+		"uses a lot of the shared server", "/support", "Operator audit"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("app page lacks %q", want)
 		}

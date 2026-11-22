@@ -1409,7 +1409,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if lt (len .Staff) .Limit}}<form method="post" action="/apps/{{.App}}/staff"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email address</label>
 <input id="email" name="email" type="email" required><button>Add staff member</button></form>
 <p class="muted" style="margin-top:12px">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>
-{{else if eq .Limit 0}}<p class="muted">Staff accounts are part of the <a href="/billing">Pro and Business plans</a>.</p>{{else}}<p class="muted">Your plan's staff accounts are all in use. Remove one to add another.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
+{{else if eq .Limit 0}}<p class="muted">Staff accounts come with a shop or a work app: choose one on the app's <a href="/apps/{{.App}}/plan">Plan page</a>.</p>{{else}}<p class="muted">Your plan's staff accounts are all in use. Remove one to add another.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_payments"}}{{template "apptop" .}}<div class="pagehead"><div><h1>Payments</h1><p class="sub">Card payments through your Stripe account.</p></div></div>
 <div class="bento fill" style="grid-template-columns:minmax(280px,1fr) minmax(0,2.4fr)">

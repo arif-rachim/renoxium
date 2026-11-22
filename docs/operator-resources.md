@@ -64,7 +64,7 @@ the disk and memory that are not priced separately.
 
 ## Actions (app page)
 
-- **Email the owner**: a polite notice of what is heavy with the upgrade link; edit it first.
+- **Email the owner**: a polite notice of what is heavy with a link to contact Renoxium (`/support`) about a larger plan; edit it first.
 - **Throttle**: limits only this app to 1 script at a time and/or a number of script runs a
   minute, until a time you choose (at most 30 days). Refused runs get a 503 and an explanation
   in the app log; the owner sees a notice in their admin panel until it ends. "End throttle now"
