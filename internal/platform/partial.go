@@ -336,6 +336,13 @@ func nearMiss(text, old string) string {
 // CreateFromExample creates an app and applies a finished example to its
 // preview, so an agent never has to send an example's definition back.
 func (p *Platform) CreateFromExample(ctx context.Context, owner, name, example string) (AppInfo, ApplyResult, error) {
+	return p.CreateFromTemplate(ctx, owner, name, example, "")
+}
+
+// CreateFromTemplate is CreateFromExample with the business's name put in
+// the template's settings row (its brand name, English and Arabic), so the
+// preview already carries it; "" keeps the template's sample name.
+func (p *Platform) CreateFromTemplate(ctx context.Context, owner, name, example, business string) (AppInfo, ApplyResult, error) {
 	e, ok := examples.Get(example)
 	if !ok {
 		names := []string{}
@@ -347,6 +354,14 @@ func (p *Platform) CreateFromExample(ctx context.Context, owner, name, example s
 	def, problems := appdef.Parse(e.JSON)
 	if len(problems) > 0 {
 		return AppInfo{}, ApplyResult{}, fmt.Errorf("example %s: %s", example, strings.Join(problems, "; "))
+	}
+	if business = strings.TrimSpace(business); business != "" && def.Brand != nil {
+		if rows := def.Seed[def.Brand.Table]; len(rows) > 0 {
+			rows[0][def.Brand.Name] = business
+			if def.Brand.NameAr != "" {
+				rows[0][def.Brand.NameAr] = business // until the owner's assistant writes it in Arabic
+			}
+		}
 	}
 	info, err := p.CreateApp(owner, name)
 	if err != nil {

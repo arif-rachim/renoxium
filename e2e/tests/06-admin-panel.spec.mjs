@@ -191,6 +191,15 @@ test('the console on a phone: one column, nothing wider than the screen', async 
       }));
       expect(r, `${scheme} ${path}`).toEqual({ wide: 0, cols: 0 });
     }
+    // The side menu sits behind a menu button: closed, its links are hidden; open, they fill the screen.
+    await page.goto(`/apps/${shop.app}`);
+    const products = page.locator('.sidenav').getByRole('link', { name: 'Products', exact: true });
+    await expect(products).toBeHidden();
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await expect(products).toBeVisible();
+    await products.click();
+    await expect(page).toHaveURL(new RegExp(`/apps/${shop.app}/t/products$`));
+    await expect(products).toBeHidden();
     await ctx.close();
   }
 });
