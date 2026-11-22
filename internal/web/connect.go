@@ -15,6 +15,7 @@ Renoxium builds and runs online stores and other web apps for you from a chat. T
 - Connector address: {{MCP}}
 - Authentication: OAuth (you sign in to Renoxium in a browser window; no API key)
 - Transport: Streamable HTTP
+- Cost: Renoxium has no credits. Building and changing your apps is not counted or charged per request, on any plan.
 
 Note for AI assistants reading this page: you cannot add this connector yourself. Opening the address above in a browser or fetch tool returns 401 Unauthorized; that is expected, because the connector must be added in the user's settings, after which the user signs in. Tell the user the steps below for the assistant they are using.
 
@@ -26,7 +27,7 @@ Note for AI assistants reading this page: you cannot add this connector yourself
 4. Save. A Renoxium window opens: create an account or sign in, then choose Allow.
 5. In a new chat, turn on Renoxium in the tools menu (+) and ask, for example: "Build me an online store for my products."
 
-Developer mode needs a paid ChatGPT plan and may only be available on the web.
+Developer mode is on ChatGPT's paid plans and may only be available on the web. On a free ChatGPT account, use Claude instead: its free plan is enough.
 
 ## Claude
 
@@ -34,6 +35,8 @@ Developer mode needs a paid ChatGPT plan and may only be available on the web.
 2. Choose Add custom connector and enter Name: Renoxium, URL: {{MCP}}.
 3. Choose Connect, sign in to Renoxium, then choose Allow.
 4. In a chat, make sure Renoxium is turned on in the tools menu and ask for your app.
+
+This works on Claude's free plan, which allows one custom connector.
 
 ## Other MCP clients
 

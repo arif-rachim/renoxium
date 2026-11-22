@@ -12,7 +12,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", "costs AED 200 in Renoxium fees", "pass AED 4,950 a month", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", "No credits. No limit on changes.", "Unlimited building and changes", "Are there credits, or a limit on changes?", "Claude's free plan is enough", "costs AED 200 in Renoxium fees", "pass AED 4,950 a month", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
@@ -45,7 +45,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 	if r.StatusCode != 200 || r.Header.Get("Content-Language") != "ar" {
 		t.Fatalf("/ar: %d %s", r.StatusCode, r.Header.Get("Content-Language"))
 	}
-	for _, want := range []string{`<html lang="ar" dir="rtl">`, "الطلبات والحجوزات والمدفوعات في مكان واحد", "أبيع منتجات", "أستقبل حجوزات", "أرسل عروض أسعار",
+	for _, want := range []string{`<html lang="ar" dir="rtl">`, "الطلبات والحجوزات والمدفوعات في مكان واحد", "بلا أرصدة. بلا حد للتعديلات.", "بناء وتعديل بلا حدود", "الخطة المجانية في Claude تكفي", "أبيع منتجات", "أستقبل حجوزات", "أرسل عروض أسعار",
 		"عملاؤك يستطيعون سؤال مساعدهم الذكي", "مكان واحد خلف كل قناة", "الوسطاء العقاريون", "التحكم بيدك", "99 درهماً", "4,950 درهماً", "?lang=ar",
 		"screen-booking-ar.webp", `hreflang="en"`, `href="/" lang="en"`, `href="/signup"`} {
 		if !strings.Contains(ar, want) {
@@ -65,6 +65,14 @@ func TestLandingAndLegalPages(t *testing.T) {
 	}
 	if !strings.Contains(page, `href="/ar" lang="ar"`) || !strings.Contains(page, `hreflang="ar"`) {
 		t.Error("the English home page does not link to the Arabic one")
+	}
+	// The old wording that a paid assistant is needed is gone, and the connect page says which free plan works.
+	if strings.Contains(page, "a paid plan with developer mode") || strings.Contains(ar, "خطة مدفوعة مع وضع المطوّر") {
+		t.Error("the home page still says a paid assistant plan is needed")
+	}
+	r, _ = http.Get(e.base + "/connect")
+	if p := read(t, r); !strings.Contains(p, "Renoxium has no credits") || !strings.Contains(p, "Claude&#39;s free plan") {
+		t.Errorf("connect page lacks the no-credits or free-plan line")
 	}
 	// Signed in, / is still the dashboard.
 	c := e.browser()

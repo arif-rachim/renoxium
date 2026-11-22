@@ -359,8 +359,15 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 	dq := fmt.Sprintf("?days=%d", days)
 	tabs := []shellLink{{Label: "Overview", Href: base + dq, Current: tab == "visitors"}, {Label: "Traffic and payments", Href: base + "/sales" + dq, Current: tab == "sales"},
 		{Label: "Status", Href: base + "/status", Current: tab == "status"}}
+	// Right after "Use this template" the page says what to do next.
+	welcome := ""
+	if ex := r.URL.Query().Get("new"); ex != "" && sh.IsOwner && tab == "visitors" {
+		if title, ok := galleryInfo(ex); ok {
+			welcome = title
+		}
+	}
 	render(w, http.StatusOK, "admin_app", map[string]any{
-		"Tab": tab, "Tabs": tabs,
+		"Tab": tab, "Tabs": tabs, "Welcome": welcome,
 		"Shell": sh, "Info": info, "Days": days, "Periods": periodLinks, "KPIs": kpis,
 		"VisitorsChart": visitorsChart, "SalesChart": salesChart,
 		"Pages": shares(traffic.Pages), "Sources": shares(traffic.Sources),

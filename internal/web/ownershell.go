@@ -89,7 +89,7 @@ func planCards(current string) []planCard {
 		if platform.AppsPerPlan[plan] == 1 {
 			apps = "1 app"
 		}
-		out := []string{apps,
+		out := []string{"Unlimited building and changes", apps,
 			thousands(platform.WhatsAppCodesPerPlan[plan]) + " WhatsApp sign-in codes a month",
 			storageText(platform.StorageMBPerPlan[plan]) + " of images",
 			thousands(platform.FetchCallsPerPlan[plan]) + " external API calls a month",

@@ -320,7 +320,7 @@ func (s *Site) checkCSRF(r *http.Request) bool {
 }
 
 // safeNext only allows returning to the authorize endpoint or a page of
-// the signed-in site (admin panel, account, billing, operator).
+// the signed-in site (admin panel, account, billing, operator, templates).
 func safeNext(next string) string {
 	if strings.ContainsAny(next, "\\\r\n") || strings.Contains(next, "//") {
 		return "/"
@@ -328,7 +328,7 @@ func safeNext(next string) string {
 	if strings.HasPrefix(next, "/oauth/authorize?") || strings.HasPrefix(next, "/apps/") {
 		return next
 	}
-	for _, page := range []string{"/account", "/billing", "/operator"} {
+	for _, page := range []string{"/account", "/billing", "/operator", "/templates"} {
 		if next == page || strings.HasPrefix(next, page+"?") {
 			return next
 		}
@@ -802,7 +802,7 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "authbottom"}}</main><aside class="authside" aria-label="About Renoxium"><h2>Orders, bookings and payments in one place.</h2>
 <p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد</p>
 <p>Describe your business to ChatGPT or Claude. Renoxium builds the website, you check the preview, and nothing goes live until you publish.</p>
-<ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
+<ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>No credits: change your site as often as you like</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
 {{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{if .Shell.SingleApp}}{{template "nav" "single"}}{{else}}{{template "nav"}}{{end}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
 {{define "appbottom"}}</main></div>
 <script>(function(){var m=document.querySelector(".appmain");if(!m||!("zoom" in m.style))return;
@@ -880,6 +880,7 @@ code{font-size:13.5px;background:var(--bg);border:1px solid var(--line);border-r
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.live::before{background:var(--live)}.pill.wait{background:var(--sun-soft);border-color:transparent}.pill.wait::before{background:var(--sun)}
 .pill.plain::before{display:none}
 .formcard{max-width:720px}.fields{columns:300px;column-gap:32px}.fld{break-inside:avoid;padding-bottom:14px}.fld>label:first-child{margin-top:0}.fld .check{margin-top:4px}.fld textarea{min-height:72px}.fld .thumb{max-height:96px}
+.welcome{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;background:var(--fg);color:var(--bg);border-radius:var(--radius);padding:16px 20px;margin:0 0 16px;font-size:15px;line-height:1.55}.welcome strong{color:var(--bg)}.welcome>div:first-child{flex:1 1 420px}.welcome .acts{display:flex;gap:8px;flex-wrap:wrap}.welcome .button{margin:0;background:var(--bg);color:var(--fg);border-color:var(--bg)}.welcome .button.secondary{background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 55%,transparent)}
 .howto{margin:0;padding-inline-start:20px;display:grid;gap:10px}.pagehead .acts form.inline button{margin:0}.settings{max-width:720px}.settings .card{margin-bottom:16px}@media(min-width:760px){.formcard{padding:28px 32px}}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .tables a{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--fg)}
@@ -1039,6 +1040,7 @@ body.app:not(.own) .sidenav li a{padding:5px 10px}body.app:not(.own) .sidenav h3
 </div><aside class="side"><section class="panel"><div class="ph"><h2>Build or change an app</h2></div>
 <ol class="steps"><li><div>Add Renoxium to your AI assistant once, with this address:<div class="copy"><input id="mcp" readonly value="{{.MCP}}" aria-label="Connector address" onfocus="this.select()"><button type="button" class="secondary" onclick="var i=document.getElementById('mcp');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent='Copied'">Copy</button></div></div></li>
 <li><div>Ask for a new app or a change.</div></li><li><div>Check the preview, then publish.</div></li></ol>
+<p class="muted"><strong style="color:var(--fg)">No credits.</strong> Ask for changes as often as you like; nothing is counted per request.</p>
 <p class="muted"><a href="/connect">Step-by-step for ChatGPT and Claude</a></p></section>
 <section class="panel"><div class="ph"><h2>Start from a template</h2></div><p class="muted">Online store, appointments, home services, tours and rentals, quotes, property listings. Try each one live.</p><a href="/templates">Browse templates →</a></section></aside></div>{{template "appbottom"}}{{end}}
 
@@ -1103,6 +1105,9 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="acts"><nav class="seg" aria-label="Period">{{range .Periods}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 {{if and .Shell.IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}
 {{if not .Shell.Demo}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>{{end}}</div></div>
+{{if .Welcome}}<div class="welcome"><div><strong>{{.Info.App}} is ready on its private preview.</strong> It is the {{.Welcome}} template with sample texts and prices, and nothing is live yet.
+Next: connect your AI assistant and ask it to change the names, prices and photos to yours. Claude's free plan is enough, and there are no credits: change it as often as you like.</div>
+<div class="acts"><a class="button" href="/apps/{{.Info.App}}/preview" target="_blank" rel="noopener">Open the preview</a><a class="button secondary" href="/connect">Connect your assistant</a></div></div>{{end}}
 {{template "tabs" .Tabs}}
 {{if and .Problems (ne .Tab "status")}}<p class="flash bad"><span><strong>Recent errors:</strong> {{len .Problems}} on your site. <a href="/apps/{{.Info.App}}/status">See them</a>, then ask your assistant to check the Renoxium logs and fix them.</span></p>{{end}}
 {{if eq .Tab "sales"}}<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><section class="panel bcell"><div class="ph"><h2>Most viewed pages</h2><span class="muted">page views</span></div>{{if .Pages}}<ul class="bars">{{range .Pages}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul>{{else}}<p class="muted">No visits yet.</p>{{end}}</section><section class="panel bcell"><div class="ph"><h2>Where visitors come from</h2><span class="muted">page views</span></div>{{if .Sources}}<ul class="bars">{{range .Sources}}<li><span class="nm">{{.Name}}</span><span class="ct">{{.Count}}</span><span class="tr"><i style="width:{{.Width}}%"></i></span></li>{{end}}</ul><p class="muted" style="margin:12px 0 0">Add <code>?utm_source=instagram</code> to links you share to see each channel here.</p>{{else}}<p class="muted">No visits yet.</p>{{end}}</section>{{if .Shell.IsOwner}}<section class="panel bcell"><div class="ph"><h2>Latest payments</h2><a href="/apps/{{.Info.App}}/payments">All payments</a></div>{{if .Recent}}<div class="tablebox" style="border:0;max-height:none"><table class="rx"><thead><tr><th>Order</th><th>Status</th><th>Amount</th><th>Customer</th><th>Date</th></tr></thead><tbody>
@@ -1421,9 +1426,11 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 
 {{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
 ` + galleryCardsCSS + `
+.tcard form.use{display:flex;gap:6px;margin:2px 0 8px}.tcard form.use input{margin:0;padding:7px 10px;font-size:13.5px;min-width:0;flex:1}.tcard form.use button{margin:0;min-height:36px;padding:6px 12px;font-size:13.5px;white-space:nowrap}
+.tcard .field-error{margin:-4px 0 8px;font-size:13px}.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 ` + galleryCopyScript + `
-<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo like a customer, open its owner's admin panel, then copy the request and paste it to your assistant.</p></div>
+<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Name your app and choose Use this template: it is ready on a private preview at once. Then change names, prices and photos with your assistant.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
 <div class="tcards bento fill">` + galleryCardsHTML + `</div>
 {{template "appbottom"}}{{end}}
@@ -1432,7 +1439,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{else if eq .Kind "h2"}}<h2>{{.Text}}</h2>{{else if eq .Kind "ul"}}<ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
 {{else if eq .Kind "ol"}}<ol>{{range .Items}}<li>{{.}}</li>{{end}}</ol>{{else}}<p>{{.Text}}</p>{{end}}{{end}}</div>{{end}}
 {{define "connect"}}{{if .Shell}}{{template "owntop" .}}{{template "owncss"}}<style>.connect>h1:first-child{display:none}@media(min-width:1400px) and (min-height:600px){.connect.fill{font-size:16.5px;line-height:1.7}}@media(min-width:1100px){.connect{column-count:2;column-gap:44px}.connect h2{break-after:avoid;margin-top:20px}.connect p,.connect ul,.connect ol{break-inside:avoid}.connect>:nth-child(2){margin-top:0}}.connect{font-size:15px}</style>
-<div class="pagehead"><div><h1>Connect and help</h1><p class="sub">Add Renoxium to ChatGPT or Claude once, then ask for a new app or a change.</p></div><div class="acts"><a class="button secondary" href="/support">Support</a></div></div>{{template "connect_body" .}}{{template "appbottom"}}{{else}}{{template "wide" "Connect"}}{{template "connect_body" .}}{{template "bottom"}}{{end}}{{end}}
+<div class="pagehead"><div><h1>Connect and help</h1><p class="sub">Add Renoxium to ChatGPT or Claude once, then ask for a new app or a change. No credits: changes are never counted.</p></div><div class="acts"><a class="button secondary" href="/support">Support</a></div></div>{{template "connect_body" .}}{{template "appbottom"}}{{else}}{{template "wide" "Connect"}}{{template "connect_body" .}}{{template "bottom"}}{{end}}{{end}}
 
 {{define "forgot"}}{{template "auth" "Forgot password"}}<form class="card" method="post" action="/forgot"><h1>Forgot your password?</h1>
 <p class="muted">Enter your email and we will send you a link to choose a new password.</p>
