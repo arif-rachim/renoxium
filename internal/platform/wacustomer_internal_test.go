@@ -54,7 +54,7 @@ func TestWhatsAppPauseOnOptOuts(t *testing.T) {
 		t.Fatalf("paused after 40 messages: %s", r)
 	}
 	p.db.Exec(`DELETE FROM wa_optouts`)
-	addSent(t, p, 20) // 60 in all
+	addSent(t, p, 20)        // 60 in all
 	for i := 0; i < 3; i++ { // 5% exactly: not more than the limit
 		p.optOut(ctx, "oud", Live, fmt.Sprintf("+97150%07d", i), "test")
 	}
