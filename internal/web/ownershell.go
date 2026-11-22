@@ -126,7 +126,7 @@ var billingNotices = map[string]string{
 
 const ownerTemplates = `
 {{define "owntop"}}{{template "head" .Shell.Title}}<body class="app own">{{if .Shell.SingleApp}}{{template "nav" "single"}}{{else}}{{template "nav"}}{{end}}<div class="shell">{{template "ownnav" .Shell}}<main class="appmain">{{end}}
-{{define "ownnav"}}<aside class="sidenav" aria-label="Account"><div class="who"><span class="avatar" aria-hidden="true">{{slice .Email 0 1}}</span><div class="id"><strong>{{.Email}}</strong>{{if .SingleApp}}<span class="pill plan-{{.Plan}}">{{.PlanName}} plan</span>{{else}}<a class="pill plan-{{.Plan}}" href="/billing">{{.PlanName}} plan</a>{{end}}</div></div>
+{{define "ownnav"}}<aside class="sidenav" id="sidemenu" aria-label="Account"><div class="who"><span class="avatar" aria-hidden="true">{{slice .Email 0 1}}</span><div class="id"><strong>{{.Email}}</strong>{{if .SingleApp}}<span class="pill plan-{{.Plan}}">{{.PlanName}} plan</span>{{else}}<a class="pill plan-{{.Plan}}" href="/billing">{{.PlanName}} plan</a>{{end}}</div></div>
 <nav><h3>Workspace</h3>{{template "navlist" .Main}}<h3>Account</h3>{{template "navlist" .Account}}{{with .Ops}}<h3>Operator</h3>{{template "navlist" .}}{{end}}</nav>
 <form class="signout" method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Sign out</button></form></aside>{{end}}
 {{define "owncss"}}<style>

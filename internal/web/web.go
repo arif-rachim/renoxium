@@ -325,7 +325,7 @@ func safeNext(next string) string {
 	if strings.ContainsAny(next, "\\\r\n") || strings.Contains(next, "//") {
 		return "/"
 	}
-	if strings.HasPrefix(next, "/oauth/authorize?") || strings.HasPrefix(next, "/apps/") {
+	if strings.HasPrefix(next, "/oauth/authorize?") || strings.HasPrefix(next, "/apps/") || strings.HasPrefix(next, "/templates/") {
 		return next
 	}
 	for _, page := range []string{"/account", "/billing", "/operator", "/templates"} {
@@ -809,7 +809,7 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 function over(){if(m.scrollHeight>m.clientHeight+2)return true;var q=m.querySelectorAll(".bcell,.grow,.fill,.tcard"),i,e;for(i=0;i<q.length;i++){e=q[i];if(e.hasAttribute("data-long")||e.classList.contains("tablebox"))continue;if(e.scrollHeight>e.clientHeight+2)return true}return false}
 function fit(){m.style.zoom="";if(innerWidth<1000||innerHeight<600)return;var z=parseFloat(getComputedStyle(m).zoom)||1;while(z>.74&&over()){z=Math.round((z-.03)*100)/100;m.style.zoom=z}}
 fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})()</script></body></html>{{end}}
-{{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else if not .SingleApp}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
+{{define "sidenav"}}<aside class="sidenav" id="sidemenu" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else if not .SingleApp}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
 <nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
 {{define "tabs"}}<nav class="tabs" aria-label="Sections">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
 {{define "navlist"}}<ul>{{range .}}<li><a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a></li>{{end}}</ul>{{end}}
@@ -818,7 +818,15 @@ fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fo
 <div class="ticks" aria-hidden="true">{{range .Ticks}}<span>{{.}}</span>{{end}}</div>
 <details class="astable"><summary>Show as a table</summary><table class="rx"><thead><tr><th>Day</th><th>Figures</th></tr></thead><tbody>{{range .Rows}}<tr><td>{{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</tbody></table></details>
 {{else}}<p class="empty">{{.Empty}}</p>{{end}}</div>{{end}}
-{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a>{{if ne (printf "%v" .) "single"}}<nav aria-label="Site"><a href="/support">Support</a></nav>{{end}}</div></header>{{end}}
+{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a>{{if ne (printf "%v" .) "single"}}<nav aria-label="Site"><a href="/support">Support</a></nav>{{end}}
+<button type="button" class="menubtn" aria-expanded="false" aria-controls="sidemenu" aria-label="Menu"><span></span><span></span><span></span></button></div></header>
+<script>document.addEventListener("click",function(e){var b=e.target.closest(".menubtn");if(!b)return;var o=document.body.classList.toggle("menu-open");b.setAttribute("aria-expanded",o?"true":"false")});
+document.addEventListener("DOMContentLoaded",function(){
+// Side-scrolling tab and period rows open scrolled to the chosen item, so a tap does not lose the place.
+[].forEach.call(document.querySelectorAll(".tabs,.seg,.sidenav nav"),function(row){if(row.scrollWidth<=row.clientWidth+1)return;
+var cur=row.querySelector("[aria-current]");if(!cur)return;var r=row.getBoundingClientRect(),c=cur.getBoundingClientRect();
+row.scrollLeft+=c.left-r.left-(r.width-c.width)/2})});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.body.classList.contains("menu-open")){document.body.classList.remove("menu-open");var b=document.querySelector(".menubtn");if(b){b.setAttribute("aria-expanded","false");b.focus()}}})</script>{{end}}
 {{define "authsigned"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/support">Support</a></nav></div></header><div class="authwrap"><main>{{end}}
 {{define "pubnav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="button sm" href="/signup">Create account</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -978,7 +986,28 @@ body.app:not(.own) .sidenav li a{padding:5px 10px}body.app:not(.own) .sidenav h3
 @media(min-width:1000px) and (min-height:600px) and (max-height:780px){.appmain{zoom:.84}body.app .sidenav{zoom:.9}}
 @media(min-width:1000px) and (min-height:600px) and (max-height:700px){.appmain{zoom:.76}body.app .sidenav{zoom:.82}}
 @media(min-width:1000px) and (max-width:1180px) and (min-height:600px){body.app .shell{grid-template-columns:200px minmax(0,1fr);gap:22px;padding:0 20px}}
-@media(max-width:999px){.bento{display:grid;gap:14px}.bento>*{min-height:150px}.fitchart>.chart>.plot{height:168px}}
+@media(max-width:999px){.bento{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:none!important;grid-auto-rows:auto!important}
+.bento>*{grid-area:auto!important;grid-column:auto!important;min-height:0}.bento>.fitchart{min-height:240px}.fitchart>.chart>.plot{height:168px}
+.grid2{grid-template-columns:minmax(0,1fr)!important}.panel,.card{min-width:0}.appmain{overflow-wrap:anywhere}
+.pagehead .acts{width:100%}.pagehead h1{font-size:26px}.sub{font-size:15px}
+.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs a{white-space:nowrap}
+.seg{max-width:100%;overflow-x:auto;flex-wrap:nowrap}.seg a{white-space:nowrap}
+.welcome .acts{width:100%}.welcome .button{flex:1}}
+
+.menubtn{display:none}
+@media(max-width:999px){
+body.app .menubtn{display:inline-flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:44px;height:44px;min-height:44px;margin:0;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);order:3}
+.menubtn span{display:block;width:20px;height:2px;flex:none;border-radius:2px;background:currentColor;transition:transform .2s,opacity .2s}
+body.menu-open .menubtn span:nth-child(1){transform:translateY(7px) rotate(45deg)}body.menu-open .menubtn span:nth-child(2){opacity:0}body.menu-open .menubtn span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+body.app .bar-top .in{flex-wrap:nowrap}body.app .bar-top nav{margin-inline-start:auto}
+body.app .sidenav nav,body.app .sidenav .signout{display:none}body.app .sidenav{padding-bottom:4px}
+body.menu-open{overflow:hidden}
+body.menu-open .sidenav{position:fixed;inset:var(--barh,69px) 0 0 0;z-index:40;background:var(--bg);overflow:auto;padding:20px 20px 40px}
+body.menu-open .sidenav nav{display:block;overflow:visible;padding:0}body.menu-open .sidenav .signout{display:block}
+body.menu-open .sidenav h3{display:block;font-size:13px;margin:22px 0 6px}body.menu-open .sidenav ul{display:block}
+body.menu-open .sidenav li a{display:block;white-space:normal;border:0;border-inline-start:3px solid transparent;border-radius:10px;padding:12px 14px;background:none;font-size:17px;color:var(--fg)}
+body.menu-open .sidenav li a[aria-current]{background:var(--card);color:var(--fg);border-inline-start-color:var(--gold);font-weight:600}
+body.menu-open .sidenav .signout button{width:100%;margin-top:24px;padding:12px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head>{{end}}
 {{define "fonts"}}<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">{{end}}
@@ -1105,7 +1134,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="acts"><nav class="seg" aria-label="Period">{{range .Periods}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 {{if and .Shell.IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}
 {{if not .Shell.Demo}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>{{end}}</div></div>
-{{if .Welcome}}<div class="welcome"><div><strong>{{.Info.App}} is ready on its private preview.</strong> It is the {{.Welcome}} template with sample texts and prices, and nothing is live yet.
+{{if .Welcome}}<div class="welcome"><div><strong>{{.Info.App}} is ready on its private preview.</strong> It is the {{.Welcome}} template with your business name; its sample texts, prices and photos stay until you change them, and nothing is live yet.
 Next: connect your AI assistant and ask it to change the names, prices and photos to yours. Claude's free plan is enough, and there are no credits: change it as often as you like.</div>
 <div class="acts"><a class="button" href="/apps/{{.Info.App}}/preview" target="_blank" rel="noopener">Open the preview</a><a class="button secondary" href="/connect">Connect your assistant</a></div></div>{{end}}
 {{template "tabs" .Tabs}}
@@ -1424,13 +1453,50 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if .Demo}}</fieldset>{{end}}</form>
 {{template "appbottom"}}{{end}}
 
+{{define "use_template"}}{{template "owntop" .}}{{template "owncss"}}<style>
+.usepage{display:grid;gap:16px;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.usepage .shot{margin:0;display:flex;flex-direction:column;overflow:hidden;padding:0}
+.usepage .shot .img{flex:1 1 0;min-height:160px;background:var(--bg);overflow:hidden;border-bottom:1px solid var(--line)}
+.usepage .shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.usepage .shot .tx{padding:16px 20px}.usepage .shot h2{font-size:20px;margin:0 0 6px}.usepage .shot p{margin:0;color:var(--muted);font-size:14.5px}
+.usepage .right{display:flex;flex-direction:column;gap:16px;min-height:0}
+.usepage .right>*{margin:0!important}
+.usepage label{margin-top:12px}.usepage label:first-of-type{margin-top:0}
+.usepage .addr input{border:0;border-radius:0;background:none;flex:1;min-width:0;margin:0}.usepage .addr span{display:flex;align-items:center;padding:0 12px;color:var(--muted);font-size:14px;white-space:nowrap;border-inline-start:1px solid var(--line)}
+.usepage form button{width:100%;margin-top:16px}
+.usepage ol.next{margin:0;padding:0;list-style:none;counter-reset:n;display:grid;gap:12px}
+.usepage ol.next>li{counter-increment:n;display:grid;grid-template-columns:28px 1fr;gap:10px;font-size:14.5px;line-height:1.5}
+.usepage ol.next>li::before{content:counter(n);width:28px;height:28px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+.usepage ol.next strong{display:block}.usepage ol.next span{color:var(--muted)}
+.usepage ul.change{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}.usepage ul.change li{font-size:13px;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--fg)}
+@media(max-width:999px){.usepage{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.usepage .right{order:-1}.usepage .shot .img{flex:none;aspect-ratio:16/10}}
+</style>
+<p class="crumbs"><a href="/templates">← Templates</a></p>
+<div class="pagehead"><div><h1>Use the {{.Card.Title}} template</h1><p class="sub">Your own copy, ready on a private preview in a few seconds. Nothing is live until you publish.</p></div></div>
+<div class="usepage fill">
+<section class="card shot"><a class="img" href="{{.Card.DemoURL}}/" target="_blank" rel="noopener" title="Open the demo">{{if .Card.Wide.File}}<img src="{{.Card.Wide.Src}}" width="{{.Card.Wide.W}}" height="{{.Card.Wide.H}}" alt="{{.Card.Wide.Alt}}">{{end}}</a>
+<div class="tx"><h2>{{.Card.Title}}</h2><p>{{.Card.Summary}} <a href="{{.Card.DemoURL}}/" target="_blank" rel="noopener">Try the demo</a></p></div></section>
+<div class="right bcell">
+<form class="panel" method="post" action="/templates/{{.Card.Name}}/use"><div class="ph"><h2>Your business</h2></div>
+{{with .Error}}<p class="flash bad error" role="alert">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="business">Business name</label><input id="business" name="business" value="{{.Business}}" required maxlength="80" placeholder="e.g. Lamsa Beauty Lounge" autocomplete="organization" autofocus>
+<button>Create my app</button></form>
+<section class="panel"><div class="ph"><h2>What happens next</h2></div><ol class="next">
+<li><div><strong>Your copy is made</strong><span>With your business name; its address on Renoxium is made from the name. The template's sample texts, prices and photos stay until you change them.</span></div></li>
+<li><div><strong>Connect ChatGPT or Claude</strong><span>Once, from the <a href="/connect">connect page</a>. Claude's free plan is enough.</span></div></li>
+<li><div><strong>Tell it what to change, in your own words</strong><span>For example:</span><ul class="change"><li>your products or services</li><li>prices</li><li>photos and logo</li><li>opening hours</li><li>address and WhatsApp</li><li>delivery fee</li><li>colours</li><li>Arabic texts</li></ul><span>No credits: change it as often as you like.</span></div></li>
+<li><div><strong>Check the preview, then publish</strong><span>Your site goes live at your address only when you press Publish.</span></div></li></ol></section>
+</div></div>
+
+{{template "appbottom"}}{{end}}
+
 {{define "templates_app"}}{{template "owntop" .}}{{template "owncss"}}<style>
 ` + galleryCardsCSS + `
-.tcard form.use{display:flex;gap:6px;margin:2px 0 8px}.tcard form.use input{margin:0;padding:7px 10px;font-size:13.5px;min-width:0;flex:1}.tcard form.use button{margin:0;min-height:36px;padding:6px 12px;font-size:13.5px;white-space:nowrap}
-.tcard .field-error{margin:-4px 0 8px;font-size:13px}.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tcard p.use{margin:2px 0 10px}.tcard .usebtn{display:inline-flex;align-items:center;min-height:38px;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-size:14px;font-weight:500}
 </style>
 ` + galleryCopyScript + `
-<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Name your app and choose Use this template: it is ready on a private preview at once. Then change names, prices and photos with your assistant.</p></div>
+<div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo, then choose Use this template to get your own copy on a private preview at once.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
 <div class="tcards bento fill">` + galleryCardsHTML + `</div>
 {{template "appbottom"}}{{end}}

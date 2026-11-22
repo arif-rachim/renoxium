@@ -174,3 +174,37 @@ test('the owner deletes a visitor account', async ({ browser }) => {
   await v.page.goto(shop.live + '/orders');
   await expect(v.page).toHaveURL(/_rx\/auth\/login/);
 });
+
+// On a phone every console page is one column: no panel beside another,
+// nothing wider than the screen, in light and dark.
+test('the console on a phone: one column, nothing wider than the screen', async ({ browser }) => {
+  for (const scheme of ['light', 'dark']) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: scheme, storageState: await shop.page.context().storageState() });
+    const page = await ctx.newPage();
+    for (const path of ['/', '/templates', '/billing', '/account', '/connect', `/apps/${shop.app}`, `/apps/${shop.app}/sales`, `/apps/${shop.app}/status`,
+      `/apps/${shop.app}/payments`, `/apps/${shop.app}/staff`, `/apps/${shop.app}/domain`, `/apps/${shop.app}/connections`, `/apps/${shop.app}/notifications`,
+      `/apps/${shop.app}/rename`, `/apps/${shop.app}/delete`, `/apps/${shop.app}/t/products`, `/apps/${shop.app}/t/products/new`]) {
+      await page.goto(path);
+      const r = await page.evaluate(() => ({
+        wide: document.documentElement.scrollWidth - innerWidth,
+        cols: [...document.querySelectorAll('.bento,.grid2,.settings-grid')].map((e) => getComputedStyle(e).gridTemplateColumns.trim().split(/\s+/).length).filter((n) => n > 1).length,
+      }));
+      expect(r, `${scheme} ${path}`).toEqual({ wide: 0, cols: 0 });
+    }
+    // The side menu sits behind a menu button: closed, its links are hidden; open, they fill the screen.
+    await page.goto(`/apps/${shop.app}`);
+    const products = page.locator('.sidenav').getByRole('link', { name: 'Products', exact: true });
+    await expect(products).toBeHidden();
+    // A side-scrolling row opens scrolled to the chosen item, so the tap does not lose the place.
+    await page.goto(`/apps/${shop.app}/payments`);
+    await page.locator('.seg a', { hasText: 'Refunded' }).click();
+    const kept = await page.evaluate(() => { const a = document.querySelector('.seg a[aria-current]'); const r = a.closest('.seg').getBoundingClientRect(), c = a.getBoundingClientRect(); return a.textContent.trim() + (c.left >= r.left - 1 && c.right <= r.right + 1 ? ' visible' : ' hidden'); });
+    expect(kept).toBe('Refunded visible');
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await expect(products).toBeVisible();
+    await products.click();
+    await expect(page).toHaveURL(new RegExp(`/apps/${shop.app}/t/products$`));
+    await expect(products).toBeHidden();
+    await ctx.close();
+  }
+});
