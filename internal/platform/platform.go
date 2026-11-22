@@ -72,6 +72,18 @@ type Config struct {
 	// WhatsAppNotices sends notify.owner notices to owners who confirmed a
 	// number. Nil turns that off.
 	WhatsAppNotices whatsapp.Notifier
+	// WhatsAppCustomers sends whatsapp.send messages to customers who opted
+	// in, from the platform number. Nil turns them off on live; preview
+	// writes them to the app log.
+	WhatsAppCustomers whatsapp.CustomerSender
+	// WhatsAppCustomerTemplates maps each whatsapp.send kind
+	// (confirmation, reminder, update) to its approved Utility template.
+	// A kind without a template is not sent.
+	WhatsAppCustomerTemplates map[string]string
+	WhatsAppCustomerLanguage  string // default "en"
+	// WhatsAppPhoneNumberID is the platform number's ID: webhooks naming
+	// another number are ignored. Empty accepts every number.
+	WhatsAppPhoneNumberID string
 	// FetchTransport replaces http.fetch's own transport, which refuses
 	// private addresses. Tests only.
 	FetchTransport http.RoundTripper
@@ -153,6 +165,7 @@ type Platform struct {
 	suspended   map[string]bool // apps taken offline
 
 	adminNotices sync.Map // app + "\x00" + email -> failed on_admin_change notice
+	waOutbox     waOutbox // whatsapp.send messages preview did not send, per request (wacustomer.go)
 
 	sitemaps sitemapCache  // public pages per stage (seo.go)
 	demoBox  demoInbox     // messages template demos would have sent (demo.go)
@@ -338,6 +351,10 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 		return nil, err
 	}
 	if err := pl.ensureAlertTable(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := pl.ensureWhatsAppTables(); err != nil {
 		db.Close()
 		return nil, err
 	}

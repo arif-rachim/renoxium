@@ -254,6 +254,7 @@ func (p *Platform) testAdmin(ctx context.Context, app, stageName string, in Test
 			}
 		}
 	}
+	out.WhatsApp = p.waOutbox.take(rid)
 	out.Logs = []applog.Event{}
 	if l, err := p.log(app); err == nil {
 		if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {

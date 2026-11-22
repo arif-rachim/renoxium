@@ -397,6 +397,11 @@ var platformTables = []string{
 		state_hash TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
 	`CREATE TABLE IF NOT EXISTS rx_phone_codes (phone TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
 		attempts INTEGER NOT NULL DEFAULT 0)`,
+	// Customers who agreed to WhatsApp messages from this app (the
+	// platform's opt-in box), and when they stopped them. A visitor
+	// account's consent goes with the account.
+	`CREATE TABLE IF NOT EXISTS rx_wa_consent (phone TEXT PRIMARY KEY, user_id INTEGER REFERENCES rx_users(id) ON DELETE CASCADE,
+		source TEXT NOT NULL, wording TEXT NOT NULL DEFAULT '', consented_at INTEGER NOT NULL DEFAULT 0, opted_out_at INTEGER NOT NULL DEFAULT 0)`,
 }
 
 type execer interface {

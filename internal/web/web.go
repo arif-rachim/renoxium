@@ -93,6 +93,12 @@ type Site struct {
 	// StripeWebhookSecret verifies events posted to /stripe/webhook.
 	StripeWebhookSecret string
 
+	// WhatsAppAppSecret verifies webhooks posted to /whatsapp/webhook (the
+	// Meta app's secret); WhatsAppVerifyToken answers Meta's set-up check.
+	// Empty turns the webhook off.
+	WhatsAppAppSecret   string
+	WhatsAppVerifyToken string
+
 	// Version is the commit the server was built from, served at /version
 	// so a deploy can be checked from outside.
 	Version string
@@ -146,6 +152,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerDeleteApp()
 	s.registerRenameApp()
 	s.registerAlerts()
+	s.registerWhatsApp()
 	s.registerConnections()
 	s.registerAbuse()
 	s.registerGallery()

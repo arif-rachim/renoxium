@@ -51,7 +51,7 @@ func main() {
 			"       renoxium [flags] unsuspend APP       bring it back\n"+
 			"       renoxium [flags] plan EMAIL PLAN     give an account the free, pro or business plan without payment\n"+
 			"       renoxium [flags] reviewer EMAIL [APP] create or reset an account for a directory's reviewers, with an example store\n"+
-			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
+			"       renoxium whatsapp-test NUMBER [notice|customer]  send a test message with the WHATSAPP_* settings and print Meta's answer\n"+
 			"       renoxium shot-helper SOCKET          run Chromium for screenshots as a service of its own (deploy/renoxium-shots.service)\n"+
 			"       renoxium version                     print the commit this binary was built from\n\n"+
 			"on the owner's own server (docs/self-host.md):\n"+
@@ -179,6 +179,12 @@ func main() {
 			cfg.WhatsAppNotices = wa
 			slog.Info("WhatsApp owner notices on", "template", wa.NoticeTemplate)
 		}
+		if tmpl := customerTemplatesFromEnv(); len(tmpl) > 0 {
+			cfg.WhatsAppCustomers, cfg.WhatsAppCustomerTemplates = wa, tmpl
+			cfg.WhatsAppCustomerLanguage = os.Getenv("WHATSAPP_CUSTOMER_LANGUAGE")
+			slog.Info("WhatsApp messages to customers on", "templates", tmpl)
+		}
+		cfg.WhatsAppPhoneNumberID = wa.PhoneNumberID
 	} else {
 		slog.Warn("WhatsApp is not configured: sign-in with WhatsApp works on previews only (codes in the app log)")
 	}
@@ -224,6 +230,8 @@ func main() {
 	site.Mailer = mailer
 	site.Version = buildVersion()
 	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	site.WhatsAppAppSecret = os.Getenv("WHATSAPP_APP_SECRET")
+	site.WhatsAppVerifyToken = os.Getenv("WHATSAPP_VERIFY_TOKEN")
 	site.Legal = web.Legal{Company: os.Getenv("RENOXIUM_LEGAL_NAME"), Address: os.Getenv("RENOXIUM_LEGAL_ADDRESS"),
 		Email: os.Getenv("RENOXIUM_LEGAL_EMAIL"), Reviewed: os.Getenv("RENOXIUM_LEGAL_REVIEWED") == "1",
 		WhatsApp: os.Getenv("RENOXIUM_WHATSAPP")}

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 
+	"github.com/arif-rachim/renoxium/internal/platform"
 	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
@@ -28,11 +30,29 @@ func whatsappFromEnv() *whatsapp.CloudAPI {
 		NoticeTemplate: os.Getenv("WHATSAPP_NOTICE_TEMPLATE"), NoticeLanguage: os.Getenv("WHATSAPP_NOTICE_LANGUAGE")}
 }
 
+// customerTemplatesFromEnv reads WHATSAPP_CUSTOMER_TEMPLATES, e.g.
+// "confirmation:rx_confirmation,reminder:rx_reminder,update:rx_update".
+func customerTemplatesFromEnv() map[string]string {
+	out := map[string]string{}
+	for _, pair := range strings.Split(os.Getenv("WHATSAPP_CUSTOMER_TEMPLATES"), ",") {
+		kind, name, ok := strings.Cut(strings.TrimSpace(pair), ":")
+		if !ok || name == "" {
+			continue
+		}
+		for _, k := range platform.CustomerKinds {
+			if k == strings.TrimSpace(kind) {
+				out[k] = strings.TrimSpace(name)
+			}
+		}
+	}
+	return out
+}
+
 // whatsappTest sends one code to a number, to check the Meta setup without
 // a live app.
 func whatsappTest(args []string) int {
-	if len(args) != 1 && (len(args) != 2 || args[1] != "notice") {
-		fmt.Fprintln(os.Stderr, "usage: renoxium whatsapp-test +971501234567 [notice]")
+	if len(args) != 1 && (len(args) != 2 || args[1] != "notice" && args[1] != "customer") {
+		fmt.Fprintln(os.Stderr, "usage: renoxium whatsapp-test +971501234567 [notice|customer]")
 		return 2
 	}
 	phone, ok := whatsapp.Normalize(args[0])
@@ -51,6 +71,34 @@ func whatsappTest(args []string) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	if len(args) == 2 && args[1] == "customer" {
+		tmpl := customerTemplatesFromEnv()
+		if len(tmpl) == 0 {
+			fmt.Fprintln(os.Stderr, "WHATSAPP_CUSTOMER_TEMPLATES is not set")
+			return 2
+		}
+		failed := 0
+		for _, kind := range platform.CustomerKinds {
+			if tmpl[kind] == "" {
+				continue
+			}
+			params := []string{"Test Shop", "Booking #1", "Tue 2 Dec, 10:00", "Haircut with Sara"}
+			if kind != "reminder" {
+				params = []string{"Test Shop", "Booking #1", "Haircut with Sara on Tue 2 Dec, 10:00"}
+			}
+			fmt.Printf("sending %s template %q to %s\n", kind, tmpl[kind], phone)
+			if _, err := wa.SendTemplate(ctx, phone, whatsapp.Message{Template: tmpl[kind], Language: os.Getenv("WHATSAPP_CUSTOMER_LANGUAGE"),
+				Body: params, URLParam: "test", StopPayload: "rx-stop:test"}); err != nil {
+				fmt.Fprintln(os.Stderr, "FAILED:", err)
+				failed++
+			}
+		}
+		if failed > 0 {
+			return 1
+		}
+		fmt.Println("OK: Meta accepted the customer templates.")
+		return 0
+	}
 	if len(args) == 2 {
 		if wa.NoticeTemplate == "" {
 			fmt.Fprintln(os.Stderr, "WHATSAPP_NOTICE_TEMPLATE is not set")

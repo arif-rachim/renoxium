@@ -72,6 +72,8 @@ type TestResponse struct {
 	Redirects []string `json:"redirects,omitempty" jsonschema:"redirects followed, in order, as status and target"`
 	// Admin is set for test_request {admin}: the row after the change.
 	Admin *TestAdminResult `json:"admin,omitempty"`
+	// WhatsApp lists the whatsapp.send messages of this request.
+	WhatsApp []TestWhatsApp `json:"whatsapp,omitempty" jsonschema:"WhatsApp messages to customers this request would have sent from the live app; preview never sends them"`
 }
 
 // maxTestBody is where a test response's body is cut; tests that run a page's
@@ -226,12 +228,13 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 			break
 		}
 		chain := append(out.Redirects, fmt.Sprintf("%d %s", out.Status, out.Location))
-		logs := out.Logs
+		logs, sent := out.Logs, out.WhatsApp
 		one = testHop{method: http.MethodGet, host: h, path: pth}
 		if out, at, err = p.testSend(ctx, app, stage, one, jar, visitorToken); err != nil {
 			return out, err
 		}
 		out.Redirects, out.Logs = chain, append(logs, out.Logs...) // the log of every hop, in order
+		out.WhatsApp = append(sent, out.WhatsApp...)
 	}
 	return out, nil
 }
@@ -335,6 +338,7 @@ func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop,
 		text, out.Truncated = text[:cut], true
 	}
 	out.Body = text
+	out.WhatsApp = p.waOutbox.take(rid)
 	out.Logs = []applog.Event{}
 	if rid != "" {
 		if l, err := p.log(app); err == nil {
@@ -531,6 +535,7 @@ func (p *Platform) testJob(ctx context.Context, app, stage, name string) (TestRe
 			out.Status, text = http.StatusInternalServerError, err.Error()
 		}
 		out.Body = text
+		out.WhatsApp = p.waOutbox.take(rid)
 		out.Logs = []applog.Event{}
 		if l, err := p.log(app); err == nil {
 			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {

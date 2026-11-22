@@ -88,6 +88,7 @@ func (p *Platform) DeleteVisitor(ctx context.Context, app string, id int64, by s
 // running stage. Call it periodically.
 func (p *Platform) Cleanup(ctx context.Context) {
 	p.cleanDurable()
+	p.cleanWhatsApp()
 	p.cleanTraffic()
 	p.cleanMeter()
 	p.forgetLive("")

@@ -86,6 +86,21 @@ func NoticeText(s string) string {
 }
 
 func (c *CloudAPI) send(ctx context.Context, phone, template, lang string, components []any) error {
+	_, err := c.post(ctx, phone, template, lang, map[string]any{
+		"type": "template",
+		"template": map[string]any{
+			"name":       template,
+			"language":   map[string]string{"code": lang},
+			"components": components,
+		},
+	})
+	return err
+}
+
+// post sends one message to phone and returns its WhatsApp message ID
+// (wamid). msg holds the type and its object; template and lang only
+// explain errors.
+func (c *CloudAPI) post(ctx context.Context, phone, template, lang string, msg map[string]any) (string, error) {
 	version, base := c.Version, c.BaseURL
 	if version == "" {
 		version = "v23.0"
@@ -97,20 +112,17 @@ func (c *CloudAPI) send(ctx context.Context, phone, template, lang string, compo
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
 		"to":                strings.TrimPrefix(phone, "+"),
-		"type":              "template",
-		"template": map[string]any{
-			"name":       template,
-			"language":   map[string]string{"code": lang},
-			"components": components,
-		},
+	}
+	for k, v := range msg {
+		body[k] = v
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
-		return err
+		return "", err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/%s/%s/messages", base, version, c.PhoneNumberID), bytes.NewReader(raw))
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Content-Type", "application/json")
@@ -120,14 +132,22 @@ func (c *CloudAPI) send(ctx context.Context, phone, template, lang string, compo
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("send whatsapp message: %w", err)
+		return "", fmt.Errorf("send whatsapp message: %w", err)
 	}
 	defer resp.Body.Close()
+	raw, _ = io.ReadAll(io.LimitReader(resp.Body, 8192))
 	if resp.StatusCode/100 != 2 {
-		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
-		return parseError(resp.StatusCode, raw, template, lang)
+		return "", parseError(resp.StatusCode, raw, template, lang)
 	}
-	return nil
+	var ok struct {
+		Messages []struct {
+			ID string `json:"id"`
+		} `json:"messages"`
+	}
+	if json.Unmarshal(raw, &ok) == nil && len(ok.Messages) > 0 {
+		return ok.Messages[0].ID, nil
+	}
+	return "", nil
 }
 
 // Error is an error answer from the WhatsApp Cloud API.

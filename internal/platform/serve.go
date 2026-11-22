@@ -244,6 +244,10 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 	}
 
 	host := &scriptHost{st: st, p: p, rid: rid, noMoney: user == nil}
+	host.waOptin = req.Form[optinField] == "1" && p.validOptinToken(st, req.Form[optinTokenField], time.Now())
+	if user != nil {
+		host.waUser = user.ID
+	}
 	if isLiveTest(r.Context()) {
 		host.readOnly, host.liveTest = true, true
 	}
@@ -309,7 +313,7 @@ func (p *Platform) render(st *stage, status int, name string, data any, rid stri
 	if err := t.Execute(buf, data); err != nil {
 		return failure(http.StatusInternalServerError, "template "+name+": "+err.Error())
 	}
-	page, injected := injectTelemetry(buf.buf, rid)
+	page, injected := injectTelemetry(p.injectOptin(st, buf.buf), rid)
 	if injected {
 		p.issueRID(st.app, rid)
 		if st.name == Live && p.cfg.OwnerPlan != nil && p.planOf(p.ownerOf(st.app)) == planFree {
@@ -476,6 +480,11 @@ type scriptHost struct {
 	// not let a stranger move a merchant's money. Signed-in visitors' own
 	// requests, jobs, on_payment and on_admin_change keep them.
 	noMoney bool
+	// waOptin is set for a visitor's form post that has the platform's
+	// WhatsApp opt-in box ticked; only then may whatsapp.consent record
+	// consent. waUser is the signed-in visitor, if any.
+	waOptin bool
+	waUser  int64
 }
 
 // mayRedirect reports whether a script may send the visitor to target.
@@ -556,7 +565,7 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 	if err := h.count(); err != nil {
 		return nil, err
 	}
-	if h.readOnly && fn != "payments.get" && fn != "realtime.token" {
+	if h.readOnly && fn != "payments.get" && fn != "realtime.token" && fn != "whatsapp.status" {
 		return nil, h.readOnlyErr()
 	}
 	switch fn {
@@ -602,6 +611,12 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.emailSend(ctx, h.st, arg)
 	case "notify.owner":
 		return h.p.notifyOwner(ctx, h.st, arg)
+	case "whatsapp.send":
+		return h.whatsappSend(ctx, arg)
+	case "whatsapp.consent":
+		return h.whatsappConsent(ctx, arg)
+	case "whatsapp.status":
+		return h.whatsappStatus(ctx, arg)
 	case "http.fetch":
 		return h.httpFetch(ctx, arg)
 	case "realtime.publish":
