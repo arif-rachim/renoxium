@@ -33,8 +33,11 @@ func TestTemplateGallery(t *testing.T) {
 			}
 		}
 	}
-	// Grouped by what the owner does, each with a screenshot of its demo.
-	for _, want := range []string{"I sell products", "I take bookings", "I send quotes", "I deliver", "/static/img/screen-booking.webp?v="} {
+	// The same cards as the console shows when signed in: what the owner does, a
+	// wide screenshot of the demo, the request to copy, and the card for anything in between.
+	for _, want := range []string{"I sell products", "I take bookings", "I send quotes", "I deliver", "/static/img/wide-booking.webp?v=",
+		`<div class="tcards">`, `<article class="tcard" id="booking-uae">`, `data-prompt="Use Renoxium to build me a website from the booking-uae template`,
+		"Copy the request</button>", "Something in between?", `href="/connect">How to connect</a>`, `href="/signup"`, `rel="canonical"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("gallery lacks %q", want)
 		}
