@@ -208,7 +208,7 @@ func TestOperatorSettings(t *testing.T) {
 }
 
 func TestGuessTemplate(t *testing.T) {
-	for _, name := range []string{"store-uae", "booking-uae", "home-service-uae", "listings-uae", "quote-portal-uae", "reservation-uae"} {
+	for _, name := range []string{"store-uae", "booking-uae", "home-service-uae", "listings-uae", "quote-portal-uae", "reservation-uae", "clinic-queue-uae"} {
 		def := example(t, name)
 		// Agents add a table or two of their own.
 		def.Tables = append(def.Tables, appdef.Table{Name: "reviews"})

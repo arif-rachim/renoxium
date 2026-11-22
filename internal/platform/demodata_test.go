@@ -93,6 +93,22 @@ func checkDemoSchedule(t *testing.T, p *platform.Platform, today, tomorrow strin
 	if n := count(t, p, "demo-listings-uae", `SELECT count(*) AS n FROM leads WHERE preferred_date = ?`, today); n < 1 {
 		t.Errorf("viewings today: %d", n)
 	}
+	clinic := "demo-clinic-queue-uae"
+	if n := count(t, p, clinic, `SELECT count(*) AS n FROM tickets WHERE day = ? AND status = 'waiting'`, today); n < 5 {
+		t.Errorf("patients waiting today: %d", n)
+	}
+	if n := count(t, p, clinic, `SELECT count(*) AS n FROM tickets WHERE day = ? AND status = 'called' AND room_id > 0`, today); n != 3 {
+		t.Errorf("patients in rooms: %d", n)
+	}
+	if n := count(t, p, clinic, `SELECT count(*) AS n FROM (SELECT day, code FROM tickets GROUP BY day, code HAVING count(*) > 1)`); n != 0 {
+		t.Errorf("%d ticket codes used twice in a day", n)
+	}
+	if n := count(t, p, clinic, `SELECT count(*) AS n FROM (SELECT room_id FROM tickets WHERE day = ? AND status = 'called' GROUP BY room_id HAVING count(*) > 1)`, today); n != 0 {
+		t.Errorf("%d rooms with two patients", n)
+	}
+	if n := count(t, p, clinic, `SELECT count(*) AS n FROM daily_stats`); n != 13 {
+		t.Errorf("days of history: %d", n)
+	}
 }
 
 // The demos show photos and a schedule around today, both renewed by the

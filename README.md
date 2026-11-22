@@ -120,6 +120,7 @@ Every template is a complete, working app definition the agent can start from. E
 | `reservation-uae` | Tour departures and date-range rentals |
 | `quote-portal-uae` | Quotes, deposits and a client portal |
 | `listings-uae` | Property listings with permit numbers and lead capture |
+| `clinic-queue-uae` | Walk-in queue for clinics: take a number, live place in the queue, TV screen, WhatsApp when two are ahead |
 | `catalog` | Small product catalog with order form and JSON API |
 | Task list | Minimal CRUD reference app |
 

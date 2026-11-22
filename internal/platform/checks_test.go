@@ -101,7 +101,7 @@ func TestChecksRenderParamAndSignedInRoutes(t *testing.T) {
 func TestExamplesPassBroaderChecks(t *testing.T) {
 	p := newPlatform(t)
 	ctx := context.Background()
-	for _, name := range []string{"home-service-uae", "store-uae", "booking-uae", "reservation-uae", "quote-portal-uae", "listings-uae", "catalog", "tasks", "delivery-tracking"} {
+	for _, name := range []string{"home-service-uae", "store-uae", "booking-uae", "reservation-uae", "quote-portal-uae", "listings-uae", "clinic-queue-uae", "catalog", "tasks", "delivery-tracking"} {
 		app := "ex-" + strings.ReplaceAll(name, "-uae", "")
 		_, res, err := p.CreateFromExample(ctx, "usr_test", app, name)
 		if err != nil || !res.OK {

@@ -164,3 +164,11 @@ func PaidWorkApp(t *testing.T, p *Platform, app string) {
 		t.Fatal(err)
 	}
 }
+
+// UseWhatsApp counts n WhatsApp messages of this month for an account, as
+// sign-in codes and notices would.
+func UseWhatsApp(p *Platform, owner string, n int) {
+	for i := 0; i < n; i++ {
+		p.addUsage(owner, "whatsapp")
+	}
+}

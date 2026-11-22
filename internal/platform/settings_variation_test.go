@@ -25,6 +25,7 @@ func TestExampleSettingsAtZeroAndEmpty(t *testing.T) {
 			"/api/availability?item=4&start=" + dubaiDate(3) + "&end=" + dubaiDate(5) + "&qty=1", "/reservations"}},
 		{"quote-portal-uae", "business", []string{"/", "/enquiry", "/portal"}},
 		{"listings-uae", "agency", []string{"/", "/l/1", "/search", "/agents/1"}},
+		{"clinic-queue-uae", "clinic", []string{"/", "/s/1", "/screen", "/kiosk", "/api/queue", "/staff/report"}},
 	}
 	for _, x := range examplesToCheck {
 		ex, _ := examples.Get(x.example)

@@ -12,7 +12,8 @@ import { test, expect } from '@playwright/test';
 import { appURL, RENOXIUM } from '../env.mjs';
 import { person, signUp, email, unique, connectAgent, builder } from '../lib.mjs';
 
-// demo, list page, prefix of the shared view-transition-name, the detail page's path
+// demo, list page, prefix of the shared view-transition-name, the detail page's path. The clinic demo's service cards
+// show icons, not photos, so its cards move their titles: TITLES covers it.
 const NAVS = [
   ['demo-store-uae', '/', 'pimg-', /^\/p\/\d+$/],
   ['demo-booking-uae', '/', 'simg-', /^\/s\/\d+$/],
@@ -147,6 +148,7 @@ const TITLES = [
   ['reservation-uae', 'ittl-', /^\/item\/\d+$/],
   ['listings-uae', 'lttl-', /^\/l\/\d+$/],
   ['quote-portal-uae', 'kttl-', /^\/packages\/\d+$/],
+  ['clinic-queue-uae', 'sttl-', /^\/s\/\d+$/],
 ];
 
 // The named title: a box of its own (class vtt) that hugs its text, so the snapshot is the words and nothing else, and
