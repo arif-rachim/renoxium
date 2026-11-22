@@ -146,6 +146,11 @@ Renoxium runs untrusted, agent-written code for many tenants on shared infrastru
 | Pro | AED 99 / month | 3 | Custom domain; higher storage, email and API quotas |
 | Business | AED 299 / month | 10 | Highest quotas |
 
+**No credits.** Building and changing apps through the agent is unlimited on every plan, the Free plan included, and is never
+charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. Claude's free
+plan is enough (it allows one custom connector); in ChatGPT, adding the connector by its address needs developer mode, which is
+on its paid plans.
+
 Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
 
 ---

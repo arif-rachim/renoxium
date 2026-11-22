@@ -66,7 +66,7 @@ func (s *Site) llmsFull() string {
 	for _, p := range sitePlans {
 		b.WriteString("- " + p.Name + ": AED " + p.Price + " a month. " + p.Text + "\n")
 	}
-	b.WriteString("\nStripe charges its own card fees on every plan. Building and changing a site through the assistant is unlimited on every plan; the owner needs their own ChatGPT or Claude account.\n\n")
+	b.WriteString("\nStripe charges its own card fees on every plan. Renoxium has no credits: building and changing a site through the assistant is unlimited on every plan and never charged per request. The owner uses their own ChatGPT or Claude account; Claude's free plan is enough (it allows one custom connector), and in ChatGPT adding the connector by its address needs developer mode, which is on its paid plans.\n\n")
 	b.WriteString("## Pages\n\n")
 	for _, p := range publicPages {
 		b.WriteString("- " + s.base + p + "\n")
@@ -78,9 +78,9 @@ const siteDescription = "Renoxium builds and hosts websites for UAE small busine
 
 // sitePlans mirrors the pricing section of the landing page.
 var sitePlans = []struct{ Name, Price, Text string }{
-	{"Free", "0", "1 site; Renoxium takes 2% of card payments; 50 WhatsApp sign-in codes a month; 200 MB of images; a small \"Made with Renoxium\" badge."},
-	{"Pro", "99", "3 sites; no Renoxium fee on card payments; 500 WhatsApp sign-in codes a month; 2 GB of images; your own domain; 2 staff per site; no badge."},
-	{"Business", "299", "10 sites; no Renoxium fee on card payments; 2,000 WhatsApp sign-in codes a month; 10 GB of images; your own domain; 10 staff per site; no badge."},
+	{"Free", "0", "Unlimited building and changes; 1 site; Renoxium takes 2% of card payments; 50 WhatsApp sign-in codes a month; 200 MB of images; a small \"Made with Renoxium\" badge."},
+	{"Pro", "99", "Unlimited building and changes; 3 sites; no Renoxium fee on card payments; 500 WhatsApp sign-in codes a month; 2 GB of images; your own domain; 2 staff per site; no badge."},
+	{"Business", "299", "Unlimited building and changes; 10 sites; no Renoxium fee on card payments; 2,000 WhatsApp sign-in codes a month; 10 GB of images; your own domain; 10 staff per site; no badge."},
 }
 
 var (

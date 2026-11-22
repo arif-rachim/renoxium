@@ -2,6 +2,8 @@ package web
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/arif-rachim/renoxium/examples"
 	"github.com/arif-rachim/renoxium/internal/accounts"
@@ -15,6 +17,7 @@ func (s *Site) registerGallery() {
 	s.mux.HandleFunc("GET /templates", s.galleryPage)
 	s.mux.HandleFunc("GET /templates/{example}", s.galleryDemo)
 	s.mux.HandleFunc("GET /templates/{example}/admin", s.galleryAdmin)
+	s.mux.HandleFunc("POST /templates/{example}/use", s.useTemplate)
 }
 
 type galleryCard struct {
@@ -56,7 +59,7 @@ func (s *Site) galleryPage(w http.ResponseWriter, r *http.Request) {
 	// Signed in, the templates sit in the console like the other account
 	// pages; the page differs by visitor, so it is not cached.
 	if u, ok := s.currentUser(r); ok {
-		render(w, http.StatusOK, "templates_app", map[string]any{"Groups": groups, "Shell": s.ownerShell(u, "Templates", "/templates", s.csrfToken(w, r))})
+		s.renderTemplatesApp(w, r, u, http.StatusOK, "", "", "")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -122,5 +125,57 @@ const galleryCopyScript = `<script>document.addEventListener("click",function(e)
 const galleryCardsHTML = `{{range .Groups}}{{$job := .Job}}{{range .Cards}}<article class="tcard" id="{{.Name}}">
 <a class="pic" href="{{.DemoURL}}/" tabindex="-1">{{if .Wide.File}}<img src="{{.Wide.Src}}" width="{{.Wide.W}}" height="{{.Wide.H}}" alt="{{.Wide.Alt}}" loading="lazy">{{end}}</a>
 <div class="tx"><h3>{{.Title}}</h3><p class="job">{{$job}}</p><p class="sum" title="{{.Summary}}">{{.Summary}}</p>
+{{if $.CSRF}}<form class="use" method="post" action="/templates/{{.Name}}/use"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<label class="vh" for="n-{{.Name}}">Name of your app</label><input id="n-{{.Name}}" name="app" required pattern="[a-z][a-z0-9\-]{1,38}[a-z0-9]" placeholder="your-business-name" autocomplete="off" autocapitalize="off" spellcheck="false"{{if eq $.UseFor .Name}} value="{{$.UseName}}" autofocus{{end}}>
+<button>Use this template</button></form>{{if and (eq $.UseFor .Name) $.UseError}}<p class="field-error" role="alert">{{$.UseError}}</p>{{end}}
+{{else}}<p class="use"><a class="usebtn" href="/signup?next={{print "/templates?use=" .Name | urlquery}}">Use this template</a></p>{{end}}
 <div class="tlinks"><a href="{{.DemoURL}}/">Try the demo</a><a href="{{.AdminURL}}">Admin panel</a><button type="button" data-prompt="{{.Prompt}}">Copy the request</button></div></div></article>{{end}}{{end}}
 <article class="tcard more"><h3>Something in between?</h3><p>Start from the closest template and tell your assistant what to change: other fields on a form, your own sections and texts, your colours and photos.</p><a href="/connect">How to connect ChatGPT or Claude</a></article>`
+
+func (s *Site) renderTemplatesApp(w http.ResponseWriter, r *http.Request, u accounts.User, status int, useFor, useName, useErr string) {
+	csrf := s.csrfToken(w, r)
+	if useFor == "" {
+		useFor = r.URL.Query().Get("use") // back from sign-up with a template chosen
+	}
+	render(w, status, "templates_app", map[string]any{"Groups": galleryGroups(s.galleryCards()), "CSRF": csrf,
+		"UseFor": useFor, "UseName": useName, "UseError": useErr, "Shell": s.ownerShell(u, "Templates", "/templates", csrf)})
+}
+
+// galleryInfo returns the title of a template shown in the gallery.
+func galleryInfo(name string) (string, bool) {
+	e, ok := examples.Get(name)
+	if !ok || e.Gallery == nil {
+		return "", false
+	}
+	return e.Gallery.Title, true
+}
+
+// useTemplate creates one of the owner's apps from a template, with the
+// template's sample rows on its private preview, without any AI: the owner
+// sees a working app first, then changes it with their assistant.
+func (s *Site) useTemplate(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.currentUser(r)
+	if !ok {
+		http.Redirect(w, r, "/signup?next="+url.QueryEscape("/templates?use="+r.PathValue("example")), http.StatusSeeOther)
+		return
+	}
+	if !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	example := r.PathValue("example")
+	if _, ok := galleryInfo(example); !ok {
+		http.NotFound(w, r)
+		return
+	}
+	name := strings.ToLower(strings.TrimSpace(r.PostFormValue("app")))
+	if _, _, err := s.platform.CreateFromExample(r.Context(), u.ID, name, example); err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "already taken") || strings.Contains(msg, "UNIQUE") {
+			msg = "That name is taken. Try another, for example with your area: " + name + "-dubai."
+		}
+		s.renderTemplatesApp(w, r, u, http.StatusBadRequest, example, name, msg)
+		return
+	}
+	http.Redirect(w, r, "/apps/"+name+"?new="+url.QueryEscape(example), http.StatusSeeOther)
+}
