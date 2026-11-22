@@ -145,19 +145,21 @@ set. Without `STRIPE_SECRET_KEY`, live apps cannot take card payments; previews 
 Without the webhook secret, payments are taken but orders are not marked paid. Move to live keys only after
 testing a full payment in the sandbox, and create the live webhook the same way.
 
-### Renoxium plans: Free, Pro and Business (optional)
+### Renoxium plans: shops, work apps and granted plans (optional)
 
-Accounts pay Renoxium through subscriptions on the Renoxium platform's own Stripe account. Free accounts
-pay a 2% Renoxium fee on their shops' card payments (taken by Stripe as an application fee), show a small
-"Made with Renoxium" badge on live pages and may create 1 app; Pro (AED 99 a month, 3 apps) and Business
-(AED 299 a month, 10 apps) pay no fee and show no badge. Owners manage their plan at `/billing`.
+Each app is paid for by what it does. A static site is free. A shop pays a 2% Renoxium fee on its card
+payments (taken by Stripe as an application fee). A work app has its own AED 99 monthly subscription on the
+Renoxium platform's own Stripe account, bought on the app's Plan page; when it ends, the app is paused. An
+operator can grant an account the Pro or Business plan (the agreed price for larger businesses), which covers
+every app. Owners see their apps' plans at `/billing`.
 
 In the Stripe Dashboard of the platform account (start in the sandbox):
 
-1. **Product catalog:** create the products "Renoxium Pro" and "Renoxium Business", each with a recurring
-   monthly price in AED (99 and 299). Copy both price IDs (`price_...`).
+1. **Product catalog:** create the product "Renoxium work app" with a recurring monthly price of AED 99, and
+   copy its price ID (`price_...`). Accounts that already pay for "Renoxium Pro" or "Renoxium Business"
+   (AED 99 and AED 299 a month) keep them; set those price IDs too so their subscriptions are recognised.
 2. **Settings, Billing, Customer portal:** activate it. Allow updating payment methods, viewing invoices,
-   cancelling, and switching between the two prices.
+   and cancelling.
 3. **Developers, Webhooks:** add a second endpoint, separate from the payments one:
    - URL: `https://www.renoxium.com/stripe/billing-webhook`
    - Listen to: **Events on your account**
@@ -169,6 +171,7 @@ Add them to `/etc/renoxium/env` and restart:
 
 ```bash
 sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
+STRIPE_PRICE_WORK_APP=price_your_work_app_price
 STRIPE_PRICE_PRO=price_your_pro_price
 STRIPE_PRICE_BUSINESS=price_your_business_price
 STRIPE_BILLING_WEBHOOK_SECRET=whsec_your_billing_secret
@@ -179,7 +182,7 @@ ENV
 sudo systemctl restart renoxium && sudo journalctl -u renoxium -n 30 --no-pager | grep -i plans
 ```
 
-The log line `Renoxium plans` must show all three as set. Subscription revenue appears in Stripe under
+The log line `Renoxium plans` must show the work app price and the webhook secret as set. Subscription revenue appears in Stripe under
 Billing, Subscriptions; the 2% fees under Connect, Collected fees.
 
 To give an account a plan without payment (your own account, partners, trials):

@@ -1233,7 +1233,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and its uploaded photos and files.</p>
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
-<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
+<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if or (ne .Billing.Plan "free") .WorkApps}} Your paid plan and work app subscriptions are cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
 <label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger">Delete my account</button></form></div>{{template "appbottom"}}{{end}}
@@ -1414,7 +1414,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="bento fill" style="grid-template-columns:minmax(280px,1fr) minmax(0,2.4fr)">
 <section class="panel bcell"><div class="ph"><h2>Stripe</h2></div>
 {{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
-{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and on the Free plan Renoxium takes {{.Fee}}% of each card payment (<a href="/billing">no fee on Pro and Business</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
+{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and as a shop Renoxium takes {{.Fee}}% of each card payment (<a href="/apps/{{.App}}/plan">see Plan</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
 <div class="note"><p><strong>Before you start, have these ready.</strong> Stripe checks every business by law, and its form takes 15–30 minutes. In the UAE it usually asks for:</p>
 <ul><li>the trade licence and the memorandum of association (for a company)</li><li>the passport and Emirates ID or visa of the owner and of each person owning 25% or more</li>
 <li>the business address and phone number</li><li>a UAE bank account in the business's name (IBAN), for payouts</li></ul>
@@ -1434,7 +1434,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{else if eq .Status "authorized"}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/capture" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Authorized}}" aria-label="Amount to take (empty = all {{printf "%.2f" .Authorized}})" style="width:7em;margin:0"> <button style="margin:0;padding:4px 10px">Capture</button></form>
 <form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/release" class="inline" onsubmit="return confirm('Release the hold? Nothing is charged.')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin:0;padding:4px 10px">Release</button></form>{{end}}</td></tr>{{end}}
-</tbody></table></div>{{template "pager" .Pager}}<p class="muted" style="margin-top:12px">Refund: leave the amount empty to refund everything that is left, or type part of it. On the Free plan Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
+</tbody></table></div>{{template "pager" .Pager}}<p class="muted" style="margin-top:12px">Refund: leave the amount empty to refund everything that is left, or type part of it. In a shop Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
 {{else}}<p class="muted" style="margin:0">{{if .Filter}}No payments with this status.{{else}}No payments yet.{{end}}</p>{{end}}
 {{if .Subscriptions}}<h2 style="margin:28px 0 12px;font-size:20px">Subscriptions</h2><div class="tablebox"><table class="rx"><thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Next payment</th><th>Customer</th><th></th></tr></thead><tbody>
 {{range .Subscriptions}}<tr><td class="t" data-label="Reference">{{.Reference}}</td><td data-label="Status">{{.Status}}{{if .CancelAtPeriodEnd}}{{if ne .Status "canceled"}}, ends at period end{{end}}{{end}}</td>

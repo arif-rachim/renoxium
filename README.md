@@ -141,11 +141,18 @@ Renoxium runs untrusted, agent-written code for many tenants on shared infrastru
 
 ## Plans
 
-| Plan | Price | Apps | Notes |
-|---|---|---|---|
-| Free | AED 0 | 1 | 2% application fee on card payments; "Made with Renoxium" badge |
-| Pro | AED 99 / month | 3 | Custom domain; higher storage, email and API quotas |
-| Business | AED 299 / month | 10 | Highest quotas |
+Each app is paid for by what it does. A free account may have 10 apps; no app carries Renoxium branding.
+
+| App | Price | Notes |
+|---|---|---|
+| Static site | Free | Only pages and photos (no tables, scripts, jobs or sign-in); keeps its Renoxium address |
+| Shop | AED 0 + 2% of card payments | Takes money from its customers; the fee is a Stripe application fee. Custom domain, 2 staff |
+| Work app | AED 99 / month per app | Does not charge its customers (CRM, queue, attendance), or a shop paid only in cash or by transfer. Custom domain, 5 staff, Pro limits; paused when its subscription ends |
+| Larger businesses | By agreement | An operator grants the account the Pro or Business plan: every app covered, no fee |
+
+The owner chooses shop or work app on the app's Plan page (`/apps/<app>/plan`) before a non-static app first goes live.
+Apps that were live before this rule keep running until they are published again. The account-wide Pro (AED 99) and
+Business (AED 299) subscriptions still work for accounts that have them, but are no longer sold on the billing page.
 
 **No credits.** Building and changing apps through the agent is unlimited on every plan, the Free plan included, and is never
 charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. Claude's free

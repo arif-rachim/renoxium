@@ -5,12 +5,11 @@
 import http from 'node:http';
 import { test, expect } from '@playwright/test';
 import { PORT } from '../env.mjs';
-import { person, ownerWithStore, signUp, email, waitEmail, fake, upgrade } from '../lib.mjs';
+import { person, ownerWithStore, signUp, email, waitEmail, fake } from '../lib.mjs';
 
 let shop;
 test.beforeAll(async ({ browser }) => {
-  shop = await ownerWithStore(browser);
-  await upgrade(shop.page, 'Pro'); // staff and domains need a paid plan
+  shop = await ownerWithStore(browser); // a shop: staff and its own domain included
 });
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');

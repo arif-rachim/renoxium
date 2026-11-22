@@ -59,17 +59,17 @@ func (s *Site) appPlanAction(w http.ResponseWriter, r *http.Request) {
 		notFound(w, err)
 		return
 	}
-	switch action := r.PostFormValue("action"); action {
-	case "shop", "work":
-		if pl.WorkPaid && action == "shop" {
+	switch r.PostFormValue("action") {
+	case "shop":
+		if pl.WorkPaid {
 			s.renderAppPlan(w, r, app, http.StatusConflict, "Cancel the work app subscription first (Manage subscription), then make the app a shop.")
 			return
 		}
-		if err := s.platform.SetAppKind(app, action); err != nil {
+		if err := s.platform.SetAppKind(app, platform.KindShop); err != nil {
 			serverError(w, err)
 			return
 		}
-		s.platform.Note(app, u.Email+" made the app a "+map[string]string{"shop": "shop", "work": "work app"}[action])
+		s.platform.Note(app, u.Email+" made the app a shop")
 		http.Redirect(w, r, "/apps/"+app+"/plan", http.StatusSeeOther)
 	case "subscribe":
 		if !s.Billing.workReady() {
@@ -84,10 +84,7 @@ func (s *Site) appPlanAction(w http.ResponseWriter, r *http.Request) {
 			s.renderAppPlan(w, r, app, http.StatusTooManyRequests, "Too many attempts. Try again in a few minutes.")
 			return
 		}
-		if err := s.platform.SetAppKind(app, platform.KindWork); err != nil {
-			serverError(w, err)
-			return
-		}
+		// The app becomes a work app once Stripe confirms the subscription.
 		cus, err := s.customer(r.Context(), u)
 		if err != nil {
 			slog.Error("billing customer", "user", u.ID, "err", err)

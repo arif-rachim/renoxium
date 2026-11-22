@@ -12,4 +12,5 @@ export const SECRETS = {
   billingWebhook: 'whsec_e2e_billing',
   pricePro: 'price_e2e_pro',
   priceBusiness: 'price_e2e_business',
+  priceWorkApp: 'price_e2e_work_app',
 };

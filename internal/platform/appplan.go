@@ -135,13 +135,15 @@ func (p *Platform) SetAppKind(app, kind string) error {
 	return err
 }
 
-// SetWorkSubscription records the app's work app subscription as Stripe has it.
+// SetWorkSubscription records the app's work app subscription as Stripe has
+// it. A subscription in force makes the app a work app.
 func (p *Platform) SetWorkSubscription(app, subscription, status string, periodEnd time.Time) error {
 	var end int64
 	if !periodEnd.IsZero() {
 		end = periodEnd.Unix()
 	}
-	_, err := p.db.Exec(`UPDATE apps SET work_sub = ?, work_status = ?, work_period_end = ? WHERE name = ?`, subscription, status, end, app)
+	_, err := p.db.Exec(`UPDATE apps SET work_sub = ?, work_status = ?, work_period_end = ?,
+		plan_kind = CASE WHEN ? THEN 'work' ELSE plan_kind END WHERE name = ?`, subscription, status, end, workPaying[status], app)
 	p.lapsed.Delete(app)
 	return err
 }
@@ -153,6 +155,13 @@ func (p *Platform) AppOfWorkSubscription(subscription string) string {
 		p.db.QueryRow(`SELECT name FROM apps WHERE work_sub = ?`, subscription).Scan(&app)
 	}
 	return app
+}
+
+// PaidWorkApps is how many work apps have a subscription in force.
+func (p *Platform) PaidWorkApps() int {
+	var n int
+	p.db.QueryRow(`SELECT count(*) FROM apps WHERE plan_kind = ? AND work_status IN ('active', 'trialing', 'past_due')`, KindWork).Scan(&n)
+	return n
 }
 
 // quotaPlan is the plan whose limits an account's apps get: an account on

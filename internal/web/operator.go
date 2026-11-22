@@ -79,6 +79,7 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 	for plan, n := range paying {
 		mrr += accounts.PlanPriceAED[plan] * n
 	}
+	mrr += platform.WorkAppPriceAED * s.platform.PaidWorkApps() // work apps, each its own subscription
 	users, _ := s.accounts.Users(q, 100)
 	appSearch := q
 	if u, err := s.accounts.UserByEmail(q); err == nil {

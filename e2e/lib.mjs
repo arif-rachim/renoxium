@@ -164,22 +164,43 @@ export async function mcp(url, token) {
 }
 export const builder = (token) => mcp(RENOXIUM + '/mcp', token);
 
-// publishFromConfirm opens the publish confirmation link and publishes.
-export async function confirmPublish(page, confirmURL) {
+// choosePlan sets how an app is paid for on its Plan page: a shop, or a
+// work app subscribed through the (fake) Stripe Checkout.
+export async function choosePlan(page, app, plan = 'shop') {
+  await page.goto(`/apps/${app}/plan`);
+  if (plan === 'shop') {
+    const make = page.getByRole('button', { name: 'Make it a shop' });
+    if (await make.count()) await make.click();
+    await expect(page.locator('body')).toContainText(/the shop (can go live|takes card payments)/);
+    return;
+  }
+  await page.getByRole('button', { name: /^(Make it a work app|Subscribe), AED 99 a month$/ }).click();
+  await page.getByRole('button', { name: 'Pay' }).click();
+  await page.waitForURL(new RegExp(`/apps/${app}/plan\\?done=1`));
+  await expect(page.getByRole('button', { name: 'Manage subscription' })).toBeVisible();
+}
+
+// confirmPublish opens the publish confirmation link and publishes. An app
+// whose plan is not chosen yet is made a shop (or `plan`) first.
+export async function confirmPublish(page, confirmURL, { plan = 'shop' } = {}) {
   await page.goto(confirmURL);
+  if (await page.getByRole('link', { name: 'Choose a plan' }).count()) {
+    await choosePlan(page, new URL(confirmURL, RENOXIUM).pathname.split('/')[2], plan);
+    await page.goto(confirmURL);
+  }
   await page.getByRole('button', { name: /Publish|Roll back/ }).click();
   await expect(page.locator('body')).toContainText(/live/i);
 }
 
 // buildStore creates a store-uae app through the agent and publishes it.
-export async function buildStore(page, agent, app, { shopName = 'E2E Perfumes', whatsapp = '+971500000001' } = {}) {
+export async function buildStore(page, agent, app, { shopName = 'E2E Perfumes', whatsapp = '+971500000001', plan = 'shop' } = {}) {
   await agent.call('create_app', { app });
   const def = storeExample();
   def.seed.store[0].name = shopName;
   if ('whatsapp' in def.seed.store[0]) def.seed.store[0].whatsapp = whatsapp;
   const applied = await agent.call('apply_change', { app, definition: def });
   const pub = await agent.call('publish', { app });
-  await confirmPublish(page, pub.confirm_url);
+  await confirmPublish(page, pub.confirm_url, { plan });
   return { def, applied, pub, live: appURL(app), preview: appURL(app, true) };
 }
 
@@ -225,14 +246,6 @@ export async function connectStripe(page, app, choice = 'Submit and activate') {
 }
 
 
-// upgrade buys a plan through /billing and the (fake) Stripe Checkout.
-export async function upgrade(page, plan = 'Pro') {
-  await page.goto('/billing');
-  await page.getByRole('button', { name: `Choose ${plan}` }).click();
-  await page.getByRole('button', { name: 'Pay' }).click();
-  await page.waitForURL(/\/billing\?done=1/);
-  await expect(page.locator('body')).toContainText(`Current plan: ${plan}`);
-}
 // portal opens Manage billing and presses one of the (fake) portal's buttons.
 export async function portal(page, action) {
   await page.goto('/billing');

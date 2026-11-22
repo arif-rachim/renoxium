@@ -69,7 +69,13 @@ func (s *Site) renderAccount(w http.ResponseWriter, r *http.Request, u accounts.
 	apps, _ := s.platform.Apps(u.ID)
 	b, _ := s.accounts.Billing(u.ID)
 	csrf := s.csrfToken(w, r)
-	data := map[string]any{"User": u, "CSRF": csrf, "Apps": apps, "Billing": b, "PlanName": planName(b.Plan), "Connections": s.connections(u.ID),
+	workApps := 0
+	for _, a := range apps {
+		if pl, err := s.platform.AppPlan(a.App); err == nil && pl.WorkPaid {
+			workApps++
+		}
+	}
+	data := map[string]any{"User": u, "CSRF": csrf, "Apps": apps, "Billing": b, "PlanName": planName(b.Plan), "Connections": s.connections(u.ID), "WorkApps": workApps,
 		"Shell": s.ownerShell(u, "Account", "/account", csrf)}
 	for k, v := range extra {
 		data[k] = v
@@ -188,13 +194,13 @@ func (s *Site) cancelSubscriptions(ctx context.Context, userID string) error {
 	if err != nil || b.Customer == "" {
 		return err
 	}
-	if !s.Billing.ready() {
+	if s.Billing.Stripe == nil {
 		if b.Plan != accounts.PlanFree && b.Status != accounts.StatusGranted {
 			return errors.New("billing is not configured on this server")
 		}
 		return nil
 	}
-	subs, err := s.Billing.Stripe.Subscriptions(ctx, b.Customer)
+	subs, err := s.Billing.Stripe.Subscriptions(ctx, b.Customer) // the account's plan and its work apps
 	if err != nil {
 		return err
 	}
