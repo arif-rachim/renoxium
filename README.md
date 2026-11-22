@@ -161,6 +161,13 @@ on its paid plans.
 
 Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
 
+**Unused accounts are paused.** A free account (no paid or granted plan, no paid work app) with no activity for 6 months is
+deactivated: every live app of the account shows a "paused" page, its scheduled jobs stop, and nothing is deleted. Activity is the
+owner or a staff member using the signed-in site, an agent calling the MCP server, a publish, or a paid card payment through
+Renoxium's checkout; visitors opening a site do not count. The owner is emailed 30 days before, once, with the date. They bring
+it back by signing in and pressing Reactivate on the dashboard; operators see deactivated accounts at `/operator/accounts` and
+can reactivate them too. The check runs daily; the two numbers are `accounts.InactiveMonths` and `accounts.WarnDays`.
+
 Owners of a paid work app, or on Pro or Business, can also run it on their own server: the export carries a signed licence, and the same binary with `-self-hosted` serves that one app with its admin panel, payments on the owner's own Stripe account and email through their own sender. See [docs/self-host.md](docs/self-host.md).
 
 ---
