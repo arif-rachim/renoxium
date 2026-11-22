@@ -1243,8 +1243,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{.PaidPrice}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else if .Billing.Yearly}}/ year{{else}}/ month{{end}}</span></p>
 {{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
 {{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
-<p class="muted">No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
-{{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>{{end}}</div>
+<p class="muted">No Renoxium fee on your shops' card payments.</p>
+{{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops, and nothing when there are none.</p>{{end}}</div>
 {{if .CanManage}}<div><div class="acts"><form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form></div>
 <p class="fine" style="margin-top:8px">Change plan, update your card, download invoices or cancel.</p></div>{{end}}</div></section>
 
@@ -1312,7 +1312,6 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
 <div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
 <section class="panel bcell"><div class="ph"><h2>Domain</h2></div>{{if not .Available}}<p>Custom domains are not available on this Renoxium server yet.</p>
-{{else if not .Allowed}}<p>Custom domains are included in the <a href="/billing">Pro and Business plans</a>.</p>
 {{else if not .Domain}}<p>Serve this app on a domain you own, such as <strong>www.yourshop.com</strong>. A subdomain like www works with every domain provider.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="add">
 <label for="host">Domain</label><input id="host" name="host" placeholder="www.yourshop.com" required autocomplete="off"><button>Add domain</button></form>

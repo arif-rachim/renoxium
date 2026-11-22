@@ -14,7 +14,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/stripe"
 )
 
-func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
+func TestPlansDecideFeeAndAppLimit(t *testing.T) {
 	fs := &fakeStripe{charges: true}
 	srv := fs.server(t)
 	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
@@ -40,7 +40,7 @@ func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 		}
 	}
 
-	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, a badge, and three apps only.
+	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, and three apps only.
 	do(t, p, "POST", "free-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
 		t.Fatalf("free plan fee = %q", fee)
@@ -54,7 +54,7 @@ func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 		!strings.Contains(err.Error(), "https://www.renoxium.test/billing") {
 		t.Fatalf("fourth free app: %v", err)
 	}
-	// Pro: no fee, no badge, more apps.
+	// Pro: no fee, more apps.
 	do(t, p, "POST", "pro-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
 		t.Fatalf("pro plan fee = %q", fee)
@@ -64,7 +64,8 @@ func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 	}
 }
 
-func TestFreePlanBadgeOnLivePagesOnly(t *testing.T) {
+// No plan adds Renoxium branding to an owner's pages.
+func TestNoBadgeOnAnyPlan(t *testing.T) {
 	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
 		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
@@ -74,21 +75,13 @@ func TestFreePlanBadgeOnLivePagesOnly(t *testing.T) {
 	defer p.Close()
 	page := &appdef.App{Templates: map[string]string{"t": "<!doctype html><html><head></head><body><h1>Shop</h1></body></html>"},
 		Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}}
-	for owner, want := range map[string]bool{"usr_free": true, "usr_pro": false} {
+	for _, owner := range []string{"usr_free", "usr_pro"} {
 		app := strings.TrimPrefix(owner, "usr_") + "-page"
 		p.CreateApp(owner, app)
 		p.ApplyChange(context.Background(), app, page)
 		p.Publish(app, 0)
-		live := do(t, p, "GET", app+".renoxium.test", "/", nil)
-		if got := strings.Contains(live.body, "Made with Renoxium"); got != want {
-			t.Errorf("%s live badge = %v", owner, got)
-		}
-		if want && strings.Index(live.body, "Made with Renoxium") > strings.Index(live.body, "</body>") {
-			t.Error("badge after </body>")
-		}
-		res, _ := p.TestRequest(context.Background(), app, platform.TestRequestInput{Path: "/"})
-		if strings.Contains(res.Body, "Made with Renoxium") {
-			t.Errorf("%s preview shows the badge", owner)
+		if live := do(t, p, "GET", app+".renoxium.test", "/", nil); !strings.Contains(live.body, "<h1>Shop</h1>") || strings.Contains(live.body, "Renoxium") {
+			t.Errorf("%s live page: %s", owner, live.body)
 		}
 	}
 }

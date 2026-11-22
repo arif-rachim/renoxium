@@ -97,9 +97,9 @@ func planCards(current string, yearly bool) []planCard {
 			thousands(platform.FetchCallsPerPlan[plan]) + " external API calls a month",
 			staff}
 		if plan == accounts.PlanFree {
-			return append(out, strconv.Itoa(platform.FreePlanFeePercent)+"% fee on card payments", `"Made with Renoxium" badge`)
+			return append(out, "Your own domain", strconv.Itoa(platform.FreePlanFeePercent)+"% fee on card payments")
 		}
-		return append(out, "Your own domain", "No fee on card payments", "No Renoxium badge")
+		return append(out, "Your own domain", "No fee on card payments")
 	}
 	cards := []planCard{
 		{ID: accounts.PlanFree, Name: "Free", Price: "0", Tagline: "Try Renoxium for free.", Features: f(accounts.PlanFree)},

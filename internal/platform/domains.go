@@ -64,11 +64,6 @@ func (p *Platform) CustomDomainsAvailable() bool {
 	return p.cfg.Cloudflare != nil && p.cfg.CustomDomainTarget != ""
 }
 
-// CustomDomainAllowed reports whether the app's owner's plan includes it.
-func (p *Platform) CustomDomainAllowed(app string) bool {
-	return p.cfg.OwnerPlan == nil || p.planOf(p.ownerOf(app)) != planFree
-}
-
 // CustomDomain returns the app's domain, or nil.
 func (p *Platform) CustomDomain(app string) (*CustomDomain, error) {
 	var d CustomDomain
@@ -182,9 +177,6 @@ func (p *Platform) saveDomain(app string, h cloudflare.Hostname) (*CustomDomain,
 func (p *Platform) SetCustomDomain(ctx context.Context, app, host string) (*CustomDomain, error) {
 	if !p.CustomDomainsAvailable() {
 		return nil, errors.New("custom domains are not available on this Renoxium server yet")
-	}
-	if !p.CustomDomainAllowed(app) {
-		return nil, fmt.Errorf("custom domains need the Pro or Business plan (%s/billing)", p.cfg.SiteURL)
 	}
 	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
 	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")

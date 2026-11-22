@@ -79,8 +79,12 @@ func TestCustomDomainLifecycle(t *testing.T) {
 		p.Publish(app, 0)
 	}
 
-	if _, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err == nil || !strings.Contains(err.Error(), "Pro") {
-		t.Errorf("free plan: err = %v", err)
+	// Custom domains are on every plan, the Free plan included.
+	if d, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err != nil || d.Host != "www.free.ae" {
+		t.Errorf("free plan: %v %v", d, err)
+	}
+	if err := p.RemoveCustomDomain(ctx, "free-shop"); err != nil {
+		t.Errorf("free plan remove: %v", err)
 	}
 	for _, bad := range []string{"not a domain", "shop.renoxium.test", "renoxium.com"} {
 		if _, err := p.SetCustomDomain(ctx, "oud", bad); err == nil {

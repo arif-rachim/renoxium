@@ -298,7 +298,7 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
 <div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
 <div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
-<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div></dl></section>
+<div><dt>Your own domain</dt><dd>www.yourshop.ae, on every plan.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
@@ -308,9 +308,9 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <li><strong>Public from day one.</strong> Publish and anyone can open your site at yourname.renoxium.app, not only people you invite.</li>
 <li><strong>Nothing to pay before you sell.</strong> A site that only shows your business costs nothing. Cash on delivery is never charged.</li></ul>
 <div class="prices" style="grid-template-columns:minmax(0,36em)">
-<div class="plan pick" data-r><h3>Free</h3><p class="for">For every business, from the first day</p><p class="amount">AED 0 <span>+ {{.Fee}}% of card payments</span></p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>Orders, bookings, an admin panel and customer sign-in</li><li>Card payments through Renoxium's checkout, to your own Stripe account</li><li>On AED 1,000 of card sales Renoxium takes AED {{.FeeOn1k}}; with no card sales, nothing</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn" href="/signup">Create your account</a></div>
+<div class="plan pick" data-r><h3>Free</h3><p class="for">For every business, from the first day</p><p class="amount">AED 0 <span>+ {{.Fee}}% of card payments</span></p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>Orders, bookings, an admin panel and customer sign-in</li><li>Card payments through Renoxium's checkout, to your own Stripe account</li><li>On AED 1,000 of card sales Renoxium takes AED {{.FeeOn1k}}; with no card sales, nothing</li><li>Your own domain, and no Renoxium branding on your site</li></ul><a class="btn" href="/signup">Create your account</a></div>
 </div>
-<p class="sum" data-r><b>Want your own domain and no badge?</b> Pro is AED 99 a month{{if .Yearly}}, or AED {{.ProYear}} a year{{end}}, with no Renoxium fee on card payments. It is cheaper than {{.Fee}}% once your card sales pass AED {{.ProFrom}} a month. Choose it from your account at any time.</p>
+<p class="sum" data-r><b>Selling a lot by card?</b> Pro is AED 99 a month{{if .Yearly}}, or AED {{.ProYear}} a year{{end}}, with no Renoxium fee on card payments. It is cheaper than {{.Fee}}% once your card sales pass AED {{.ProFrom}} a month. Choose it from your account at any time.</p>
 <p class="note">Stripe charges its own card fees to your Stripe account on every plan. You build with your own ChatGPT or Claude account; Claude's free plan is enough.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
@@ -622,7 +622,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
 <div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
 <div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div>
-<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourshop.ae</span> في خطتي Pro و Business.</dd></div></dl></section>
+<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourshop.ae</span>، في كل الخطط.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
@@ -632,9 +632,9 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <li><strong>متاح للجميع من اليوم الأول.</strong> انشر موقعك ويستطيع أي شخص فتحه على yourname.renoxium.app، لا من تدعوهم فقط.</li>
 <li><strong>لا تدفع شيئاً قبل أن تبيع.</strong> الموقع الذي يعرّف بنشاطك فقط لا يكلّف شيئاً. والدفع عند الاستلام بلا رسوم أبداً.</li></ul>
 <div class="prices" style="grid-template-columns:minmax(0,36em)">
-<div class="plan pick" data-r><h3>Free</h3><p class="for">لكل نشاط، من اليوم الأول</p><p class="amount">0 درهم <span>+ {{.Fee}}% من مدفوعات البطاقة</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>طلبات وحجوزات ولوحة تحكم وتسجيل دخول للعملاء</li><li>مدفوعات البطاقة عبر صفحة الدفع في Renoxium، إلى حسابك في Stripe</li><li>عن كل 1,000 درهم مبيعات بالبطاقة يأخذ Renoxium {{.FeeOn1k}} درهماً، وبلا مبيعات بالبطاقة لا يأخذ شيئاً</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn" href="/signup">أنشئ حسابك</a></div>
+<div class="plan pick" data-r><h3>Free</h3><p class="for">لكل نشاط، من اليوم الأول</p><p class="amount">0 درهم <span>+ {{.Fee}}% من مدفوعات البطاقة</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>طلبات وحجوزات ولوحة تحكم وتسجيل دخول للعملاء</li><li>مدفوعات البطاقة عبر صفحة الدفع في Renoxium، إلى حسابك في Stripe</li><li>عن كل 1,000 درهم مبيعات بالبطاقة يأخذ Renoxium {{.FeeOn1k}} درهماً، وبلا مبيعات بالبطاقة لا يأخذ شيئاً</li><li>نطاقك الخاص، وبلا أي علامة لـ Renoxium على موقعك</li></ul><a class="btn" href="/signup">أنشئ حسابك</a></div>
 </div>
-<p class="sum" data-r><b>تريد نطاقك الخاص وبلا شارة؟</b> خطة Pro بسعر 99 درهماً شهرياً{{if .Yearly}}، أو {{.ProYear}} درهماً في السنة{{end}}، وبلا رسوم من Renoxium على مدفوعات البطاقة. تصبح أوفر من نسبة {{.Fee}}% عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. اخترها من حسابك في أي وقت.</p>
+<p class="sum" data-r><b>تبيع كثيراً بالبطاقة؟</b> خطة Pro بسعر 99 درهماً شهرياً{{if .Yearly}}، أو {{.ProYear}} درهماً في السنة{{end}}، وبلا رسوم من Renoxium على مدفوعات البطاقة. تصبح أوفر من نسبة {{.Fee}}% عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. اخترها من حسابك في أي وقت.</p>
 <p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. تبني بحسابك الخاص في ChatGPT أو Claude؛ والخطة المجانية في Claude تكفي.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>أسئلة يطرحها أصحاب الأنشطة</h2><div class="faq" data-r>
