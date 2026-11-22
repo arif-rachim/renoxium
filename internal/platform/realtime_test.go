@@ -205,6 +205,10 @@ func TestDeliveryTrackingExample(t *testing.T) {
 	if home.Status != 200 || strings.Count(home.Body, `class="fl-card"`) != 4 || !strings.Contains(home.Body, `href="/track/2?code=ROSE24"`) || strings.Contains(home.Body, "ORCH88") {
 		t.Fatalf("home samples: %d", home.Status)
 	}
+	// Next to the form each sample shows its order number and code, so nobody has to guess.
+	if !strings.Contains(home.Body, `data-id="1" data-code="ABC123"`) || strings.Contains(home.Body, `data-code="ORCH88"`) {
+		t.Fatal("the form does not offer the sample numbers and codes")
+	}
 	if r := req(platform.TestRequestInput{Path: "/track/2?code=ROSE24"}); !strings.Contains(r.Body, `id="sim"`) || !strings.Contains(r.Body, "24 red roses in a hat box") {
 		t.Fatal("sample tracker has no simulation")
 	}
