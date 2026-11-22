@@ -91,7 +91,7 @@ func planCards(current string) []planCard {
 		}
 		out := []string{"Unlimited building and changes", apps,
 			thousands(platform.WhatsAppCodesPerPlan[plan]) + " WhatsApp sign-in codes a month",
-			storageText(platform.StorageMBPerPlan[plan]) + " of images",
+			photosText(plan),
 			thousands(platform.FetchCallsPerPlan[plan]) + " external API calls a month",
 			staff}
 		if plan == accounts.PlanFree {
@@ -110,11 +110,10 @@ func planCards(current string) []planCard {
 	return cards
 }
 
-func storageText(mb int64) string {
-	if mb >= 1024 && mb%1024 == 0 {
-		return strconv.FormatInt(mb/1024, 10) + " GB"
-	}
-	return strconv.FormatInt(mb, 10) + " MB"
+// photosText is a plan's image quota as owners read it: a number of photos,
+// not megabytes.
+func photosText(plan string) string {
+	return "About " + thousands(platform.PhotosPerPlan(plan)) + " photos"
 }
 
 // billingNotices are the messages /billing shows after a redirect.

@@ -69,15 +69,16 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 	}
 	apps, _ := s.platform.Apps(u.ID)
 	waUsed, waQuota := s.platform.WhatsAppUsage(u.ID)
-	stUsed, stQuota := s.platform.StorageUsage(u.ID)
+	stUsed, _ := s.platform.StorageUsage(u.ID)
 	fetchUsed, fetchQuota := s.platform.FetchUsage(u.ID)
 	csrf := s.csrfToken(w, r)
 	granted := b.Plan != accounts.PlanFree && b.Status == accounts.StatusGranted
 	limit := platform.AppsPerPlan[b.Plan]
+	photoQuota := int64(platform.PhotosPerPlan(b.Plan))
 	meters := []meter{
 		newMeter("Apps", int64(len(apps)), int64(limit), ""),
 		newMeter("WhatsApp sign-in codes this month", int64(waUsed), int64(waQuota), ""),
-		newMeter("Image storage", stUsed>>20, stQuota>>20, " MB"),
+		newMeter("Photos (estimated)", min(int64(platform.PhotosFor(stUsed)), photoQuota), photoQuota, ""),
 		newMeter("External API calls this month", int64(fetchUsed), int64(fetchQuota), ""),
 	}
 	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": csrf, "Prices": accounts.PlanPriceAED,
