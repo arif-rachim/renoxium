@@ -309,7 +309,7 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <li data-r><h3>Simple CRM</h3><p>Every customer, call and follow-up in one list, with an email when a follow-up is due.</p></li>
 <li data-r><h3>Members' portal</h3><p>Members sign in to see their membership, when it renews and your notices.</p></li>
 </ul>
-<div class="wkprice" data-r><p><strong>A work app: AED {{.WorkPrice}} a month per app, {{.WorkUsers}} staff included.</strong> Each one more is AED {{.SeatPrice}} a month. Nothing is charged on what your customers pay you.</p><a class="btn line" href="/connect">Connect your assistant</a></div>
+<div class="wkprice" data-r><p><strong>A work app: AED {{.WorkPrice}} a month per app, {{.WorkUsers}} staff included.</strong> Each one more is AED {{.SeatPrice}} a month. Nothing is charged on what your customers pay you.</p><a class="btn line" href="/templates#clinic-queue-uae">Try the clinic queue</a></div>
 </div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
@@ -662,7 +662,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <li data-r><h3>إدارة العملاء</h3><p>كل عميل ومكالمة ومتابعة في قائمة واحدة، مع رسالة بريد إلكتروني عندما يحين موعد المتابعة.</p></li>
 <li data-r><h3>بوابة الأعضاء</h3><p>يسجّل الأعضاء الدخول ليروا عضويتهم وموعد تجديدها وإعلاناتك.</p></li>
 </ul>
-<div class="wkprice" data-r><p><strong>تطبيق عمل: {{.WorkPrice}} درهماً شهرياً لكل تطبيق، و{{.WorkUsers}} موظفين ضمن السعر.</strong> وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً. لا يُقتطع شيء مما يدفعه لك عملاؤك.</p><a class="btn line" href="/connect">اربط مساعدك</a></div>
+<div class="wkprice" data-r><p><strong>تطبيق عمل: {{.WorkPrice}} درهماً شهرياً لكل تطبيق، و{{.WorkUsers}} موظفين ضمن السعر.</strong> وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً. لا يُقتطع شيء مما يدفعه لك عملاؤك.</p><a class="btn line" href="/templates#clinic-queue-uae">جرّب طابور العيادة</a></div>
 </div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
