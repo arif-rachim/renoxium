@@ -118,6 +118,7 @@ func TestImportAppOnOwnServer(t *testing.T) {
 	if _, res, err := hosted.CreateFromExample(ctx, "usr_free", "free-shop", "store-uae"); err != nil || !res.OK {
 		t.Fatal(err, res)
 	}
+	platform.PaidWorkApp(t, hosted, "free-shop")
 	if _, err := hosted.Publish("free-shop", 0); err != nil {
 		t.Fatal(err)
 	}

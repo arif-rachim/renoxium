@@ -234,9 +234,9 @@ func main() {
 		site.Operators = strings.Split(ops, ",")
 	}
 	site.Billing = web.Billing{Stripe: cfg.Stripe, PricePro: os.Getenv("STRIPE_PRICE_PRO"), PriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
-		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET")}
+		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET"), PriceWorkApp: os.Getenv("STRIPE_PRICE_WORK_APP")}
 	if cfg.Stripe != nil {
-		slog.Info("Renoxium plans", "pro_price_set", site.Billing.PricePro != "", "business_price_set", site.Billing.PriceBusiness != "",
+		slog.Info("Renoxium plans", "pro_price_set", site.Billing.PricePro != "", "business_price_set", site.Billing.PriceBusiness != "", "work_app_price_set", site.Billing.PriceWorkApp != "",
 			"billing_webhook_secret_set", site.Billing.WebhookSecret != "")
 	}
 	site.AbuseEmail = *abuseEmail

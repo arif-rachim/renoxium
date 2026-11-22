@@ -231,7 +231,7 @@ func (p *Platform) serveLive(w http.ResponseWriter, r *http.Request, st *stage) 
 	}
 	limit := LiveSubscribersPerPlan[planBusiness]
 	if p.cfg.OwnerPlan != nil {
-		limit = LiveSubscribersPerPlan[p.planOf(p.ownerOf(st.app))]
+		limit = LiveSubscribersPerPlan[p.appQuotaPlan(st.app)]
 	}
 	appStage, key := st.app+"/"+st.name, st.app+"/"+st.name+"/"+channel
 	if !p.liveVisitorOpen(appStage+"/"+ip, 1) {

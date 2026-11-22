@@ -40,14 +40,22 @@ type env struct {
 	dir    string
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvPlans(t, false) }
+
+// newEnvPlans is newEnv where, with plans, the platform reads each owner's
+// plan from the accounts store, as the server does.
+func newEnvPlans(t *testing.T, plans bool) *env {
 	t.Helper()
 	dir := t.TempDir()
-	p, err := platform.New(platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	acc, err := accounts.Open(filepath.Join(dir, "accounts.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	acc, err := accounts.Open(filepath.Join(dir, "accounts.db"))
+	cfg := platform.Config{DataDir: dir, AppsDomain: "renoxium.test", PublicScheme: "https"}
+	if plans {
+		cfg.OwnerPlan = acc.Plan
+	}
+	p, err := platform.New(cfg, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
 	}

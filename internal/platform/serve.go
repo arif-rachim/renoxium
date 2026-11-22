@@ -55,6 +55,10 @@ func (p *Platform) ServeApp(w http.ResponseWriter, r *http.Request) bool {
 		p.suspendedPage(w)
 		return true
 	}
+	if stageName == Live && p.planLapsed(app) {
+		p.lapsedPage(w)
+		return true
+	}
 	demo := stageName == Preview && p.IsDemo(app)
 	if stageName == Preview && !demo && !p.guardPreview(w, r, app) {
 		return true
@@ -312,26 +316,11 @@ func (p *Platform) render(st *stage, status int, name string, data any, rid stri
 	page, injected := injectTelemetry(buf.buf, rid)
 	if injected {
 		p.issueRID(st.app, rid)
-		if st.name == Live && p.cfg.OwnerPlan != nil && p.planOf(p.ownerOf(st.app)) == planFree {
-			page = injectBadge(page)
-		}
 		if st.name == Preview && p.IsDemo(st.app) {
 			page = p.injectDemoBanner(st.app, page)
 		}
 	}
 	return result{status: status, contentType: "text/html; charset=utf-8", body: page}
-}
-
-// injectBadge adds the free-plan badge before </body>, or at the end.
-func injectBadge(page []byte) []byte {
-	at := bytes.LastIndex(bytes.ToLower(page), []byte("</body>"))
-	if at < 0 {
-		return append(page, badge...)
-	}
-	out := make([]byte, 0, len(page)+len(badge))
-	out = append(out, page[:at]...)
-	out = append(out, badge...)
-	return append(out, page[at:]...)
 }
 
 func injectTelemetry(page []byte, rid string) ([]byte, bool) {

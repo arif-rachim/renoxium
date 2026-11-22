@@ -89,7 +89,10 @@ func TestRealtime(t *testing.T) {
 	if res, err := p.ApplyChange(ctx, "deliv", liveApp()); err != nil || !res.OK {
 		t.Fatal(err, res)
 	}
-	p.Publish("deliv", 0)
+	platform.ReadyShop(t, p, "deliv")
+	if _, err := p.Publish("deliv", 0); err != nil {
+		t.Fatal(err)
+	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Host = "deliv.renoxium.test"
 		if !p.ServeApp(w, r) {

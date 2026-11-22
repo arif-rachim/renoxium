@@ -76,45 +76,57 @@ func newMeter(label string, used, quota int64, unit string) meter {
 type planCard struct {
 	ID, Name, Price, Tagline string
 	Features                 []string
-	Current, Popular         bool
 }
 
-func planCards(current string) []planCard {
-	f := func(plan string) []string {
-		staff := "No staff accounts"
-		if n := platform.StaffPerPlan[plan]; n > 0 {
-			staff = strconv.Itoa(n) + " staff per app"
-		}
-		apps := strconv.Itoa(platform.AppsPerPlan[plan]) + " apps"
-		if platform.AppsPerPlan[plan] == 1 {
-			apps = "1 app"
-		}
-		out := []string{"Unlimited building and changes", apps,
-			thousands(platform.WhatsAppCodesPerPlan[plan]) + " WhatsApp sign-in codes a month",
-			storageText(platform.StorageMBPerPlan[plan]) + " of images",
-			thousands(platform.FetchCallsPerPlan[plan]) + " external API calls a month",
-			staff}
-		if plan == accounts.PlanFree {
-			return append(out, strconv.Itoa(platform.FreePlanFeePercent)+"% fee on card payments", `"Made with Renoxium" badge`)
-		}
-		return append(out, "Your own domain", "No fee on card payments", "No Renoxium badge")
+// planCards are how an app can be paid for, as the billing page explains it.
+func planCards() []planCard {
+	fee, price, users := strconv.Itoa(platform.ShopFeePercent), strconv.Itoa(platform.WorkAppPriceAED), strconv.Itoa(platform.WorkAppUsers)
+	return []planCard{
+		{ID: "static", Name: "Static site", Price: "Free", Tagline: "Pages and photos.",
+			Features: []string{"No database, server code or sign-in", "Stays at its Renoxium address"}},
+		{ID: "shop", Name: "Shop", Price: "AED 0 + " + fee + "% of card payments", Tagline: "Takes money from its customers.",
+			Features: []string{"Nothing to pay when nobody pays you", "Your own domain", strconv.Itoa(platform.ShopStaff) + " staff"}},
+		{ID: "work", Name: "Work app", Price: "AED " + price + " a month", Tagline: "Does not charge its customers.",
+			Features: []string{"CRM, queue, staff attendance, members' portal", "Or a shop paid only in cash or by transfer", "Your own domain", users + " staff included"}},
+		{ID: "enterprise", Name: "Larger businesses", Price: "By agreement", Tagline: "Many staff or branches.",
+			Features: []string{"A price agreed with Renoxium", "Higher limits"}},
 	}
-	cards := []planCard{
-		{ID: accounts.PlanFree, Name: "Free", Price: "0", Tagline: "Try Renoxium with one app.", Features: f(accounts.PlanFree)},
-		{ID: accounts.PlanPro, Name: "Pro", Price: strconv.Itoa(accounts.PlanPriceAED[accounts.PlanPro]), Tagline: "For a growing business with a few sites.", Features: f(accounts.PlanPro), Popular: true},
-		{ID: accounts.PlanBusiness, Name: "Business", Price: strconv.Itoa(accounts.PlanPriceAED[accounts.PlanBusiness]), Tagline: "For teams running many sites.", Features: f(accounts.PlanBusiness)},
-	}
-	for i := range cards {
-		cards[i].Current = cards[i].ID == current
-	}
-	return cards
 }
 
-func storageText(mb int64) string {
-	if mb >= 1024 && mb%1024 == 0 {
-		return strconv.FormatInt(mb/1024, 10) + " GB"
+// appPlanRow is one app on the billing page.
+type appPlanRow struct {
+	App, Label, Status string
+	Ready              bool
+}
+
+func appPlanRows(p *platform.Platform, apps []platform.AppInfo) []appPlanRow {
+	var out []appPlanRow
+	for _, a := range apps {
+		pl, err := p.AppPlan(a.App)
+		if err != nil {
+			continue
+		}
+		row := appPlanRow{App: a.App, Ready: pl.Ready}
+		switch {
+		case pl.Included:
+			row.Label, row.Status = "Included", "covered by your plan"
+		case pl.Static:
+			row.Label, row.Status = "Static site", "free"
+		case pl.Kind == platform.KindShop:
+			row.Label, row.Status = "Shop", map[bool]string{true: "taking card payments", false: "connect Stripe"}[pl.StripeReady]
+		case pl.Kind == platform.KindWork && pl.WorkPaid:
+			row.Label, row.Status = "Work app", pl.WorkStatus
+			if d := formatDate(pl.WorkPeriodEnd); d != "" {
+				row.Status += " · renews " + d
+			}
+		case pl.Kind == platform.KindWork:
+			row.Label, row.Status = "Work app", "not subscribed"
+		default:
+			row.Label, row.Status = "Not chosen", "choose before it goes live"
+		}
+		out = append(out, row)
 	}
-	return strconv.FormatInt(mb, 10) + " MB"
+	return out
 }
 
 // billingNotices are the messages /billing shows after a redirect.

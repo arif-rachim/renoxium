@@ -52,7 +52,10 @@ func TestScheduledJobs(t *testing.T) {
 	if err != nil || res.Status != 200 || res.Body != "counted 1" || len(res.Logs) == 0 {
 		t.Fatalf("test job: %v %+v", err, res)
 	}
-	p.Publish("shop", 0)
+	platform.ReadyShop(t, p, "shop")
+	if _, err := p.Publish("shop", 0); err != nil {
+		t.Fatal(err)
+	}
 
 	// 06:00 in Dubai (02:00 UTC). The first check only starts the clocks.
 	start := time.Date(2026, 11, 18, 2, 0, 0, 0, time.UTC)

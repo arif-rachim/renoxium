@@ -287,10 +287,15 @@ func liveMoneyShop(t *testing.T, plan string) (*platform.Platform, *fakeStripe, 
 	ctx := context.Background()
 	p.CreateApp("usr_"+plan, "rent")
 	p.ApplyChange(ctx, "rent", moneyShop())
-	p.Publish("rent", 0)
 	p.StripeOnboardingURL(ctx, "rent", "o@x.ae", "https://r", "https://f")
 	if pa, err := p.RefreshPaymentAccount(ctx, "rent"); err != nil || !pa.ChargesEnabled {
 		t.Fatal(pa, err)
+	}
+	if err := p.SetAppKind("rent", platform.KindShop); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Publish("rent", 0); err != nil {
+		t.Fatal(err)
 	}
 	return p, fs, "rent.renoxium.test"
 }

@@ -20,6 +20,7 @@ type fakeBilling struct {
 	customers  int
 	status     string // status of the one subscription, "" for none
 	price      string
+	metadata   map[string]string // of the one subscription
 	checkouts  []url.Values
 	cancels    []string // subscriptions cancelled with DELETE
 	failCancel bool
@@ -55,7 +56,7 @@ func (f *fakeBilling) server(t *testing.T) *httptest.Server {
 			f.lists++
 			data := []any{}
 			if f.status != "" {
-				data = append(data, map[string]any{"id": "sub_1", "customer": "cus_1", "status": f.status,
+				data = append(data, map[string]any{"id": "sub_1", "customer": "cus_1", "status": f.status, "metadata": f.metadata,
 					"items": map[string]any{"data": []any{map[string]any{"price": map[string]any{"id": f.price}, "current_period_end": 1900000000}}}})
 			}
 			json.NewEncoder(w).Encode(map[string]any{"data": data})
@@ -80,7 +81,8 @@ func TestBilling(t *testing.T) {
 		r, _ := c.Get(e.base + "/billing")
 		return read(t, r)
 	}
-	if p := page(); !strings.Contains(p, "Current plan: <strong>Free</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
+	if p := page(); !strings.Contains(p, "Current plan: <strong>Pay per app</strong>") || !strings.Contains(p, "shops pay 2%") || !strings.Contains(p, "AED 99 a month") ||
+		strings.Contains(p, "Choose Pro") {
 		t.Fatalf("free page: %s", p)
 	}
 	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Free plan</a>`) {
@@ -137,7 +139,7 @@ func TestBilling(t *testing.T) {
 	}
 	// Cancellation returns the account to Free.
 	webhook("whsec_billing", "customer.subscription.deleted", "")
-	if p := page(); !strings.Contains(p, "<strong>Free</strong>") {
+	if p := page(); !strings.Contains(p, "<strong>Pay per app</strong>") {
 		t.Fatalf("after cancel: %s", p)
 	}
 	if fb.customers != 1 {
@@ -164,11 +166,10 @@ func TestGrantedPlan(t *testing.T) {
 		t.Fatalf("granted plan: %s", p)
 	}
 	// No Stripe subscription to manage: the page says so instead of a
-	// Manage billing button that only reloads the page, and the owner can
-	// still subscribe to pay for a plan themselves.
+	// Manage billing button that only reloads the page.
 	r, _ = c.Get(e.base + "/billing")
 	p := read(t, r)
-	if strings.Contains(p, "Manage billing") || !strings.Contains(p, "granted") || !strings.Contains(p, "Choose Pro") {
+	if strings.Contains(p, "Manage billing") || !strings.Contains(p, "granted") {
 		t.Fatalf("granted billing page: %s", p)
 	}
 	r, _ = c.PostForm(e.base+"/billing/portal", url.Values{"csrf": {e.csrf(c, "/billing")}})

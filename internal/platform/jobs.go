@@ -163,7 +163,7 @@ func (p *Platform) jobsOf(app string, version int) []appdef.Job {
 
 func (p *Platform) jobInterval(app string, j appdef.Job) time.Duration {
 	d, _ := j.JobInterval()
-	if p.cfg.OwnerPlan != nil && p.planOf(p.ownerOf(app)) == planFree && d < FreePlanMinInterval {
+	if p.cfg.OwnerPlan != nil && p.appQuotaPlan(app) == planFree && d < FreePlanMinInterval {
 		d = FreePlanMinInterval
 	}
 	return d

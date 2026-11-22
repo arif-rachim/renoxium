@@ -139,6 +139,7 @@ type Platform struct {
 	bg     sync.WaitGroup // work that continues after a request is answered
 	hosts  sync.Map       // host -> hostEntry
 	owners sync.Map       // app -> owner
+	lapsed sync.Map       // app -> lapsedState (see planLapsed)
 	// liveHosts maps an app to its active custom domain.
 	liveHosts sync.Map
 	errors    errorCounter
@@ -248,7 +249,7 @@ const NameHold = 90 * 24 * time.Hour
 // Quotas per account and per app. There is no billing yet, so these keep
 // one account from filling the server's disk.
 const (
-	MaxAppsPerOwner = 10
+	MaxAppsPerOwner = 50
 	keepVersions    = 50 // older versions are deleted, except the live one
 	keepBackups     = 3  // publish backups kept per app
 	MaxFilesPerApp  = 2000
@@ -293,6 +294,14 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN preview_fetch_until INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		db.Close()
 		return nil, err
+	}
+	// How an app is paid for (see appplan.go).
+	for _, col := range []string{`plan_kind TEXT NOT NULL DEFAULT ''`, `work_sub TEXT NOT NULL DEFAULT ''`,
+		`work_status TEXT NOT NULL DEFAULT ''`, `work_period_end INTEGER NOT NULL DEFAULT 0`} {
+		if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN ` + col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			db.Close()
+			return nil, err
+		}
 	}
 	// A non-empty reason takes the app offline (see Suspend).
 	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN suspended TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
@@ -688,6 +697,9 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 	}
 	if p.isSuspended(name) {
 		return PublishResult{}, errors.New("this app is suspended")
+	}
+	if pl := p.planFor(name, def); !pl.Ready {
+		return PublishResult{}, errors.New(pl.Problem)
 	}
 
 	p.change.Lock()

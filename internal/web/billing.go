@@ -19,9 +19,15 @@ type Billing struct {
 	PricePro      string // Stripe price IDs of the monthly plans
 	PriceBusiness string
 	WebhookSecret string // signing secret of the webhook for the platform account's own events
+	// PriceWorkApp is the Stripe price ID of a work app's monthly subscription
+	// (platform.WorkAppPriceAED).
+	PriceWorkApp string
 }
 
 func (b Billing) ready() bool { return b.Stripe != nil && b.PricePro != "" && b.PriceBusiness != "" }
+
+// workReady reports whether work app subscriptions can be sold.
+func (b Billing) workReady() bool { return b.Stripe != nil && b.PriceWorkApp != "" }
 
 func (b Billing) price(plan string) string {
 	switch plan {
@@ -83,7 +89,7 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": csrf, "Prices": accounts.PlanPriceAED,
 		"Fee": platform.FreePlanFeePercent, "PlanName": planName(b.Plan),
 		"Paying": b.Plan != accounts.PlanFree, "Granted": granted, "CanManage": s.Billing.ready() && b.Customer != "" && !granted,
-		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(b.Plan),
+		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(), "AppPlans": appPlanRows(s.platform, apps), "WorkPrice": platform.WorkAppPriceAED,
 		"Notice": billingNotices[r.URL.Query().Get("notice")], "Shell": s.ownerShell(u, "Plan and billing", "/billing", csrf)})
 }
 
@@ -195,6 +201,7 @@ func (s *Site) syncBilling(ctx context.Context, userID string) error {
 	if err != nil {
 		return err
 	}
+	s.syncWorkApps(userID, subs)
 	best := accounts.Billing{Plan: accounts.PlanFree}
 	rank := map[string]int{accounts.PlanFree: 0, accounts.PlanPro: 1, accounts.PlanBusiness: 2}
 	for _, sub := range subs {
@@ -219,7 +226,7 @@ func (s *Site) syncBilling(ctx context.Context, userID string) error {
 
 // billingWebhook receives the platform account's own subscription events.
 func (s *Site) billingWebhook(w http.ResponseWriter, r *http.Request) {
-	if s.Billing.WebhookSecret == "" || !s.Billing.ready() {
+	if s.Billing.WebhookSecret == "" || (!s.Billing.ready() && !s.Billing.workReady()) {
 		http.Error(w, "billing webhooks are not configured", http.StatusServiceUnavailable)
 		return
 	}
