@@ -160,7 +160,7 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
 - Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
 - Test with create_test_visitor and as_visitor (above), or follow the real sign-up in a session.
 
-Payments (card payments through the owner's own Stripe account; on the Professional plan Renoxium takes a 2% fee, on Business none):
+Payments (card payments through the owner's own Stripe account; on the Free plan Renoxium takes a 2% fee, on paid plans none):
 - Never collect card details yourself. In a script, create the order first, then call
   payments.checkout({items: [{name, price, quantity}], reference, success_path, cancel_path, customer_email})
   and return {redirect: result.url}. price is in AED with at most 2 decimals (250 or 99.5, not fils); quantity defaults to 1;
@@ -184,7 +184,7 @@ Payments (card payments through the owner's own Stripe account; on the Professio
 - Refunds (e.g. a customer cancels): payments.refund({reference, amount, reason}) refunds the newest paid payment for the reference;
   without amount, everything not yet refunded; amount in AED with at most 2 decimals, never more than what is left (else it throws).
   It returns {status: "partially_refunded"|"refunded", refunded_amount, amount}. on_payment then runs once with that event (after
-  your script finishes). On the Professional plan Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
+  your script finishes). On the Free plan Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
 - Card holds (e.g. a car rental deposit): payments.checkout({..., hold: true}) only authorises the card; on_payment gets "authorized".
   Then payments.capture({reference, amount}) takes all or part of it (e.g. a damage charge; on_payment gets "paid" with the amount
   taken, the rest is released) or payments.release({reference}) cancels it (on_payment gets "released"). Cards drop a hold after about
@@ -221,8 +221,6 @@ Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an
   (or query: "api_key" instead of header; prefix "Basic" means the owner enters user:password). Never put keys in scripts, seed or templates.
 - The owner must allow each host and enter each key at /apps/<app>/connections; apply_change lists what is missing in owner_actions.
   Tell the user exactly that, with the link. Until then http.fetch throws an error saying what is missing.
-- Payment services (Ziina, Mamo, PayTabs and the like) can be called only on the Business plan. On the Professional plan take card
-  payments with payments.checkout; do not build another checkout with http.fetch, the platform refuses those hosts.
 - In a script: const r = http.fetch({url, method: "POST", headers: {...}, body: {...} (objects are sent as JSON) or "text",
   secret: "EXAMPLE_KEY", timeout_ms: 5000}). It returns {status, ok, headers, body (text), json (when the answer is JSON), truncated}.
   Redirects are not followed (you get the 3xx). The platform adds the key; the script never sees it.
@@ -244,7 +242,7 @@ Realtime (live updates in the browser, e.g. a courier on a map, a queue number, 
 Scheduled jobs:
 - "jobs": [{name, script, every: "15m"} or {name, script, daily_at: "21:00", timezone: "Asia/Dubai" (default)}] run scripts on the live
   app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.
-  every is at least 1m (5m on the Professional plan). A new job first runs after its interval or at its next daily time.
+  every is at least 1m (5m on the Free plan). A new job first runs after its interval or at its next daily time.
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
 - Jobs never run on preview by themselves: try them with try_scheduled_jobs {"app": "..."}, which runs every listed job once and returns each result. The owner sees last and next runs on the app page.
 

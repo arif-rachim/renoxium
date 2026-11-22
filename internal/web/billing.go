@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
@@ -19,55 +18,29 @@ type Billing struct {
 	Stripe        *stripe.Client
 	PricePro      string // Stripe price IDs of the monthly plans
 	PriceBusiness string
-	// Stripe price IDs of the same plans paid by the year. Optional: yearly
-	// payment is offered only when both are set.
-	PriceProYearly      string
-	PriceBusinessYearly string
-	WebhookSecret       string // signing secret of the webhook for the platform account's own events
-	// SelfServe lists the paid subscriptions on the billing page for owners to
-	// buy themselves. Off, owners stay on Professional and ask Renoxium for
-	// Business; the operator then grants the plan.
-	SelfServe bool
+	WebhookSecret string // signing secret of the webhook for the platform account's own events
 }
 
 func (b Billing) ready() bool { return b.Stripe != nil && b.PricePro != "" && b.PriceBusiness != "" }
 
-// yearly reports whether paying by the year is offered.
-func (b Billing) yearly() bool {
-	return b.ready() && b.PriceProYearly != "" && b.PriceBusinessYearly != ""
-}
-
-func (b Billing) price(plan string, yearly bool) string {
-	switch {
-	case yearly && !b.yearly():
-		return ""
-	case plan == accounts.PlanPro && yearly:
-		return b.PriceProYearly
-	case plan == accounts.PlanBusiness && yearly:
-		return b.PriceBusinessYearly
-	case plan == accounts.PlanPro:
+func (b Billing) price(plan string) string {
+	switch plan {
+	case accounts.PlanPro:
 		return b.PricePro
-	case plan == accounts.PlanBusiness:
+	case accounts.PlanBusiness:
 		return b.PriceBusiness
 	}
 	return ""
 }
 
-// planOfPrice is the plan a Stripe price pays for, and whether it is the
-// yearly price.
-func (b Billing) planOfPrice(price string) (plan string, yearly bool) {
+func (b Billing) planOfPrice(price string) string {
 	switch price {
-	case "":
 	case b.PricePro:
-		return accounts.PlanPro, false
+		return accounts.PlanPro
 	case b.PriceBusiness:
-		return accounts.PlanBusiness, false
-	case b.PriceProYearly:
-		return accounts.PlanPro, true
-	case b.PriceBusinessYearly:
-		return accounts.PlanBusiness, true
+		return accounts.PlanBusiness
 	}
-	return "", false
+	return ""
 }
 
 func (s *Site) registerBilling() {
@@ -96,32 +69,22 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 	}
 	apps, _ := s.platform.Apps(u.ID)
 	waUsed, waQuota := s.platform.WhatsAppUsage(u.ID)
-	stUsed, _ := s.platform.StorageUsage(u.ID)
+	stUsed, stQuota := s.platform.StorageUsage(u.ID)
 	fetchUsed, fetchQuota := s.platform.FetchUsage(u.ID)
 	csrf := s.csrfToken(w, r)
 	granted := b.Plan != accounts.PlanFree && b.Status == accounts.StatusGranted
 	limit := platform.AppsPerPlan[b.Plan]
-	photoQuota := int64(platform.PhotosPerPlan(b.Plan))
 	meters := []meter{
 		newMeter("Apps", int64(len(apps)), int64(limit), ""),
 		newMeter("WhatsApp sign-in codes this month", int64(waUsed), int64(waQuota), ""),
-		newMeter("Photos (estimated)", min(int64(platform.PhotosFor(stUsed)), photoQuota), photoQuota, ""),
+		newMeter("Image storage", stUsed>>20, stQuota>>20, " MB"),
 		newMeter("External API calls this month", int64(fetchUsed), int64(fetchQuota), ""),
 	}
 	render(w, http.StatusOK, "billing", map[string]any{"User": u, "Billing": b, "Ready": s.Billing.ready(), "CSRF": csrf, "Prices": accounts.PlanPriceAED,
-		"Yearly": s.Billing.yearly(), "YearlySave": accounts.YearlyDiscountPercent, "PaidPrice": paidPrice(b),
 		"Fee": platform.FreePlanFeePercent, "PlanName": planName(b.Plan),
 		"Paying": b.Plan != accounts.PlanFree, "Granted": granted, "CanManage": s.Billing.ready() && b.Customer != "" && !granted,
-		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(b.Plan, b.Yearly, s.Billing.SelfServe),
+		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(b.Plan),
 		"Notice": billingNotices[r.URL.Query().Get("notice")], "Shell": s.ownerShell(u, "Plan and billing", "/billing", csrf)})
-}
-
-// paidPrice is what a paying account is charged each period, in AED.
-func paidPrice(b accounts.Billing) string {
-	if b.Yearly {
-		return thousands(accounts.PlanPriceYearAED(b.Plan))
-	}
-	return strconv.Itoa(accounts.PlanPriceAED[b.Plan])
 }
 
 func formatDate(t time.Time) string {
@@ -158,7 +121,7 @@ func (s *Site) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	plan := r.PostFormValue("plan")
-	price := s.Billing.price(plan, r.PostFormValue("period") == "year")
+	price := s.Billing.price(plan)
 	if !s.Billing.ready() || price == "" {
 		http.Error(w, "this plan is not available", http.StatusBadRequest)
 		return
@@ -235,14 +198,14 @@ func (s *Site) syncBilling(ctx context.Context, userID string) error {
 	best := accounts.Billing{Plan: accounts.PlanFree}
 	rank := map[string]int{accounts.PlanFree: 0, accounts.PlanPro: 1, accounts.PlanBusiness: 2}
 	for _, sub := range subs {
-		plan, yearly := s.Billing.planOfPrice(sub.PriceID())
+		plan := s.Billing.planOfPrice(sub.PriceID())
 		if plan == "" || !paying[sub.Status] || rank[plan] <= rank[best.Plan] {
 			if best.Status == "" && plan != "" {
 				best.Status, best.Subscription = sub.Status, sub.ID // remember the latest non-paying one for display
 			}
 			continue
 		}
-		best = accounts.Billing{Plan: plan, Status: sub.Status, Subscription: sub.ID, PeriodEnd: sub.PeriodEnd(), CancelAtPeriodEnd: sub.CancelAtPeriodEnd, Yearly: yearly}
+		best = accounts.Billing{Plan: plan, Status: sub.Status, Subscription: sub.ID, PeriodEnd: sub.PeriodEnd(), CancelAtPeriodEnd: sub.CancelAtPeriodEnd}
 	}
 	if best.Plan == accounts.PlanFree && b.Status == accounts.StatusGranted {
 		return nil // an operator's grant stays until a paid plan replaces it

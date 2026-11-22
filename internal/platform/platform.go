@@ -248,7 +248,7 @@ const NameHold = 90 * 24 * time.Hour
 // Quotas per account and per app. There is no billing yet, so these keep
 // one account from filling the server's disk.
 const (
-	MaxAppsPerOwner = 50 // the largest plan's limit
+	MaxAppsPerOwner = 10
 	keepVersions    = 50 // older versions are deleted, except the live one
 	keepBackups     = 3  // publish backups kept per app
 	MaxFilesPerApp  = 2000
@@ -456,8 +456,8 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if p.cfg.OwnerPlan != nil {
 		plan := p.planOf(owner)
 		if limit := AppsPerPlan[plan]; count >= limit {
-			return AppInfo{}, fmt.Errorf("the %s plan allows %d apps and this account has %d; for more, ask Renoxium for the Business plan (%s/billing)",
-				PlanLabel(plan), limit, count, p.cfg.SiteURL)
+			return AppInfo{}, fmt.Errorf("the %s plan allows %d app(s) and this account has %d; upgrade the plan at %s/billing to create more",
+				plan, limit, count, p.cfg.SiteURL)
 		}
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {

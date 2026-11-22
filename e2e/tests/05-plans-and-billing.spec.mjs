@@ -10,11 +10,13 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
   const { page, agent } = shop;
 
   await page.goto('/billing');
-  await expect(page.locator('body')).toContainText('Current plan: Professional');
-  await expect(page.locator('body')).toContainText(/Apps\s*1 of 10/);
+  await expect(page.locator('body')).toContainText('Current plan: Free');
+  await expect(page.locator('body')).toContainText(/Apps\s*1 of 1/);
   await expect(page.locator('body')).toContainText('takes 2% of card payments');
+  await page.goto(`/apps/${shop.app}/domain`);
+  await expect(page.locator('body')).toContainText('included in the Pro and Business plans');
   await page.goto(`/apps/${shop.app}/staff`);
-  await expect(page.locator('body')).toContainText('0 of 2 on your plan');
+  await expect(page.locator('body')).toContainText('Staff need the Pro or Business plan');
 
   // Pro through Checkout: one customer, the right price, the account in metadata.
   await upgrade(page, 'Pro');
@@ -22,10 +24,11 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
   expect(sub.price).toBe(SECRETS.pricePro);
   expect(sub.metadata.rx_plan).toBe('pro');
   await expect(page.locator('body')).toContainText(/active · renews \d+ \w+ \d{4}/);
-  await expect(page.locator('body')).toContainText(/Apps\s*1 of 10/);
+  await expect(page.locator('body')).toContainText(/Apps\s*1 of 3/);
   await expect(page.locator('body')).toContainText('of 500');
 
-  // Card payments carry no fee on a paid plan.
+  // The badge is gone within the plan cache time; card payments carry no fee.
+  await expect.poll(async () => (await (await page.request.get(shop.live)).text()).includes('Made with Renoxium'), { timeout: 40_000, intervals: [2000] }).toBe(false);
   await connectStripe(page, shop.app);
   const buyer = await person(browser);
   await buyer.page.goto(`${shop.live}/_rx/auth/signup?next=/`);
@@ -68,13 +71,15 @@ test('upgrade, change plan, cancel, and what each plan allows', async ({ browser
   await expect(page.locator('body')).toContainText('past_due');
 
   await portal(page, 'Cancel now');
-  await expect(page.locator('body')).toContainText('Current plan: Professional');
-  await expect(page.locator('body')).toContainText(/Apps\s*2 of 10/);
+  await expect(page.locator('body')).toContainText('Current plan: Free');
+  await expect(page.locator('body')).toContainText(/Apps\s*2 of 1/); // existing apps keep running
+  await expect.poll(async () => (await (await page.request.get(shop.live)).text()).includes('Made with Renoxium'), { timeout: 40_000, intervals: [2000] }).toBe(true);
+  await expect(agent.call('create_app', { app: unique('third') })).rejects.toThrow();
   const customers = (await fake.stripeCalls()).filter((c) => c.path === '/v1/customers' && c.form.email === shop.email);
   expect(customers).toHaveLength(1);
 });
 
-test('closing the Checkout page without paying keeps the Professional plan', async ({ browser }) => {
+test('closing the Checkout page without paying keeps the Free plan', async ({ browser }) => {
   const { page } = await person(browser);
   const { signUp } = await import('../lib.mjs');
   await signUp(page, email('nopay'));
@@ -82,5 +87,5 @@ test('closing the Checkout page without paying keeps the Professional plan', asy
   await page.getByRole('button', { name: 'Choose Pro' }).click();
   await page.getByRole('button', { name: 'Back' }).click();
   await page.waitForURL(/\/billing$/);
-  await expect(page.locator('body')).toContainText('Current plan: Professional');
+  await expect(page.locator('body')).toContainText('Current plan: Free');
 });

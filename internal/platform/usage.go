@@ -13,27 +13,7 @@ var WhatsAppCodesPerPlan = map[string]int{planFree: 50, planPro: 500, planBusine
 
 // StorageMBPerPlan is how much file storage all apps of one account may use.
 // A file used by several of the account's apps counts once.
-var StorageMBPerPlan = map[string]int64{planFree: 2560, planPro: 2560, planBusiness: 5120}
-
-// PhotoBytes is the size one stored photo is counted as when a storage
-// quota is shown to owners as a number of photos. It is an estimate: a photo
-// is kept at most files.MaxSide wide, and what that weighs depends on the
-// picture.
-const PhotoBytes = 512 << 10
-
-// PhotosFor is roughly how many photos fit in bytes of storage.
-func PhotosFor(bytes int64) int { return int((bytes + PhotoBytes - 1) / PhotoBytes) }
-
-// PhotosPerPlan is roughly how many photos a plan's storage holds, rounded
-// down to one significant digit so it reads as the estimate it is.
-func PhotosPerPlan(plan string) int {
-	n := PhotosFor(StorageMBPerPlan[plan] << 20)
-	unit := 1
-	for n/unit >= 10 {
-		unit *= 10
-	}
-	return n / unit * unit
-}
+var StorageMBPerPlan = map[string]int64{planFree: 200, planPro: 2048, planBusiness: 10240}
 
 // StorageUsage is the bytes of files an account's apps use, and its quota.
 func (p *Platform) StorageUsage(owner string) (used, quota int64) {

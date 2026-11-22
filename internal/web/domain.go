@@ -13,7 +13,7 @@ func (s *Site) renderDomain(w http.ResponseWriter, r *http.Request, app string, 
 	d, _ := s.platform.CustomDomain(app)
 	u0, _ := s.currentUser(r)
 	render(w, status, "admin_domain", map[string]any{"Shell": s.shell(u0, app, "Domain", "/apps/"+app+"/domain", false), "App": app, "Domain": d, "CSRF": s.csrfToken(w, r), "Error": errText,
-		"Available": s.platform.CustomDomainsAvailable()})
+		"Available": s.platform.CustomDomainsAvailable(), "Allowed": s.platform.CustomDomainAllowed(app)})
 }
 
 func (s *Site) domainPage(w http.ResponseWriter, r *http.Request) {

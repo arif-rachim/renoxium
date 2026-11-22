@@ -7,7 +7,7 @@ import (
 )
 
 // StaffPerPlan is how many staff members each app of an account may have.
-var StaffPerPlan = map[string]int{planFree: 2, planPro: 2, planBusiness: 10}
+var StaffPerPlan = map[string]int{planFree: 0, planPro: 2, planBusiness: 10}
 
 func (p *Platform) ensureStaffTable() error {
 	_, err := p.db.Exec(`CREATE TABLE IF NOT EXISTS app_staff (app TEXT NOT NULL, email TEXT NOT NULL, added_by TEXT NOT NULL,
@@ -57,7 +57,10 @@ func (p *Platform) AddStaff(app, email, by string) error {
 		}
 	}
 	if limit := p.StaffLimit(app); len(staff) >= limit {
-		return fmt.Errorf("your plan allows %d staff members per app; for more, ask Renoxium for the Business plan (%s/billing)", limit, p.cfg.SiteURL)
+		if limit == 0 {
+			return fmt.Errorf("staff accounts need the Pro or Business plan (%s/billing)", p.cfg.SiteURL)
+		}
+		return fmt.Errorf("your plan allows %d staff members per app; upgrade at %s/billing", limit, p.cfg.SiteURL)
 	}
 	_, err = p.db.Exec(`INSERT OR IGNORE INTO app_staff (app, email, added_by) VALUES (?, ?, ?)`, app, email, by)
 	return err

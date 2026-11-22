@@ -28,7 +28,7 @@ test('catalogue, Arabic, product options and the badge', async ({ browser }) => 
   await expect(page.locator('body')).toContainText('E2E Perfumes');
   for (const p of ['Royal Oud', 'White Musk', 'Amber Night', 'Oud Gift Set']) await expect(page.getByRole('link', { name: p })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Royal Oud' })).toContainText('AED 250.00');
-  await expect(page.getByRole('link', { name: 'Made with Renoxium' })).toHaveCount(0); // no Renoxium branding on any plan
+  await expect(page.getByRole('link', { name: 'Made with Renoxium' })).toBeVisible(); // Free plan
 
   await page.getByRole('link', { name: 'العربية' }).first().click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');

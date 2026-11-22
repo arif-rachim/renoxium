@@ -3,7 +3,6 @@ package platform_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/stripe"
 )
 
-func TestPlansDecideFeeAndAppLimit(t *testing.T) {
+func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 	fs := &fakeStripe{charges: true}
 	srv := fs.server(t)
 	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
@@ -41,21 +40,16 @@ func TestPlansDecideFeeAndAppLimit(t *testing.T) {
 		}
 	}
 
-	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, and ten apps.
+	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, a badge, and one app only.
 	do(t, p, "POST", "free-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
 		t.Fatalf("free plan fee = %q", fee)
 	}
-	for i := 2; i <= platform.AppsPerPlan["free"]; i++ {
-		if _, err := p.CreateApp("usr_free", fmt.Sprintf("free-%d", i)); err != nil {
-			t.Fatalf("free app %d: %v", i, err)
-		}
-	}
-	if _, err := p.CreateApp("usr_free", "free-too-many"); err == nil || !strings.Contains(err.Error(), "Professional plan allows 10 apps") ||
+	if _, err := p.CreateApp("usr_free", "free-second"); err == nil || !strings.Contains(err.Error(), "free plan allows 1") ||
 		!strings.Contains(err.Error(), "https://www.renoxium.test/billing") {
-		t.Fatalf("app over the Professional limit: %v", err)
+		t.Fatalf("second free app: %v", err)
 	}
-	// Pro: no fee, more apps.
+	// Pro: no fee, no badge, more apps.
 	do(t, p, "POST", "pro-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
 		t.Fatalf("pro plan fee = %q", fee)
@@ -65,8 +59,7 @@ func TestPlansDecideFeeAndAppLimit(t *testing.T) {
 	}
 }
 
-// No plan adds Renoxium branding to an owner's pages.
-func TestNoBadgeOnAnyPlan(t *testing.T) {
+func TestFreePlanBadgeOnLivePagesOnly(t *testing.T) {
 	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
 		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
@@ -76,13 +69,21 @@ func TestNoBadgeOnAnyPlan(t *testing.T) {
 	defer p.Close()
 	page := &appdef.App{Templates: map[string]string{"t": "<!doctype html><html><head></head><body><h1>Shop</h1></body></html>"},
 		Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}}
-	for _, owner := range []string{"usr_free", "usr_pro"} {
+	for owner, want := range map[string]bool{"usr_free": true, "usr_pro": false} {
 		app := strings.TrimPrefix(owner, "usr_") + "-page"
 		p.CreateApp(owner, app)
 		p.ApplyChange(context.Background(), app, page)
 		p.Publish(app, 0)
-		if live := do(t, p, "GET", app+".renoxium.test", "/", nil); !strings.Contains(live.body, "<h1>Shop</h1>") || strings.Contains(live.body, "Renoxium") {
-			t.Errorf("%s live page: %s", owner, live.body)
+		live := do(t, p, "GET", app+".renoxium.test", "/", nil)
+		if got := strings.Contains(live.body, "Made with Renoxium"); got != want {
+			t.Errorf("%s live badge = %v", owner, got)
+		}
+		if want && strings.Index(live.body, "Made with Renoxium") > strings.Index(live.body, "</body>") {
+			t.Error("badge after </body>")
+		}
+		res, _ := p.TestRequest(context.Background(), app, platform.TestRequestInput{Path: "/"})
+		if strings.Contains(res.Body, "Made with Renoxium") {
+			t.Errorf("%s preview shows the badge", owner)
 		}
 	}
 }
@@ -144,8 +145,8 @@ func TestStaffLimitPerPlan(t *testing.T) {
 	defer p.Close()
 	p.CreateApp("usr_free", "free-shop")
 	p.CreateApp("usr_pro", "pro-shop")
-	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err != nil || !p.IsStaff("free-shop", "a@x.ae") {
-		t.Fatalf("staff on the Professional plan: %v", err)
+	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "Pro or Business") {
+		t.Fatalf("free staff: %v", err)
 	}
 	for _, e := range []string{"a@x.ae", "b@x.ae"} {
 		if err := p.AddStaff("pro-shop", e, "usr_pro"); err != nil {

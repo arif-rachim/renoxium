@@ -73,17 +73,17 @@ func TestBilling(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
 	c := e.browser()
 	e.signup(c, "vera@shop.ae")
 	page := func() string {
 		r, _ := c.Get(e.base + "/billing")
 		return read(t, r)
 	}
-	if p := page(); !strings.Contains(p, "Current plan: <strong>Professional</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
+	if p := page(); !strings.Contains(p, "Current plan: <strong>Free</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
 		t.Fatalf("free page: %s", p)
 	}
-	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Professional plan</a>`) {
+	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Free plan</a>`) {
 		t.Fatal("dashboard plan")
 	}
 
@@ -135,9 +135,9 @@ func TestBilling(t *testing.T) {
 	if p := page(); !strings.Contains(p, "<strong>Pro</strong>") {
 		t.Fatal("connected-account event changed the plan")
 	}
-	// Cancellation returns the account to Professional.
+	// Cancellation returns the account to Free.
 	webhook("whsec_billing", "customer.subscription.deleted", "")
-	if p := page(); !strings.Contains(p, "<strong>Professional</strong>") {
+	if p := page(); !strings.Contains(p, "<strong>Free</strong>") {
 		t.Fatalf("after cancel: %s", p)
 	}
 	if fb.customers != 1 {
@@ -151,7 +151,7 @@ func TestGrantedPlan(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
 	c := e.browser()
 	e.signup(c, "wade@shop.ae")
 	acc := e.accounts()
@@ -195,7 +195,7 @@ func TestBillingPageCallsStripeSparingly(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
 	c := e.browser()
 	e.signup(c, "tala@shop.ae")
 	token := e.csrf(c, "/billing")
@@ -213,76 +213,5 @@ func TestBillingPageCallsStripeSparingly(t *testing.T) {
 	defer fb.mu.Unlock()
 	if fb.lists == 0 || fb.lists > 30 {
 		t.Fatalf("60 page loads made %d calls to Stripe", fb.lists)
-	}
-}
-
-// Paying by the year is offered only when both yearly prices are set; it
-// uses the yearly Stripe price and the page then shows the yearly amount.
-func TestYearlyBilling(t *testing.T) {
-	e := newEnv(t)
-	fb := &fakeBilling{}
-	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
-	c := e.browser()
-	e.signup(c, "yara@shop.ae")
-	page := func() string {
-		r, _ := c.Get(e.base + "/billing")
-		return read(t, r)
-	}
-	checkout := func(period string) *http.Response {
-		r, _ := c.PostForm(e.base+"/billing/checkout", url.Values{"csrf": {e.csrf(c, "/billing")}, "plan": {"pro"}, "period": {period}})
-		return r
-	}
-	if p := page(); strings.Contains(p, "Pay yearly") || strings.Contains(p, "a year") {
-		t.Fatalf("yearly offered without yearly prices: %s", p)
-	}
-	if r := checkout("year"); r.StatusCode != 400 || len(fb.checkouts) != 0 {
-		t.Fatalf("yearly checkout without yearly prices: %d", r.StatusCode)
-	}
-
-	e.site.Billing.PriceProYearly, e.site.Billing.PriceBusinessYearly = "price_pro_year", "price_business_year"
-	if p := page(); !strings.Contains(p, "Pay yearly, AED 950") || !strings.Contains(p, "Pay yearly, AED 2,870") || !strings.Contains(p, "save 20%") {
-		t.Fatalf("yearly not offered: %s", p)
-	}
-	if r := checkout("year"); r.StatusCode != 303 || fb.checkouts[0].Get("line_items[0][price]") != "price_pro_year" {
-		t.Fatalf("yearly checkout: %d %v", r.StatusCode, fb.checkouts)
-	}
-
-	fb.status, fb.price = "active", "price_pro_year"
-	if r, _ := c.Get(e.base + "/billing?done=1"); r.StatusCode != 200 {
-		t.Fatal(r.StatusCode)
-	}
-	if p := page(); !strings.Contains(p, "Current plan: <strong>Pro</strong>") || !strings.Contains(p, `AED 950 <span class="per">/ year</span>`) {
-		t.Fatalf("yearly pro page: %s", p)
-	}
-	fb.price = "price_pro"
-	c.Get(e.base + "/billing?done=1")
-	if p := page(); !strings.Contains(p, `AED 99 <span class="per">/ month</span>`) {
-		t.Fatalf("back to monthly: %s", p)
-	}
-}
-
-// Without self-service, the billing page offers no subscription: owners are
-// on Professional and ask Renoxium for Business.
-func TestBillingPageWithoutSelfService(t *testing.T) {
-	e := newEnv(t)
-	fb := &fakeBilling{}
-	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", PriceProYearly: "price_pro_year", PriceBusinessYearly: "price_business_year",
-		WebhookSecret: "whsec_billing"}
-	c := e.browser()
-	e.signup(c, "noor@shop.ae")
-	r, _ := c.Get(e.base + "/billing")
-	p := read(t, r)
-	for _, want := range []string{"Current plan: <strong>Professional</strong>", "+ 2% of card payments", "<h3>Business</h3>", "By agreement",
-		`<a class="button secondary" href="/support">Contact Renoxium</a>`} {
-		if !strings.Contains(p, want) {
-			t.Errorf("billing page lacks %q", want)
-		}
-	}
-	for _, not := range []string{"Choose Pro", "Choose Business", "Pay yearly", "AED 99", "AED 299"} {
-		if strings.Contains(p, not) {
-			t.Errorf("billing page offers %q", not)
-		}
 	}
 }

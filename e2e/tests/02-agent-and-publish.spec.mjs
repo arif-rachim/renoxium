@@ -201,12 +201,12 @@ test("an agent cannot touch another owner's app", async ({ browser }) => {
   await bob.close();
 });
 
-test('the Professional plan allows ten apps', async ({ browser }) => {
+test('the Free plan allows one app', async ({ browser }) => {
   const { page } = await person(browser);
   await signUp(page, email('limit'));
   const agent = await builder((await connectAgent(page)).access_token);
-  for (let i = 1; i <= 10; i++) await agent.call('create_app', { app: unique(`n${i}`) });
-  await expect(agent.call('create_app', { app: unique('eleven') })).rejects.toThrow(/plan|limit|apps/i);
+  await agent.call('create_app', { app: unique('one') });
+  await expect(agent.call('create_app', { app: unique('two') })).rejects.toThrow(/plan|limit|apps/i);
   await agent.close();
 });
 

@@ -11,16 +11,6 @@ import (
 // in step with STRIPE_PRICE_PRO and STRIPE_PRICE_BUSINESS.
 var PlanPriceAED = map[string]int{PlanPro: 99, PlanBusiness: 299}
 
-// YearlyDiscountPercent is what paying for a year at once saves against
-// twelve monthly payments.
-const YearlyDiscountPercent = 20
-
-// PlanPriceYearAED is a plan's price for a year paid at once, in whole AED;
-// keep the yearly Stripe prices in step with it.
-func PlanPriceYearAED(plan string) int {
-	return PlanPriceAED[plan] * 12 * (100 - YearlyDiscountPercent) / 100
-}
-
 // ensureGrowth adds what the operator's funnel needs: when an account
 // first connected an agent, and its paid periods (one row per continuous
 // paid subscription, for churn and retention). Both are backfilled from

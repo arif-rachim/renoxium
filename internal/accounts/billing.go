@@ -24,20 +24,13 @@ type Billing struct {
 	Subscription      string
 	PeriodEnd         time.Time
 	CancelAtPeriodEnd bool
-	Yearly            bool // paid by the year, not the month
 }
 
 func (s *Store) ensureBilling() error {
 	_, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS billing (user_id TEXT PRIMARY KEY REFERENCES users(id), customer TEXT UNIQUE,
 		plan TEXT NOT NULL DEFAULT 'free', status TEXT NOT NULL DEFAULT '', subscription TEXT NOT NULL DEFAULT '',
 		period_end INTEGER NOT NULL DEFAULT 0, cancel_at_period_end INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`)
-	if err != nil {
-		return err
-	}
-	if _, err := s.db.Exec(`ALTER TABLE billing ADD COLUMN yearly INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Billing returns an account's subscription state; Plan is PlanFree when
@@ -46,8 +39,8 @@ func (s *Store) Billing(userID string) (Billing, error) {
 	b := Billing{Plan: PlanFree}
 	var customer sql.NullString
 	var end int64
-	err := s.db.QueryRow(`SELECT customer, plan, status, subscription, period_end, cancel_at_period_end, yearly FROM billing WHERE user_id = ?`, userID).
-		Scan(&customer, &b.Plan, &b.Status, &b.Subscription, &end, &b.CancelAtPeriodEnd, &b.Yearly)
+	err := s.db.QueryRow(`SELECT customer, plan, status, subscription, period_end, cancel_at_period_end FROM billing WHERE user_id = ?`, userID).
+		Scan(&customer, &b.Plan, &b.Status, &b.Subscription, &end, &b.CancelAtPeriodEnd)
 	if errors.Is(err, sql.ErrNoRows) {
 		return b, nil
 	}
@@ -104,7 +97,7 @@ func (s *Store) GrantPlan(userID, plan string) error {
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO billing (user_id, plan, status, updated_at) VALUES (?, ?, ?, ?)
 		ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, status = excluded.status, subscription = '', period_end = 0,
-		cancel_at_period_end = 0, yearly = 0, updated_at = excluded.updated_at`, userID, plan, status, s.now().UTC().Format(time.RFC3339)); err != nil {
+		cancel_at_period_end = 0, updated_at = excluded.updated_at`, userID, plan, status, s.now().UTC().Format(time.RFC3339)); err != nil {
 		return err
 	}
 	// A grant replaces any subscription: the account no longer pays.
@@ -125,8 +118,8 @@ func (s *Store) SetSubscription(userID string, b Billing) error {
 		return err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`UPDATE billing SET plan = ?, status = ?, subscription = ?, period_end = ?, cancel_at_period_end = ?, yearly = ?, updated_at = ?
-		WHERE user_id = ?`, b.Plan, b.Status, b.Subscription, end, b.CancelAtPeriodEnd, b.Yearly, s.now().UTC().Format(time.RFC3339), userID)
+	res, err := tx.Exec(`UPDATE billing SET plan = ?, status = ?, subscription = ?, period_end = ?, cancel_at_period_end = ?, updated_at = ?
+		WHERE user_id = ?`, b.Plan, b.Status, b.Subscription, end, b.CancelAtPeriodEnd, s.now().UTC().Format(time.RFC3339), userID)
 	if err != nil {
 		return err
 	}

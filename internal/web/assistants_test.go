@@ -18,7 +18,7 @@ func TestConsentNamesTheAccountAndAssistantsCanBeDisconnected(t *testing.T) {
 	_, challenge := pkce()
 	r, _ := c.Get(e.base + e.authorizeURL(clientID, challenge))
 	page := read(t, r)
-	for _, want := range []string{"Connect Test Agent to your Renoxium account", `<strong>lina@read.ae</strong>`, "Renoxium account · Professional plan · 0 apps",
+	for _, want := range []string{"Connect Test Agent to your Renoxium account", `<strong>lina@read.ae</strong>`, "Renoxium account · Free plan · 0 apps",
 		"Not you? Switch account", "Test Agent cannot", "it only sends you a link, and you confirm", "you go back to <strong>localhost:9999</strong>",
 		"Connect Test Agent to this account", "Don't connect", "disconnect Test Agent at any time"} {
 		if !strings.Contains(page, want) {
