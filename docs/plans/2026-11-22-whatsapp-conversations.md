@@ -1,7 +1,7 @@
 # WhatsApp conversations: design
 
-Date: 2026-11-22. Status: the product owner took every recommendation (section 8). Phase 1 is
-implemented; phases 2 to 4 are designs only. Choices made in phase 1:
+Date: 2026-11-22. Status: the product owner took every recommendation (section 8). Phases 1 and 2
+are implemented; phases 3 and 4 are designs only. Choices made in phase 1:
 - Free plan: 30 customer messages a month as a trial.
 - Opt-in: the checkbox only. WhatsApp sign-in does not count as consent.
 - Templates: English only for now.
@@ -15,6 +15,24 @@ What phase 1 changed from the design:
   arrive.
 - `whatsapp.send` refuses `name_review` for business names that look like banks, government
   offices, couriers or WhatsApp.
+
+What phase 2 changed from the design:
+- **Chat link reference.** The first message of a chat link is `Hi <business> (ref <app>)`. The
+  reference is removed before the app sees the text.
+- **Routing.** Renoxium remembers the app a number talked to for 24 hours.
+- **"Which business?"** With several apps, the question uses up to three reply buttons rather than
+  a list, and Renoxium keeps the customer's message for the chosen app.
+- **What on_message may do.** It may not move money, like public tools.
+- **Message rules.**
+  - Replies may link only to the app itself, but may contain phone numbers.
+  - Replies count towards the month's `wa_customer` messages, at most 50 per number per app per day.
+  - The platform handles at most 30 messages per number per app per hour, and 120 per app per
+    minute.
+- **Repeats.** An automatic reply goes to the same number at most once in 10 minutes, so two bots
+  never loop.
+- **Media.** Photos and files are not kept: the app sees type "media" without the content.
+- **What waits for phase 3.** `handoff_keywords` and `whatsapp.thread`. Threads (`rx_wa_threads`,
+  `rx_wa_messages`) are already recorded, so phase 3 starts with history.
 
 Goal: Renoxium becomes a conversation-focused app with automation. Customers and owners talk on
 WhatsApp, and the app automates the conversation: confirmations, reminders, status updates,

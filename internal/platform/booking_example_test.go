@@ -696,4 +696,26 @@ func TestBookingUAEWhatsApp(t *testing.T) {
 		job.WhatsApp[0].Text != "Reminder from Lamsa Beauty Lounge: Booking #2 on "+day+", 12:00. Classic Manicure with Maryam" {
 		t.Fatalf("reminders = %+v\n%s", job.WhatsApp, job.Body)
 	}
+	// The customer writes back: their bookings, the opening hours, and Arabic.
+	chat := func(text, button string) platform.TestWhatsApp {
+		t.Helper()
+		out, err := p.TestWhatsAppMessage(ctx, "lamsa", platform.TestWhatsAppInput{From: "+971501234567", Text: text, ButtonID: button})
+		if err != nil || len(out.WhatsApp) != 1 {
+			t.Fatalf("%q: %v %+v\n%s", text, err, out, logText(out))
+		}
+		return out.WhatsApp[0]
+	}
+	if r := chat("my bookings please", ""); !strings.Contains(r.Text, "Booking #2: Classic Manicure, "+day+" 12:00 (Confirmed)") ||
+		strings.Contains(r.Text, "Booking #1:") || !strings.Contains(r.Text, "https://lamsa--preview.renoxium.test/bookings") {
+		t.Fatalf("bookings reply = %q", r.Text)
+	}
+	if r := chat("", "hours"); !strings.Contains(r.Text, "10:00") || !strings.Contains(r.Text, "21:00") {
+		t.Fatalf("hours reply = %q", r.Text)
+	}
+	if r := chat("مرحبا", ""); !strings.HasPrefix(r.Text, "شكراً لرسالتك") || strings.Join(r.Buttons, ",") != "حجوزاتي,المواعيد" {
+		t.Fatalf("arabic reply = %+v", r)
+	}
+	if r := chat("hello", ""); !strings.HasPrefix(r.Text, "Thank you for your message.") {
+		t.Fatalf("other reply = %q", r.Text)
+	}
 }

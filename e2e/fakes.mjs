@@ -303,6 +303,11 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
           state.whatsapp.push({ to: m.to, type: 'text', text: m.text.body, wamid, at: Date.now() });
           return json(res, 200, { messaging_product: 'whatsapp', messages: [{ id: wamid }] });
         }
+        if (m.type === 'interactive') { // reply buttons inside the window
+          const buttons = m.interactive.action.buttons.map((b) => ({ id: b.reply.id, title: b.reply.title }));
+          state.whatsapp.push({ to: m.to, type: 'interactive', text: m.interactive.body.text, buttons, wamid, at: Date.now() });
+          return json(res, 200, { messaging_product: 'whatsapp', messages: [{ id: wamid }] });
+        }
         const comps = m.template.components;
         const params = comps.flatMap((c) => c.parameters.map((x) => x.text)).filter((x) => x !== undefined);
         const body_ = (comps.find((c) => c.type === 'body') || { parameters: [] }).parameters.map((x) => x.text);

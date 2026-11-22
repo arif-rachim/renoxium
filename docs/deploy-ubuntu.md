@@ -468,6 +468,26 @@ What Renoxium enforces:
 - **Privacy.** Live app logs show masked numbers and never the message text. Delivery statuses and
   Meta's price category for each message are kept for 180 days.
 
+**Customers who write back.** The same webhook brings in customers' messages. Renoxium hands each
+one to a single app:
+1. If the customer tapped a button of an app's message, the message goes to that app.
+2. If the first message came from an app's "Chat on WhatsApp" link, it goes to that app.
+3. Otherwise it goes to the app the customer talked to in the last 24 hours, or to the only app that
+   messaged the number in the last 30 days.
+4. When several apps messaged the number, Renoxium asks the customer which business they mean.
+
+Apps with a `whatsapp` section in their definition answer with automatic replies or a script. Other
+apps' customers get the fixed answer. Apps may reply only within 24 hours of the customer's last
+message to them, and replies count towards the monthly messages.
+
+For the chat links, add the platform number as customers dial it:
+
+```
+WHATSAPP_PLATFORM_NUMBER=+9715XXXXXXXX
+```
+
+Without it, the links show only their label.
+
 Without `WHATSAPP_CUSTOMER_TEMPLATES`, `whatsapp.send` answers `not_available` on live; previews
 always show the message instead of sending it. Without `WHATSAPP_APP_SECRET` the webhook answers
 503 and Renoxium keeps customer messages off, because opt-outs could not be received.
