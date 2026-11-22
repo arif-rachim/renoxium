@@ -591,6 +591,8 @@ func (h *scriptHost) Call(ctx context.Context, fn string, arg any) (any, error) 
 		return h.p.emailSend(ctx, h.st, arg)
 	case "notify.owner":
 		return h.p.notifyOwner(ctx, h.st, arg)
+	case "whatsapp.send":
+		return h.p.whatsappSend(ctx, h.st, arg)
 	case "http.fetch":
 		return h.httpFetch(ctx, arg)
 	case "realtime.publish":

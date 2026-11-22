@@ -223,6 +223,15 @@ Emails (plain text; live sends them, preview writes them with their links to get
   (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
+WhatsApp messages (a short one-way notice to one number, e.g. "two patients are ahead of you"):
+- whatsapp.send({to, text}) sends text (one line, at most 200 characters) to a number with its country code (+971501234567;
+  a UAE number typed as 050 123 4567 also works). It arrives as a notice from the app: "<app>: <text>"; replies do not reach
+  the app, so give a phone number or link in the text when the visitor may need to answer. Send it only to a number the visitor gave
+  for that purpose, at most once per event. It returns {sent} and throws when the number or text is wrong, when the number had
+  5 messages from the app today, or when the account's monthly WhatsApp messages (shared with sign-in codes and owner notices:
+  50 Free, 500 Pro and paid work apps, 2,000 Business) or the daily limit are used up: catch the error and fall back to
+  email.send. Preview writes the message to get_logs instead of sending it.
+
 Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an ERP:
 - List each external host in "hosts": [{host: "api.example.com", purpose: "one sentence for the owner"}]. Only HTTPS on port 443.
 - API keys go in "secrets": [{name: "EXAMPLE_KEY", host: "api.example.com", header: "Authorization", prefix: "Bearer", help: "where to find it"}]

@@ -85,7 +85,7 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 	limit := platform.AppsPerPlan[b.Plan]
 	meters := []meter{
 		newMeter("Apps", int64(len(apps)), int64(limit), ""),
-		newMeter("WhatsApp sign-in codes this month", int64(waUsed), int64(waQuota), ""),
+		newMeter("WhatsApp messages this month (sign-in codes and notices)", int64(waUsed), int64(waQuota), ""),
 		newMeter("Image storage", stUsed>>20, stQuota>>20, " MB"),
 		newMeter("External API calls this month", int64(fetchUsed), int64(fetchQuota), ""),
 	}
