@@ -485,6 +485,9 @@ type scriptHost struct {
 	// consent. waUser is the signed-in visitor, if any.
 	waOptin bool
 	waUser  int64
+	// waConsented is the number this request's opt-in box was used for:
+	// one ticked box is consent for one number.
+	waConsented string
 }
 
 // mayRedirect reports whether a script may send the visitor to target.

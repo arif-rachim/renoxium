@@ -211,6 +211,15 @@ func (h *scriptHost) whatsappConsent(ctx context.Context, arg any) (any, error) 
 	if !h.waOptin {
 		return map[string]any{"consented": false, "reason": "box_not_ticked"}, nil
 	}
+	h.mu.Lock()
+	if h.waConsented == "" {
+		h.waConsented = phone
+	}
+	other := h.waConsented != phone
+	h.mu.Unlock()
+	if other {
+		return map[string]any{"consented": false, "reason": "one_number"}, nil
+	}
 	var optedOut int64 = -1
 	st.admin.QueryRowContext(ctx, `SELECT opted_out_at FROM rx_wa_consent WHERE phone = ? AND consented_at > 0`, phone).Scan(&optedOut)
 	if optedOut != 0 { // not consenting yet: a new number counts against the day's limit
@@ -265,7 +274,7 @@ type waSendInput struct {
 var (
 	// waLinkish refuses addresses, long numbers and handles in message text:
 	// the only link a message carries is its button to the app itself.
-	waLinkish   = regexp.MustCompile(`(?i)(https?:|www\.|\b[a-z0-9-]+\.(com|net|org|ae|io|me|ly|co|xyz|info|biz|link|app|site|online|shop|store|top|click)\b|@[a-z0-9_]|\d[\d \-]{7,}\d)`)
+	waLinkish   = regexp.MustCompile(`(?i)(https?:|www\.|\b[a-z0-9-]+\.(com|net|org|ae|io|me|ly|co|xyz|info|biz|link|app|site|online|shop|store|top|click)\b|@[a-z0-9_]|\+\d[\d \-]{6,}\d|\b0\d[\d \-]{7,}\d|\d{8,})`)
 	waPathChars = regexp.MustCompile(`^/[A-Za-z0-9\-._~/?=&%#+]*$`)
 )
 

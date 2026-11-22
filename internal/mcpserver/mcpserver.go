@@ -215,6 +215,22 @@ Emails (plain text; live sends them, preview writes them with their links to get
   (order number, amount, payment method) and keep it under 150 characters.
 - req.origin is the app's own address (e.g. https://shop.renoxium.app); use it for links in emails.
 
+WhatsApp messages to customers (from Renoxium's WhatsApp number; live sends them, preview writes them to get_logs and to the
+"whatsapp" list of submit_form, try_scheduled_jobs and change_preview_row results):
+- Only to customers who agreed. Put <rx-whatsapp-optin></rx-whatsapp-optin> (or with lang="ar") inside the form that collects the
+  phone number: the platform shows an unticked box naming the business. In the POST script, when req.form.rx_wa_optin is "1",
+  call whatsapp.consent({phone}): {consented: true}, or {consented: false, reason: "box_not_ticked"|"bad_number"|"limit"|"one_number"}.
+  One ticked box is consent for one number. Without the box no script can record consent.
+- whatsapp.send({to, kind, ref, text, when, link}) sends one approved message: kind "confirmation" ("<business> confirmed your
+  <ref>: <text>"), "reminder" ("Reminder from <business>: <ref> on <when>. <text>", when required) or "update" ("Update from
+  <business> on your <ref>: <text>"). ref is at most 40 characters (e.g. "Booking #12"), text one line of at most 200, when at
+  most 60. No web addresses, phone numbers or @handles in them: the message's View button opens link, a path on the app (e.g.
+  "/bookings/12"). Every message has a "Stop messages" button; the platform handles it.
+- It returns {sent: true, id}, or {sent: false, reason} for "no_consent", "opted_out", "quota", "limit", "paused",
+  "not_available" or "name_review" (preview: {sent: false, preview: true, id}). It throws only for bad arguments. Send the
+  email as well, or instead when sent is false. whatsapp.status({phone}) returns {consented, opted_out}.
+- Monthly messages per account: 30 Free, 500 Pro, 2,000 Business; to one number from one app at most 3/5/10 a day.
+
 Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an ERP:
 - List each external host in "hosts": [{host: "api.example.com", purpose: "one sentence for the owner"}]. Only HTTPS on port 443.
 - API keys go in "secrets": [{name: "EXAMPLE_KEY", host: "api.example.com", header: "Authorization", prefix: "Bearer", help: "where to find it"}]
@@ -283,7 +299,7 @@ Search engines, link previews and AI assistants (seo):
 Tools for shoppers' AI assistants (MCP):
 - "tools" in the definition are served at <live_url>/mcp, so a shopper can add the shop to ChatGPT or Claude as a connector and ask
   about products. Anyone can call them without signing in (req.user is null), so return only public information, mark read-only
-  tools "read_only": true (the platform then refuses db.exec, writes through db.query, email.send, notify.owner, payments.checkout,
+  tools "read_only": true (the platform then refuses db.exec, writes through db.query, email.send, notify.owner, whatsapp.send, payments.checkout,
   realtime.publish and http.fetch in them), and link to the app's pages for ordering and paying (req.origin + path).
 - Each tool: {name, description, script, params: [{name, type: string|number|integer|boolean, description, required}], read_only}.
   The script gets req.method "TOOL" and the arguments in req.body, and returns {json: value} or {text: "..."}; a status of 400 or more

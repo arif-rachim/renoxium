@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -636,4 +637,63 @@ func longDay(date, lang string) string {
 func weekdayAr(date string) string {
 	d, _ := time.Parse("2006-01-02", date)
 	return []string{"الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"}[d.Weekday()]
+}
+
+// The booking form's WhatsApp box: a customer who ticks it gets the
+// confirmation and the evening reminder on WhatsApp as well (shown, not
+// sent, on preview); one who does not gets email only.
+func TestBookingUAEWhatsApp(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	ex, _ := examples.Get("booking-uae")
+	def, problems := appdef.Parse(ex.JSON)
+	if len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	p.CreateApp("usr_test", "lamsa")
+	if res, err := p.ApplyChange(ctx, "lamsa", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	as := func(in platform.TestRequestInput) platform.TestResponse {
+		t.Helper()
+		in.UserEmail = "fatima@mail.ae"
+		r, err := p.TestRequest(ctx, "lamsa", in)
+		if err != nil || r.Status >= 500 {
+			t.Fatalf("%+v: %v %d\n%s", in, err, r.Status, logText(r))
+		}
+		return r
+	}
+	p.TestRequest(ctx, "lamsa", platform.TestRequestInput{Method: "POST", Path: "/_rx/auth/signup", Form: map[string]string{"name": "Fatima", "email": "fatima@mail.ae", "password": "fatima password"}})
+	form := as(platform.TestRequestInput{Path: "/s/3"})
+	tok := regexp.MustCompile(`name="rx_wa_optin_token" value="([^"]+)"`).FindStringSubmatch(form.Body)
+	if tok == nil || !strings.Contains(form.Body, "on WhatsApp from Lamsa Beauty Lounge (sent via Renoxium)") {
+		t.Fatalf("no WhatsApp box on the booking form: %s", form.Body)
+	}
+	if ar := as(platform.TestRequestInput{Path: "/s/3?lang=ar"}); !strings.Contains(ar.Body, "على واتساب من") {
+		t.Error("the Arabic form has the English box")
+	}
+	tomorrow := time.Now().UTC().Add(4*time.Hour).AddDate(0, 0, 1).Format("2006-01-02")
+	appt := func(clock string, optin bool) map[string]string {
+		f := map[string]string{"service": "3", "staff": "", "date": tomorrow, "time": clock, "name": "Fatima", "phone": "050 123 4567", "payment": "venue"}
+		if optin {
+			f["rx_wa_optin"], f["rx_wa_optin_token"] = "1", tok[1]
+		} else {
+			f["phone"] = "050 765 4321" // consent is per number: a number that never ticked the box
+		}
+		return f
+	}
+	if r := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: appt("11:00", false)}); len(r.WhatsApp) != 0 {
+		t.Fatalf("WhatsApp without the box: %+v", r.WhatsApp)
+	}
+	r := as(platform.TestRequestInput{Method: "POST", Path: "/book", Form: appt("12:00", true)})
+	day := weekdayOf(tomorrow) + " " + longDay(tomorrow, "en")
+	want := "Lamsa Beauty Lounge confirmed your Booking #2: Classic Manicure with Maryam on " + day + ", 12:00. Tap View for the details."
+	if len(r.WhatsApp) != 1 || r.WhatsApp[0].Text != want || r.WhatsApp[0].Link != "/bookings/2" || r.WhatsApp[0].To != "+971501234567" {
+		t.Fatalf("confirmation = %+v\nwant %q", r.WhatsApp, want)
+	}
+	job := as(platform.TestRequestInput{Job: "daily_schedule"})
+	if len(job.WhatsApp) != 1 || job.WhatsApp[0].Kind != "reminder" ||
+		job.WhatsApp[0].Text != "Reminder from Lamsa Beauty Lounge: Booking #2 on "+day+", 12:00. Classic Manicure with Maryam" {
+		t.Fatalf("reminders = %+v\n%s", job.WhatsApp, job.Body)
+	}
 }
