@@ -17,6 +17,7 @@ func (s *Site) registerOperator() {
 	s.mux.HandleFunc("GET /operator/apps", s.operatorPage("apps"))
 	s.mux.HandleFunc("POST /operator/plan", s.operatorPlan)
 	s.mux.HandleFunc("POST /operator/suspend", s.operatorSuspend)
+	s.mux.HandleFunc("POST /operator/whatsapp-resume", s.operatorWhatsAppResume)
 	s.mux.HandleFunc("POST /operator/abuse/{id}/resolve", s.operatorResolve)
 	s.mux.HandleFunc("GET /operator/growth", s.growthPage("funnel"))
 	s.mux.HandleFunc("GET /operator/growth/weeks", s.growthPage("weeks"))
@@ -48,8 +49,9 @@ func (s *Site) isOperator(email string) bool {
 
 type operatorApp struct {
 	platform.AppRow
-	OwnerEmail string
-	LiveURL    string
+	OwnerEmail     string
+	LiveURL        string
+	WhatsAppPaused string // why its WhatsApp messages to customers are paused, or ""
 }
 
 // operatorTabs are the parts of the operator's Platform section.
@@ -94,7 +96,7 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 			}
 		}
 		info, _ := s.platform.Info(a.Name)
-		apps = append(apps, operatorApp{AppRow: a, OwnerEmail: emails[a.Owner], LiveURL: info.LiveURL})
+		apps = append(apps, operatorApp{AppRow: a, OwnerEmail: emails[a.Owner], LiveURL: info.LiveURL, WhatsAppPaused: s.platform.WhatsAppPaused(a.Name)})
 	}
 	reports, _ := s.platform.AbuseReports(50)
 	open := 0
@@ -178,4 +180,23 @@ func (s *Site) operatorResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/operator", http.StatusSeeOther)
+}
+
+// operatorWhatsAppResume lets an app paused for opt-outs message customers again.
+func (s *Site) operatorWhatsAppResume(w http.ResponseWriter, r *http.Request) {
+	op, ok := s.operator(w, r)
+	if !ok {
+		return
+	}
+	if !s.checkCSRF(r) {
+		http.Error(w, "the form expired; go back and try again", http.StatusForbidden)
+		return
+	}
+	app := r.PostFormValue("app")
+	if err := s.platform.ResumeWhatsApp(app); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	slog.Warn("operator resumed WhatsApp messages", "operator", op.Email, "app", app)
+	http.Redirect(w, r, "/operator/apps?q="+url.QueryEscape(r.PostFormValue("q")), http.StatusSeeOther)
 }

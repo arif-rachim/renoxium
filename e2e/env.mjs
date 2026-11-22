@@ -12,4 +12,6 @@ export const SECRETS = {
   billingWebhook: 'whsec_e2e_billing',
   pricePro: 'price_e2e_pro',
   priceBusiness: 'price_e2e_business',
+  whatsappApp: 'wa_app_secret_e2e',
+  whatsappVerify: 'wa_verify_e2e',
 };

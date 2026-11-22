@@ -1,7 +1,20 @@
 # WhatsApp conversations: design
 
-Date: 2026-11-22. Status: design only, no code. The phases and the decisions at the end wait for
-the product owner.
+Date: 2026-11-22. Status: the product owner took every recommendation (section 8). Phase 1 is
+implemented; phases 2 to 4 are designs only. Choices made in phase 1:
+- Free plan: 30 customer messages a month as a trial.
+- Opt-in: the checkbox only. WhatsApp sign-in does not count as consent.
+- Templates: English only for now.
+- Retention: 180 days.
+- Pause: when more than 5% of at least 50 messages in 7 days are opted out.
+- Inbound: a fixed answer once a day.
+
+What phase 1 changed from the design:
+- One ticked box is consent for one number per request (`reason: "one_number"`).
+- A server without `WHATSAPP_APP_SECRET` keeps customer messages off, because opt-outs could not
+  arrive.
+- `whatsapp.send` refuses `name_review` for business names that look like banks, government
+  offices, couriers or WhatsApp.
 
 Goal: Renoxium becomes a conversation-focused app with automation. Customers and owners talk on
 WhatsApp, and the app automates the conversation: confirmations, reminders, status updates,

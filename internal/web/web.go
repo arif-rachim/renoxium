@@ -1209,7 +1209,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 
 {{else}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
 <section class="panel col fill"><div class="ph"><h2>Apps</h2></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>App</th><th>Owner</th><th>Live</th><th>Stripe</th><th></th></tr></thead><tbody>
-{{range .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
+{{range $a := .Apps}}<tr><td><a href="{{.LiveURL}}" target="_blank" rel="noopener">{{.Name}}</a>{{with .Suspended}} <span class="error">suspended: {{.}}</span>{{end}}{{with .WhatsAppPaused}}<br><span class="error">WhatsApp to customers paused: {{.}}</span>
+<form method="post" action="/operator/whatsapp-resume" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{$a.Name}}"><input type="hidden" name="q" value="{{$.Q}}"><button class="secondary">Resume WhatsApp</button></form>{{end}}</td><td class="em">{{.OwnerEmail}}</td>
 <td>{{if .LiveVersion}}<span class="pill live">v{{.LiveVersion}}</span>{{else}}<span class="muted">not published</span>{{end}}</td><td>{{if .ChargesEnabled}}<span class="ok">ready</span>{{else if .StripeAccount}}setting up{{else}}<span class="muted">none</span>{{end}}</td>
 <td><form method="post" action="/operator/suspend" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="app" value="{{.Name}}"><input type="hidden" name="q" value="{{$.Q}}">
 {{if .Suspended}}<button class="secondary" name="action" value="unsuspend">Bring back</button>{{else}}<input name="reason" placeholder="Reason" aria-label="Reason"><button class="danger" name="action" value="suspend" style="margin:0">Suspend</button>{{end}}</form></td></tr>{{end}}
@@ -1312,7 +1313,11 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{else}}<p>WhatsApp notices go to <strong>{{.Phone.Phone}}</strong> <span class="ok">on</span></p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="remove"><button class="danger">Turn off WhatsApp notices</button></form>{{end}}
 {{if .Available}}<p class="muted">Each WhatsApp notice counts as one of your plan's WhatsApp messages: {{.Used}} of {{.Quota}} used this month.</p>{{end}}
-</section></div>{{template "appbottom"}}{{end}}
+</section>
+<section class="panel bcell"><div class="ph"><h2>WhatsApp to customers</h2>{{if .CustomerPaused}}<span class="pill">paused</span>{{end}}</div>
+<p>Your app can send confirmations, reminders and updates on WhatsApp to customers who ticked the WhatsApp box on its forms. Every message names your business and has a Stop button.</p>
+{{with .CustomerPaused}}<p class="flash bad error">Paused by Renoxium: {{.}}. Emails are still sent. Reply to Renoxium's email to ask for them to be turned on again.</p>{{end}}
+<p class="muted">{{.CustomerUsed}} of {{.CustomerQuota}} messages to customers used this month.</p></section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_domain"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Your own domain</h1><p class="sub">Serve this app on a domain you own instead of its Renoxium address.</p></div></div>

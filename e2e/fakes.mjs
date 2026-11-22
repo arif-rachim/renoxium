@@ -298,9 +298,18 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
       }
       if (p.startsWith('/meta/') && req.method === 'POST') {
         const m = JSON.parse(body);
-        const params = m.template.components.flatMap((c) => c.parameters.map((x) => x.text));
-        state.whatsapp.push({ to: m.to, template: m.template.name, language: m.template.language.code, params, at: Date.now() });
-        return json(res, 200, { messaging_product: 'whatsapp', messages: [{ id: id('wamid') }] });
+        const wamid = id('wamid');
+        if (m.type === 'text') { // a reply inside the customer service window
+          state.whatsapp.push({ to: m.to, type: 'text', text: m.text.body, wamid, at: Date.now() });
+          return json(res, 200, { messaging_product: 'whatsapp', messages: [{ id: wamid }] });
+        }
+        const comps = m.template.components;
+        const params = comps.flatMap((c) => c.parameters.map((x) => x.text)).filter((x) => x !== undefined);
+        const body_ = (comps.find((c) => c.type === 'body') || { parameters: [] }).parameters.map((x) => x.text);
+        const url = comps.find((c) => c.type === 'button' && c.sub_type === 'url')?.parameters[0].text;
+        const payload = comps.find((c) => c.type === 'button' && c.sub_type === 'quick_reply')?.parameters[0].payload;
+        state.whatsapp.push({ to: m.to, type: 'template', template: m.template.name, language: m.template.language.code, params, body: body_, url, payload, wamid, at: Date.now() });
+        return json(res, 200, { messaging_product: 'whatsapp', messages: [{ id: wamid }] });
       }
       if (p.startsWith('/extapi/')) {
         // A courier-style API: /rates needs a Bearer key, /echo repeats what it was sent.

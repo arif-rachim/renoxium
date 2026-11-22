@@ -401,6 +401,77 @@ approved **Utility** template:
 Each notice, and each confirmation code, counts towards the account's monthly WhatsApp messages
 (the same quota as sign-in codes), with at most 100 notices per app per day.
 
+#### WhatsApp messages to customers (optional)
+
+Apps can send booking confirmations, reminders and status updates to customers who ticked the
+WhatsApp box on one of the app's forms (`whatsapp.send`). Messages go from the platform number, as
+three approved **Utility** templates, and every template names the business. You also need the
+webhook, so that customers' Stop taps and STOP replies are honoured.
+
+1. In WhatsApp Manager, create three templates of category **Utility**, language English (`en`).
+   Each template has two buttons:
+   - **Visit website**, text `View`, a dynamic URL `https://renoxium.com/w/{{1}}` (the server's `--base-url`
+     followed by `/w/{{1}}`), sample `abc123`.
+   - **Quick reply**, text `Stop messages`.
+
+   | Name | Body | Samples |
+   | --- | --- | --- |
+   | `rx_confirmation` | `{{1}} confirmed your {{2}}: {{3}}. Tap View for the details.` | `Lamsa Beauty Lounge`, `Booking #12`, `Haircut with Layla on Tuesday 2 Dec 2026, 10:00` |
+   | `rx_reminder` | `Reminder from {{1}}: {{2}} on {{3}}. {{4}}` | `Lamsa Beauty Lounge`, `Booking #12`, `Tuesday 2 Dec 2026, 10:00`, `Haircut with Layla` |
+   | `rx_update` | `Update from {{1}} on your {{2}}: {{3}}` | `Oud Al Noor`, `Order #31`, `Your order is out for delivery and arrives today.` |
+
+   Keep the bodies exactly as shown: previews render the same text. The button order matters, with
+   View first and Stop second. Wait until all three are Approved, and check their category is still
+   Utility, because Meta can change a template it judges promotional to Marketing.
+2. In the Meta app (developers.facebook.com → your app → WhatsApp → Configuration), set the webhook:
+   - **Callback URL**: `https://renoxium.com/whatsapp/webhook`.
+   - **Verify token**: a random string you choose.
+   - Then subscribe to the `messages` field.
+
+   Copy the **App secret** from App settings → Basic.
+3. Add to `/etc/renoxium/env`, then restart Renoxium **before** you save the webhook in Meta, because
+   Meta checks the verify token at once:
+
+   ```
+   WHATSAPP_CUSTOMER_TEMPLATES=confirmation:rx_confirmation,reminder:rx_reminder,update:rx_update
+   WHATSAPP_CUSTOMER_LANGUAGE=en
+   WHATSAPP_APP_SECRET=the_app_secret
+   WHATSAPP_VERIFY_TOKEN=the_verify_token
+   ```
+
+4. Send the three templates to your own phone, then tap **Stop messages** on one of them. Nothing
+   should happen, because test messages belong to no app:
+
+   ```bash
+   sudo bash -c 'set -a; . /etc/renoxium/env; /opt/renoxium/renoxium whatsapp-test +971501234567 customer'
+   ```
+
+What Renoxium enforces:
+- **Consent.** Only numbers whose owner ticked the box get messages, and each app's consent is
+  separate.
+- **Opting out.** The Stop button, or a reply of STOP (or its Arabic equivalents), ends that app's
+  messages at once. A STOP reply ends the messages of every app that wrote to the number in the last
+  30 days.
+- **Other replies.** Any other reply gets one answer a day saying the number is not read and where
+  to contact the business.
+- **Limits.**
+  - Each account's live apps may send 30 (Free), 500 (Pro) or 2,000 (Business) messages per
+    calendar month.
+  - One app may send a number 3, 5 or 10 messages a day, and at most 20 messages a minute.
+  - Every message also counts towards the server's daily WhatsApp limit.
+  - Keep that limit below your WhatsApp account's messaging limit (250 unique customers a day
+    until the business is verified).
+- **Automatic pause.** An app whose customers stop more than 5% of at least 50 messages in 7 days is
+  paused, and its owner is emailed. Resume it from **Operator → Apps** after looking into it.
+- **Business names.** Names that look like a bank, a government office, a courier or WhatsApp itself
+  are not sent.
+- **Privacy.** Live app logs show masked numbers and never the message text. Delivery statuses and
+  Meta's price category for each message are kept for 180 days.
+
+Without `WHATSAPP_CUSTOMER_TEMPLATES`, `whatsapp.send` answers `not_available` on live; previews
+always show the message instead of sending it. Without `WHATSAPP_APP_SECRET` the webhook answers
+503 and Renoxium keeps customer messages off, because opt-outs could not be received.
+
 Check that the server is up. This must print `ok`:
 
 ```bash

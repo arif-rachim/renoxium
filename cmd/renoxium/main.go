@@ -179,7 +179,10 @@ func main() {
 			cfg.WhatsAppNotices = wa
 			slog.Info("WhatsApp owner notices on", "template", wa.NoticeTemplate)
 		}
-		if tmpl := customerTemplatesFromEnv(); len(tmpl) > 0 {
+		if tmpl := customerTemplatesFromEnv(); len(tmpl) > 0 && os.Getenv("WHATSAPP_APP_SECRET") == "" {
+			// Without the webhook, customers' Stop taps would be lost.
+			slog.Warn("WhatsApp messages to customers stay off: WHATSAPP_APP_SECRET is not set, so opt-outs could not be received")
+		} else if len(tmpl) > 0 {
 			cfg.WhatsAppCustomers, cfg.WhatsAppCustomerTemplates = wa, tmpl
 			cfg.WhatsAppCustomerLanguage = os.Getenv("WHATSAPP_CUSTOMER_LANGUAGE")
 			slog.Info("WhatsApp messages to customers on", "templates", tmpl)

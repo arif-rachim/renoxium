@@ -32,6 +32,8 @@ export default async function globalSetup() {
     STRIPE_PRICE_PRO: SECRETS.pricePro, STRIPE_PRICE_BUSINESS: SECRETS.priceBusiness, STRIPE_BILLING_WEBHOOK_SECRET: SECRETS.billingWebhook,
     WHATSAPP_TOKEN: 'wa_e2e', WHATSAPP_PHONE_NUMBER_ID: '100200300', WHATSAPP_OTP_TEMPLATE: 'login_code',
     WHATSAPP_NOTICE_TEMPLATE: 'owner_notice', WHATSAPP_NOTICE_LANGUAGE: 'en', WHATSAPP_API_BASE: `${FAKES}/meta`,
+    WHATSAPP_CUSTOMER_TEMPLATES: 'confirmation:rx_confirmation,reminder:rx_reminder,update:rx_update',
+    WHATSAPP_APP_SECRET: SECRETS.whatsappApp, WHATSAPP_VERIFY_TOKEN: SECRETS.whatsappVerify,
     CLOUDFLARE_API_TOKEN: 'cf_e2e', CLOUDFLARE_ZONE_ID: 'zone_e2e', CLOUDFLARE_API_BASE: `${FAKES}/cf`, CUSTOM_DOMAIN_TARGET: 'customers.localhost',
     FETCH_API_BASE: `${FAKES}/extapi`, // apps' http.fetch calls go to the fake API
     JOBS_CHECK_EVERY: '1s',            // scheduled jobs are checked every second instead of every 30

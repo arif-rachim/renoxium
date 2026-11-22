@@ -12,9 +12,11 @@ func (s *Site) registerAlerts() {
 func (s *Site) renderAlerts(w http.ResponseWriter, r *http.Request, app string, status int, errText string) {
 	u, _ := s.currentUser(r)
 	used, quota := s.platform.WhatsAppUsage(u.ID)
+	cUsed, cQuota := s.platform.WhatsAppCustomerUsage(u.ID)
 	u0, _ := s.currentUser(r)
 	render(w, status, "admin_alerts", map[string]any{"Shell": s.shell(u0, app, "Notifications", "/apps/"+app+"/notifications", false), "App": app, "Phone": s.platform.AlertPhoneOf(app), "CSRF": s.csrfToken(w, r),
-		"Error": errText, "Available": s.platform.WhatsAppAlertsAvailable(), "Email": u.Email, "Used": used, "Quota": quota})
+		"Error": errText, "Available": s.platform.WhatsAppAlertsAvailable(), "Email": u.Email, "Used": used, "Quota": quota,
+		"CustomerUsed": cUsed, "CustomerQuota": cQuota, "CustomerPaused": s.platform.WhatsAppPaused(app)})
 }
 
 func (s *Site) alertsPage(w http.ResponseWriter, r *http.Request) {
