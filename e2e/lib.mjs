@@ -171,7 +171,7 @@ export async function choosePlan(page, app, plan = 'shop') {
   if (plan === 'shop') {
     const make = page.getByRole('button', { name: 'Make it a shop' });
     if (await make.count()) await make.click();
-    await expect(page.locator('body')).toContainText(/the shop (can go live|takes card payments)/);
+    await expect(page.locator('body')).toContainText(/the shop (can go live|takes card payments)/i);
     return;
   }
   await page.getByRole('button', { name: /^(Make it a work app|Subscribe), AED 99 a month$/ }).click();
