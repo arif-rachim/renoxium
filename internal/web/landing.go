@@ -75,8 +75,8 @@ func (s *Site) registerLanding() {
 
 func (s *Site) landingData(ar bool) map[string]any {
 	cards := s.galleryCards()
-	// The pricing example: what the Free plan's fee costs on AED 10,000 of
-	// card sales, and the card sales above which Pro (AED 99) is cheaper.
+	// The pricing example: what a shop's fee costs on AED 10,000 of card
+	// sales, and the card sales above which AED 99 a month is cheaper.
 	const fee, pro = 2, 99
 	calendar := screens["admin-calendar"]
 	if ar {

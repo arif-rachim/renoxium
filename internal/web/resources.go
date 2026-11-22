@@ -628,7 +628,7 @@ func (s *Site) resourceAppTab(w http.ResponseWriter, r *http.Request, tab string
 		"Tab":   tab, "Tabs": tabs,
 		"CSRF": csrf, "App": app, "Info": info, "Row": row, "Flags": resFlags(row), "Tiles": tiles, "Charts": hourCharts,
 		"Names": nameRows, "Incidents": incidents, "Stages": stageRows, "Audit": audit, "Window": win, "Windows": windows,
-		"Throttle": throttle, "Throttled": throttled, "ThrottleNotice": throttle.Notice(), "Suspended": appRow.Suspended,
+		"Throttle": throttle, "Throttled": throttled, "ThrottleNotice": throttle.Notice(s.base), "Suspended": appRow.Suspended,
 		"Notice": noticeText(row, win, s.base), "NoticeSubject": "Your app " + app + " uses a lot of the shared server",
 		"MaxSlots": s.platform.ScriptsPerApp(),
 	})
@@ -691,11 +691,7 @@ func noticeText(r resources.Row, w resWindow, base string) string {
 	}
 	b.WriteString("\nNothing has been changed yet. You can usually make an app much lighter by asking the assistant that built it (ChatGPT or Claude) to " +
 		"\"check the Renoxium logs and make the slow scripts faster\": read fewer rows per request, avoid long loops, and move heavy work into a scheduled job.\n\n")
-	if r.Plan == "free" {
-		fmt.Fprintf(&b, "If your business needs this much, a paid plan covers it and removes the Free plan's limits: %s/billing\n\n", base)
-	} else {
-		fmt.Fprintf(&b, "If your business needs this much, the Business plan has the most room: %s/billing\n\n", base)
-	}
+	fmt.Fprintf(&b, "If your business needs this much, contact us about a larger plan: %s/support\n\n", base)
 	b.WriteString("Reply to this email if you have questions.\n\nThank you,\nRenoxium")
 	return b.String()
 }
@@ -851,7 +847,7 @@ const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}
 
 {{else}}<div class="grow"><h2 style="margin-top:0">Actions</h2><p class="muted">Each action is written to the app's log, which the owner and their agent read, and to the operator audit below.</p><div class="forms">
 <form method="post" action="/operator/resources/{{.App}}/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><input type="hidden" name="action" value="notify">
-<h2>Email the owner</h2><p class="muted">A polite notice of what is heavy, with the upgrade link. Edit it before sending.</p>
+<h2>Email the owner</h2><p class="muted">A polite notice of what is heavy, with a link to contact Renoxium about a larger plan. Edit it before sending.</p>
 <label for="n-subject">Subject</label><input id="n-subject" name="subject" value="{{.NoticeSubject}}" maxlength="150">
 <label for="n-text">Message</label><textarea id="n-text" name="text" rows="7">{{.Notice}}</textarea><button>Send email</button></form>
 <form method="post" action="/operator/resources/{{.App}}/action"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}">

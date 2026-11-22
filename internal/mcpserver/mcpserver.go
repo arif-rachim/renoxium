@@ -250,7 +250,7 @@ Realtime (live updates in the browser, e.g. a courier on a map, a queue number, 
 Scheduled jobs:
 - "jobs": [{name, script, every: "15m"} or {name, script, daily_at: "21:00", timezone: "Asia/Dubai" (default)}] run scripts on the live
   app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.
-  every is at least 1m (5m on a free account, except in a paid work app). A new job first runs after its interval or at its next daily time.
+  every is at least 1m (5m on a free account, except in a paid work app or a shop taking card payments). A new job first runs after its interval or at its next daily time.
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
 - Jobs never run on preview by themselves: try them with try_scheduled_jobs {"app": "..."}, which runs every listed job once and returns each result. The owner sees last and next runs on the app page.
 

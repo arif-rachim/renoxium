@@ -241,7 +241,7 @@ func (p *Platform) serveLive(w http.ResponseWriter, r *http.Request, st *stage) 
 	defer p.liveVisitorOpen(appStage+"/"+ip, -1)
 	c, last, ok := p.live.subscribe(appStage, key, limit)
 	if !ok {
-		p.event(st, "server", "warn", "", fmt.Sprintf("realtime: subscriber limit of %d reached; upgrade the plan for more", limit))
+		p.event(st, "server", "warn", "", fmt.Sprintf("realtime: subscriber limit of %d reached; for more, %s", limit, p.moreHint(p.appQuotaPlan(st.app), st.app)))
 		http.Error(w, "this app has too many live connections right now", http.StatusServiceUnavailable)
 		return
 	}

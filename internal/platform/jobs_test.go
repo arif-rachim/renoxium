@@ -62,7 +62,7 @@ func TestScheduledJobs(t *testing.T) {
 	if n := p.RunDueJobs(ctx, start); n != 0 {
 		t.Fatalf("ran %d jobs on first sight", n)
 	}
-	// The Free plan stretches "every 1m" to 5 minutes.
+	// An app on the free limits stretches "every 1m" to 5 minutes.
 	if n := p.RunDueJobs(ctx, start.Add(2*time.Minute)); n != 0 {
 		t.Fatalf("ran %d jobs after 2 minutes", n)
 	}

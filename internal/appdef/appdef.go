@@ -161,7 +161,7 @@ type ToolParam struct {
 type Job struct {
 	Name     string `json:"name" jsonschema:"lowercase name, e.g. cancel_unpaid"`
 	Script   string `json:"script" jsonschema:"name of the script the job runs"`
-	Every    string `json:"every,omitempty" jsonschema:"run repeatedly, e.g. 15m, 1h or 6h (Go duration; at least 1m, 5m on the Free plan)"`
+	Every    string `json:"every,omitempty" jsonschema:"run repeatedly, e.g. 15m, 1h or 6h (Go duration; at least 1m; 5m on a free account unless the app is a paid work app or a shop taking card payments)"`
 	DailyAt  string `json:"daily_at,omitempty" jsonschema:"run once a day at this local time, HH:MM, e.g. 08:00"`
 	Timezone string `json:"timezone,omitempty" jsonschema:"IANA time zone for daily_at; default Asia/Dubai"`
 }
