@@ -61,7 +61,7 @@ func TestClinicQueueFlow(t *testing.T) {
 	e := clinicEnv(t, nil)
 	home := e.get("/", "").Body
 	for _, want := range []string{`data-font="boutique"`, "Shifa Family Clinic", "General practice", `href="/s/1"`, "Nobody waiting", "Nobody has been called yet",
-		"Taking numbers now, day and night", `class="q-svc"`, `view-transition-name:sttl-1`} {
+		"Open 24 hours today", `class="q-glass"`, `action="/take"`, `class="q-svc"`, `view-transition-name:sttl-1`, "Skip the waiting room."} {
 		if !strings.Contains(home, want) {
 			t.Errorf("home lacks %q", want)
 		}

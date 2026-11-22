@@ -26,7 +26,7 @@ func init() {
 			"name":     "Noura A. (sample)", "area": "Physiotherapy", "area_ar": "العلاج الطبيعي"},
 	}}
 	demoSettings["clinic-queue-uae"] = map[string]map[string]any{"clinic": {"opens": "00:00", "closes": "24:00", "last_ticket_minutes": 0,
-		"tagline": "See a doctor today, without the waiting room", "tagline_ar": "قابل الطبيب اليوم دون الجلوس في قاعة الانتظار"}}
+		"label": "Family clinic, open 24 hours", "label_ar": "عيادة عائلية، مفتوحة 24 ساعة"}}
 	demoSchedules["clinic-queue-uae"] = clinicDemoSchedule
 }
 

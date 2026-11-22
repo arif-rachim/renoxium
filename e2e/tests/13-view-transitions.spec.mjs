@@ -12,7 +12,8 @@ import { test, expect } from '@playwright/test';
 import { appURL, RENOXIUM } from '../env.mjs';
 import { person, signUp, email, unique, connectAgent, builder } from '../lib.mjs';
 
-// demo, list page, prefix of the shared view-transition-name, the detail page's path
+// demo, list page, prefix of the shared view-transition-name, the detail page's path. The clinic demo's service cards
+// show icons, not photos, so its cards move their titles: TITLES covers it.
 const NAVS = [
   ['demo-store-uae', '/', 'pimg-', /^\/p\/\d+$/],
   ['demo-booking-uae', '/', 'simg-', /^\/s\/\d+$/],
@@ -24,7 +25,6 @@ const NAVS = [
   ['demo-listings-uae', '/', 'aimg-', /^\/agents\/\d+$/],
   ['demo-listings-uae', '/l/1', 'aimg-', /^\/agents\/\d+$/],
   ['demo-quote-portal-uae', '/', 'kimg-', /^\/packages\/\d+$/],
-  ['demo-clinic-queue-uae', '/', 'simg-', /^\/s\/\d+$/],
 ];
 
 // Runs in every document before its scripts: notes each reveal of the page (a load, or a return from the back/forward
