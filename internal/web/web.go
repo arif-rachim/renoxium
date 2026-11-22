@@ -935,7 +935,13 @@ body.app:not(.own) .sidenav li a{padding:5px 10px}body.app:not(.own) .sidenav h3
 @media(min-width:1000px) and (min-height:600px) and (max-height:780px){.appmain{zoom:.84}body.app .sidenav{zoom:.9}}
 @media(min-width:1000px) and (min-height:600px) and (max-height:700px){.appmain{zoom:.76}body.app .sidenav{zoom:.82}}
 @media(min-width:1000px) and (max-width:1180px) and (min-height:600px){body.app .shell{grid-template-columns:200px minmax(0,1fr);gap:22px;padding:0 20px}}
-@media(max-width:999px){.bento{display:grid;gap:14px}.bento>*{min-height:150px}.fitchart>.chart>.plot{height:168px}}
+@media(max-width:999px){.bento{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:none!important;grid-auto-rows:auto!important}
+.bento>*{grid-area:auto!important;grid-column:auto!important;min-height:0}.bento>.fitchart{min-height:240px}.fitchart>.chart>.plot{height:168px}
+.grid2{grid-template-columns:minmax(0,1fr)!important}.panel,.card{min-width:0}.appmain{overflow-wrap:anywhere}
+.pagehead .acts{width:100%}.pagehead h1{font-size:26px}.sub{font-size:15px}
+.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs a{white-space:nowrap}
+.seg{max-width:100%;overflow-x:auto;flex-wrap:nowrap}.seg a{white-space:nowrap}
+.welcome .acts{width:100%}.welcome .button{flex:1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head>{{end}}
 {{define "fonts"}}<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">{{end}}
