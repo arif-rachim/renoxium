@@ -195,6 +195,7 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <div class="sign"><h1 id="hero-h" class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</h1><span class="rule" aria-hidden="true"></span><p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</p></div>
 <p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
+<p class="also-work">Not selling online? Renoxium also builds <a href="#work">work apps that take no payments</a>, like a clinic queue or staff attendance.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -271,32 +272,50 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 </div>{{end}}
 </div></section>
 
+<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
+<div data-r><h2 id="work-h">Not selling online? Run your work on it</h2>
+<p class="sub">A clinic queue, staff attendance, a simple CRM, a members' portal: describe it to your assistant the same way, and it builds the app around how you work.</p></div>
+<div class="wk">
+<figure class="queue" data-r aria-hidden="true"><p class="qh"><span>Today's queue</span><span class="dim">Dr. Huda · Room 2</span></p>
+<div class="qrow now"><span class="qn">14</span><span>Fatima K.</span><span class="tag">With the doctor</span></div>
+<div class="qrow"><span class="qn">15</span><span>Omar S.</span><span class="tag">Next</span></div>
+<div class="qrow"><span class="qn">16</span><span>Rania M.</span><span class="dim">About 20 min</span></div>
+<div class="qrow"><span class="qn">17</span><span>Yusuf A.</span><span class="dim">About 35 min</span></div></figure>
+<ul class="uses">
+<li data-r><h3>Clinic queue</h3><p>Patients take a number on their phone and see when it is their turn. The front desk calls the next one.</p></li>
+<li data-r><h3>Staff attendance</h3><p>Staff check in and out on their phone. You see who is in today and each person's hours for the month.</p></li>
+<li data-r><h3>Simple CRM</h3><p>Every customer, call and follow-up in one list, with an email when a follow-up is due.</p></li>
+<li data-r><h3>Members' portal</h3><p>Members sign in to see their membership, when it renews and your notices.</p></li>
+</ul></div>
+<div class="wkprice" data-r><p><strong>A work app: AED {{.WorkPrice}} a month per app, {{.WorkUsers}} staff included.</strong> Each one more is AED {{.SeatPrice}} a month. Nothing is charged on what your customers pay you.</p><a class="btn line" href="/templates">See the templates</a></div>
+</div></section>
+
 <section class="block" aria-labelledby="has-h"><div class="wrap">
-<div data-r><h2 id="has-h">What every site has, on every plan</h2></div>
+<div data-r><h2 id="has-h">What every shop and work app has</h2>
+<p class="sub">A free static site is pages and photos. A shop or a work app comes with all of the below; card payments, deposits and card refunds come with a shop.</p></div>
 <div class="groups">
-<section class="group" data-r><h3>Take the money</h3>
-<div class="spec" aria-hidden="true"><div class="row"><span>Deposit, haircut</span><span class="num">AED 50.00</span><span class="tag">Paid</span></div><div class="row"><span class="dim">Cancelled in time</span><span class="num dim">− AED 50.00</span><span class="tag">Refunded</span></div></div>
-<dl><div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
-<div><dt>Cash on delivery</dt><dd>Or pay at the venue. Works without Stripe.</dd></div>
-<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div></dl></section>
+<section class="group" data-r><h3>Your customers</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>Sara A. · code sent on WhatsApp</span><span class="tag">Signed in</span></div><div class="row"><span class="dim">Order 208, cash on delivery</span><span class="num dim">AED 120.00</span></div></div>
+<dl><div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their own orders, bookings or records.</dd></div>
+<div><dt>Forms and bookings</dt><dd>Customers book a time, join a queue or send a form, and it lands in your panel.</dd></div>
+<div><dt>Cash or transfer</dt><dd>Take cash on delivery, at the venue or by bank transfer. Works without Stripe.</dd></div></dl></section>
 <section class="group" data-r><h3>Run the day</h3>
 <div class="spec" aria-hidden="true"><div class="lanes"><div><b>Layla</b><span>10:00 Colour</span><span>13:30 Haircut</span></div><div><b>Maryam</b><span class="gap">.</span><span>12:00 Manicure</span></div><div><b>Priya</b><span>11:00 Facial</span><span>15:00 Haircut</span></div></div></div>
-<dl><div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
+<dl><div><dt>Admin panel</dt><dd>Your products, orders, bookings, customers or records, on any phone.</dd></div>
 <div><dt>Calendar</dt><dd>Day and week views, one lane per stylist, crew or item.</dd></div>
-<div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
-<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div></dl></section>
+<div><dt>Staff access</dt><dd>Staff sign in with their own account, without seeing your payments or documents: {{.ShopStaff}} on a shop, {{.WorkUsers}} included on a work app.</dd></div>
+<div><dt>Alerts</dt><dd>Each new order, booking or entry on WhatsApp and by email, with a daily summary.</dd></div></dl></section>
 <section class="group" data-r><h3>Made for the UAE</h3>
 <div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span> <span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
-<dl><div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
+<dl><div><dt>AED with 5% VAT</dt><dd>Prices in dirhams, and tax invoices for what you sell once you add your TRN.</dd></div>
 <div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
-<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
+<div><dt>Your own domain</dt><dd>www.yourname.ae instead of a Renoxium address.</dd></div></dl></section>
 <section class="group" data-r><h3>You stay in control</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
 <dl><div><dt>No credits</dt><dd>Change your site as often as you like. Nothing is counted or charged per request.</dd></div>
 <div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
 <div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
-<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
-<div><dt>Your own domain</dt><dd>www.yourshop.ae, for shops and work apps.</dd></div></dl></section>
+<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
@@ -426,6 +445,20 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .trade .go{margin:28px 0 0;display:flex;gap:10px 24px;flex-wrap:wrap}
 .tabbed .trade:not([hidden]){animation:tabin .35s cubic-bezier(.2,.7,.2,1)}
 @keyframes tabin{from{opacity:0;transform:translateY(8px)}}
+.also-work{margin:-12px 0 28px;color:var(--slate);font-size:17px;max-width:40em}
+.workapp+.block{padding-top:0}.workapp+.block>.wrap{border-top:1px solid var(--line);padding-top:clamp(64px,8vw,104px)}
+.wk{display:grid;gap:40px;margin-top:40px;align-items:start}@media(min-width:960px){.wk{grid-template-columns:minmax(0,420px) 1fr;gap:72px}}
+.queue{margin:0;background:var(--mist);border-radius:12px;padding:20px;display:grid;gap:8px;font-size:15px;min-width:0}
+.queue .qh{margin:0 0 6px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600}
+.queue .dim{color:var(--slate);font-weight:400}
+.qrow{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--paper);border-radius:8px;padding:10px 14px;border-inline-start:3px solid transparent}
+.qrow.now{border-inline-start-color:var(--gold)}.qrow .tag{background:var(--paper)}
+.qn{font-weight:600;font-variant-numeric:tabular-nums;min-width:2ch}
+.uses{list-style:none;padding:0;margin:0;display:grid;gap:24px}@media(min-width:640px){.uses{grid-template-columns:1fr 1fr;gap:32px}}
+.uses li{border-top:1px solid var(--ink);padding-top:14px}.uses h3{margin:0 0 4px;font-size:18px;font-weight:600;line-height:1.3}.uses p{margin:0;color:var(--slate);font-size:16px}
+.wkprice{margin:48px 0 0;padding:20px 24px;border-inline-start:3px solid var(--gold);background:var(--mist);border-radius:4px 12px 12px 4px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:space-between}
+[dir=rtl] .wkprice{border-radius:12px 4px 4px 12px}
+.wkprice p{margin:0;max-width:44em;color:var(--slate)}.wkprice strong{display:block;color:var(--ink);font-size:19px;font-weight:600;margin-bottom:2px}
 .groups{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.groups{grid-template-columns:1fr 1fr;gap:24px}}
 .group{border:1px solid var(--line);border-radius:12px;padding:28px;display:flex;flex-direction:column}
 .group h3{font-size:22px}
@@ -521,6 +554,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <div class="sign"><h1 id="hero-h" class="ar">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</h1><span class="rule" aria-hidden="true"></span><p class="en" lang="en" dir="ltr">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</p></div>
 <p class="how-it">صِف نشاطك التجاري لـ ChatGPT أو Claude. يبني Renoxium موقعك ويربطه بمساعدي الذكاء الاصطناعي، ليجدك العملاء ويحجزوا ويدفعوا. كل طلب يصل إلى لوحة واحدة، وتصلك رسالة واتساب عن كل طلب.</p>
+<p class="also-work">لا تبيع عبر الإنترنت؟ يبني Renoxium أيضاً <a href="#work">تطبيقات عمل لا تتقاضى أي مدفوعات</a>، مثل طابور انتظار لعيادة أو تسجيل حضور الموظفين.</p>
 <div class="cta"><a class="btn" href="/signup">أنشئ حسابك</a><a class="btn line" href="/templates">جرّب نسخة تجريبية</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -597,32 +631,50 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 </div>{{end}}
 </div></section>
 
+<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
+<div data-r><h2 id="work-h">لا تبيع عبر الإنترنت؟ أدِر عملك عليه</h2>
+<p class="sub">طابور انتظار لعيادة، أو تسجيل حضور الموظفين، أو نظام بسيط لإدارة العملاء، أو بوابة للأعضاء: صِفه لمساعدك بالطريقة نفسها، فيبني التطبيق على طريقة عملك.</p></div>
+<div class="wk">
+<figure class="queue" data-r aria-hidden="true"><p class="qh"><span>طابور اليوم</span><span class="dim">د. هدى · الغرفة 2</span></p>
+<div class="qrow now"><span class="qn">14</span><span>فاطمة ك.</span><span class="tag">عند الطبيبة</span></div>
+<div class="qrow"><span class="qn">15</span><span>عمر س.</span><span class="tag">التالي</span></div>
+<div class="qrow"><span class="qn">16</span><span>رانيا م.</span><span class="dim">نحو 20 دقيقة</span></div>
+<div class="qrow"><span class="qn">17</span><span>يوسف أ.</span><span class="dim">نحو 35 دقيقة</span></div></figure>
+<ul class="uses">
+<li data-r><h3>طابور العيادة</h3><p>يأخذ المريض رقماً من هاتفه ويرى متى يحين دوره، ويستدعي موظف الاستقبال المريض التالي.</p></li>
+<li data-r><h3>حضور الموظفين</h3><p>يسجّل الموظفون حضورهم وانصرافهم من هواتفهم، وترى من حضر اليوم وساعات كل موظف خلال الشهر.</p></li>
+<li data-r><h3>إدارة العملاء</h3><p>كل عميل ومكالمة ومتابعة في قائمة واحدة، مع رسالة بريد إلكتروني عندما يحين موعد المتابعة.</p></li>
+<li data-r><h3>بوابة الأعضاء</h3><p>يسجّل الأعضاء الدخول ليروا عضويتهم وموعد تجديدها وإعلاناتك.</p></li>
+</ul></div>
+<div class="wkprice" data-r><p><strong>تطبيق عمل: {{.WorkPrice}} درهماً شهرياً لكل تطبيق، و{{.WorkUsers}} موظفين ضمن السعر.</strong> وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً. لا يُقتطع شيء مما يدفعه لك عملاؤك.</p><a class="btn line" href="/templates">شاهد القوالب</a></div>
+</div></section>
+
 <section class="block" aria-labelledby="has-h"><div class="wrap">
-<div data-r><h2 id="has-h">ما يتضمنه كل موقع، في كل الخطط</h2></div>
+<div data-r><h2 id="has-h">ما يتضمنه كل متجر وكل تطبيق عمل</h2>
+<p class="sub">الموقع الثابت المجاني صفحات وصور فقط. أما المتجر وتطبيق العمل فيأتيان بكل ما يلي، والدفع بالبطاقة والعربون واسترداد مبالغ البطاقة خاصة بالمتجر.</p></div>
 <div class="groups">
-<section class="group" data-r><h3>استلام المال</h3>
-<div class="spec" aria-hidden="true"><div class="row"><span>عربون، قص شعر</span><span class="num">50.00 د.إ</span><span class="tag">مدفوع</span></div><div class="row"><span class="dim">أُلغي في الوقت المحدد</span><span class="num dim">− 50.00 د.إ</span><span class="tag">مُستردّ</span></div></div>
-<dl><div><dt>الدفع بالبطاقة</dt><dd>يدفع العملاء على صفحة Stripe ويذهب المال إلى حسابك أنت في Stripe.</dd></div>
-<div><dt>الدفع عند الاستلام</dt><dd>أو الدفع في المكان. يعمل دون Stripe.</dd></div>
-<div><dt>العربون والاسترداد</dt><dd>خذ عربوناً عند الحجز، واستردّه من لوحتك بخطوة واحدة.</dd></div></dl></section>
+<section class="group" data-r><h3>عملاؤك</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>سارة أ. · رمز على واتساب</span><span class="tag">سجّلت الدخول</span></div><div class="row"><span class="dim">الطلب 208، الدفع عند الاستلام</span><span class="num dim">120.00 د.إ</span></div></div>
+<dl><div><dt>تسجيل دخول العملاء</dt><dd>بالبريد الإلكتروني أو برمز يصل على واتساب. يرى كل عميل طلباته أو حجوزاته أو سجلاته.</dd></div>
+<div><dt>النماذج والحجوزات</dt><dd>يحجز العملاء موعداً أو ينضمون إلى الطابور أو يرسلون نموذجاً، فيصل إلى لوحتك.</dd></div>
+<div><dt>نقداً أو بالتحويل</dt><dd>استلم المال عند التوصيل أو في المكان أو بتحويل بنكي. يعمل دون Stripe.</dd></div></dl></section>
 <section class="group" data-r><h3>إدارة اليوم</h3>
 <div class="spec" aria-hidden="true"><div class="lanes"><div><b>ليلى</b><span>10:00 صبغة</span><span>13:30 قص شعر</span></div><div><b>مريم</b><span class="gap">.</span><span>12:00 مانيكير</span></div><div><b>بريا</b><span>11:00 عناية بالبشرة</span><span>15:00 قص شعر</span></div></div></div>
-<dl><div><dt>لوحة التحكم</dt><dd>المنتجات والصور والطلبات والعملاء، من أي هاتف.</dd></div>
+<dl><div><dt>لوحة التحكم</dt><dd>منتجاتك أو طلباتك أو حجوزاتك أو عملاؤك أو سجلاتك، من أي هاتف.</dd></div>
 <div><dt>التقويم</dt><dd>عرض يومي وأسبوعي، بعمود لكل مصففة أو فريق أو عنصر.</dd></div>
-<div><dt>صلاحيات الموظفين</dt><dd>يدير المساعدون الطلبات دون رؤية مدفوعاتك أو مستنداتك.</dd></div>
-<div><dt>تنبيهات الطلبات</dt><dd>على واتساب وبالبريد الإلكتروني، مع ملخص يومي.</dd></div></dl></section>
+<div><dt>صلاحيات الموظفين</dt><dd>يدخل كل موظف بحسابه دون أن يرى مدفوعاتك أو مستنداتك: {{.ShopStaff}} في المتجر، و{{.WorkUsers}} ضمن سعر تطبيق العمل.</dd></div>
+<div><dt>التنبيهات</dt><dd>كل طلب أو حجز أو تسجيل جديد على واتساب وبالبريد الإلكتروني، مع ملخص يومي.</dd></div></dl></section>
 <section class="group" data-r><h3>مصمَّم للإمارات</h3>
 <div class="spec" aria-hidden="true"><div class="bi"><span>250.00 د.إ</span><span lang="en" dir="ltr">AED 250.00</span></div><div class="row dim"><span>شامل ضريبة القيمة المضافة 5%</span><span lang="en" dir="ltr">Includes 5% VAT</span></div></div>
-<dl><div><dt>الدرهم مع ضريبة 5%</dt><dd>فواتير ضريبية بعد إضافة رقم التسجيل الضريبي.</dd></div>
+<dl><div><dt>الدرهم مع ضريبة 5%</dt><dd>الأسعار بالدرهم، وفواتير ضريبية لما تبيعه بعد إضافة رقم التسجيل الضريبي.</dd></div>
 <div><dt>العربية والإنجليزية</dt><dd>تخطيط من اليمين إلى اليسار بالعربية، والتبديل بنقرة واحدة.</dd></div>
-<div><dt>تسجيل دخول العملاء</dt><dd>بالبريد الإلكتروني أو برمز يصل على واتساب. يرى العملاء طلباتهم وحجوزاتهم.</dd></div></dl></section>
+<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourname.ae</span> بدلاً من عنوان على Renoxium.</dd></div></dl></section>
 <section class="group" data-r><h3>التحكم بيدك</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">معاينة</span><i></i><span class="tag">تضغط «نشر»</span><i></i><span class="tag">الإصدار 12 منشور</span></div><div class="row dim"><span>نسخة احتياطية قبل النشر</span><span>العودة إلى الإصدار 11</span></div></div>
 <dl><div><dt>بلا أرصدة</dt><dd>عدّل موقعك بقدر ما تشاء. لا يُحسب شيء ولا يُدفع شيء عن كل طلب.</dd></div>
 <div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
 <div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
-<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div>
-<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourshop.ae</span>، للمتاجر وتطبيقات العمل.</dd></div></dl></section>
+<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
