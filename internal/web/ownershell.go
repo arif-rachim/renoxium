@@ -13,7 +13,7 @@ import (
 // as an app's admin panel, with the account instead of the app.
 type ownerShell struct {
 	Title, Email, Plan, PlanName, CSRF string
-	Verified, Operator                 bool
+	Verified, Operator, SingleApp      bool
 	Main, Account, Ops                 []shellLink
 }
 
@@ -37,6 +37,12 @@ func (s *Site) ownerShell(u accounts.User, title, current, csrf string) ownerShe
 	sh := ownerShell{Title: title, Email: u.Email, Plan: plan, PlanName: planName(plan), CSRF: csrf, Verified: u.Verified,
 		Main:    []shellLink{link("Your apps", "/"), link("Templates", "/templates")},
 		Account: []shellLink{link("Plan and billing", "/billing"), link("Account settings", "/account"), link("Connect and help", "/connect")}}
+	if s.SingleApp != "" { // a self-hosted server: one app, no Renoxium service pages
+		sh.Main = []shellLink{link("Your app", "/apps/"+s.SingleApp)}
+		sh.Account = []shellLink{link("Account settings", "/account")}
+		sh.SingleApp = true
+		return sh
+	}
 	if u.Verified && s.isOperator(u.Email) {
 		sh.Operator = true
 		sh.Ops = []shellLink{link("Platform", "/operator"), link("Resources", "/operator/resources"), link("Growth", "/operator/growth")}
@@ -119,8 +125,8 @@ var billingNotices = map[string]string{
 }
 
 const ownerTemplates = `
-{{define "owntop"}}{{template "head" .Shell.Title}}<body class="app own">{{template "nav"}}<div class="shell">{{template "ownnav" .Shell}}<main class="appmain">{{end}}
-{{define "ownnav"}}<aside class="sidenav" aria-label="Account"><div class="who"><span class="avatar" aria-hidden="true">{{slice .Email 0 1}}</span><div class="id"><strong>{{.Email}}</strong><a class="pill plan-{{.Plan}}" href="/billing">{{.PlanName}} plan</a></div></div>
+{{define "owntop"}}{{template "head" .Shell.Title}}<body class="app own">{{if .Shell.SingleApp}}{{template "nav" "single"}}{{else}}{{template "nav"}}{{end}}<div class="shell">{{template "ownnav" .Shell}}<main class="appmain">{{end}}
+{{define "ownnav"}}<aside class="sidenav" aria-label="Account"><div class="who"><span class="avatar" aria-hidden="true">{{slice .Email 0 1}}</span><div class="id"><strong>{{.Email}}</strong>{{if .SingleApp}}<span class="pill plan-{{.Plan}}">{{.PlanName}} plan</span>{{else}}<a class="pill plan-{{.Plan}}" href="/billing">{{.PlanName}} plan</a>{{end}}</div></div>
 <nav><h3>Workspace</h3>{{template "navlist" .Main}}<h3>Account</h3>{{template "navlist" .Account}}{{with .Ops}}<h3>Operator</h3>{{template "navlist" .}}{{end}}</nav>
 <form class="signout" method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Sign out</button></form></aside>{{end}}
 {{define "owncss"}}<style>

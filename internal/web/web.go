@@ -76,6 +76,11 @@ type Site struct {
 	// a ChatGPT app; /.well-known/openai-apps-challenge answers it. Empty: 404.
 	OpenAIAppsChallenge string
 
+	// SingleApp, when set, is the one app this server runs for its owner on
+	// their own server (renoxium -self-hosted): the site is only that app's
+	// admin panel, with sign-in and account settings. See singleAppAllows.
+	SingleApp string
+
 	// Operators are the emails allowed into /operator (confirmed accounts only).
 	Operators []string
 
@@ -185,6 +190,17 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.secure {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 	}
+	if s.SingleApp != "" {
+		w.Header().Set("X-Robots-Tag", "noindex") // an admin panel, not a site to find
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/apps/"+s.SingleApp, http.StatusFound)
+			return
+		}
+		if !s.singleAppAllows(r.URL.Path) {
+			render(w, http.StatusNotFound, "notfound", nil)
+			return
+		}
+	}
 	// Forms that rely on the session cookie must come from this site's own
 	// pages. Bearer-token and anonymous endpoints are meant for other origins.
 	if r.Method == http.MethodPost && platform.CrossSite(r) &&
@@ -211,6 +227,33 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mux.ServeHTTP(w, r)
+}
+
+// singleApp pages are what a self-hosted server shows besides its one app's
+// admin panel: signing in, password reset, account settings, the Stripe
+// webhook and the brand's icons.
+var singleAppPages = map[string]bool{"/healthz": true, "/version": true, "/login": true, "/logout": true, "/forgot": true,
+	"/reset": true, "/verify": true, "/verify/resend": true, "/account": true, "/account/password": true, "/account/export": true,
+	"/stripe/webhook": true, "/site.webmanifest": true}
+
+// singleAppDenied are the app's console pages that need the Renoxium
+// service: its domains, Stripe Connect, renaming and deleting.
+var singleAppDenied = map[string]bool{"rename": true, "domain": true, "delete": true, "payments/connect": true}
+
+// singleAppAllows reports whether a self-hosted server answers path.
+func (s *Site) singleAppAllows(path string) bool {
+	if singleAppPages[path] || strings.HasPrefix(path, "/brand/") || strings.HasPrefix(path, "/static/") {
+		return true
+	}
+	if _, isBrand := brandFiles[path]; isBrand {
+		return true
+	}
+	base := "/apps/" + s.SingleApp
+	if path == base {
+		return true
+	}
+	rest, ok := strings.CutPrefix(path, base+"/")
+	return ok && !singleAppDenied[rest]
 }
 
 // cors allows browser-based agents to call token, registration and metadata
@@ -760,13 +803,13 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 <p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد</p>
 <p>Describe your business to ChatGPT or Claude. Renoxium builds the website, you check the preview, and nothing goes live until you publish.</p>
 <ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
-{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{template "nav"}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
+{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{if .Shell.SingleApp}}{{template "nav" "single"}}{{else}}{{template "nav"}}{{end}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
 {{define "appbottom"}}</main></div>
 <script>(function(){var m=document.querySelector(".appmain");if(!m||!("zoom" in m.style))return;
 function over(){if(m.scrollHeight>m.clientHeight+2)return true;var q=m.querySelectorAll(".bcell,.grow,.fill,.tcard"),i,e;for(i=0;i<q.length;i++){e=q[i];if(e.hasAttribute("data-long")||e.classList.contains("tablebox"))continue;if(e.scrollHeight>e.clientHeight+2)return true}return false}
 function fit(){m.style.zoom="";if(innerWidth<1000||innerHeight<600)return;var z=parseFloat(getComputedStyle(m).zoom)||1;while(z>.74&&over()){z=Math.round((z-.03)*100)/100;m.style.zoom=z}}
 fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})()</script></body></html>{{end}}
-{{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
+{{define "sidenav"}}<aside class="sidenav" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else if not .SingleApp}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
 <nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
 {{define "tabs"}}<nav class="tabs" aria-label="Sections">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
 {{define "navlist"}}<ul>{{range .}}<li><a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a></li>{{end}}</ul>{{end}}
@@ -775,7 +818,7 @@ fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fo
 <div class="ticks" aria-hidden="true">{{range .Ticks}}<span>{{.}}</span>{{end}}</div>
 <details class="astable"><summary>Show as a table</summary><table class="rx"><thead><tr><th>Day</th><th>Figures</th></tr></thead><tbody>{{range .Rows}}<tr><td>{{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</tbody></table></details>
 {{else}}<p class="empty">{{.Empty}}</p>{{end}}</div>{{end}}
-{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a><nav aria-label="Site"><a href="/support">Support</a></nav></div></header>{{end}}
+{{define "nav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a>{{if ne (printf "%v" .) "single"}}<nav aria-label="Site"><a href="/support">Support</a></nav>{{end}}</div></header>{{end}}
 {{define "authsigned"}}{{template "head" .}}<body class="auth"><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/support">Support</a></nav></div></header><div class="authwrap"><main>{{end}}
 {{define "pubnav"}}<header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium home">{{template "brandlogo"}}</a><nav aria-label="Main"><a href="/templates">Templates</a><a class="wide" href="/#pricing">Pricing</a><a class="wide" href="/connect">Connect</a><a href="/login">Sign in</a><a class="button sm" href="/signup">Create account</a></nav></div></header>{{end}}
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1138,7 +1181,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <div class="pagehead"><div><h1>Account settings</h1><p class="sub">Sign-in, your data and your account.</p></div></div>
 <div class="settings-grid bento fill">
 <section class="panel bcell"><div class="ph"><h2>Profile</h2></div><dl class="kv"><dt>Email</dt><dd>{{.User.Email}} {{if .User.Verified}}<span class="pill live">confirmed</span>{{else}}<span class="pill wait">not confirmed</span>{{end}}</dd>
-<dt>Plan</dt><dd>{{.PlanName}} · <a href="/billing">Plan and billing</a></dd><dt>Apps</dt><dd>{{len .Apps}}</dd></dl></section>
+<dt>Plan</dt><dd>{{.PlanName}}{{if not .Shell.SingleApp}} · <a href="/billing">Plan and billing</a>{{end}}</dd><dt>Apps</dt><dd>{{len .Apps}}</dd></dl></section>
 <form class="panel bcell" method="post" action="/account/password"><div class="ph"><h2>Change password</h2></div>
 {{if .Changed}}<p class="flash ok">Password changed. Other devices and connected agents were signed out.</p>{{end}}{{with .PasswordError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="current">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required>
@@ -1151,7 +1194,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 <form method="post" action="/account/assistants/disconnect"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="client" value="{{.ClientID}}"><button class="secondary" style="margin:0">Disconnect</button></form></li>{{end}}</ul>
 <p class="fine">An assistant you disconnect must be connected again, and approved by you, before it can work on your apps.</p>
 {{else}}<p class="muted">No AI assistant is connected. Add Renoxium to ChatGPT or Claude: <a href="/connect">how to connect</a>.</p>{{end}}</section>
-<section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and the list of its files.</p>
+<section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and its uploaded photos and files.</p>
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
 <p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
@@ -1263,7 +1306,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 
 <div class="pagehead"><div><h1>Delete app</h1><p class="sub">Export the app first, then delete it for good.</p></div></div>
 <div class="bento fill" style="grid-template-columns:minmax(260px,1fr) minmax(0,2fr)">
-<section class="panel bcell"><div class="ph"><h2>Export this app first</h2></div><p class="muted">A zip file with the app's definition, its live data and the list of its files. Keep it before you delete anything.</p>
+<section class="panel bcell"><div class="ph"><h2>Export this app first</h2></div><p class="muted">A zip file with the app's definition, its live data and its uploaded photos and files. Keep it before you delete anything.</p>
 <a class="button secondary" href="/apps/{{.App}}/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/apps/{{.App}}/delete"><div class="ph"><h2>Delete app for good</h2></div>
 <div class="warnbox" role="alert"><p><strong>This cannot be undone.</strong> Renoxium cannot bring this app back, not even on request.</p>

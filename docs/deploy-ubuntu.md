@@ -190,6 +190,22 @@ sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com busin
 
 `plan EMAIL free` removes such a grant.
 
+### Licences for self-hosted apps
+
+Owners on Pro or Business can run their app on their own server ([docs/self-host.md](self-host.md)). Their
+export then carries a `licence.json` signed with Renoxium's licence key, which the self-hosted server checks
+offline. Set the key's seed in `/etc/renoxium/env` and restart:
+
+```bash
+echo 'RENOXIUM_LICENCE_KEY=the_seed' | sudo tee -a /etc/renoxium/env >/dev/null && sudo systemctl restart renoxium
+```
+
+The log says `exports from paid accounts carry a licence` when it is set. Without it, exports carry no
+licence and cannot be self-hosted. Keep the seed secret and backed up: anyone with it can sign licences.
+The matching public key is in `internal/licence.PublicKeys`; to change keys, make a new pair with
+`renoxium licence-key`, add the new public key to that list (keep the old one so earlier exports still
+start) and set the new seed.
+
 ### Privacy Policy and Terms
 
 `/privacy` and `/terms` are drafts until a lawyer has reviewed them. They show the company details from

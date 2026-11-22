@@ -2,7 +2,7 @@
 
 **Goal:** an owner can take one app out of Renoxium (definition, data and photos) and run it on a server they control, with the same pages and admin panel, without Renoxium's account system.
 
-**Status:** decided and being built, step by step (see Order of work).
+**Status:** v1 built: export with photos and licence, `import`, `-self-hosted`, `apply`, `rollback`, `admin-password`, and the guide in `docs/self-host.md`. Commands differ from the first sketch below: `import EXPORT.zip ADMIN_EMAIL [DOMAIN]` creates the admin account, and the server is started with `-self-hosted`.
 
 **Done when:**
 - An owner downloads one file from the console that holds everything the app needs: definition, live data, uploaded photos and visitors' private files.

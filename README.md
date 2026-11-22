@@ -15,7 +15,8 @@
   <a href="https://renoxium.com/templates">Template gallery</a> ·
   <a href="docs/roadmap.md">Roadmap</a> ·
   <a href="docs/plans/2026-11-15-renoxium-platform-v1.md">Platform plan</a> ·
-  <a href="deploy/README.md">Deployment</a>
+  <a href="deploy/README.md">Deployment</a> ·
+  <a href="docs/self-host.md">Self-hosting one app</a>
 </p>
 
 ---
@@ -147,6 +148,8 @@ Renoxium runs untrusted, agent-written code for many tenants on shared infrastru
 | Business | AED 299 / month | 10 | Highest quotas |
 
 Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
+
+Pro and Business owners can also run their app on their own server: the export carries a signed licence, and the same binary with `-self-hosted` serves that one app with its admin panel, payments on the owner's own Stripe account and email through their own sender. See [docs/self-host.md](docs/self-host.md).
 
 ---
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/arif-rachim/renoxium/internal/licence"
 	"io"
 	"os"
 	"path/filepath"
@@ -92,6 +93,28 @@ func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) er
 	}
 	if err := add("app.json", info); err != nil {
 		return err
+	}
+	// A paid account's export may run on its owner's own server: it carries
+	// a licence signed by this server (internal/licence).
+	if p.cfg.LicenceKey != nil {
+		owner := p.ownerOf(app)
+		if plan := p.planOf(owner); licence.SelfHostPlans[plan] {
+			email := ""
+			if p.cfg.OwnerEmail != nil {
+				email, _ = p.cfg.OwnerEmail(owner)
+			}
+			raw, err := licence.Sign(p.cfg.LicenceKey, licence.Licence{App: app, Account: owner, Email: email, Plan: plan})
+			if err != nil {
+				return err
+			}
+			w, err := zw.Create(app + "/licence.json")
+			if err != nil {
+				return err
+			}
+			if _, err := w.Write(raw); err != nil {
+				return err
+			}
+		}
 	}
 	if def, n, err := p.Definition(app, 0); err == nil {
 		if err := add(fmt.Sprintf("definition-v%d.json", n), def); err != nil {
