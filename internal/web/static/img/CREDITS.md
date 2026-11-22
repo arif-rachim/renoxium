@@ -16,7 +16,8 @@ schedule every demo gets around the current day (`internal/platform/demodata.go`
 | screen-reservation.webp | reservation-uae: the boutique home page with its hero card and search box |
 | screen-quote-portal.webp | quote-portal-uae: the boutique home page in navy and gold with its hero and photo |
 | screen-listing.webp | listings-uae: the boutique home page with its hero, photo and search bar (scrolled past the announcement bar) |
+| screen-clinic.webp | clinic-queue-uae: the boutique home page with its headline, today's counted queue and the illustration of the waiting room (the demo's own drawing) |
 | screen-delivery.webp | delivery-tracking: a delivery on the live map, with its progress. Map data © OpenStreetMap contributors (ODbL), tiles by openstreetmap.org, attribution visible in the image |
 | screen-admin-calendar.webp | booking-uae: the owner's admin panel, bookings calendar day view (1280x800 desktop, cropped to the calendar, 1400 pixels wide), showing the demo's own bookings for the day |
-| screen-booking-ar.webp, screen-home-service-ar.webp, screen-reservation-ar.webp, screen-quote-portal-ar.webp, screen-listing-ar.webp | the same home pages in Arabic (`?lang=ar`), for the Arabic home page `/ar` |
-| wide-*.webp (seven files) | each demo's home page at desktop size (1280x800, stored 960x600), for the template cards in the console |
+| screen-booking-ar.webp, screen-home-service-ar.webp, screen-reservation-ar.webp, screen-quote-portal-ar.webp, screen-listing-ar.webp, screen-clinic-ar.webp | the same home pages in Arabic (`?lang=ar`), for the Arabic home page `/ar` |
+| wide-*.webp (eight files) | each demo's home page at desktop size (1280x800, stored 960x600), for the template cards in the console |

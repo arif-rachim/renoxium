@@ -79,6 +79,41 @@ func clinicDemoSchedule(ctx context.Context, db *sql.DB, now time.Time) error {
 		{"Liza Mendoza", "en"}, {"Rania Khoury", "ar"}, {"Tom Becker", "en"}, {"Sana Iqbal", "en"}, {"Hamad Al Shamsi", "ar"}, {"Elena Petrova", "en"},
 		{"Yasmin Farouk", "ar"}, {"Ravi Kumar", "en"}, {"Mona Al Ali", "ar"}, {"Chloe Martin", "en"}, {"Saeed Al Nuaimi", "ar"}, {"Grace Wanjiru", "en"},
 		{"Bilal Qureshi", "en"}, {"Layla Haddad", "ar"}, {"Nikhil Shah", "en"}}
+	// The last 13 days, without names: the counts the report and daily_stats show.
+	prefixes := []string{"A", "A", "A", "B", "C", "D", "A", "D"}
+	for d := 13; d >= 1; d-- {
+		date := now.AddDate(0, 0, -d).Format("2006-01-02")
+		n := 26 + (d*7)%17 + map[bool]int{true: 8, false: 0}[now.AddDate(0, 0, -d).Weekday() == time.Sunday]
+		taken, seen, noShows, waits, maxWait := 0, 0, 0, 0, 0
+		numbers := map[string]int{}
+		for i := 0; i < n; i++ {
+			p := prefixes[(i+d)%len(prefixes)]
+			numbers[p]++
+			minute := 8*60 + i*(13*60)/n
+			wait := 6 + (i*11+d*5)%28
+			status := "done"
+			if (i+d)%13 == 0 {
+				status = "no_show"
+				noShows++
+			} else {
+				seen++
+			}
+			taken++
+			waits += wait
+			maxWait = max(maxWait, wait)
+			stamp := func(m int) string { return fmt.Sprintf("%s %02d:%02d:00", date, (m/60)%24, m%60) }
+			if err := insertDemoRow(ctx, db, "tickets", map[string]any{"day": date, "number": numbers[p], "code": fmt.Sprintf("%s%03d", p, numbers[p]),
+				"service_id": svc[p], "name": "", "phone": "", "email": "", "lang": "en", "status": status, "source": "phone", "token": "",
+				"taken_at": stamp(minute), "called_at": stamp(minute + wait), "done_at": stamp(minute + wait + 10), "wait_minutes": wait, "calls": 1, "alerted": "near",
+				"room_id": nil}); err != nil {
+				return err
+			}
+		}
+		if err := insertDemoRow(ctx, db, "daily_stats", map[string]any{"day": date, "taken": taken, "seen": seen, "no_shows": noShows, "left_queue": 0,
+			"avg_wait": waits / taken, "max_wait": maxWait, "busiest_hour": "18:00"}); err != nil {
+			return err
+		}
+	}
 	type tk struct {
 		prefix, status, room string
 		taken, called, done  int // minutes ago; -1 for none
@@ -117,40 +152,5 @@ func clinicDemoSchedule(ctx context.Context, db *sql.DB, now time.Time) error {
 	}
 	// The first two waiting for general practice are within two of the rooms: they were told on WhatsApp.
 	db.ExecContext(ctx, `UPDATE tickets SET alerted = 'whatsapp' WHERE id IN (SELECT id FROM tickets WHERE day = ? AND status = 'waiting' AND service_id = ? ORDER BY id LIMIT 3)`, today, svc["A"])
-	// The last 13 days, without names: the counts the report and daily_stats show.
-	prefixes := []string{"A", "A", "A", "B", "C", "D", "A", "D"}
-	for d := 1; d <= 13; d++ {
-		date := now.AddDate(0, 0, -d).Format("2006-01-02")
-		n := 26 + (d*7)%17 + map[bool]int{true: 8, false: 0}[now.AddDate(0, 0, -d).Weekday() == time.Sunday]
-		taken, seen, noShows, waits, maxWait := 0, 0, 0, 0, 0
-		numbers := map[string]int{}
-		for i := 0; i < n; i++ {
-			p := prefixes[(i+d)%len(prefixes)]
-			numbers[p]++
-			minute := 8*60 + i*(13*60)/n
-			wait := 6 + (i*11+d*5)%28
-			status := "done"
-			if (i+d)%13 == 0 {
-				status = "no_show"
-				noShows++
-			} else {
-				seen++
-			}
-			taken++
-			waits += wait
-			maxWait = max(maxWait, wait)
-			stamp := func(m int) string { return fmt.Sprintf("%s %02d:%02d:00", date, (m/60)%24, m%60) }
-			if err := insertDemoRow(ctx, db, "tickets", map[string]any{"day": date, "number": numbers[p], "code": fmt.Sprintf("%s%03d", p, numbers[p]),
-				"service_id": svc[p], "name": "", "phone": "", "email": "", "lang": "en", "status": status, "source": "phone", "token": "",
-				"taken_at": stamp(minute), "called_at": stamp(minute + wait), "done_at": stamp(minute + wait + 10), "wait_minutes": wait, "calls": 1, "alerted": "near",
-				"room_id": nil}); err != nil {
-				return err
-			}
-		}
-		if err := insertDemoRow(ctx, db, "daily_stats", map[string]any{"day": date, "taken": taken, "seen": seen, "no_shows": noShows, "left_queue": 0,
-			"avg_wait": waits / taken, "max_wait": maxWait, "busiest_hour": "18:00"}); err != nil {
-			return err
-		}
-	}
 	return nil
 }

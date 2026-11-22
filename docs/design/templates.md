@@ -1,7 +1,7 @@
 # Renoxium template design system
 
 Reference implementation: `examples/store-uae.json` (templates `css`, `head`, `top`, `bottom`; lib `common`, `theme`, `shop`).
-Apply the same system to booking-uae, home-service-uae, reservation-uae, quote-portal-uae and listings-uae.
+Apply the same system to booking-uae, home-service-uae, reservation-uae, quote-portal-uae, listings-uae and clinic-queue-uae.
 The pages belong to the merchant's brand, not to Renoxium: no Renoxium colours or fonts (Readex Pro is Renoxium's own; do not use it).
 
 ## 1. Principles
@@ -93,7 +93,7 @@ Rules of the luxury style:
 cream paper `#fbf6f1`, deep brown ink `#3b2a22`, the brand colour as the accent (default terracotta `#b4643f`), Gilda Display
 headings (Amiri in Arabic) and DM Sans text (IBM Plex Sans Arabic; both loaded at 300, 400, 500 and 700, so a template may use a bold sans for headings), 4px buttons in small tracked capitals, 16px photos, a small tracked label (`.eyebrow`), a short rule (`.rule`) and arrows that turn in Arabic (`.arr`).
 
-A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutique`). Six templates have one. They share these rules:
+A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutique`). Seven templates have one. They share these rules:
 
 - **Density.** Sections sit 28-44px apart, and every block carries real information: numbers counted with SQL from the app's own
   tables, facts from the settings row (hours, fees, payment methods, VAT, cancellation), category chips with counts, a FAQ built
@@ -112,6 +112,7 @@ A template may add a boutique layout with `{{if .theme.boutique}}` (`home_boutiq
 | listings-uae | `v-…` | forest green `#1F3A2E` | curved hero edge, organic about photo with a round second photo, leaf-shaped community tiles, cards with one large corner | photo hero with a floating search bar, counted numbers, about with highlights, communities with their number of homes, type chips, featured cards in a row with arrows, reviews, agents next to the valuation card, four-column footer |
 | quote-portal-uae | `s-…` | gold `#C9A14A` on navy, plain capitals instead of the serif | diagonal cuts and chamfered corners with gold hairlines | photo hero with a licence badge, highlights strip, numbers bar (services, areas, quote validity, deposit, years only when set), about with the service areas, service cards in a row with arrows, four steps, reviews, "included in every quote" and FAQ from the settings, custom-case band, four-column footer. Invoices and printouts switch back to white paper |
 | reservation-uae | `r-…` | terracotta `#B85C3C` with forest green surfaces, bold sans headings (DM Sans 700) instead of the serif | postcards: rounded cards in a thin cream frame, slightly tilted, a second one peeking behind; tall cards (3:4.6) for the first category | header on a dimmed backdrop photo, hero card, a search pill (category, date, guests) that really filters by availability, counted numbers, facts strip, tall cards with arrows, compact cards for the other categories with chips, extras with prices, story with highlights, three steps next to a FAQ from the settings, reviews, closing band, footer with the name large and a turning stamp |
+| clinic-queue-uae | `q-…` | calm blue `#2D5A87` on cool paper, bold sans headings (DM Sans 700) instead of the serif | the paper ticket: rounded frames with a half-round notch cut out of each side, the same notch on the service cards and the patient's ticket (on its perforated line) | hero with the live "now called" card floating on the photo, numbers counted from today's queue (waiting, seen, rooms, average wait), facts strip (hours today, no appointment, how patients are told, free), service tickets with the live queue and estimate, three steps on the brand colour, real reviews only, the week's hours next to a FAQ from the settings, four-column footer. The waiting-room screen (`/screen`) is its own dark page in the brand colour |
 
 ## 4. Type scale
 
@@ -484,9 +485,9 @@ Store-uae's own components (intro, cats, tiles, pdp, options, stepper, buybar, c
 collection and visit blocks) follow in its `css` template;
 reuse them for similar pieces (service grids = tiles, booking detail = pdp, booking/quote lists = orders) rather than inventing new ones.
 
-## 8a. Motion kit (all six business templates)
+## 8a. Motion kit (all seven business templates)
 
-store-uae, booking-uae, home-service-uae, reservation-uae, listings-uae and quote-portal-uae carry the kit as two named
+store-uae, booking-uae, home-service-uae, reservation-uae, listings-uae, quote-portal-uae and clinic-queue-uae carry the kit as two named
 templates, so `patch_app` can replace either one alone. **Every template carries the same copy**
 (`TestMotionKitIsTheSameEverywhere`): change the kit in all templates at once, and put a template's own motion in its own
 `css`. Parts that need a component only switch on where it exists (the cart drawer needs `rxCart` in `top`, the gallery needs
@@ -568,6 +569,7 @@ Focal objects (each name on the card and on the page it leads to). With a photo:
 | reservation-uae | `iimg-<id>` | `/`: `.tile .well`; boutique: the tall card `.r-tall` itself and `.r-thumb` of a compact card | `/item/:id`: `.pdp-media .well` |
 | listings-uae | `limg-<id>` | `/`, `/search`, `/agents/:id`: `.tile .well` (template `card`); boutique home `.v-card-img` | `/l/:id`: `.slides` (the gallery's frame) |
 | quote-portal-uae | `kimg-<id>` | `/`: the photo in `.svc-img` (it has the radius); boutique: the card `.s-card` itself (cut corner) | `/packages/:id`: the photo in `.pkg-media` |
+| clinic-queue-uae | `simg-<id>` | `/`: the photo frame `.well` of a `.q-svc` card | `/s/:id`: `.q-svc-head .well` |
 
 Without a photo (a `span.vtt` around the text of the element named here):
 
@@ -580,11 +582,12 @@ Without a photo (a `span.vtt` around the text of the element named here):
 | reservation-uae | `ittl-<id>` | `/`: `.tname` of the tile; boutique: the `strong` of `.r-tall` and of `.r-item` | `/item/:id`: `h1` |
 | listings-uae | `lttl-<id>` | `/`, `/search`, `/agents/:id`: `.tname` (template `card`); boutique home `.v-card-title` | `/l/:id`: `h1` |
 | quote-portal-uae | `kttl-<id>` | `/`: `.svc-name`; boutique `.s-card-name` | `/packages/:id`: `h1` |
+| clinic-queue-uae | `sttl-<id>` | `/`: `.tname` of `.q-svc` | `/s/:id`: `h1` |
 
 Always, photo or not: listings-uae's agent `.avatar` on `/` and `/l/:id` and `.avatar.lg` on `/agents/:id` share `aimg-<id>`
 (without a photo the avatar shows the agent's initial, and is still the focal object).
 
-Budget (checked for all six demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
+Budget (checked for all seven demos by `e2e/tests/11-performance.spec.mjs` on an emulated Pixel 7, fast 4G, CPU ×4, third-party requests blocked):
 LCP ≤ 2.5 s, CLS ≤ 0.1, inline JS ≤ 30 KB, non-image bytes ≤ 150 KB per page.
 
 ## 9. Checklist per template
