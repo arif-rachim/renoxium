@@ -24,6 +24,10 @@ type Billing struct {
 	PriceProYearly      string
 	PriceBusinessYearly string
 	WebhookSecret       string // signing secret of the webhook for the platform account's own events
+	// SelfServe lists the paid subscriptions on the billing page for owners to
+	// buy themselves. Off, owners stay on Professional and ask Renoxium for
+	// Business; the operator then grants the plan.
+	SelfServe bool
 }
 
 func (b Billing) ready() bool { return b.Stripe != nil && b.PricePro != "" && b.PriceBusiness != "" }
@@ -108,7 +112,7 @@ func (s *Site) billingPage(w http.ResponseWriter, r *http.Request) {
 		"Yearly": s.Billing.yearly(), "YearlySave": accounts.YearlyDiscountPercent, "PaidPrice": paidPrice(b),
 		"Fee": platform.FreePlanFeePercent, "PlanName": planName(b.Plan),
 		"Paying": b.Plan != accounts.PlanFree, "Granted": granted, "CanManage": s.Billing.ready() && b.Customer != "" && !granted,
-		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(b.Plan, b.Yearly),
+		"PeriodEnd": formatDate(b.PeriodEnd), "Meters": meters, "Plans": planCards(b.Plan, b.Yearly, s.Billing.SelfServe),
 		"Notice": billingNotices[r.URL.Query().Get("notice")], "Shell": s.ownerShell(u, "Plan and billing", "/billing", csrf)})
 }
 

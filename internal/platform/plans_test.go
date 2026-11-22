@@ -3,6 +3,7 @@ package platform_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -40,19 +41,19 @@ func TestPlansDecideFeeAndAppLimit(t *testing.T) {
 		}
 	}
 
-	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, and three apps only.
+	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, and ten apps.
 	do(t, p, "POST", "free-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
 		t.Fatalf("free plan fee = %q", fee)
 	}
-	for _, name := range []string{"free-second", "free-third"} {
-		if _, err := p.CreateApp("usr_free", name); err != nil {
-			t.Fatalf("%s: %v", name, err)
+	for i := 2; i <= platform.AppsPerPlan["free"]; i++ {
+		if _, err := p.CreateApp("usr_free", fmt.Sprintf("free-%d", i)); err != nil {
+			t.Fatalf("free app %d: %v", i, err)
 		}
 	}
-	if _, err := p.CreateApp("usr_free", "free-fourth"); err == nil || !strings.Contains(err.Error(), "free plan allows 3") ||
+	if _, err := p.CreateApp("usr_free", "free-too-many"); err == nil || !strings.Contains(err.Error(), "Professional plan allows 10 apps") ||
 		!strings.Contains(err.Error(), "https://www.renoxium.test/billing") {
-		t.Fatalf("fourth free app: %v", err)
+		t.Fatalf("app over the Professional limit: %v", err)
 	}
 	// Pro: no fee, more apps.
 	do(t, p, "POST", "pro-shop.renoxium.test", "/buy", url.Values{})
@@ -143,8 +144,8 @@ func TestStaffLimitPerPlan(t *testing.T) {
 	defer p.Close()
 	p.CreateApp("usr_free", "free-shop")
 	p.CreateApp("usr_pro", "pro-shop")
-	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "Pro or Business") {
-		t.Fatalf("free staff: %v", err)
+	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err != nil || !p.IsStaff("free-shop", "a@x.ae") {
+		t.Fatalf("staff on the Professional plan: %v", err)
 	}
 	for _, e := range []string{"a@x.ae", "b@x.ae"} {
 		if err := p.AddStaff("pro-shop", e, "usr_pro"); err != nil {

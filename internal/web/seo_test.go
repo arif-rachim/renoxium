@@ -70,7 +70,7 @@ func TestSiteIsFound(t *testing.T) {
 	}
 
 	status, full := get("/llms-full.txt")
-	for _, want := range []string{"# Renoxium", "## Templates", "Online store (store-uae)", "- Pro: AED 99 a month", e.base + "/mcp", "## Claude"} {
+	for _, want := range []string{"# Renoxium", "## Templates", "Online store (store-uae)", "- Professional: AED 0 a month", "- Business: a price agreed with Renoxium", e.base + "/mcp", "## Claude"} {
 		if status != 200 || !strings.Contains(full, want) {
 			t.Errorf("llms-full.txt (%d) lacks %q", status, want)
 		}

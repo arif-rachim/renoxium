@@ -18,8 +18,20 @@ const (
 // is on the free plan. Paid plans pay no cut.
 const FreePlanFeePercent = 2
 
+// PlanLabel is a plan's name as owners read it. Every account starts on
+// Professional: no subscription, a fee on card payments.
+func PlanLabel(plan string) string {
+	switch plan {
+	case planPro:
+		return "Pro"
+	case planBusiness:
+		return "Business"
+	}
+	return "Professional"
+}
+
 // AppsPerPlan is how many apps an account may create on each plan.
-var AppsPerPlan = map[string]int{planFree: 3, planPro: 10, planBusiness: 50}
+var AppsPerPlan = map[string]int{planFree: 10, planPro: 10, planBusiness: 50}
 
 type cachedPlan struct {
 	plan string

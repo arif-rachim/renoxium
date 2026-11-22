@@ -35,7 +35,7 @@ import (
 
 // FetchCallsPerPlan is how many http.fetch calls an account's live apps may
 // make per calendar month.
-var FetchCallsPerPlan = map[string]int{planFree: 1000, planPro: 20000, planBusiness: 100000}
+var FetchCallsPerPlan = map[string]int{planFree: 20000, planPro: 20000, planBusiness: 100000}
 
 // Per-run limits; variables so tests can change them.
 var (
@@ -161,8 +161,8 @@ func (p *Platform) paymentHostRefused(app, host string) error {
 	if p.cfg.OwnerPlan == nil || !PaymentHost(host) || p.planOf(p.ownerOf(app)) != planFree {
 		return nil
 	}
-	return fmt.Errorf("%s is a payment service: on the Free plan card payments are taken with payments.checkout; "+
-		"a paid plan at %s/billing can call it", host, p.cfg.SiteURL)
+	return fmt.Errorf("%s is a payment service: on the Professional plan card payments are taken with payments.checkout; "+
+		"the Business plan can call it (%s/billing)", host, p.cfg.SiteURL)
 }
 
 // AllowHost lets the app's scripts call a host listed in its definition.

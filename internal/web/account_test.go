@@ -87,7 +87,7 @@ func TestAccountPage(t *testing.T) {
 	// deleted when that fails or the confirmation is wrong.
 	fb := &fakeBilling{status: "active", price: "price_pro"}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
 	u, _ := e.acc.UserByEmail("xena@shop.ae")
 	e.acc.SetCustomer(u.ID, "cus_1")
 	e.acc.SetSubscription(u.ID, accounts.Billing{Plan: "pro", Status: "active", Subscription: "sub_1"})

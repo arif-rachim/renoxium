@@ -17,15 +17,7 @@ type ownerShell struct {
 	Main, Account, Ops                 []shellLink
 }
 
-func planName(plan string) string {
-	switch plan {
-	case accounts.PlanPro:
-		return "Pro"
-	case accounts.PlanBusiness:
-		return "Business"
-	}
-	return "Free"
-}
+func planName(plan string) string { return platform.PlanLabel(plan) }
 
 // ownerShell builds the navigation of the account pages; current is the
 // href of this page.
@@ -75,13 +67,19 @@ func newMeter(label string, used, quota int64, unit string) meter {
 // planCard is one column of the plan comparison on the billing page.
 type planCard struct {
 	ID, Name, Price, Tagline string
-	PriceYear                string // for a year paid at once; "" for the free plan
+	PriceYear                string // for a year paid at once; "" when not sold by the year
+	PriceNote                string // beside the price, e.g. "+ 2% of card payments"
+	Contact                  bool   // arranged with Renoxium, not bought on this page
 	Features                 []string
 	Current, Popular         bool
 	CurrentYearly            bool // the account's own plan, paid by the year
 }
 
-func planCards(current string, yearly bool) []planCard {
+// planCards are the plans the billing page shows. Owners start on
+// Professional (no subscription, a fee on card payments) and ask Renoxium
+// for Business. With selfServe, the subscriptions sold through Stripe
+// Checkout are listed too; an account already on one always sees its own.
+func planCards(current string, yearly, selfServe bool) []planCard {
 	f := func(plan string) []string {
 		staff := "No staff accounts"
 		if n := platform.StaffPerPlan[plan]; n > 0 {
@@ -97,21 +95,32 @@ func planCards(current string, yearly bool) []planCard {
 			thousands(platform.FetchCallsPerPlan[plan]) + " external API calls a month",
 			staff}
 		if plan == accounts.PlanFree {
-			return append(out, "Your own domain", strconv.Itoa(platform.FreePlanFeePercent)+"% fee on card payments")
+			return append(out, "Your own domain", strconv.Itoa(platform.FreePlanFeePercent)+"% fee on card payments, nothing when there are none")
 		}
 		return append(out, "Your own domain", "No fee on card payments")
 	}
-	cards := []planCard{
-		{ID: accounts.PlanFree, Name: "Free", Price: "0", Tagline: "Try Renoxium for free.", Features: f(accounts.PlanFree)},
-		{ID: accounts.PlanPro, Name: "Pro", Price: strconv.Itoa(accounts.PlanPriceAED[accounts.PlanPro]), Tagline: "For a growing business with a few sites.", Features: f(accounts.PlanPro), Popular: true},
-		{ID: accounts.PlanBusiness, Name: "Business", Price: strconv.Itoa(accounts.PlanPriceAED[accounts.PlanBusiness]), Tagline: "For teams running many sites.", Features: f(accounts.PlanBusiness)},
+	professional := planCard{ID: accounts.PlanFree, Name: planName(accounts.PlanFree), Price: "0",
+		PriceNote: "+ " + strconv.Itoa(platform.FreePlanFeePercent) + "% of card payments",
+		Tagline:   "For every business, from the first day.", Features: f(accounts.PlanFree), Popular: true}
+	sold := func(plan, tagline string) planCard {
+		return planCard{ID: plan, Name: planName(plan), Price: strconv.Itoa(accounts.PlanPriceAED[plan]), PriceNote: "/ month",
+			PriceYear: thousands(accounts.PlanPriceYearAED(plan)), Tagline: tagline, Features: f(plan)}
+	}
+	var cards []planCard
+	if selfServe {
+		cards = []planCard{professional, sold(accounts.PlanPro, "A fixed price instead of the fee."), sold(accounts.PlanBusiness, "For teams running many sites.")}
+	} else {
+		cards = []planCard{professional}
+		if current == accounts.PlanPro {
+			cards = append(cards, sold(accounts.PlanPro, "A fixed price instead of the fee."))
+		}
+		cards = append(cards, planCard{ID: accounts.PlanBusiness, Name: planName(accounts.PlanBusiness), Contact: true,
+			Tagline:  "When your business has outgrown the fee.",
+			Features: []string{"Everything in Professional", "A price agreed with Renoxium instead of the fee", "Higher limits where you need them"}})
 	}
 	for i := range cards {
 		cards[i].Current = cards[i].ID == current
 		cards[i].CurrentYearly = cards[i].Current && yearly
-		if cards[i].ID != accounts.PlanFree {
-			cards[i].PriceYear = thousands(accounts.PlanPriceYearAED(cards[i].ID))
-		}
 	}
 	return cards
 }

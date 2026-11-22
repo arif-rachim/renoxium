@@ -39,7 +39,7 @@ test('onboarding: explanation first, then leave, review pending, ready', async (
   await page.goto(`/apps/${shop.app}/payments`);
   await expect(page.locator('.note')).toContainText('Before you start, have these ready.');
   await expect(page.locator('.note')).toContainText('trade licence');
-  await expect(page.locator('body')).toContainText('on the Free plan Renoxium takes 2% of each card payment');
+  await expect(page.locator('body')).toContainText('on the Professional plan Renoxium takes 2% of each card payment');
 
   await connectStripe(page, shop.app, 'Save and return later');
   await expect(page.locator('body')).toContainText('connected but not ready to take payments yet');

@@ -12,7 +12,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "+ 2% of card payments", "No credits. No limit on changes.", "Unlimited building and changes", "Are there credits, or a limit on changes?", "Claude's free plan is enough", "Renoxium takes AED 20", "pass AED 4,950 a month", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "<h3>Professional</h3>", "+ 2% of card payments", "By agreement", "Contact Renoxium", "No credits. No limit on changes.", "Unlimited building and changes", "Are there credits, or a limit on changes?", "Claude's free plan is enough", "Renoxium takes AED 20", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
@@ -46,7 +46,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 		t.Fatalf("/ar: %d %s", r.StatusCode, r.Header.Get("Content-Language"))
 	}
 	for _, want := range []string{`<html lang="ar" dir="rtl">`, "الطلبات والحجوزات والمدفوعات في مكان واحد", "بلا أرصدة. بلا حد للتعديلات.", "بناء وتعديل بلا حدود", "الخطة المجانية في Claude تكفي", "أبيع منتجات", "أستقبل حجوزات", "أرسل عروض أسعار",
-		"عملاؤك يستطيعون سؤال مساعدهم الذكي", "مكان واحد خلف كل قناة", "الوسطاء العقاريون", "التحكم بيدك", "99 درهماً", "4,950 درهماً", "?lang=ar",
+		"عملاؤك يستطيعون سؤال مساعدهم الذكي", "مكان واحد خلف كل قناة", "الوسطاء العقاريون", "التحكم بيدك", "بالاتفاق", "?lang=ar",
 		"screen-booking-ar.webp", `hreflang="en"`, `href="/" lang="en"`, `href="/signup"`} {
 		if !strings.Contains(ar, want) {
 			t.Errorf("/ar lacks %q", want)

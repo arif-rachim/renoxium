@@ -73,17 +73,17 @@ func TestBilling(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
 	c := e.browser()
 	e.signup(c, "vera@shop.ae")
 	page := func() string {
 		r, _ := c.Get(e.base + "/billing")
 		return read(t, r)
 	}
-	if p := page(); !strings.Contains(p, "Current plan: <strong>Free</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
+	if p := page(); !strings.Contains(p, "Current plan: <strong>Professional</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
 		t.Fatalf("free page: %s", p)
 	}
-	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Free plan</a>`) {
+	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Professional plan</a>`) {
 		t.Fatal("dashboard plan")
 	}
 
@@ -135,9 +135,9 @@ func TestBilling(t *testing.T) {
 	if p := page(); !strings.Contains(p, "<strong>Pro</strong>") {
 		t.Fatal("connected-account event changed the plan")
 	}
-	// Cancellation returns the account to Free.
+	// Cancellation returns the account to Professional.
 	webhook("whsec_billing", "customer.subscription.deleted", "")
-	if p := page(); !strings.Contains(p, "<strong>Free</strong>") {
+	if p := page(); !strings.Contains(p, "<strong>Professional</strong>") {
 		t.Fatalf("after cancel: %s", p)
 	}
 	if fb.customers != 1 {
@@ -151,7 +151,7 @@ func TestGrantedPlan(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
 	c := e.browser()
 	e.signup(c, "wade@shop.ae")
 	acc := e.accounts()
@@ -195,7 +195,7 @@ func TestBillingPageCallsStripeSparingly(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
 	c := e.browser()
 	e.signup(c, "tala@shop.ae")
 	token := e.csrf(c, "/billing")
@@ -222,7 +222,7 @@ func TestYearlyBilling(t *testing.T) {
 	e := newEnv(t)
 	fb := &fakeBilling{}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing", SelfServe: true}
 	c := e.browser()
 	e.signup(c, "yara@shop.ae")
 	page := func() string {
@@ -259,5 +259,30 @@ func TestYearlyBilling(t *testing.T) {
 	c.Get(e.base + "/billing?done=1")
 	if p := page(); !strings.Contains(p, `AED 99 <span class="per">/ month</span>`) {
 		t.Fatalf("back to monthly: %s", p)
+	}
+}
+
+// Without self-service, the billing page offers no subscription: owners are
+// on Professional and ask Renoxium for Business.
+func TestBillingPageWithoutSelfService(t *testing.T) {
+	e := newEnv(t)
+	fb := &fakeBilling{}
+	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
+		PricePro: "price_pro", PriceBusiness: "price_business", PriceProYearly: "price_pro_year", PriceBusinessYearly: "price_business_year",
+		WebhookSecret: "whsec_billing"}
+	c := e.browser()
+	e.signup(c, "noor@shop.ae")
+	r, _ := c.Get(e.base + "/billing")
+	p := read(t, r)
+	for _, want := range []string{"Current plan: <strong>Professional</strong>", "+ 2% of card payments", "<h3>Business</h3>", "By agreement",
+		`<a class="button secondary" href="/support">Contact Renoxium</a>`} {
+		if !strings.Contains(p, want) {
+			t.Errorf("billing page lacks %q", want)
+		}
+	}
+	for _, not := range []string{"Choose Pro", "Choose Business", "Pay yearly", "AED 99", "AED 299"} {
+		if strings.Contains(p, not) {
+			t.Errorf("billing page offers %q", not)
+		}
 	}
 }

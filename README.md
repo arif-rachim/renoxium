@@ -143,9 +143,11 @@ Renoxium runs untrusted, agent-written code for many tenants on shared infrastru
 
 | Plan | Price | Apps | Notes |
 |---|---|---|---|
-| Free | AED 0 | 3 | 2% application fee on card payments; custom domain; no payment services through `http.fetch` |
-| Pro | AED 99 / month | 10 | No fee on card payments; staff accounts; higher email and API quotas |
-| Business | AED 299 / month | 50 | Highest quotas |
+| Professional | AED 0 + 2% of card payments | 10 | Every account starts here: no subscription. Custom domain, 2 staff per app, no payment services through `http.fetch` |
+| Business | By agreement | 50 | Arranged with Renoxium and granted by the operator: no fee on card payments, higher limits |
+
+The Pro and Business subscriptions through Stripe Checkout (AED 99 and AED 299 a month, or by the year at 20% off) still
+exist; the billing page lists them only when the server runs with `RENOXIUM_SELF_SERVE_PLANS=1`.
 
 **No credits.** Building and changing apps through the agent is unlimited on every plan, the Free plan included, and is never
 charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. Claude's free

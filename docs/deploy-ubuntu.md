@@ -145,12 +145,16 @@ set. Without `STRIPE_SECRET_KEY`, live apps cannot take card payments; previews 
 Without the webhook secret, payments are taken but orders are not marked paid. Move to live keys only after
 testing a full payment in the sandbox, and create the live webhook the same way.
 
-### Renoxium plans: Free, Pro and Business (optional)
+### Renoxium plans: Professional and Business
 
-Accounts pay Renoxium through subscriptions on the Renoxium platform's own Stripe account. Free accounts
-pay a 2% Renoxium fee on their shops' card payments (taken by Stripe as an application fee) and may create
-3 apps; Pro (AED 99 a month, 10 apps) and Business
-(AED 299 a month, 50 apps) pay no fee. Custom domains are available on every plan. Owners manage their plan at `/billing`.
+Every account starts on Professional: no subscription, and a 2% Renoxium fee on its shops' card payments
+(taken by Stripe as an application fee). It may create 10 apps and use its own domain. Business is arranged
+with the owner and granted by an operator on the Users page: no fee, 50 apps and higher limits.
+
+The subscriptions below (Pro at AED 99 a month and Business at AED 299 a month, through Stripe Checkout) are
+optional. The billing page lists them for owners to buy themselves only when `RENOXIUM_SELF_SERVE_PLANS=1`
+is set in `/etc/renoxium/env`; without it, owners see Professional and a "Contact Renoxium" button for
+Business.
 
 In the Stripe Dashboard of the platform account (start in the sandbox):
 

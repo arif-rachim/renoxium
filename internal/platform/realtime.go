@@ -32,7 +32,7 @@ const LivePrefix = "/_rx/live/"
 
 // Limits; variables so tests can change them.
 var (
-	LiveSubscribersPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
+	LiveSubscribersPerPlan = map[string]int{planFree: 500, planPro: 500, planBusiness: 2000}
 	livePerVisitor         = 20               // open subscriptions per visitor address and app
 	livePublishPerMinute   = 600              // publishes per app
 	liveMaxMessage         = 8 << 10          // bytes of JSON per message
