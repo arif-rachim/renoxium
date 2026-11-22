@@ -29,13 +29,14 @@ type shellLink struct {
 type appShell struct {
 	App, Title, Status, StatusText, SiteURL string
 	Demo, IsOwner                           bool
+	SingleApp                               bool   // on the owner's own server: no list of apps to go back to
 	Throttle                                string // the operator's throttle notice, while it lasts
 	Main, Data, Business, Settings          []shellLink
 }
 
 // shell builds the navigation of an app; current is the href of this page.
 func (s *Site) shell(u accounts.User, app, title, current string, demo bool) appShell {
-	sh := appShell{App: app, Title: title, Demo: demo, IsOwner: !demo && s.isOwnerOf(u, app)}
+	sh := appShell{App: app, Title: title, Demo: demo, IsOwner: !demo && s.isOwnerOf(u, app), SingleApp: s.SingleApp != ""}
 	if info, err := s.platform.Info(app); err == nil {
 		sh.Status, sh.StatusText = appStatus(info)
 		if info.LiveVersion > 0 || demo {
@@ -67,7 +68,9 @@ func (s *Site) shell(u accounts.User, app, title, current string, demo bool) app
 		sh.Business = append(sh.Business, link("Payments", base+"/payments"))
 	}
 	sh.Business = append(sh.Business, link("Customers", base+"/visitors"))
-	if sh.IsOwner {
+	if sh.IsOwner && s.SingleApp != "" { // the domain, name and deletion are the server's own on the owner's server
+		sh.Settings = []shellLink{link("Notifications", base+"/notifications"), link("Staff", base+"/staff"), link("Connections", base+"/connections")}
+	} else if sh.IsOwner {
 		sh.Settings = []shellLink{link("Notifications", base+"/notifications"), link("Staff", base+"/staff"),
 			link("Domain", base+"/domain"), link("Connections", base+"/connections"), link("Rename app", base+"/rename"), link("Delete app", base+"/delete")}
 	}

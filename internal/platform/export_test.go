@@ -130,3 +130,13 @@ func AddFileAsBefore(t *testing.T, p *Platform, app string, raw []byte) string {
 	}
 	return fileURL(b)
 }
+
+// UseDirectPayments sets an app's card payments to the Stripe key's own
+// account, as ImportApp does on a self-hosted server.
+func UseDirectPayments(t *testing.T, p *Platform, app string) {
+	t.Helper()
+	if _, err := p.db.Exec(`INSERT OR REPLACE INTO payment_accounts (app, stripe_account, charges_enabled, details_submitted, updated_at)
+		VALUES (?, 'direct', 1, 1, ?)`, app, now()); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -77,7 +77,7 @@ func (c *Client) do(ctx context.Context, method, path, account string, form url.
 		rand.Read(key[:])
 		req.Header.Set("Idempotency-Key", hex.EncodeToString(key[:]))
 	}
-	if account != "" {
+	if account != "" && account != DirectAccount {
 		req.Header.Set("Stripe-Account", account)
 	}
 	client := c.HTTP
@@ -539,6 +539,11 @@ func (in Invoice) ServicePeriod() (start, end time.Time) {
 	}
 	return time.Unix(s, 0), time.Unix(e, 0)
 }
+
+// DirectAccount stands for the key's own Stripe account where a connected
+// account is expected: an app running on its owner's server charges on the
+// owner's account directly, with no Stripe-Account header and no Connect.
+const DirectAccount = "direct"
 
 // --- Billing: the platform's own subscriptions (no Stripe-Account header) ---
 
