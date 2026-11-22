@@ -44,7 +44,6 @@ test('operator panel', async ({ browser }) => {
   await expect(page.locator('tr', { hasText: shop.email }).first()).toContainText('pro granted');
   await shop.page.goto('/billing?done=1');
   await expect(shop.page.locator('body')).toContainText('Current plan: Pro');
-  await expect.poll(async () => (await (await shop.page.request.get(shop.live)).text()).includes('Made with Renoxium'), { timeout: 40_000, intervals: [2000] }).toBe(false);
 
   // Suspend: the shop answers 451 with a notice; bring it back.
   await search('Apps');
@@ -101,6 +100,6 @@ test('operator panel', async ({ browser }) => {
   await row.locator('select[name=plan]').selectOption('free');
   await row.getByRole('button', { name: 'Set' }).click();
   await shop.page.goto('/billing');
-  await expect(shop.page.locator('body')).toContainText('Current plan: Free');
+  await expect(shop.page.locator('body')).toContainText('Current plan: Pay per app');
   expect(PASSWORD).toBeTruthy();
 });

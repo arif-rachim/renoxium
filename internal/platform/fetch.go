@@ -195,7 +195,7 @@ func (p *Platform) DeleteSecret(app, name string) error {
 
 // FetchUsage is an account's live http.fetch calls this month and its quota.
 func (p *Platform) FetchUsage(owner string) (used, quota int) {
-	return p.usage(owner, "fetch"), FetchCallsPerPlan[p.planOf(owner)]
+	return p.usage(owner, "fetch"), FetchCallsPerPlan[p.quotaPlan(owner)]
 }
 
 type fetchInput struct {
@@ -270,7 +270,7 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	owner := p.ownerOf(st.app)
 	if p.cfg.OwnerPlan != nil {
 		if used, quota := p.FetchUsage(owner); used >= quota {
-			return nil, fetchError("the account used all %d external calls of this month; upgrade at %s/billing", quota, p.cfg.SiteURL)
+			return nil, fetchError("the account used all %d external calls of this month; for more, %s", quota, p.moreHint(p.quotaPlan(owner), st.app))
 		}
 	}
 	if p.cfg.OwnerEmail != nil {

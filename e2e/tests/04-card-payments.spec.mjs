@@ -1,5 +1,5 @@
 // Card payments through (fake) Stripe Connect: onboarding states, Checkout on
-// the shop's own account with the Free plan's 2% fee, webhooks settling the
+// the shop's own account with the shop's 2% fee, webhooks settling the
 // order, declined and abandoned payments, paying again, expiry, refunds,
 // repeated webhooks, owner notices by email and WhatsApp, and the sales tiles.
 import { test, expect } from '@playwright/test';
@@ -39,7 +39,7 @@ test('onboarding: explanation first, then leave, review pending, ready', async (
   await page.goto(`/apps/${shop.app}/payments`);
   await expect(page.locator('.note')).toContainText('Before you start, have these ready.');
   await expect(page.locator('.note')).toContainText('trade licence');
-  await expect(page.locator('body')).toContainText('on the Free plan Renoxium takes 2% of each card payment');
+  await expect(page.locator('body')).toContainText('as a shop Renoxium takes 2% of each card payment');
 
   await connectStripe(page, shop.app, 'Save and return later');
   await expect(page.locator('body')).toContainText('connected but not ready to take payments yet');
@@ -175,7 +175,8 @@ test('cash-on-delivery orders reach the owner on WhatsApp too; notices can be tu
   expect(wa.params.join(' ')).toContain('New order');
 
   await shop.page.goto(`/apps/${shop.app}/notifications`);
-  await expect(shop.page.locator('body')).toContainText(/[1-9]\d* of 50 used this month/);
+  // The shop's Stripe account takes payments, so it has the Pro limits: 500 WhatsApp messages.
+  await expect(shop.page.locator('body')).toContainText(/[1-9]\d* of 500 used this month/);
   await shop.page.getByRole('button', { name: 'Turn off WhatsApp notices' }).click();
   await expect(shop.page.locator('#phone')).toBeVisible();
 });

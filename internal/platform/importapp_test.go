@@ -118,6 +118,7 @@ func TestImportAppOnOwnServer(t *testing.T) {
 	if _, res, err := hosted.CreateFromExample(ctx, "usr_free", "free-shop", "store-uae"); err != nil || !res.OK {
 		t.Fatal(err, res)
 	}
+	platform.ReadyShop(t, hosted, "free-shop") // a shop: no licence
 	if _, err := hosted.Publish("free-shop", 0); err != nil {
 		t.Fatal(err)
 	}
@@ -126,6 +127,18 @@ func TestImportAppOnOwnServer(t *testing.T) {
 		if strings.HasSuffix(f.Name, "/licence.json") {
 			t.Fatal("a free account's export has a licence")
 		}
+	}
+	// A paid work app of a free account may run on its owner's server.
+	if _, res, err := hosted.CreateFromExample(ctx, "usr_free", "free-work", "store-uae"); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	platform.PaidWorkApp(t, hosted, "free-work")
+	licensed := false
+	for _, f := range exportOf(t, hosted, "free-work").File {
+		licensed = licensed || strings.HasSuffix(f.Name, "/licence.json")
+	}
+	if !licensed {
+		t.Fatal("a paid work app's export has no licence")
 	}
 	other, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "example.ae", PublicScheme: "https", SelfHosted: true}, sandbox.NewGoja())
 	if err != nil {

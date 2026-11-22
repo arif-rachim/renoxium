@@ -94,8 +94,8 @@ func (p *Platform) Subscriptions(ctx context.Context, app string, limit int) ([]
 	return querySubscriptions(ctx, st, `WHERE status != 'pending' AND status != 'expired' ORDER BY created_at DESC, rowid DESC LIMIT ?`, limit)
 }
 
-// feePercent is Renoxium's share of subscription invoices: the Free plan's
-// fee, as for one-off payments.
+// feePercent is Renoxium's share of subscription invoices: a shop's fee, as
+// for one-off payments.
 func (p *Platform) feePercent(app string) float64 {
 	if p.applicationFee(app, 10000) == 0 {
 		return 0

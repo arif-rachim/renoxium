@@ -49,8 +49,8 @@ func (p *Platform) AddFile(app string, r io.Reader) (FileInfo, error) {
 	var mine int
 	p.db.QueryRow(`SELECT count(*) FROM app_files f JOIN apps a ON a.name = f.app WHERE a.owner = ? AND f.hash = ?`, owner, b.Hash).Scan(&mine)
 	if used, quota := p.StorageUsage(owner); mine == 0 && used+b.Size > quota {
-		return FileInfo{}, fmt.Errorf("storage is full: %d MB of %d MB used, and this file is %.1f MB; delete unused images or upgrade at %s/billing",
-			used>>20, quota>>20, float64(b.Size)/(1<<20), p.cfg.SiteURL)
+		return FileInfo{}, fmt.Errorf("storage is full: %d MB of %d MB used, and this file is %.1f MB; delete unused images, or for more, %s",
+			used>>20, quota>>20, float64(b.Size)/(1<<20), p.moreHint(p.quotaPlan(owner), app))
 	}
 	if _, err := p.db.Exec(`INSERT OR IGNORE INTO blobs (hash, size, content_type, created_at, fitted) VALUES (?, ?, ?, ?, 1)`,
 		b.Hash, b.Size, b.ContentType, now()); err != nil {

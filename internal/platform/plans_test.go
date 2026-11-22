@@ -3,10 +3,12 @@ package platform_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/platform"
@@ -14,7 +16,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/stripe"
 )
 
-func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
+func TestPlansDecideFeeAndPublishing(t *testing.T) {
 	fs := &fakeStripe{charges: true}
 	srv := fs.server(t)
 	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
@@ -25,13 +27,8 @@ func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 	}
 	defer p.Close()
 	ctx := context.Background()
-	for _, owner := range []string{"usr_free", "usr_pro"} {
-		app := strings.TrimPrefix(owner, "usr_") + "-shop"
-		if _, err := p.CreateApp(owner, app); err != nil {
-			t.Fatal(err)
-		}
-		p.ApplyChange(ctx, app, shopWithCheckout())
-		p.Publish(app, 0)
+	connect := func(app string) {
+		t.Helper()
 		if _, err := p.StripeOnboardingURL(ctx, app, "o@x.ae", "https://r", "https://f"); err != nil {
 			t.Fatal(err)
 		}
@@ -39,52 +36,109 @@ func TestPlansDecideFeeBadgeAndAppLimit(t *testing.T) {
 			t.Fatal(pa, err)
 		}
 	}
+	for owner, app := range map[string]string{"usr_free": "free-shop", "usr_pro": "pro-shop"} {
+		if _, err := p.CreateApp(owner, app); err != nil {
+			t.Fatal(err)
+		}
+		p.ApplyChange(ctx, app, shopWithCheckout())
+	}
 
-	// Free: 2% of 500 AED = 10 AED (1000 fils) to Renoxium, a badge, and one app only.
+	// A free account's app with server code goes live only once the owner
+	// chose how it is paid for; a shop may connect Stripe afterwards.
+	if _, err := p.Publish("free-shop", 0); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/apps/free-shop/plan") {
+		t.Fatalf("publish without a plan: %v", err)
+	}
+	p.SetAppKind("free-shop", platform.KindShop)
+	if _, err := p.Publish("free-shop", 0); err != nil {
+		t.Fatalf("shop: %v", err)
+	}
+	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["free"] {
+		t.Fatalf("shop without Stripe: quota %d", q)
+	}
+	connect("free-shop")
+	platform.ForgetPlan("usr_free")
+	// Once Stripe takes its payments, the shop gets the Pro limits.
+	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["pro"] {
+		t.Fatalf("shop with Stripe: quota %d", q)
+	}
+	// An account on a paid plan needs neither.
+	if _, err := p.Publish("pro-shop", 0); err != nil {
+		t.Fatalf("pro: %v", err)
+	}
+	connect("pro-shop")
+
+	// A shop pays 2% of 500 AED = 10 AED (1000 fils); Pro pays nothing.
 	do(t, p, "POST", "free-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
-		t.Fatalf("free plan fee = %q", fee)
+		t.Fatalf("shop fee = %q", fee)
 	}
-	if _, err := p.CreateApp("usr_free", "free-second"); err == nil || !strings.Contains(err.Error(), "free plan allows 1") ||
-		!strings.Contains(err.Error(), "https://www.renoxium.test/billing") {
-		t.Fatalf("second free app: %v", err)
-	}
-	// Pro: no fee, no badge, more apps.
 	do(t, p, "POST", "pro-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
 		t.Fatalf("pro plan fee = %q", fee)
 	}
-	if _, err := p.CreateApp("usr_pro", "pro-second"); err != nil {
-		t.Fatalf("second pro app: %v", err)
+
+	// A work app pays its subscription instead of the fee, and pauses when
+	// the subscription ends.
+	p.CreateApp("usr_free", "free-work")
+	p.ApplyChange(ctx, "free-work", shopWithCheckout())
+	p.SetAppKind("free-work", platform.KindWork)
+	if _, err := p.Publish("free-work", 0); err == nil || !strings.Contains(err.Error(), "subscribe") {
+		t.Fatalf("work app without a subscription: %v", err)
+	}
+	platform.PaidWorkApp(t, p, "free-work")
+	if _, err := p.Publish("free-work", 0); err != nil {
+		t.Fatal(err)
+	}
+	connect("free-work")
+	do(t, p, "POST", "free-work.renoxium.test", "/buy", url.Values{})
+	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
+		t.Fatalf("work app fee = %q", fee)
+	}
+	if got := p.StaffLimit("free-work"); got != platform.WorkAppUsers {
+		t.Fatalf("work app staff = %d", got)
+	}
+	if !p.CustomDomainAllowed("free-work") {
+		t.Fatal("work app may not have its own domain")
+	}
+	p.SetWorkSubscription("free-work", "sub_free-work", "canceled", time.Time{})
+	if r := do(t, p, "GET", "free-work.renoxium.test", "/", nil); r.status != 402 || !strings.Contains(r.body, "paused") {
+		t.Fatalf("lapsed work app: %d %s", r.status, r.body)
+	}
+
+	// The free plan allows ten apps.
+	for i := 3; i <= platform.AppsPerPlan["free"]; i++ {
+		if _, err := p.CreateApp("usr_free", fmt.Sprintf("free-%d", i)); err != nil {
+			t.Fatalf("free app %d: %v", i, err)
+		}
+	}
+	if _, err := p.CreateApp("usr_free", "free-too-many"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/support") {
+		t.Fatalf("app over the free limit: %v", err)
 	}
 }
 
-func TestFreePlanBadgeOnLivePagesOnly(t *testing.T) {
-	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
+// A static site needs no plan, and no app shows Renoxium branding.
+func TestStaticSiteIsFreeAndUnbranded(t *testing.T) {
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
-		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
+		OwnerPlan: func(string) string { return "free" }}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer p.Close()
 	page := &appdef.App{Templates: map[string]string{"t": "<!doctype html><html><head></head><body><h1>Shop</h1></body></html>"},
 		Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}}
-	for owner, want := range map[string]bool{"usr_free": true, "usr_pro": false} {
-		app := strings.TrimPrefix(owner, "usr_") + "-page"
-		p.CreateApp(owner, app)
-		p.ApplyChange(context.Background(), app, page)
-		p.Publish(app, 0)
-		live := do(t, p, "GET", app+".renoxium.test", "/", nil)
-		if got := strings.Contains(live.body, "Made with Renoxium"); got != want {
-			t.Errorf("%s live badge = %v", owner, got)
-		}
-		if want && strings.Index(live.body, "Made with Renoxium") > strings.Index(live.body, "</body>") {
-			t.Error("badge after </body>")
-		}
-		res, _ := p.TestRequest(context.Background(), app, platform.TestRequestInput{Path: "/"})
-		if strings.Contains(res.Body, "Made with Renoxium") {
-			t.Errorf("%s preview shows the badge", owner)
-		}
+	if !page.Static() {
+		t.Fatal("a page-only app is not static")
+	}
+	p.CreateApp("usr_free", "free-page")
+	p.ApplyChange(context.Background(), "free-page", page)
+	if _, err := p.Publish("free-page", 0); err != nil {
+		t.Fatalf("static site: %v", err)
+	}
+	if live := do(t, p, "GET", "free-page.renoxium.test", "/", nil); !strings.Contains(live.body, "<h1>Shop</h1>") || strings.Contains(live.body, "Renoxium") {
+		t.Fatalf("live page: %s", live.body)
+	}
+	if p.CustomDomainAllowed("free-page") {
+		t.Fatal("a free static site may have its own domain")
 	}
 }
 
@@ -102,7 +156,10 @@ func TestWhatsAppQuotaPerPlan(t *testing.T) {
 	delete(def.Templates, "auth_login")
 	p.CreateApp("usr_free", "club")
 	p.ApplyChange(context.Background(), "club", def)
-	p.Publish("club", 0)
+	p.SetAppKind("club", platform.KindShop) // a shop without Stripe keeps the free limits
+	if _, err := p.Publish("club", 0); err != nil {
+		t.Fatal(err)
+	}
 	// This test is about the monthly quota alone: lift the daily share of
 	// new numbers and the part kept for known ones (see TestWhatsAppNewNumbers).
 	platform.WhatsAppNewPerDayShare, platform.WhatsAppKnownReserveShare = 1, 0
@@ -145,15 +202,30 @@ func TestStaffLimitPerPlan(t *testing.T) {
 	defer p.Close()
 	p.CreateApp("usr_free", "free-shop")
 	p.CreateApp("usr_pro", "pro-shop")
-	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "Pro or Business") {
+	// A free account's app gets staff once it is a shop (2) or a paid work app (5).
+	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "shop or a work app") {
 		t.Fatalf("free staff: %v", err)
+	}
+	platform.ReadyShop(t, p, "free-shop")
+	if got := p.StaffLimit("free-shop"); got != platform.ShopStaff {
+		t.Fatalf("shop staff limit = %d", got)
+	}
+	for _, e := range []string{"a@x.ae", "b@x.ae"} {
+		if err := p.AddStaff("free-shop", e, "usr_free"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A full shop is pointed to its Plan page: a work app has more staff.
+	if err := p.AddStaff("free-shop", "c@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/apps/free-shop/plan") {
+		t.Fatalf("third shop staff: %v", err)
 	}
 	for _, e := range []string{"a@x.ae", "b@x.ae"} {
 		if err := p.AddStaff("pro-shop", e, "usr_pro"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := p.AddStaff("pro-shop", "c@x.ae", "usr_pro"); err == nil || !strings.Contains(err.Error(), "allows 2") {
+	if err := p.AddStaff("pro-shop", "c@x.ae", "usr_pro"); err == nil || !strings.Contains(err.Error(), "may have 2 staff members") ||
+		!strings.Contains(err.Error(), "https://www.renoxium.test/support") {
 		t.Fatalf("third pro staff: %v", err)
 	}
 	if err := p.AddStaff("pro-shop", "A@X.ae", "usr_pro"); err != nil || !p.IsStaff("pro-shop", "a@x.ae") {
@@ -166,7 +238,7 @@ func TestStaffLimitPerPlan(t *testing.T) {
 
 func TestStorageQuotaPerAccount(t *testing.T) {
 	plans := map[string]string{"usr_free": "free"}
-	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https",
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://www.renoxium.test",
 		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +248,8 @@ func TestStorageQuotaPerAccount(t *testing.T) {
 	platform.StorageMBPerPlan["free"] = 0 // every new byte is over quota
 	defer func() { platform.StorageMBPerPlan["free"] = old }()
 	p.CreateApp("usr_free", "shop-a")
-	if _, err := p.AddFile("shop-a", bytes.NewReader(pngFile(t, 1))); err == nil || !strings.Contains(err.Error(), "storage is full") {
+	if _, err := p.AddFile("shop-a", bytes.NewReader(pngFile(t, 1))); err == nil || !strings.Contains(err.Error(), "storage is full") ||
+		!strings.Contains(err.Error(), "https://www.renoxium.test/apps/shop-a/plan") {
 		t.Fatalf("over quota: %v", err)
 	}
 	platform.StorageMBPerPlan["free"] = 1

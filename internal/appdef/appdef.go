@@ -234,6 +234,22 @@ type Route struct {
 	Auth     string `json:"auth,omitempty" jsonschema:"set to user so only signed-in visitors reach the route; others are sent to the sign-in page"`
 }
 
+// Static reports whether the app is only pages and pictures: no tables, no
+// server code, no signed-in routes and no forms. A static app is free and
+// keeps its Renoxium address.
+func (a *App) Static() bool {
+	if len(a.Tables) > 0 || len(a.Scripts) > 0 || len(a.Lib) > 0 || len(a.Jobs) > 0 || len(a.Tools) > 0 ||
+		len(a.Hosts) > 0 || len(a.Secrets) > 0 || a.OnPayment != "" || a.OnAdminChange != "" || a.Brand != nil {
+		return false
+	}
+	for _, r := range a.Routes {
+		if r.Script != "" || r.Auth != "" || r.Method != "GET" {
+			return false
+		}
+	}
+	return true
+}
+
 var identRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
 var toolNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)

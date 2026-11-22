@@ -38,7 +38,18 @@ func (p *Platform) StaffLimit(app string) int {
 	if p.cfg.OwnerPlan == nil {
 		return StaffPerPlan[planBusiness]
 	}
-	return StaffPerPlan[p.planOf(p.ownerOf(app))]
+	if plan := p.planOf(p.ownerOf(app)); plan != planFree {
+		return StaffPerPlan[plan]
+	}
+	switch {
+	case p.workPaid(app) && p.cfg.WorkSeats:
+		return WorkAppMaxUsers
+	case p.workPaid(app):
+		return WorkAppUsers
+	case p.appKind(app) == KindShop:
+		return ShopStaff
+	}
+	return 0
 }
 
 // AddStaff gives an email staff access to an app, within the plan's limit.
@@ -58,9 +69,15 @@ func (p *Platform) AddStaff(app, email, by string) error {
 	}
 	if limit := p.StaffLimit(app); len(staff) >= limit {
 		if limit == 0 {
-			return fmt.Errorf("staff accounts need the Pro or Business plan (%s/billing)", p.cfg.SiteURL)
+			return fmt.Errorf("staff accounts come with a shop or a work app; choose one at %s/apps/%s/plan", p.cfg.SiteURL, app)
 		}
-		return fmt.Errorf("your plan allows %d staff members per app; upgrade at %s/billing", limit, p.cfg.SiteURL)
+		if limit == WorkAppMaxUsers && p.workPaid(app) {
+			return fmt.Errorf("a work app may have at most %d staff members for now", limit)
+		}
+		if p.planOf(p.ownerOf(app)) == planFree && p.appKind(app) == KindShop {
+			return fmt.Errorf("a shop may have %d staff members; for more, make %s a work app at %s/apps/%s/plan", limit, app, p.cfg.SiteURL, app)
+		}
+		return fmt.Errorf("this app may have %d staff members; for more, contact Renoxium at %s/support", limit, p.cfg.SiteURL)
 	}
 	_, err = p.db.Exec(`INSERT OR IGNORE INTO app_staff (app, email, added_by) VALUES (?, ?, ?)`, app, email, by)
 	return err

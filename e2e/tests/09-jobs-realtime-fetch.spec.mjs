@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
 import { appURL } from '../env.mjs';
-import { person, signUp, email, unique, connectAgent, builder, confirmPublish, upgrade, fake, waitEmail } from '../lib.mjs';
+import { person, signUp, email, unique, connectAgent, builder, confirmPublish, fake, waitEmail } from '../lib.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const API_HOST = 'api.courier.test';
@@ -67,7 +67,6 @@ test.beforeAll(async ({ browser }) => {
   owner = await person(browser);
   owner.email = email('owner');
   await signUp(owner.page, owner.email);
-  await upgrade(owner.page, 'Pro'); // a second app, and jobs every minute (Free runs them every 5)
   agent = await builder((await connectAgent(owner.page)).access_token);
   app = unique('ops');
 });
@@ -104,7 +103,7 @@ test('agent adds a job, a host and a key; the owner is told what to do; the job 
   expect(quote.body).toContain(`the owner has not allowed ${API_HOST} yet`);
 
   const pub = await agent.call('publish', { app });
-  await confirmPublish(owner.page, pub.confirm_url);
+  await confirmPublish(owner.page, pub.confirm_url, { plan: 'work' }); // a paid work app runs jobs every minute (others every 5)
   publishedAt = Date.now();
   await owner.page.goto(`/apps/${app}/status`);
   await expect(owner.page.locator('body')).toContainText('Scheduled jobs');

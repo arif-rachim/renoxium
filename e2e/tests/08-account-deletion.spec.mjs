@@ -1,17 +1,17 @@
-// Deleting an owner account: confirmation, a paid plan cancelled at Stripe
+// Deleting an owner account: confirmation, a work app subscription cancelled at Stripe
 // first, the apps gone, the name free again.
 import { test, expect } from '@playwright/test';
-import { person, ownerWithStore, signUp, email, connectAgent, builder, fake, upgrade, PASSWORD } from '../lib.mjs';
+import { person, ownerWithStore, signUp, email, connectAgent, builder, fake, choosePlan, PASSWORD } from '../lib.mjs';
 
-test('delete an account on a paid plan', async ({ browser }) => {
+test('delete an account with a paid work app', async ({ browser }) => {
   const shop = await ownerWithStore(browser);
   const { page } = shop;
-  await upgrade(page, 'Pro');
+  await choosePlan(page, shop.app, 'work');
   const sub = (await fake.get('/stripe/subscriptions')).filter((s) => s.status === 'active').at(-1);
 
   await page.goto('/account');
   await expect(page.locator('body')).toContainText('This deletes your account and 1 app(s)');
-  await expect(page.locator('body')).toContainText('Your paid plan is cancelled at once');
+  await expect(page.locator('body')).toContainText('Your paid plan and work app subscriptions are cancelled at once');
 
   await page.fill('#confirm', 'someone@else.test');
   await page.fill('#dpassword', PASSWORD);

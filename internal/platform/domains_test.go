@@ -79,8 +79,17 @@ func TestCustomDomainLifecycle(t *testing.T) {
 		p.Publish(app, 0)
 	}
 
-	if _, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err == nil || !strings.Contains(err.Error(), "Pro") {
-		t.Errorf("free plan: err = %v", err)
+	// A static site on the free plan keeps its Renoxium address; a shop or a
+	// work app may have its own domain.
+	if _, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err == nil || !strings.Contains(err.Error(), "shop or a work app") {
+		t.Errorf("free static site: err = %v", err)
+	}
+	platform.ReadyShop(t, p, "free-shop")
+	if d, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err != nil || d.Host != "www.free.ae" {
+		t.Errorf("free shop: %v %v", d, err)
+	}
+	if err := p.RemoveCustomDomain(ctx, "free-shop"); err != nil {
+		t.Error(err)
 	}
 	for _, bad := range []string{"not a domain", "shop.renoxium.test", "renoxium.com"} {
 		if _, err := p.SetCustomDomain(ctx, "oud", bad); err == nil {

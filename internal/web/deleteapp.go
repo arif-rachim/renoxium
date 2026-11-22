@@ -94,6 +94,18 @@ func (s *Site) deleteApp(w http.ResponseWriter, r *http.Request) {
 		s.renderDeleteApp(w, r, app, http.StatusConflict, "Cancel the running subscriptions in Payments first.")
 		return
 	}
+	if pl, err := s.platform.AppPlan(app); err == nil && pl.WorkPaid && pl.WorkSubscription != "" {
+		if s.Billing.Stripe == nil {
+			s.renderDeleteApp(w, r, app, http.StatusConflict, "This work app's subscription could not be cancelled here; cancel it in Plan and billing first.")
+			return
+		}
+		if err := s.Billing.Stripe.CancelSubscription(r.Context(), pl.WorkSubscription); err != nil {
+			slog.Error("cancel work app subscription", "user", u.ID, "app", app, "err", err)
+			s.renderDeleteApp(w, r, app, http.StatusServiceUnavailable, "Stripe could not cancel this app's subscription; try again in a minute.")
+			return
+		}
+		slog.Info("work app subscription cancelled for app deletion", "user", u.ID, "app", app, "subscription", pl.WorkSubscription)
+	}
 	if err := s.platform.DeleteApp(app); err != nil {
 		slog.Error("delete app", "user", u.ID, "app", app, "err", err)
 		s.renderDeleteApp(w, r, app, http.StatusServiceUnavailable, "The app could not be deleted: "+err.Error())

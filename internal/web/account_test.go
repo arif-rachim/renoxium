@@ -91,7 +91,7 @@ func TestAccountPage(t *testing.T) {
 	u, _ := e.acc.UserByEmail("xena@shop.ae")
 	e.acc.SetCustomer(u.ID, "cus_1")
 	e.acc.SetSubscription(u.ID, accounts.Billing{Plan: "pro", Status: "active", Subscription: "sub_1"})
-	if r, _ := c.Get(e.base + "/account"); !strings.Contains(read(t, r), "Your paid plan is cancelled at once") {
+	if r, _ := c.Get(e.base + "/account"); !strings.Contains(read(t, r), "Your paid plan and work app subscriptions are cancelled at once") {
 		t.Fatal("the delete form does not warn about the paid plan")
 	}
 	fb.failCancel = true

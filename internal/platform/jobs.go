@@ -18,7 +18,9 @@ import (
 // skips nor repeats a run, and a newly published job first runs after its
 // interval or at its next daily time, not at once.
 
-// FreePlanMinInterval is the shortest "every" on the Free plan; longer
+// FreePlanMinInterval is the shortest "every" of an app on the free limits
+// (a free account's app that is neither a paid work app nor a shop taking
+// card payments); longer
 // schedules are kept, shorter ones run this often.
 const FreePlanMinInterval = 5 * time.Minute
 
@@ -163,7 +165,7 @@ func (p *Platform) jobsOf(app string, version int) []appdef.Job {
 
 func (p *Platform) jobInterval(app string, j appdef.Job) time.Duration {
 	d, _ := j.JobInterval()
-	if p.cfg.OwnerPlan != nil && p.planOf(p.ownerOf(app)) == planFree && d < FreePlanMinInterval {
+	if p.cfg.OwnerPlan != nil && p.appQuotaPlan(app) == planFree && d < FreePlanMinInterval {
 		d = FreePlanMinInterval
 	}
 	return d

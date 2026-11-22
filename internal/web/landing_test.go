@@ -12,7 +12,7 @@ func TestLandingAndLegalPages(t *testing.T) {
 	e := newEnv(t)
 	r, _ := http.Get(e.base + "/")
 	page := read(t, r)
-	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 299", "2% of card payments", "No credits. No limit on changes.", "Unlimited building and changes", "Are there credits, or a limit on changes?", "Claude's free plan is enough", "costs AED 200 in Renoxium fees", "pass AED 4,950 a month", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", `href="/privacy"`, `href="/terms"`} {
+	for _, want := range []string{"Orders, bookings and payments in one place", "الطلبات والحجوزات والمدفوعات في مكان واحد", "connects it to AI assistants", "وأريد عربوناً بقيمة ٥٠ درهماً عند الحجز", "I sell products", "I take bookings", "I send quotes", "Try a demo", "AED 99", "AED 99", "Larger businesses", "Contact Renoxium", "2% of card payments", "No credits. No limit on changes.", "Unlimited building and changes", "Are there credits, or a limit on changes?", "Claude's free plan is enough", "Renoxium takes AED 20", "Your customers can ask their own AI assistant", "One place behind every channel", "Coming next", `role="tab"`, "Property brokers", "You stay in control", "What every shop and work app has", "Not selling online? Run your work on it", "Clinic queue", "Staff attendance", "Members' portal", "A work app: AED 99 a month per app, 5 staff included.", `href="#work"`, `href="/privacy"`, `href="/terms"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("landing lacks %q", want)
 		}
@@ -45,20 +45,20 @@ func TestLandingAndLegalPages(t *testing.T) {
 	if r.StatusCode != 200 || r.Header.Get("Content-Language") != "ar" {
 		t.Fatalf("/ar: %d %s", r.StatusCode, r.Header.Get("Content-Language"))
 	}
-	for _, want := range []string{`<html lang="ar" dir="rtl">`, "الطلبات والحجوزات والمدفوعات في مكان واحد", "بلا أرصدة. بلا حد للتعديلات.", "بناء وتعديل بلا حدود", "الخطة المجانية في Claude تكفي", "أبيع منتجات", "أستقبل حجوزات", "أرسل عروض أسعار",
-		"عملاؤك يستطيعون سؤال مساعدهم الذكي", "مكان واحد خلف كل قناة", "الوسطاء العقاريون", "التحكم بيدك", "99 درهماً", "4,950 درهماً", "?lang=ar",
+	for _, want := range []string{`<html lang="ar" dir="rtl">`, "الطلبات والحجوزات والمدفوعات في مكان واحد", "بلا أرصدة. بلا حد للتعديلات.", "تطبيق عمل", "الخطة المجانية في Claude تكفي", "أبيع منتجات", "أستقبل حجوزات", "أرسل عروض أسعار",
+		"عملاؤك يستطيعون سؤال مساعدهم الذكي", "مكان واحد خلف كل قناة", "الوسطاء العقاريون", "التحكم بيدك", "ما يتضمنه كل متجر وكل تطبيق عمل", "لا تبيع عبر الإنترنت؟ أدِر عملك عليه", "طابور العيادة", "حضور الموظفين", "بوابة الأعضاء", "تطبيق عمل: 99 درهماً شهرياً لكل تطبيق، و5 موظفين ضمن السعر.", `href="#work"`, "99 درهماً", "بالاتفاق", "?lang=ar",
 		"screen-booking-ar.webp", `hreflang="en"`, `href="/" lang="en"`, `href="/signup"`} {
 		if !strings.Contains(ar, want) {
 			t.Errorf("/ar lacks %q", want)
 		}
 	}
 	// Both pages have the same sections and tabs, and point to each other.
-	for _, id := range []string{`id="hero-h"`, `id="how-h"`, `id="ai-h"`, `id="chan-h"`, `id="panel-h"`, `id="trade-h"`, `id="has-h"`, `id="pricing-h"`, `id="faq-h"`, `id="end-h"`} {
+	for _, id := range []string{`id="hero-h"`, `id="how-h"`, `id="ai-h"`, `id="chan-h"`, `id="panel-h"`, `id="trade-h"`, `id="work-h"`, `id="has-h"`, `id="pricing-h"`, `id="faq-h"`, `id="end-h"`} {
 		if !strings.Contains(page, id) || !strings.Contains(ar, id) {
 			t.Errorf("section %s is not on both home pages", id)
 		}
 	}
-	for _, n := range []string{`role="tab"`, "<details>", `class="chan"`, "<dt>"} {
+	for _, n := range []string{`role="tab"`, "<details>", `class="chan"`, "<dt>", `class="qrow`, "<li data-r>"} {
 		if a, b := strings.Count(page, n), strings.Count(ar, n); a != b || a == 0 {
 			t.Errorf("%s: %d in English, %d in Arabic", n, a, b)
 		}

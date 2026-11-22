@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,10 +21,26 @@ type fakeBilling struct {
 	customers  int
 	status     string // status of the one subscription, "" for none
 	price      string
+	metadata   map[string]string // of the one subscription
 	checkouts  []url.Values
 	cancels    []string // subscriptions cancelled with DELETE
 	failCancel bool
 	lists      int // GET /v1/subscriptions calls
+	// The seat item of the one subscription (work app staff beyond the
+	// included ones), and the subscription item calls that changed it.
+	seatPrice string
+	seats     int64
+	seatCalls []string
+	failSeats bool
+}
+
+// subJSON is the one subscription as Stripe returns it.
+func (f *fakeBilling) subJSON() map[string]any {
+	items := []any{map[string]any{"id": "si_base", "price": map[string]any{"id": f.price}, "quantity": 1, "current_period_end": 1900000000}}
+	if f.seats > 0 {
+		items = append(items, map[string]any{"id": "si_seat", "price": map[string]any{"id": f.seatPrice}, "quantity": f.seats, "current_period_end": 1900000000})
+	}
+	return map[string]any{"id": "sub_1", "customer": "cus_1", "status": f.status, "metadata": f.metadata, "items": map[string]any{"data": items}}
 }
 
 func (f *fakeBilling) server(t *testing.T) *httptest.Server {
@@ -32,6 +49,29 @@ func (f *fakeBilling) server(t *testing.T) *httptest.Server {
 		defer f.mu.Unlock()
 		raw, _ := io.ReadAll(r.Body)
 		form, _ := url.ParseQuery(string(raw))
+		if strings.HasPrefix(r.URL.Path, "/v1/subscription_items") {
+			if f.failSeats {
+				w.WriteHeader(500)
+				w.Write([]byte(`{"error":{"type":"api_error","message":"try later"}}`))
+				return
+			}
+			f.seatCalls = append(f.seatCalls, r.Method+" "+r.URL.Path+" "+form.Get("quantity"))
+			switch {
+			case r.Method == http.MethodDelete:
+				f.seats = 0
+			case r.URL.Path == "/v1/subscription_items":
+				f.seatPrice = form.Get("price")
+				fallthrough
+			default:
+				f.seats, _ = strconv.ParseInt(form.Get("quantity"), 10, 64)
+			}
+			w.Write([]byte(`{"id":"si_seat"}`))
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/subscriptions/sub_1" {
+			json.NewEncoder(w).Encode(f.subJSON())
+			return
+		}
 		if r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/") {
 			if f.failCancel {
 				w.WriteHeader(500)
@@ -55,8 +95,7 @@ func (f *fakeBilling) server(t *testing.T) *httptest.Server {
 			f.lists++
 			data := []any{}
 			if f.status != "" {
-				data = append(data, map[string]any{"id": "sub_1", "customer": "cus_1", "status": f.status,
-					"items": map[string]any{"data": []any{map[string]any{"price": map[string]any{"id": f.price}, "current_period_end": 1900000000}}}})
+				data = append(data, f.subJSON())
 			}
 			json.NewEncoder(w).Encode(map[string]any{"data": data})
 		case "/v1/billing_portal/sessions":
@@ -80,7 +119,8 @@ func TestBilling(t *testing.T) {
 		r, _ := c.Get(e.base + "/billing")
 		return read(t, r)
 	}
-	if p := page(); !strings.Contains(p, "Current plan: <strong>Free</strong>") || !strings.Contains(p, "Choose Pro") || !strings.Contains(p, "takes 2%") {
+	if p := page(); !strings.Contains(p, "Current plan: <strong>Pay per app</strong>") || !strings.Contains(p, "shops pay 2%") || !strings.Contains(p, "AED 99 a month") ||
+		strings.Contains(p, "Choose Pro") {
 		t.Fatalf("free page: %s", p)
 	}
 	if r, _ := c.Get(e.base + "/"); !strings.Contains(read(t, r), `<a href="/billing">Free plan</a>`) {
@@ -137,7 +177,7 @@ func TestBilling(t *testing.T) {
 	}
 	// Cancellation returns the account to Free.
 	webhook("whsec_billing", "customer.subscription.deleted", "")
-	if p := page(); !strings.Contains(p, "<strong>Free</strong>") {
+	if p := page(); !strings.Contains(p, "<strong>Pay per app</strong>") {
 		t.Fatalf("after cancel: %s", p)
 	}
 	if fb.customers != 1 {
@@ -164,11 +204,10 @@ func TestGrantedPlan(t *testing.T) {
 		t.Fatalf("granted plan: %s", p)
 	}
 	// No Stripe subscription to manage: the page says so instead of a
-	// Manage billing button that only reloads the page, and the owner can
-	// still subscribe to pay for a plan themselves.
+	// Manage billing button that only reloads the page.
 	r, _ = c.Get(e.base + "/billing")
 	p := read(t, r)
-	if strings.Contains(p, "Manage billing") || !strings.Contains(p, "granted") || !strings.Contains(p, "Choose Pro") {
+	if strings.Contains(p, "Manage billing") || !strings.Contains(p, "granted") {
 		t.Fatalf("granted billing page: %s", p)
 	}
 	r, _ = c.PostForm(e.base+"/billing/portal", url.Values{"csrf": {e.csrf(c, "/billing")}})

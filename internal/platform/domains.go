@@ -64,9 +64,14 @@ func (p *Platform) CustomDomainsAvailable() bool {
 	return p.cfg.Cloudflare != nil && p.cfg.CustomDomainTarget != ""
 }
 
-// CustomDomainAllowed reports whether the app's owner's plan includes it.
+// CustomDomainAllowed reports whether the app may have its own domain: shops,
+// work apps and apps of accounts on a paid or granted plan. A static site
+// keeps its Renoxium address.
 func (p *Platform) CustomDomainAllowed(app string) bool {
-	return p.cfg.OwnerPlan == nil || p.planOf(p.ownerOf(app)) != planFree
+	if p.cfg.OwnerPlan == nil || p.planOf(p.ownerOf(app)) != planFree {
+		return true
+	}
+	return p.appKind(app) != ""
 }
 
 // CustomDomain returns the app's domain, or nil.
@@ -184,7 +189,7 @@ func (p *Platform) SetCustomDomain(ctx context.Context, app, host string) (*Cust
 		return nil, errors.New("custom domains are not available on this Renoxium server yet")
 	}
 	if !p.CustomDomainAllowed(app) {
-		return nil, fmt.Errorf("custom domains need the Pro or Business plan (%s/billing)", p.cfg.SiteURL)
+		return nil, fmt.Errorf("your own domain comes with a shop or a work app; a site of pages and photos keeps its Renoxium address (%s/apps/%s/plan)", p.cfg.SiteURL, app)
 	}
 	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
 	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")

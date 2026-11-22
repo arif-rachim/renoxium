@@ -79,14 +79,18 @@ type Config struct {
 	// go to the Stripe key's own account (stripe.DirectAccount), without
 	// Connect and without a platform fee.
 	SelfHosted bool
+	// WorkSeats is set when extra staff members of a work app can be paid
+	// for (WorkSeatPriceAED each); without it a work app has WorkAppUsers.
+	WorkSeats bool
 	// LicenceKey signs the licence an export from a paid account carries,
 	// which lets it run on its owner's server (internal/licence). Nil: exports
 	// carry none.
 	LicenceKey ed25519.PrivateKey
 
 	// OwnerPlan returns an account's plan: "free", "pro" or "business".
-	// Free-plan apps pay a cut of card payments, show a small badge and
-	// are limited in number. Nil means no plans: nothing is limited.
+	// On the free plan each app is a static site, a shop (a cut of card
+	// payments) or a work app (a subscription), and apps are limited in
+	// number. Nil means no plans: nothing is limited.
 	OwnerPlan func(ownerID string) string
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
@@ -139,6 +143,7 @@ type Platform struct {
 	bg     sync.WaitGroup // work that continues after a request is answered
 	hosts  sync.Map       // host -> hostEntry
 	owners sync.Map       // app -> owner
+	lapsed sync.Map       // app -> lapsedState (see planLapsed)
 	// liveHosts maps an app to its active custom domain.
 	liveHosts sync.Map
 	errors    errorCounter
@@ -248,7 +253,7 @@ const NameHold = 90 * 24 * time.Hour
 // Quotas per account and per app. There is no billing yet, so these keep
 // one account from filling the server's disk.
 const (
-	MaxAppsPerOwner = 10
+	MaxAppsPerOwner = 50
 	keepVersions    = 50 // older versions are deleted, except the live one
 	keepBackups     = 3  // publish backups kept per app
 	MaxFilesPerApp  = 2000
@@ -293,6 +298,14 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN preview_fetch_until INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		db.Close()
 		return nil, err
+	}
+	// How an app is paid for (see appplan.go).
+	for _, col := range []string{`plan_kind TEXT NOT NULL DEFAULT ''`, `work_sub TEXT NOT NULL DEFAULT ''`,
+		`work_status TEXT NOT NULL DEFAULT ''`, `work_period_end INTEGER NOT NULL DEFAULT 0`, `work_seats INTEGER NOT NULL DEFAULT 0`} {
+		if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN ` + col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			db.Close()
+			return nil, err
+		}
 	}
 	// A non-empty reason takes the app offline (see Suspend).
 	if _, err := db.Exec(`ALTER TABLE apps ADD COLUMN suspended TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
@@ -456,8 +469,8 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if p.cfg.OwnerPlan != nil {
 		plan := p.planOf(owner)
 		if limit := AppsPerPlan[plan]; count >= limit {
-			return AppInfo{}, fmt.Errorf("the %s plan allows %d app(s) and this account has %d; upgrade the plan at %s/billing to create more",
-				plan, limit, count, p.cfg.SiteURL)
+			return AppInfo{}, fmt.Errorf("this account may have %d apps and has %d; for more, contact Renoxium at %s/support",
+				limit, count, p.cfg.SiteURL)
 		}
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {
@@ -688,6 +701,9 @@ func (p *Platform) Publish(name string, version int) (PublishResult, error) {
 	}
 	if p.isSuspended(name) {
 		return PublishResult{}, errors.New("this app is suspended")
+	}
+	if pl := p.planFor(name, def); !pl.Ready {
+		return PublishResult{}, errors.New(pl.Problem)
 	}
 
 	p.change.Lock()

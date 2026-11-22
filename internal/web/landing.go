@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/arif-rachim/renoxium/internal/platform"
 	"html/template"
 	"io"
 	"net/http"
@@ -74,14 +75,14 @@ func (s *Site) registerLanding() {
 
 func (s *Site) landingData(ar bool) map[string]any {
 	cards := s.galleryCards()
-	// The pricing example: what the Free plan's fee costs on AED 10,000 of
-	// card sales, and the card sales above which Pro (AED 99) is cheaper.
+	// The pricing example: what a shop's fee costs on AED 10,000 of card
+	// sales, and the card sales above which AED 99 a month is cheaper.
 	const fee, pro = 2, 99
 	calendar := screens["admin-calendar"]
 	if ar {
 		calendar = screensAR["admin-calendar"]
 	}
-	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "ProFrom": thousands(pro * 100 / fee),
+	return map[string]any{"MCP": s.base + "/mcp", "Fee": fee, "FeeOn10k": 10000 * fee / 100, "FeeOn1k": 1000 * fee / 100, "WorkPrice": platform.WorkAppPriceAED, "WorkUsers": platform.WorkAppUsers, "SeatPrice": platform.WorkSeatPriceAED, "ShopStaff": platform.ShopStaff, "ProFrom": thousands(pro * 100 / fee),
 		"Legal": s.legalOrDefaults(), "Paths": s.sitePaths(cards, ar), "Trades": s.siteTrades(cards, ar),
 		"Calendar": calendar, "Base": s.base}
 }
@@ -194,6 +195,7 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <div class="sign"><h1 id="hero-h" class="en">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</h1><span class="rule" aria-hidden="true"></span><p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</p></div>
 <p class="how-it">Describe your business to ChatGPT or Claude. Renoxium builds your website and connects it to AI assistants, so customers can find you, book and pay. Every order lands in one panel, and you get a WhatsApp message for each.</p>
+<p class="also-work">Not selling online? Renoxium also builds <a href="#work">work apps that take no payments</a>, like a clinic queue or staff attendance.</p>
 <div class="cta"><a class="btn" href="/signup">Create your account</a><a class="btn line" href="/templates">Try a demo</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -270,57 +272,75 @@ footer.site .contact{flex-basis:100%;display:flex;gap:6px 20px;flex-wrap:wrap;fo
 </div>{{end}}
 </div></section>
 
+<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
+<div data-r><h2 id="work-h">Not selling online? Run your work on it</h2>
+<p class="sub">A clinic queue, staff attendance, a simple CRM, a members' portal: describe it to your assistant the same way, and it builds the app around how you work.</p></div>
+<div class="wk">
+<figure class="queue" data-r aria-hidden="true"><p class="qh"><span>Today's queue</span><span class="dim">Dr. Huda · Room 2</span></p>
+<div class="qrow now"><span class="qn">14</span><span>Fatima K.</span><span class="tag">With the doctor</span></div>
+<div class="qrow"><span class="qn">15</span><span>Omar S.</span><span class="tag">Next</span></div>
+<div class="qrow"><span class="qn">16</span><span>Rania M.</span><span class="dim">About 20 min</span></div>
+<div class="qrow"><span class="qn">17</span><span>Yusuf A.</span><span class="dim">About 35 min</span></div></figure>
+<ul class="uses">
+<li data-r><h3>Clinic queue</h3><p>Patients take a number on their phone and see when it is their turn. The front desk calls the next one.</p></li>
+<li data-r><h3>Staff attendance</h3><p>Staff check in and out on their phone. You see who is in today and each person's hours for the month.</p></li>
+<li data-r><h3>Simple CRM</h3><p>Every customer, call and follow-up in one list, with an email when a follow-up is due.</p></li>
+<li data-r><h3>Members' portal</h3><p>Members sign in to see their membership, when it renews and your notices.</p></li>
+</ul></div>
+<div class="wkprice" data-r><p><strong>A work app: AED {{.WorkPrice}} a month per app, {{.WorkUsers}} staff included.</strong> Each one more is AED {{.SeatPrice}} a month. Nothing is charged on what your customers pay you.</p><a class="btn line" href="/templates">See the templates</a></div>
+</div></section>
+
 <section class="block" aria-labelledby="has-h"><div class="wrap">
-<div data-r><h2 id="has-h">What every site has, on every plan</h2></div>
+<div data-r><h2 id="has-h">What every shop and work app has</h2>
+<p class="sub">A free static site is pages and photos. A shop or a work app comes with all of the below; card payments, deposits and card refunds come with a shop.</p></div>
 <div class="groups">
-<section class="group" data-r><h3>Take the money</h3>
-<div class="spec" aria-hidden="true"><div class="row"><span>Deposit, haircut</span><span class="num">AED 50.00</span><span class="tag">Paid</span></div><div class="row"><span class="dim">Cancelled in time</span><span class="num dim">− AED 50.00</span><span class="tag">Refunded</span></div></div>
-<dl><div><dt>Card payments</dt><dd>Customers pay on Stripe's page and the money goes to your own Stripe account.</dd></div>
-<div><dt>Cash on delivery</dt><dd>Or pay at the venue. Works without Stripe.</dd></div>
-<div><dt>Deposits and refunds</dt><dd>Take a deposit when someone books, and refund from your panel in one step.</dd></div></dl></section>
+<section class="group" data-r><h3>Your customers</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>Sara A. · code sent on WhatsApp</span><span class="tag">Signed in</span></div><div class="row"><span class="dim">Order 208, cash on delivery</span><span class="num dim">AED 120.00</span></div></div>
+<dl><div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their own orders, bookings or records.</dd></div>
+<div><dt>Forms and bookings</dt><dd>Customers book a time, join a queue or send a form, and it lands in your panel.</dd></div>
+<div><dt>Cash or transfer</dt><dd>Take cash on delivery, at the venue or by bank transfer. Works without Stripe.</dd></div></dl></section>
 <section class="group" data-r><h3>Run the day</h3>
 <div class="spec" aria-hidden="true"><div class="lanes"><div><b>Layla</b><span>10:00 Colour</span><span>13:30 Haircut</span></div><div><b>Maryam</b><span class="gap">.</span><span>12:00 Manicure</span></div><div><b>Priya</b><span>11:00 Facial</span><span>15:00 Haircut</span></div></div></div>
-<dl><div><dt>Admin panel</dt><dd>Products, photos, orders and customers, on any phone.</dd></div>
+<dl><div><dt>Admin panel</dt><dd>Your products, orders, bookings, customers or records, on any phone.</dd></div>
 <div><dt>Calendar</dt><dd>Day and week views, one lane per stylist, crew or item.</dd></div>
-<div><dt>Staff access</dt><dd>Helpers manage orders without seeing your payments or documents.</dd></div>
-<div><dt>New order alerts</dt><dd>On WhatsApp and by email, with a daily summary.</dd></div></dl></section>
+<div><dt>Staff access</dt><dd>Staff sign in with their own account, without seeing your payments or documents: {{.ShopStaff}} on a shop, {{.WorkUsers}} included on a work app.</dd></div>
+<div><dt>Alerts</dt><dd>Each new order, booking or entry on WhatsApp and by email, with a daily summary.</dd></div></dl></section>
 <section class="group" data-r><h3>Made for the UAE</h3>
 <div class="spec" aria-hidden="true"><div class="bi"><span>AED 250.00</span> <span lang="ar" dir="rtl">250.00 د.إ</span></div><div class="row dim"><span>Includes 5% VAT</span><span lang="ar" dir="rtl">شامل ضريبة القيمة المضافة 5%</span></div></div>
-<dl><div><dt>AED with 5% VAT</dt><dd>Tax invoices once you add your TRN.</dd></div>
+<dl><div><dt>AED with 5% VAT</dt><dd>Prices in dirhams, and tax invoices for what you sell once you add your TRN.</dd></div>
 <div><dt>English and Arabic</dt><dd>Right-to-left layout in Arabic, switched with one tap.</dd></div>
-<div><dt>Customer sign-in</dt><dd>By email or a code sent on WhatsApp. Customers see their orders and bookings.</dd></div></dl></section>
+<div><dt>Your own domain</dt><dd>www.yourname.ae instead of a Renoxium address.</dd></div></dl></section>
 <section class="group" data-r><h3>You stay in control</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">Preview</span><i></i><span class="tag">You press Publish</span><i></i><span class="tag">Version 12 live</span></div><div class="row dim"><span>Backup taken before publishing</span><span>Roll back to version 11</span></div></div>
 <dl><div><dt>No credits</dt><dd>Change your site as often as you like. Nothing is counted or charged per request.</dd></div>
 <div><dt>Preview first</dt><dd>Nothing goes live until you press Publish, and you can roll back to an earlier version.</dd></div>
 <div><dt>Backups</dt><dd>Your live data is backed up before every publish.</dd></div>
-<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div>
-<div><dt>Your own domain</dt><dd>www.yourshop.ae on Pro and Business.</dd></div></dl></section>
+<div><dt>Your data</dt><dd>Download everything your site holds at any time, or delete it.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
-<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">Start free. Upgrade when you need more sites, your own domain or no fee on card payments.</p></div>
-<p class="nocredit" data-r><strong>No credits. No limit on changes.</strong> Ask your assistant for one change or a hundred a day: Renoxium does not count them and does not charge for them. You pay for the plan, never per request.</p>
-<ul class="never" data-r><li><strong>Never paused.</strong> There is no balance to run out, so your site keeps working whether you change it every day or not for months.</li>
-<li><strong>Public on the Free plan.</strong> Publish and anyone can open your site at yourname.renoxium.app, not only people you invite.</li>
-<li><strong>Cards on the Free plan.</strong> Take card payments from day one. Renoxium takes 2% only when you are paid; cash on delivery is never charged.</li></ul>
-<div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">To try it with real customers</p><p class="amount">AED 0</p><ul><li>Unlimited building and changes</li><li>1 site</li><li>Renoxium takes {{.Fee}}% of card payments</li><li>50 WhatsApp sign-in codes a month</li><li>200 MB of images</li><li>Small "Made with Renoxium" badge on your site</li></ul><a class="btn line" href="/signup">Create your account</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">For one growing business</p><p class="amount">AED 99 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>3 sites</li><li>No Renoxium fee on card payments</li><li>500 WhatsApp sign-in codes a month</li><li>2 GB of images</li><li>Your own domain, 2 staff per site</li><li>No badge</li></ul><a class="btn" href="/signup">Choose Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">For several branches or brands</p><p class="amount">AED 299 <span>a month</span></p><ul><li>Unlimited building and changes</li><li>10 sites</li><li>No Renoxium fee on card payments</li><li>2,000 WhatsApp sign-in codes a month</li><li>10 GB of images</li><li>Your own domain, 10 staff per site</li><li>No badge</li></ul><a class="btn line" href="/signup">Choose Business</a></div>
+<div data-r><h2 id="pricing-h">Pricing</h2><p class="sub">You pay for each app by what it does: nothing for a simple site, a share of card payments for a shop, a monthly price for a work app.</p></div>
+<p class="nocredit" data-r><strong>No credits. No limit on changes.</strong> Ask your assistant for one change or a hundred a day: Renoxium does not count them and does not charge for them. You are never charged per request.</p>
+<ul class="never" data-r><li><strong>Never paused for credits.</strong> There is no balance to run out, so your site keeps working whether you change it every day or not for months.</li>
+<li><strong>Public from day one.</strong> Publish and anyone can open your site, not only people you invite.</li>
+<li><strong>No Renoxium branding.</strong> Your site carries your name only, on every plan.</li></ul>
+<div class="prices" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,15em),1fr))">
+<div class="plan" data-r><h3>Static site</h3><p class="for">A profile, a menu or a portfolio</p><p class="amount">Free</p><ul><li>Pages and photos</li><li>At yourname.renoxium.app</li><li>No database, sign-in or server code</li></ul><a class="btn line" href="/signup">Create your account</a></div>
+<div class="plan pick" data-r><h3>Shop</h3><p class="for">An app that takes money from its customers</p><p class="amount">AED 0 <span>+ {{.Fee}}% of card payments</span></p><ul><li>Orders, bookings, an admin panel and customer sign-in</li><li>On AED 1,000 of card sales Renoxium takes AED {{.FeeOn1k}}; with no card sales, nothing</li><li>Your own domain, {{.ShopStaff}} staff</li></ul><a class="btn" href="/signup">Create your account</a></div>
+<div class="plan" data-r><h3>Work app</h3><p class="for">A CRM, a queue, staff attendance, a members' portal</p><p class="amount">AED {{.WorkPrice}} <span>an app, a month</span></p><ul><li>For an app that does not charge its customers</li><li>Also for a shop paid only in cash or by bank transfer</li><li>Your own domain, {{.WorkUsers}} staff included; each one more AED {{.SeatPrice}} a month</li></ul><a class="btn line" href="/signup">Create your account</a></div>
+<div class="plan" data-r><h3>Larger businesses</h3><p class="for">Many staff, branches or brands</p><p class="amount">By agreement</p><ul><li>A price agreed with Renoxium</li><li>Higher limits where you need them</li></ul><a class="btn line" href="/support">Contact Renoxium</a></div>
 </div>
-<p class="sum" data-r><b>When does Pro pay for itself?</b> On Free, AED 10,000 of card sales in a month costs AED {{.FeeOn10k}} in Renoxium fees. Pro is AED 99, so it is cheaper once your card sales pass AED {{.ProFrom}} a month. Cash on delivery never has a Renoxium fee.</p>
 <p class="note">Stripe charges its own card fees to your Stripe account on every plan. You build with your own ChatGPT or Claude account; Claude's free plan is enough.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>Questions owners ask</h2><div class="faq" data-r>
 <details><summary>Do I need to know anything technical?</summary><p>No. You describe your business in your own words, in English or Arabic. The assistant does the building and testing, and you check the result in a preview before it goes live.</p></details>
 <details><summary>Which AI assistant do I need?</summary><p>ChatGPT or Claude, with your own account. Claude's free plan is enough: it lets you add one connector, and that can be Renoxium. In ChatGPT, adding Renoxium by its address needs developer mode, which ChatGPT has on its paid plans. You add Renoxium once; the <a href="/connect">connect page</a> shows the steps.</p></details>
-<details><summary>Are there credits, or a limit on changes?</summary><p>No. Renoxium has no credits. Ask your assistant to build, change and test your site as often as you like, on every plan, the Free plan included. The plans differ in the number of sites, your own domain, staff and the fee on card payments.</p></details>
+<details><summary>Are there credits, or a limit on changes?</summary><p>No. Renoxium has no credits. Ask your assistant to build, change and test your site as often as you like, on every plan. What you pay depends on what each app does: see Pricing.</p></details>
 <details><summary>I already talk to customers on WhatsApp and Instagram. Where does the site fit?</summary><p>Keep chatting with them there. Share your site's link in your bio and your replies: the site and its AI-assistant tools take the order, the payment and the booking and put them in your panel and schedule, so nothing gets lost in a chat.</p></details>
 <details><summary>Can my customers use ChatGPT or Claude to order?</summary><p>They can add your business to ChatGPT or Claude and ask about your products, prices and free times. To book or pay, the assistant sends them to the right page of your site.</p></details>
 <details><summary>What if the assistant makes a mistake?</summary><p>Changes always go to a private preview first, and only you can publish. If something slips through, roll back to an earlier version from your panel; live data is backed up before every publish.</p></details>
-<details><summary>Do I need Stripe?</summary><p>Only for card payments. Cash on delivery and pay at the venue work without it. When you connect Stripe, payments go straight to your own Stripe account.</p></details>
-<details><summary>Can I use my own domain?</summary><p>Yes, on Pro and Business, for example www.yourshop.ae. On Free your site lives at yourname.renoxium.app.</p></details>
+<details><summary>Do I need Stripe?</summary><p>For a shop, yes: card payments go straight to your own Stripe account, and Renoxium takes {{.Fee}}% of each. A shop paid only in cash or by bank transfer needs no Stripe and is a work app, AED {{.WorkPrice}} a month.</p></details>
+<details><summary>Can I use my own domain?</summary><p>Yes, for shops and work apps, for example www.yourshop.ae. A free static site lives at yourname.renoxium.app.</p></details>
 <details><summary>Who owns the customers and orders?</summary><p>You do. Download everything your site holds at any time, or delete your account and all of its data.</p></details>
 </div></div></section>
 
@@ -425,6 +445,20 @@ background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 15%,transp
 .trade .go{margin:28px 0 0;display:flex;gap:10px 24px;flex-wrap:wrap}
 .tabbed .trade:not([hidden]){animation:tabin .35s cubic-bezier(.2,.7,.2,1)}
 @keyframes tabin{from{opacity:0;transform:translateY(8px)}}
+.also-work{margin:-12px 0 28px;color:var(--slate);font-size:17px;max-width:40em}
+.workapp+.block{padding-top:0}.workapp+.block>.wrap{border-top:1px solid var(--line);padding-top:clamp(64px,8vw,104px)}
+.wk{display:grid;gap:40px;margin-top:40px;align-items:start}@media(min-width:960px){.wk{grid-template-columns:minmax(0,420px) 1fr;gap:72px}}
+.queue{margin:0;background:var(--mist);border-radius:12px;padding:20px;display:grid;gap:8px;font-size:15px;min-width:0}
+.queue .qh{margin:0 0 6px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600}
+.queue .dim{color:var(--slate);font-weight:400}
+.qrow{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--paper);border-radius:8px;padding:10px 14px;border-inline-start:3px solid transparent}
+.qrow.now{border-inline-start-color:var(--gold)}.qrow .tag{background:var(--paper)}
+.qn{font-weight:600;font-variant-numeric:tabular-nums;min-width:2ch}
+.uses{list-style:none;padding:0;margin:0;display:grid;gap:24px}@media(min-width:640px){.uses{grid-template-columns:1fr 1fr;gap:32px}}
+.uses li{border-top:1px solid var(--ink);padding-top:14px}.uses h3{margin:0 0 4px;font-size:18px;font-weight:600;line-height:1.3}.uses p{margin:0;color:var(--slate);font-size:16px}
+.wkprice{margin:48px 0 0;padding:20px 24px;border-inline-start:3px solid var(--gold);background:var(--mist);border-radius:4px 12px 12px 4px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:space-between}
+[dir=rtl] .wkprice{border-radius:12px 4px 4px 12px}
+.wkprice p{margin:0;max-width:44em;color:var(--slate)}.wkprice strong{display:block;color:var(--ink);font-size:19px;font-weight:600;margin-bottom:2px}
 .groups{display:grid;gap:16px;margin-top:40px}@media(min-width:900px){.groups{grid-template-columns:1fr 1fr;gap:24px}}
 .group{border:1px solid var(--line);border-radius:12px;padding:28px;display:flex;flex-direction:column}
 .group h3{font-size:22px}
@@ -520,6 +554,7 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <section class="hero" aria-labelledby="hero-h"><div class="wrap">
 <div class="sign"><h1 id="hero-h" class="ar">الطلبات والحجوزات والمدفوعات في مكان واحد، من موقعك إلى مساعدي الذكاء الاصطناعي لدى عملائك.</h1><span class="rule" aria-hidden="true"></span><p class="en" lang="en" dir="ltr">Orders, bookings and payments in one place, from your website to your customers' AI assistants.</p></div>
 <p class="how-it">صِف نشاطك التجاري لـ ChatGPT أو Claude. يبني Renoxium موقعك ويربطه بمساعدي الذكاء الاصطناعي، ليجدك العملاء ويحجزوا ويدفعوا. كل طلب يصل إلى لوحة واحدة، وتصلك رسالة واتساب عن كل طلب.</p>
+<p class="also-work">لا تبيع عبر الإنترنت؟ يبني Renoxium أيضاً <a href="#work">تطبيقات عمل لا تتقاضى أي مدفوعات</a>، مثل طابور انتظار لعيادة أو تسجيل حضور الموظفين.</p>
 <div class="cta"><a class="btn" href="/signup">أنشئ حسابك</a><a class="btn line" href="/templates">جرّب نسخة تجريبية</a></div>
 <div class="ways">{{range .Paths}}<section class="way" id="{{.ID}}" aria-labelledby="{{.ID}}-h" data-r>
 <img class="shot" src="{{.Screen.Src}}" width="{{.Screen.W}}" height="{{.Screen.H}}" alt="{{.Screen.Alt}}">
@@ -596,57 +631,75 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 </div>{{end}}
 </div></section>
 
+<section class="block workapp" id="work" aria-labelledby="work-h"><div class="wrap">
+<div data-r><h2 id="work-h">لا تبيع عبر الإنترنت؟ أدِر عملك عليه</h2>
+<p class="sub">طابور انتظار لعيادة، أو تسجيل حضور الموظفين، أو نظام بسيط لإدارة العملاء، أو بوابة للأعضاء: صِفه لمساعدك بالطريقة نفسها، فيبني التطبيق على طريقة عملك.</p></div>
+<div class="wk">
+<figure class="queue" data-r aria-hidden="true"><p class="qh"><span>طابور اليوم</span><span class="dim">د. هدى · الغرفة 2</span></p>
+<div class="qrow now"><span class="qn">14</span><span>فاطمة ك.</span><span class="tag">عند الطبيبة</span></div>
+<div class="qrow"><span class="qn">15</span><span>عمر س.</span><span class="tag">التالي</span></div>
+<div class="qrow"><span class="qn">16</span><span>رانيا م.</span><span class="dim">نحو 20 دقيقة</span></div>
+<div class="qrow"><span class="qn">17</span><span>يوسف أ.</span><span class="dim">نحو 35 دقيقة</span></div></figure>
+<ul class="uses">
+<li data-r><h3>طابور العيادة</h3><p>يأخذ المريض رقماً من هاتفه ويرى متى يحين دوره، ويستدعي موظف الاستقبال المريض التالي.</p></li>
+<li data-r><h3>حضور الموظفين</h3><p>يسجّل الموظفون حضورهم وانصرافهم من هواتفهم، وترى من حضر اليوم وساعات كل موظف خلال الشهر.</p></li>
+<li data-r><h3>إدارة العملاء</h3><p>كل عميل ومكالمة ومتابعة في قائمة واحدة، مع رسالة بريد إلكتروني عندما يحين موعد المتابعة.</p></li>
+<li data-r><h3>بوابة الأعضاء</h3><p>يسجّل الأعضاء الدخول ليروا عضويتهم وموعد تجديدها وإعلاناتك.</p></li>
+</ul></div>
+<div class="wkprice" data-r><p><strong>تطبيق عمل: {{.WorkPrice}} درهماً شهرياً لكل تطبيق، و{{.WorkUsers}} موظفين ضمن السعر.</strong> وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً. لا يُقتطع شيء مما يدفعه لك عملاؤك.</p><a class="btn line" href="/templates">شاهد القوالب</a></div>
+</div></section>
+
 <section class="block" aria-labelledby="has-h"><div class="wrap">
-<div data-r><h2 id="has-h">ما يتضمنه كل موقع، في كل الخطط</h2></div>
+<div data-r><h2 id="has-h">ما يتضمنه كل متجر وكل تطبيق عمل</h2>
+<p class="sub">الموقع الثابت المجاني صفحات وصور فقط. أما المتجر وتطبيق العمل فيأتيان بكل ما يلي، والدفع بالبطاقة والعربون واسترداد مبالغ البطاقة خاصة بالمتجر.</p></div>
 <div class="groups">
-<section class="group" data-r><h3>استلام المال</h3>
-<div class="spec" aria-hidden="true"><div class="row"><span>عربون، قص شعر</span><span class="num">50.00 د.إ</span><span class="tag">مدفوع</span></div><div class="row"><span class="dim">أُلغي في الوقت المحدد</span><span class="num dim">− 50.00 د.إ</span><span class="tag">مُستردّ</span></div></div>
-<dl><div><dt>الدفع بالبطاقة</dt><dd>يدفع العملاء على صفحة Stripe ويذهب المال إلى حسابك أنت في Stripe.</dd></div>
-<div><dt>الدفع عند الاستلام</dt><dd>أو الدفع في المكان. يعمل دون Stripe.</dd></div>
-<div><dt>العربون والاسترداد</dt><dd>خذ عربوناً عند الحجز، واستردّه من لوحتك بخطوة واحدة.</dd></div></dl></section>
+<section class="group" data-r><h3>عملاؤك</h3>
+<div class="spec" aria-hidden="true"><div class="row"><span>سارة أ. · رمز على واتساب</span><span class="tag">سجّلت الدخول</span></div><div class="row"><span class="dim">الطلب 208، الدفع عند الاستلام</span><span class="num dim">120.00 د.إ</span></div></div>
+<dl><div><dt>تسجيل دخول العملاء</dt><dd>بالبريد الإلكتروني أو برمز يصل على واتساب. يرى كل عميل طلباته أو حجوزاته أو سجلاته.</dd></div>
+<div><dt>النماذج والحجوزات</dt><dd>يحجز العملاء موعداً أو ينضمون إلى الطابور أو يرسلون نموذجاً، فيصل إلى لوحتك.</dd></div>
+<div><dt>نقداً أو بالتحويل</dt><dd>استلم المال عند التوصيل أو في المكان أو بتحويل بنكي. يعمل دون Stripe.</dd></div></dl></section>
 <section class="group" data-r><h3>إدارة اليوم</h3>
 <div class="spec" aria-hidden="true"><div class="lanes"><div><b>ليلى</b><span>10:00 صبغة</span><span>13:30 قص شعر</span></div><div><b>مريم</b><span class="gap">.</span><span>12:00 مانيكير</span></div><div><b>بريا</b><span>11:00 عناية بالبشرة</span><span>15:00 قص شعر</span></div></div></div>
-<dl><div><dt>لوحة التحكم</dt><dd>المنتجات والصور والطلبات والعملاء، من أي هاتف.</dd></div>
+<dl><div><dt>لوحة التحكم</dt><dd>منتجاتك أو طلباتك أو حجوزاتك أو عملاؤك أو سجلاتك، من أي هاتف.</dd></div>
 <div><dt>التقويم</dt><dd>عرض يومي وأسبوعي، بعمود لكل مصففة أو فريق أو عنصر.</dd></div>
-<div><dt>صلاحيات الموظفين</dt><dd>يدير المساعدون الطلبات دون رؤية مدفوعاتك أو مستنداتك.</dd></div>
-<div><dt>تنبيهات الطلبات</dt><dd>على واتساب وبالبريد الإلكتروني، مع ملخص يومي.</dd></div></dl></section>
+<div><dt>صلاحيات الموظفين</dt><dd>يدخل كل موظف بحسابه دون أن يرى مدفوعاتك أو مستنداتك: {{.ShopStaff}} في المتجر، و{{.WorkUsers}} ضمن سعر تطبيق العمل.</dd></div>
+<div><dt>التنبيهات</dt><dd>كل طلب أو حجز أو تسجيل جديد على واتساب وبالبريد الإلكتروني، مع ملخص يومي.</dd></div></dl></section>
 <section class="group" data-r><h3>مصمَّم للإمارات</h3>
 <div class="spec" aria-hidden="true"><div class="bi"><span>250.00 د.إ</span><span lang="en" dir="ltr">AED 250.00</span></div><div class="row dim"><span>شامل ضريبة القيمة المضافة 5%</span><span lang="en" dir="ltr">Includes 5% VAT</span></div></div>
-<dl><div><dt>الدرهم مع ضريبة 5%</dt><dd>فواتير ضريبية بعد إضافة رقم التسجيل الضريبي.</dd></div>
+<dl><div><dt>الدرهم مع ضريبة 5%</dt><dd>الأسعار بالدرهم، وفواتير ضريبية لما تبيعه بعد إضافة رقم التسجيل الضريبي.</dd></div>
 <div><dt>العربية والإنجليزية</dt><dd>تخطيط من اليمين إلى اليسار بالعربية، والتبديل بنقرة واحدة.</dd></div>
-<div><dt>تسجيل دخول العملاء</dt><dd>بالبريد الإلكتروني أو برمز يصل على واتساب. يرى العملاء طلباتهم وحجوزاتهم.</dd></div></dl></section>
+<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourname.ae</span> بدلاً من عنوان على Renoxium.</dd></div></dl></section>
 <section class="group" data-r><h3>التحكم بيدك</h3>
 <div class="spec" aria-hidden="true"><div class="flow"><span class="tag">معاينة</span><i></i><span class="tag">تضغط «نشر»</span><i></i><span class="tag">الإصدار 12 منشور</span></div><div class="row dim"><span>نسخة احتياطية قبل النشر</span><span>العودة إلى الإصدار 11</span></div></div>
 <dl><div><dt>بلا أرصدة</dt><dd>عدّل موقعك بقدر ما تشاء. لا يُحسب شيء ولا يُدفع شيء عن كل طلب.</dd></div>
 <div><dt>المعاينة أولاً</dt><dd>لا يُنشر شيء حتى تضغط «نشر»، ويمكنك العودة إلى إصدار سابق.</dd></div>
 <div><dt>النسخ الاحتياطية</dt><dd>تُحفظ نسخة احتياطية من بياناتك قبل كل نشر.</dd></div>
-<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div>
-<div><dt>نطاقك الخاص</dt><dd><span dir="ltr">www.yourshop.ae</span> في خطتي Pro و Business.</dd></div></dl></section>
+<div><dt>بياناتك</dt><dd>نزّل كل ما يحتويه موقعك في أي وقت، أو احذفه.</dd></div></dl></section>
 </div></div></section>
 
 <section class="block band" id="pricing" aria-labelledby="pricing-h"><div class="wrap">
-<div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">ابدأ مجاناً. انتقل إلى خطة أعلى عندما تحتاج مواقع أكثر، أو نطاقك الخاص، أو إلغاء الرسوم على مدفوعات البطاقة.</p></div>
-<p class="nocredit" data-r><strong>بلا أرصدة. بلا حد للتعديلات.</strong> اطلب من مساعدك تعديلاً واحداً أو مئة تعديل في اليوم: Renoxium لا يعدّها ولا يحاسبك عليها. تدفع مقابل الخطة، لا مقابل كل طلب.</p>
-<ul class="never" data-r><li><strong>لا يتوقف أبداً.</strong> لا يوجد رصيد ينفد، فيبقى موقعك يعمل سواء عدّلته كل يوم أو لم تعدّله لأشهر.</li>
-<li><strong>متاح للجميع في الخطة المجانية.</strong> انشر موقعك ويستطيع أي شخص فتحه على yourname.renoxium.app، لا من تدعوهم فقط.</li>
-<li><strong>البطاقات في الخطة المجانية.</strong> استقبل مدفوعات البطاقة من اليوم الأول. يأخذ Renoxium نسبة 2% فقط عندما يدفع لك العميل، والدفع عند الاستلام بلا رسوم أبداً.</li></ul>
-<div class="prices">
-<div class="plan" data-r><h3>Free</h3><p class="for">لتجربته مع عملاء حقيقيين</p><p class="amount">0 درهم</p><ul><li>بناء وتعديل بلا حدود</li><li>موقع واحد</li><li>يأخذ Renoxium {{.Fee}}% من مدفوعات البطاقة</li><li>50 رمز دخول عبر واتساب شهرياً</li><li>200 ميغابايت للصور</li><li>شارة صغيرة «صُنع بـ Renoxium» على موقعك</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
-<div class="plan pick" data-r><h3>Pro</h3><p class="for">لنشاط واحد ينمو</p><p class="amount">99 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>3 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>500 رمز دخول عبر واتساب شهرياً</li><li>2 غيغابايت للصور</li><li>نطاقك الخاص، وموظفان لكل موقع</li><li>بلا شارة</li></ul><a class="btn" href="/signup">اختر Pro</a></div>
-<div class="plan" data-r><h3>Business</h3><p class="for">لعدة فروع أو علامات تجارية</p><p class="amount">299 درهماً <span>شهرياً</span></p><ul><li>بناء وتعديل بلا حدود</li><li>10 مواقع</li><li>لا رسوم من Renoxium على مدفوعات البطاقة</li><li>2,000 رمز دخول عبر واتساب شهرياً</li><li>10 غيغابايت للصور</li><li>نطاقك الخاص، و10 موظفين لكل موقع</li><li>بلا شارة</li></ul><a class="btn line" href="/signup">اختر Business</a></div>
+<div data-r><h2 id="pricing-h">الأسعار</h2><p class="sub">تدفع عن كل تطبيق بحسب ما يفعله: لا شيء للموقع البسيط، ونسبة من مدفوعات البطاقة للمتجر، وسعر شهري لتطبيق العمل.</p></div>
+<p class="nocredit" data-r><strong>بلا أرصدة. بلا حد للتعديلات.</strong> اطلب من مساعدك تعديلاً واحداً أو مئة تعديل في اليوم: Renoxium لا يعدّها ولا يحاسبك عليها. لا رسوم على أي طلب.</p>
+<ul class="never" data-r><li><strong>لا يتوقف بسبب الأرصدة.</strong> لا يوجد رصيد ينفد، فيبقى موقعك يعمل سواء عدّلته كل يوم أو لم تعدّله لأشهر.</li>
+<li><strong>متاح للجميع من اليوم الأول.</strong> انشر موقعك ويستطيع أي شخص فتحه، لا من تدعوهم فقط.</li>
+<li><strong>بلا علامة Renoxium.</strong> يحمل موقعك اسمك وحدك، في كل الخطط.</li></ul>
+<div class="prices" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,15em),1fr))">
+<div class="plan" data-r><h3>موقع ثابت</h3><p class="for">تعريف بنشاطك أو قائمة طعام أو معرض أعمال</p><p class="amount">مجاناً</p><ul><li>صفحات وصور</li><li>على <span dir="ltr">yourname.renoxium.app</span></li><li>بلا قاعدة بيانات أو تسجيل دخول أو برمجة خادم</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
+<div class="plan pick" data-r><h3>متجر</h3><p class="for">تطبيق يتقاضى المال من عملائه</p><p class="amount">0 درهم <span>+ {{.Fee}}% من مدفوعات البطاقة</span></p><ul><li>طلبات وحجوزات ولوحة تحكم وتسجيل دخول للعملاء</li><li>عن كل 1,000 درهم مبيعات بالبطاقة يأخذ Renoxium {{.FeeOn1k}} درهماً، وبلا مبيعات بالبطاقة لا يأخذ شيئاً</li><li>نطاقك الخاص، و{{.ShopStaff}} موظفين</li></ul><a class="btn" href="/signup">أنشئ حسابك</a></div>
+<div class="plan" data-r><h3>تطبيق عمل</h3><p class="for">إدارة العملاء أو طابور انتظار أو حضور الموظفين أو بوابة أعضاء</p><p class="amount">{{.WorkPrice}} درهماً <span>للتطبيق شهرياً</span></p><ul><li>لتطبيق لا يتقاضى المال من عملائه</li><li>وكذلك لمتجر يُدفع له نقداً أو بالتحويل فقط</li><li>نطاقك الخاص، و{{.WorkUsers}} موظفين ضمن السعر، وكل موظف إضافي بـ {{.SeatPrice}} درهماً شهرياً</li></ul><a class="btn line" href="/signup">أنشئ حسابك</a></div>
+<div class="plan" data-r><h3>الأنشطة الأكبر</h3><p class="for">موظفون كثيرون أو فروع أو علامات تجارية</p><p class="amount">بالاتفاق</p><ul><li>سعر تتفق عليه مع Renoxium</li><li>حدود أعلى حيث تحتاجها</li></ul><a class="btn line" href="/support">تواصل مع Renoxium</a></div>
 </div>
-<p class="sum" data-r><b>متى تغطي خطة Pro تكلفتها؟</b> في خطة Free، مبيعات بالبطاقة قدرها 10,000 درهم في الشهر تكلّف {{.FeeOn10k}} درهم رسوماً لـ Renoxium. سعر Pro هو 99 درهماً، فتصبح أوفر عندما تتجاوز مبيعاتك بالبطاقة {{.ProFrom}} درهماً في الشهر. الدفع عند الاستلام لا رسوم عليه من Renoxium أبداً.</p>
 <p class="note">تخصم Stripe رسوم البطاقات الخاصة بها من حسابك في Stripe في كل الخطط. تبني بحسابك الخاص في ChatGPT أو Claude؛ والخطة المجانية في Claude تكفي.</p></div></section>
 
 <section class="block" aria-labelledby="faq-h"><div class="wrap"><h2 id="faq-h" data-r>أسئلة يطرحها أصحاب الأنشطة</h2><div class="faq" data-r>
 <details><summary>هل أحتاج إلى معرفة تقنية؟</summary><p>لا. تصف نشاطك بكلماتك، بالعربية أو الإنجليزية. يتولى المساعد البناء والاختبار، وتراجع النتيجة في معاينة قبل نشرها.</p></details>
 <details><summary>أي مساعد ذكاء اصطناعي أحتاج؟</summary><p>ChatGPT أو Claude، بحسابك الخاص. الخطة المجانية في Claude تكفي: تسمح بإضافة موصّل واحد، ويمكن أن يكون Renoxium. وفي ChatGPT تحتاج إضافة Renoxium بعنوانه إلى وضع المطوّر، وهو متاح في خططه المدفوعة. تضيف Renoxium مرة واحدة؛ و<a href="/connect">صفحة الربط</a> تشرح الخطوات.</p></details>
-<details><summary>هل هناك أرصدة أو حد للتعديلات؟</summary><p>لا. لا توجد أرصدة في Renoxium. اطلب من مساعدك بناء موقعك وتعديله واختباره بقدر ما تشاء في كل الخطط، ومنها الخطة المجانية. تختلف الخطط في عدد المواقع والنطاق الخاص والموظفين ورسوم مدفوعات البطاقة.</p></details>
+<details><summary>هل هناك أرصدة أو حد للتعديلات؟</summary><p>لا. لا توجد أرصدة في Renoxium. اطلب من مساعدك بناء موقعك وتعديله واختباره بقدر ما تشاء في كل الخطط. ما تدفعه يعتمد على ما يفعله كل تطبيق: انظر الأسعار.</p></details>
 <details><summary>أتواصل مع عملائي على واتساب وإنستغرام. أين مكان الموقع؟</summary><p>واصل محادثتهم هناك. شارك رابط موقعك في نبذة حسابك وفي ردودك: الموقع وأدوات المساعد الذكي تستقبل الطلب والدفع والحجز وتضعها في لوحتك وجدولك، فلا يضيع شيء في المحادثات.</p></details>
 <details><summary>هل يستطيع عملائي الطلب عبر ChatGPT أو Claude؟</summary><p>يمكنهم إضافة نشاطك إلى ChatGPT أو Claude والسؤال عن منتجاتك وأسعارك وأوقاتك المتاحة. وللحجز أو الدفع يوجّههم المساعد إلى الصفحة المناسبة في موقعك.</p></details>
 <details><summary>ماذا لو أخطأ المساعد؟</summary><p>تذهب التغييرات دائماً إلى معاينة خاصة أولاً، ولا ينشر أحد غيرك. وإن فاتك شيء، عُد إلى إصدار سابق من لوحتك؛ فبياناتك تُنسخ احتياطياً قبل كل نشر.</p></details>
-<details><summary>هل أحتاج إلى Stripe؟</summary><p>لمدفوعات البطاقة فقط. الدفع عند الاستلام والدفع في المكان يعملان دونه. وعند ربط Stripe تذهب المدفوعات مباشرة إلى حسابك أنت.</p></details>
-<details><summary>هل أستطيع استخدام نطاقي الخاص؟</summary><p>نعم، في خطتي Pro و Business، مثل <span dir="ltr">www.yourshop.ae</span>. وفي خطة Free يكون موقعك على <span dir="ltr">yourname.renoxium.app</span>.</p></details>
+<details><summary>هل أحتاج إلى Stripe؟</summary><p>للمتجر نعم: تذهب مدفوعات البطاقة مباشرة إلى حسابك في Stripe، ويأخذ Renoxium نسبة {{.Fee}}% من كل دفعة. والمتجر الذي يُدفع له نقداً أو بالتحويل فقط لا يحتاج إلى Stripe ويُعدّ تطبيق عمل بسعر {{.WorkPrice}} درهماً شهرياً.</p></details>
+<details><summary>هل أستطيع استخدام نطاقي الخاص؟</summary><p>نعم، للمتاجر وتطبيقات العمل، مثل <span dir="ltr">www.yourshop.ae</span>. ويكون الموقع الثابت المجاني على <span dir="ltr">yourname.renoxium.app</span>.</p></details>
 <details><summary>من يملك بيانات العملاء والطلبات؟</summary><p>أنت. نزّل كل ما يحتويه موقعك في أي وقت، أو احذف حسابك وكل بياناته.</p></details>
 </div></div></section>
 
@@ -722,8 +775,8 @@ h1,h2,h3,h4,.amount{letter-spacing:0}h2{line-height:1.4}h3{line-height:1.5}
 <h2>The service</h2><p>Renoxium lets you build web apps, such as online stores, through AI assistants you use with your own accounts (for example ChatGPT or Claude), and hosts them. AI assistants can make mistakes: check every change in the preview before you publish it.</p>
 <h2>Your account</h2><p>Keep your password safe and your email address current. You are responsible for what is done with your account and the agents you connect to it.</p>
 <h2>Your store</h2><p>You are the seller in your store. You are responsible for your products, prices, descriptions, taxes and VAT, deliveries, refunds and customer service, and for following the laws that apply to your business, including consumer and data protection law.</p>
-<h2>Payments</h2><p>Card payments go to your own Stripe account and are subject to Stripe's terms and fees. On the Free plan, Renoxium takes {{.Fee}}% of each card payment as a platform fee. Renoxium does not hold shoppers' money.</p>
-<h2>Plans and billing</h2><p>Paid plans are billed monthly in advance through Stripe and renew until you cancel. You can cancel at any time in Plan and billing; the plan stays active until the end of the paid month. Prices may change with 30 days' notice.</p>
+<h2>Payments</h2><p>Card payments go to your own Stripe account and are subject to Stripe's terms and fees. For a shop, Renoxium takes {{.Fee}}% of each card payment as a platform fee; a work app pays its monthly subscription instead. Renoxium does not hold shoppers' money.</p>
+<h2>Plans and billing</h2><p>Work app subscriptions and other paid plans are billed monthly in advance through Stripe and renew until you cancel. You can cancel at any time; a subscription stays active until the end of the paid month, and a work app whose subscription has ended is paused until it is renewed. Prices may change with 30 days' notice.</p>
 <h2>Acceptable use</h2><p>Do not use Renoxium for illegal goods or services, fraud, phishing, malware, content that infringes others' rights, or to send spam. We may suspend a store or account that breaks these rules or that is reported and found to be harmful, and we will tell you why.</p>
 <h2>Availability and liability</h2><p>We work to keep the service running and your data safe, but the service is provided as it is, without a guarantee that it will always be available or error-free. To the extent the law allows, Renoxium is not liable for indirect losses or lost profits, and its total liability is limited to the fees you paid in the three months before the claim.</p>
 <h2>Ending</h2><p>You can delete your account at any time. We may end the service for an account with notice, or right away for serious breaches of these terms.</p>

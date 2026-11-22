@@ -59,7 +59,12 @@ func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r), "Rollback": version < info.LiveVersion})
+	pl, _ := s.platform.AppPlan(app)
+	if pl.Problem == "" {
+		pl.Ready = true
+	}
+	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r),
+		"Rollback": version < info.LiveVersion, "Plan": pl})
 }
 
 func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {

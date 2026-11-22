@@ -144,6 +144,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.registerStaff()
 	s.registerDomain()
 	s.registerDeleteApp()
+	s.registerAppPlan()
 	s.registerRenameApp()
 	s.registerAlerts()
 	s.registerConnections()
@@ -1155,8 +1156,9 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <p>Your agent asked to make version {{.Version}} of <strong>{{.Info.App}}</strong> live at <a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a>.</p>
 <p class="muted">Live now: {{if .Info.LiveVersion}}version {{.Info.LiveVersion}}{{else}}nothing yet{{end}}. <a href="/apps/{{.Info.App}}/preview">Check the preview</a> first if you have not.</p>
 <p class="muted">Live data is backed up before the change.</p>
-<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
-<button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button></form>{{template "appbottom"}}{{end}}
+{{if .Plan.Ready}}<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
+<button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button>{{else}}<p class="flash" role="status">Before it goes live, choose how this app is paid for.</p>
+<a class="button" href="/apps/{{.Info.App}}/plan">Choose a plan</a>{{end}}</form>{{template "appbottom"}}{{end}}
 
 {{define "admin_list"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>{{.Label}}</h1><p class="sub">{{.Pager.Of}} {{if eq .Total 1}}row{{else}}rows{{end}}{{if .Query}} matching "{{.Query}}"{{end}}</p></div>
@@ -1231,20 +1233,20 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and its uploaded photos and files.</p>
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
-<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if ne .Billing.Plan "free"}} Your paid plan is cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
+<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if or (ne .Billing.Plan "free") .WorkApps}} Your paid plan and work app subscriptions are cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
 <label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger">Delete my account</button></form></div>{{template "appbottom"}}{{end}}
 
 {{define "billing"}}{{template "owntop" .}}{{template "owncss"}}
-<div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">Your Renoxium plan, what you have used this month, and payments.</p></div></div>
+<div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">How your apps are paid for, what you have used this month, and payments.</p></div></div>
 {{with .Notice}}<p class="flash" role="status">{{.}}</p>{{end}}
-<div class="bento fill bill"><div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{.PlanName}}</strong></p>
-<p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else}}/ month{{end}}</span></p>
+<div class="bento fill bill"><div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{if or .Paying .Granted}}{{.PlanName}}{{else}}Pay per app{{end}}</strong></p>
+<p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else if .Paying}}/ month{{else}}for your account{{end}}</span></p>
 {{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
 {{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
-<p class="muted">No Renoxium fee on your shops' card payments, and no Renoxium badge on your shops.</p>
-{{else}}<p class="muted">On the Free plan Renoxium takes {{.Fee}}% of card payments in your shops and shows a small "Made with Renoxium" badge.</p>{{end}}</div>
+<p class="muted">Your plan covers all your apps: no Renoxium fee on card payments and no per-app subscription.</p>
+{{else}}<p class="muted">Each app is paid for on its own: static sites are free, shops pay {{.Fee}}% of their card payments, work apps AED {{.WorkPrice}} a month each.</p>{{end}}</div>
 {{if .CanManage}}<div><div class="acts"><form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form></div>
 <p class="fine" style="margin-top:8px">Change plan, update your card, download invoices or cancel.</p></div>{{end}}</div></section>
 
@@ -1252,18 +1254,14 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{range .Meters}}<div class="meter{{if .Warn}} warn{{end}}"><div class="top"><span>{{.Label}}</span><span><b>{{.Used}}{{.Unit}}</b> of {{.Quota}}{{.Unit}}</span></div><div class="tr" role="progressbar" aria-label="{{.Label}}" aria-valuenow="{{.Pct}}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{.Pct}}%"></i></div></div>{{end}}
 </div></section>
 
-</div><section class="panel col"><div class="ph"><h2>Plans</h2><span class="muted">Prices in AED, billed monthly by Stripe. Cancel any time.</span></div>
-{{if not .Ready}}<p class="flash">Paid plans are not available yet.</p>{{end}}
-<div class="tiers grow" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier{{if .Current}} current{{else if .Popular}} popular{{end}}">{{if .Current}}<span class="badge">Your plan</span>{{else if .Popular}}<span class="badge">Most popular</span>{{end}}
-<h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">AED {{.Price}} <small>/ month</small></p>
-<ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>
-{{if .Current}}<span class="is">Current plan</span>
-{{else if eq .ID "free"}}{{if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Cancel in billing</button></form>{{else}}<span class="is">Always free</span>{{end}}
-{{else if not $.Ready}}<span class="is">Not available yet</span>
-{{else if $.CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary">Switch to {{.Name}}</button></form>
-{{else}}<form method="post" action="/billing/checkout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="plan" value="{{.ID}}"><button{{if not .Popular}} class="secondary"{{end}}>Choose {{.Name}}</button></form>{{end}}
-</div>{{end}}</div>
-<p class="fine">Payment is handled by Stripe. Cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
+</div><section class="panel col"><div class="ph"><h2>Your apps</h2><span class="muted">Choose each app's plan on its Plan page.</span></div>
+{{if .AppPlans}}<div class="scroll"><table><thead><tr><th>App</th><th>Plan</th><th>Status</th><th></th></tr></thead><tbody>
+{{range .AppPlans}}<tr><td><strong>{{.App}}</strong></td><td>{{.Label}}</td><td>{{if .Ready}}<span class="ok">{{.Status}}</span>{{else}}{{.Status}}{{end}}</td><td><a href="/apps/{{.App}}/plan">Plan</a></td></tr>{{end}}
+</tbody></table></div>{{else}}<p class="muted">No apps yet.</p>{{end}}
+<div class="tiers grow" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier">
+<h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">{{.Price}}</p>
+<ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>{{if eq .ID "enterprise"}}<a class="button secondary" href="/support">Contact Renoxium</a>{{end}}</div>{{end}}</div>
+<p class="fine">Subscriptions are paid by card through Stripe. Cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_connections"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Connections</h1><p class="sub">Your app can call other services, such as a courier or SMS service, only with your permission. Allow a site only if you trust it: your app can send it data, including your customers' details.</p></div></div>
@@ -1307,12 +1305,37 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if .Available}}<p class="muted">Each WhatsApp notice counts as one of your plan's WhatsApp messages: {{.Used}} of {{.Quota}} used this month.</p>{{end}}
 </section></div>{{template "appbottom"}}{{end}}
 
+{{define "admin_plan"}}{{template "apptop" .}}
+<div class="pagehead"><div><h1>Plan</h1><p class="sub">How {{.App}} is paid for. Building and changing it stay free and unlimited.</p></div></div>
+{{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
+{{if .Plan.Included}}<section class="panel"><p>Your account's plan covers this app: no fee on card payments and no subscription.</p></section>
+{{else}}<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+<section class="panel bcell{{if .Plan.Static}} current{{end}}"><div class="ph"><h2>Static site</h2>{{if .Plan.Static}}<span class="pill live">this app now</span>{{end}}</div>
+<p class="price">Free</p><p>Pages and photos only: no database, no server code, no sign-in. It stays at its Renoxium address.</p>
+<p class="muted">Renoxium decides this from the app itself. As soon as it has tables, scripts or sign-in, it needs one of the two plans beside.</p></section>
+<section class="panel bcell"><div class="ph"><h2>Shop</h2>{{if eq .Plan.Kind "shop"}}<span class="pill live">chosen</span>{{end}}</div>
+<p class="price">AED 0 <small>+ {{.Fee}}% of card payments</small></p>
+<ul><li>For an app that takes money from its customers by card</li><li>Nothing to pay when nobody pays you</li><li>Your own domain, {{.ShopStaff}} staff</li></ul>
+{{if eq .Plan.Kind "shop"}}{{if .Plan.StripeReady}}<p class="ok">Stripe is connected: the shop takes card payments.</p>{{else}}<p>The shop can go live now. Connect Stripe so it can take card payments: <a class="button" href="/apps/{{.App}}/payments">Connect Stripe</a></p>{{end}}
+{{else}}<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="shop"><button class="secondary">Make it a shop</button></form>{{end}}</section>
+<section class="panel bcell"><div class="ph"><h2>Work app</h2>{{if eq .Plan.Kind "work"}}<span class="pill {{if .Plan.WorkPaid}}live{{else}}wait{{end}}">{{if .Plan.WorkPaid}}{{.Plan.WorkStatus}}{{else}}chosen{{end}}</span>{{end}}</div>
+<p class="price">AED {{.Price}} <small>/ month</small></p>
+<ul><li>For an app that does not charge its customers: a CRM, a queue, staff attendance, a members' portal</li><li>Also for a shop paid only in cash or by bank transfer</li><li>Your own domain, {{.Users}} staff included{{if .Seats}}; each one more AED {{.SeatPrice}} a month, up to {{.MaxUsers}}{{end}}</li></ul>
+{{if .Plan.WorkPaid}}<p class="muted">{{if .Plan.WorkSeats}}AED {{.Monthly}} a month: AED {{.Price}} with {{.Users}} staff, plus {{.Plan.WorkSeats}} more at AED {{.SeatPrice}}. {{end}}{{with .PeriodEnd}}Renews {{.}}. {{end}}Paid by card through Stripe.</p>
+<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="manage"><button class="secondary">Manage subscription</button></form>
+{{else if not .Ready}}<p class="muted">Work app subscriptions are not available on this server yet.</p>
+{{else}}<form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="subscribe"><button>{{if eq .Plan.Kind "work"}}Subscribe, AED {{.Price}} a month{{else}}Make it a work app, AED {{.Price}} a month{{end}}</button></form>{{end}}</section>
+</div>
+{{if not .Plan.Ready}}<p class="flash" role="status">{{.Plan.Problem}}</p>{{end}}
+<p class="fine">Larger businesses can ask Renoxium for an agreed price: <a href="/support">contact us</a>.</p>{{end}}
+{{template "appbottom"}}{{end}}
+
 {{define "admin_domain"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Your own domain</h1><p class="sub">Serve this app on a domain you own instead of its Renoxium address.</p></div></div>
 {{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
 <div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
 <section class="panel bcell"><div class="ph"><h2>Domain</h2></div>{{if not .Available}}<p>Custom domains are not available on this Renoxium server yet.</p>
-{{else if not .Allowed}}<p>Custom domains are included in the <a href="/billing">Pro and Business plans</a>.</p>
+{{else if not .Allowed}}<p>Your own domain comes with a shop or a work app. A static site keeps its Renoxium address: see <a href="/apps/{{.App}}/plan">Plan</a>.</p>
 {{else if not .Domain}}<p>Serve this app on a domain you own, such as <strong>www.yourshop.com</strong>. A subdomain like www works with every domain provider.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="add">
 <label for="host">Domain</label><input id="host" name="host" placeholder="www.yourshop.com" required autocomplete="off"><button>Add domain</button></form>
@@ -1378,20 +1401,21 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="pagehead"><div><h1>Staff</h1><p class="sub">Staff can edit your data (products, orders, discount codes), upload photos and see visitors. Only you can publish, connect Stripe, delete visitors and manage staff.</p></div></div>
 {{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
 <div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
-<section class="panel bcell"><div class="ph"><h2>Staff members</h2><span class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff need the <a href="/billing">Pro or Business plan</a>{{end}}.</span></div>
+<section class="panel bcell"><div class="ph"><h2>Staff members</h2><span class="muted">{{len .Staff}} of {{.Limit}} on your plan{{if eq .Limit 0}}. Staff come with a shop or a work app: see <a href="/apps/{{.App}}/plan">Plan</a>{{end}}.</span></div>
+{{with .SeatNote}}<p class="muted">{{.}}</p>{{end}}
 {{if .Staff}}<ul class="plain">{{range .Staff}}<li><span>{{.}}</span><form method="post" action="/apps/{{$.App}}/staff/remove" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.}}"><button class="secondary">Remove</button></form></li>{{end}}</ul>
 {{else}}<p>No staff yet.</p>{{end}}</section>
 <section class="panel bcell"><div class="ph"><h2>Add a staff member</h2></div>
 {{if lt (len .Staff) .Limit}}<form method="post" action="/apps/{{.App}}/staff"><input type="hidden" name="csrf" value="{{.CSRF}}"><label for="email">Email address</label>
 <input id="email" name="email" type="email" required><button>Add staff member</button></form>
 <p class="muted" style="margin-top:12px">They get an email. They sign in with a Renoxium account for this address and confirm the address first.</p>
-{{else if eq .Limit 0}}<p class="muted">Staff accounts are part of the <a href="/billing">Pro and Business plans</a>.</p>{{else}}<p class="muted">Your plan's staff accounts are all in use. Remove one to add another.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
+{{else if eq .Limit 0}}<p class="muted">Staff accounts come with a shop or a work app: choose one on the app's <a href="/apps/{{.App}}/plan">Plan page</a>.</p>{{else}}<p class="muted">Your plan's staff accounts are all in use. Remove one to add another.</p>{{end}}</section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_payments"}}{{template "apptop" .}}<div class="pagehead"><div><h1>Payments</h1><p class="sub">Card payments through your Stripe account.</p></div></div>
 <div class="bento fill" style="grid-template-columns:minmax(280px,1fr) minmax(0,2.4fr)">
 <section class="panel bcell"><div class="ph"><h2>Stripe</h2></div>
 {{if not .Account.StripeConfigured}}<p>Card payments are not available on this Renoxium server yet.</p>
-{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and on the Free plan Renoxium takes {{.Fee}}% of each card payment (<a href="/billing">no fee on Pro and Business</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
+{{else if not .Account.StripeAccount}}<p>Connect a Stripe account to take card payments. Shoppers pay you directly; Stripe's fees are charged to your Stripe account{{if .Fee}}, and as a shop Renoxium takes {{.Fee}}% of each card payment (<a href="/apps/{{.App}}/plan">see Plan</a>){{else}}, and Renoxium takes no fee{{end}}.</p>
 <div class="note"><p><strong>Before you start, have these ready.</strong> Stripe checks every business by law, and its form takes 15–30 minutes. In the UAE it usually asks for:</p>
 <ul><li>the trade licence and the memorandum of association (for a company)</li><li>the passport and Emirates ID or visa of the owner and of each person owning 25% or more</li>
 <li>the business address and phone number</li><li>a UAE bank account in the business's name (IBAN), for payouts</li></ul>
@@ -1411,7 +1435,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{else if eq .Status "authorized"}}<form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/capture" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}">
 <input name="amount" inputmode="decimal" placeholder="{{printf "%.2f" .Authorized}}" aria-label="Amount to take (empty = all {{printf "%.2f" .Authorized}})" style="width:7em;margin:0"> <button style="margin:0;padding:4px 10px">Capture</button></form>
 <form method="post" action="/apps/{{$.App}}/payments/{{.ID}}/release" class="inline" onsubmit="return confirm('Release the hold? Nothing is charged.')"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="secondary" style="margin:0;padding:4px 10px">Release</button></form>{{end}}</td></tr>{{end}}
-</tbody></table></div>{{template "pager" .Pager}}<p class="muted" style="margin-top:12px">Refund: leave the amount empty to refund everything that is left, or type part of it. On the Free plan Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
+</tbody></table></div>{{template "pager" .Pager}}<p class="muted" style="margin-top:12px">Refund: leave the amount empty to refund everything that is left, or type part of it. In a shop Renoxium's fee is refunded with it. Card holds: capture all or part (e.g. a damage charge) before the date shown, or release them; most cards drop a hold after about 7 days.</p>
 {{else}}<p class="muted" style="margin:0">{{if .Filter}}No payments with this status.{{else}}No payments yet.{{end}}</p>{{end}}
 {{if .Subscriptions}}<h2 style="margin:28px 0 12px;font-size:20px">Subscriptions</h2><div class="tablebox"><table class="rx"><thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Next payment</th><th>Customer</th><th></th></tr></thead><tbody>
 {{range .Subscriptions}}<tr><td class="t" data-label="Reference">{{.Reference}}</td><td data-label="Status">{{.Status}}{{if .CancelAtPeriodEnd}}{{if ne .Status "canceled"}}, ends at period end{{end}}{{end}}</td>

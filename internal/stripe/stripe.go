@@ -589,12 +589,24 @@ type Subscription struct {
 	LegacyPeriodEnd int64 `json:"current_period_end"`
 	Items           struct {
 		Data []struct {
+			ID    string `json:"id"`
 			Price struct {
 				ID string `json:"id"`
 			} `json:"price"`
+			Quantity         int64 `json:"quantity"`
 			CurrentPeriodEnd int64 `json:"current_period_end"`
 		} `json:"data"`
 	} `json:"items"`
+}
+
+// Item finds the subscription's item for a price: its id and quantity.
+func (s Subscription) Item(price string) (id string, quantity int64, ok bool) {
+	for _, it := range s.Items.Data {
+		if price != "" && it.Price.ID == price {
+			return it.ID, it.Quantity, true
+		}
+	}
+	return "", 0, false
 }
 
 // PriceID is the price of the subscription's first item.
@@ -623,6 +635,34 @@ func (c *Client) Subscriptions(ctx context.Context, customer string) ([]Subscrip
 	}
 	err := c.do(ctx, http.MethodGet, "/v1/subscriptions", "", url.Values{"customer": {customer}, "status": {"all"}, "limit": {"20"}}, &out)
 	return out.Data, err
+}
+
+// Subscription reads one subscription.
+func (c *Client) Subscription(ctx context.Context, id string) (Subscription, error) {
+	var out Subscription
+	err := c.do(ctx, http.MethodGet, "/v1/subscriptions/"+url.PathEscape(id), "", nil, &out)
+	return out, err
+}
+
+// SetSubscriptionQuantity makes the subscription bill quantity of a price,
+// prorated: it adds the item when it is missing, changes its quantity, or
+// removes it at 0. itemID is the item's id, or "" when it has none yet.
+func (c *Client) SetSubscriptionQuantity(ctx context.Context, subscription, itemID, price string, quantity int64) error {
+	var out struct {
+		ID string `json:"id"`
+	}
+	switch {
+	case itemID == "" && quantity <= 0:
+		return nil
+	case itemID == "":
+		return c.do(ctx, http.MethodPost, "/v1/subscription_items", "", url.Values{"subscription": {subscription}, "price": {price},
+			"quantity": {strconv.FormatInt(quantity, 10)}, "proration_behavior": {"create_prorations"}}, &out)
+	case quantity <= 0:
+		return c.do(ctx, http.MethodDelete, "/v1/subscription_items/"+url.PathEscape(itemID), "",
+			url.Values{"proration_behavior": {"create_prorations"}}, &out)
+	}
+	return c.do(ctx, http.MethodPost, "/v1/subscription_items/"+url.PathEscape(itemID), "",
+		url.Values{"quantity": {strconv.FormatInt(quantity, 10)}, "proration_behavior": {"create_prorations"}}, &out)
 }
 
 // CancelSubscription ends a subscription at once, without proration

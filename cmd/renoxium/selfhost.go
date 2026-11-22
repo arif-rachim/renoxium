@@ -29,7 +29,7 @@ const licenceFile = "licence.json"
 func importCommand(dataDir, appsDomain string, args []string) int {
 	if len(args) < 2 || len(args) > 4 {
 		fmt.Fprintln(os.Stderr, "usage: renoxium -data DIR -apps-domain DOMAIN import EXPORT.zip ADMIN_EMAIL [YOUR_DOMAIN] [APP]\n"+
-			"  imports an app exported from a Pro or Business account into an empty data directory;\n"+
+			"  imports an app exported as a paid work app or from a Pro or Business account into an empty data directory;\n"+
 			"  the app is served at APP.DOMAIN, and at YOUR_DOMAIN (e.g. www.yourshop.com) when given")
 		return 2
 	}

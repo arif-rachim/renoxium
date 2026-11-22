@@ -140,3 +140,27 @@ func UseDirectPayments(t *testing.T, p *Platform, app string) {
 		t.Fatal(err)
 	}
 }
+
+// ReadyShop makes an app a shop whose Stripe account can take payments, as
+// if its owner had chosen shop and finished Stripe onboarding.
+func ReadyShop(t *testing.T, p *Platform, app string) {
+	t.Helper()
+	if err := p.SetAppKind(app, KindShop); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.db.Exec(`INSERT OR IGNORE INTO payment_accounts (app, stripe_account, charges_enabled, details_submitted, updated_at)
+		VALUES (?, ?, 1, 1, ?)`, app, "acct_ready_"+app, now()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// PaidWorkApp makes an app a work app with a subscription in force.
+func PaidWorkApp(t *testing.T, p *Platform, app string) {
+	t.Helper()
+	if err := p.SetAppKind(app, KindWork); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.SetWorkSubscription(app, "sub_"+app, "active", time.Now().Add(30*24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+}

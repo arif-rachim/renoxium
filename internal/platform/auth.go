@@ -339,7 +339,7 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) er
 		return errors.New("email is not set up on this Renoxium server")
 	}
 	owner := p.ownerOf(st.app)
-	plan := p.planOf(owner)
+	plan := p.quotaPlan(owner)
 	within := false
 	if m.Tag == "app_email" {
 		within = p.allowDurable("app-mail:"+owner, AppEmailsPerPlan[plan], 24*time.Hour) && p.allowDurable("app-mail-day", p.cfg.Daily.Emails, 24*time.Hour)

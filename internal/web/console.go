@@ -62,10 +62,13 @@ func (s *Site) shell(u accounts.User, app, title, current string, demo bool) app
 		return sh
 	}
 	if t, ok := s.platform.ThrottleOf(app); ok {
-		sh.Throttle = t.Notice()
+		sh.Throttle = t.Notice(s.base)
 	}
 	if sh.IsOwner {
 		sh.Business = append(sh.Business, link("Payments", base+"/payments"))
+		if s.SingleApp == "" {
+			sh.Business = append(sh.Business, link("Plan", base+"/plan"))
+		}
 	}
 	sh.Business = append(sh.Business, link("Customers", base+"/visitors"))
 	if sh.IsOwner && s.SingleApp != "" { // the domain, name and deletion are the server's own on the owner's server
