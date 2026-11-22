@@ -74,6 +74,7 @@ var screens = map[string]screen{
 	"reservation-uae":   phone("screen-reservation.webp", "The home page of the Sahara Bay Tours and Rentals demo: a rounded photo card of camels on desert dunes with Dunes at sunset, the Marina by night, a See tours and rentals button, and a white search box for what, date and guests with a dark green Search button"),
 	"quote-portal-uae":  phone("screen-quote-portal.webp", "The home page of the Bayan Business Setup demo in navy and gold: Your company in Dubai, set up clearly, with Ask for a quote and See services and prices buttons, a Licensed in the UAE badge and a photo of the Dubai skyline at night with a diagonal lower edge"),
 	"listings-uae":      phone("screen-listing.webp", "The home page of the Marsa Homes demo: Homes in Dubai, known street by street, with Browse properties and List your property buttons, a photo of Downtown Dubai at sunset and a search bar for purpose, location, type and price"),
+	"clinic-queue-uae":  phone("screen-clinic.webp", "The home page of the Shifa Family Clinic demo in deep green on mint: See a doctor today. Skip the waiting room., a Take a number button, a See the queue now button and a photo of a smiling patient talking with her dentist, with A008 to Room 1 called on a chip over the photo"),
 	"delivery-tracking": phone("screen-delivery.webp", "Delivery #1 of the Al Noor Flowers demo for Mariam: the courier's position on a map of Dubai and the progress Preparing, On the way, Delivered, with On the way reached"),
 	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
 		Alt: "The owner's admin panel of the Lamsa Beauty Lounge demo: the bookings calendar for one day, one lane each for Layla, Maryam and Priya, with nine appointments from 10:00 to 19:00, each with the customer's name and service, marked confirmed or pending"},
@@ -86,6 +87,7 @@ var screensAR = map[string]screen{
 	"home-service-uae": phone("screen-home-service-ar.webp", "الصفحة الرئيسية لتجربة بيتي للخدمات المنزلية بالعربية: تنظيف وتكييف وصيانة، مع زر احجز زيارة وصورة لغرفة معيشة مرتبة"),
 	"reservation-uae":  phone("screen-reservation-ar.webp", "الصفحة الرئيسية لتجربة صحارى باي للرحلات والتأجير بالعربية: رحلات سفاري وجولات بحرية وتأجير سيارات، مع صورة لقافلة جمال تعبر الكثبان"),
 	"quote-portal-uae": phone("screen-quote-portal-ar.webp", "الصفحة الرئيسية لتجربة بيان لتأسيس الأعمال بالعربية: شركتك في دبي بتأسيس واضح، مع زر اطلب عرض سعر وصورة لأفق دبي ليلاً"),
+	"clinic-queue-uae": phone("screen-clinic-ar.webp", "الصفحة الرئيسية لتجربة عيادة شفاء العائلية بالعربية بالأخضر الداكن على النعناعي: قابل الطبيب اليوم. ودون قاعة انتظار.، مع زر احصل على رقم وصورة مريضة مبتسمة مع طبيب الأسنان"),
 	"listings-uae":     phone("screen-listing-ar.webp", "الصفحة الرئيسية لتجربة مرسى هومز بالعربية: منازل في دبي نعرفها شارعاً شارعاً، مع زر تصفح العقارات وصورة لوسط دبي عند الغروب"),
 	"admin-calendar": {File: "screen-admin-calendar.webp", W: 1400, H: 920,
 		Alt: "لوحة تحكم صالون لمسة التجريبي: تقويم الحجوزات ليوم واحد، بعمود لكل من ليلى ومريم وبريا، وتسعة مواعيد من 10:00 إلى 19:00 مع اسم العميلة والخدمة وحالة الحجز"},
@@ -99,6 +101,7 @@ var demoNameAR = map[string]string{
 	"reservation-uae":  "تجربة رحلات السفاري",
 	"quote-portal-uae": "تجربة تأسيس الشركات",
 	"listings-uae":     "تجربة الوسيط العقاري",
+	"clinic-queue-uae": "تجربة طابور العيادة",
 }
 
 // screensWide are the demos' home pages at desktop size (960x600), for the
@@ -110,6 +113,7 @@ var screensWide = map[string]screen{
 	"reservation-uae":   wide("wide-reservation.webp", "The Sahara Bay Tours and Rentals demo on a desktop"),
 	"quote-portal-uae":  wide("wide-quote-portal.webp", "The Bayan Business Setup demo on a desktop"),
 	"listings-uae":      wide("wide-listing.webp", "The Marsa Homes demo on a desktop"),
+	"clinic-queue-uae":  wide("wide-clinic.webp", "The Shifa Family Clinic queue demo on a desktop"),
 	"delivery-tracking": wide("wide-delivery.webp", "The Al Noor Flowers delivery tracking demo on a desktop"),
 }
 
@@ -124,6 +128,7 @@ var exampleJob = map[string]string{
 	"reservation-uae":   "I take bookings",
 	"quote-portal-uae":  "I send quotes",
 	"listings-uae":      "I send quotes",
+	"clinic-queue-uae":  "I serve walk-ins",
 	"delivery-tracking": "I deliver",
 }
 
@@ -136,6 +141,7 @@ var demoName = map[string]string{
 	"reservation-uae":  "Desert safari demo",
 	"quote-portal-uae": "Business setup demo",
 	"listings-uae":     "Property broker demo",
+	"clinic-queue-uae": "Clinic queue demo",
 }
 
 // sitePath is one of the three ways in on the landing page: what the owner
@@ -214,6 +220,9 @@ var trades = []trade{
 	{ID: "services", Tab: "Business services", Example: "quote-portal-uae",
 		Customers: []string{"Send an enquiry with a target date and a budget", "Read your quote and accept it online", "Pay the deposit and the balance by card or bank transfer", "Follow progress and share documents in a private portal"},
 		Owner:     []string{"Write quotes in your panel, with 5% VAT added or included", "A payments ledger for each quote", "Clients are emailed when you update a quote", "Card payments refunded when you cancel a quote, if you choose"}},
+	{ID: "clinics", Tab: "Clinics and walk-ins", Example: "clinic-queue-uae",
+		Customers: []string{"Take a number on their phone from a QR code, or at the reception tablet", "See how many are ahead and the estimated wait, live", "Get one WhatsApp message when two patients are ahead", "Follow their place in English or Arabic"},
+		Owner:     []string{"A waiting-room screen for your TV that calls numbers to rooms", "Call next, call again or mark a no-show from a staff page", "The queue starts empty every morning", "Patients per day and the average wait, by email every night"}},
 }
 
 // tradesAR are the same kinds of business in Arabic, in the same order.
@@ -236,6 +245,9 @@ var tradesAR = []trade{
 	{ID: "services", Tab: "خدمات الأعمال", Example: "quote-portal-uae",
 		Customers: []string{"إرسال استفسار مع التاريخ المطلوب والميزانية", "قراءة عرض السعر وقبوله عبر الإنترنت", "دفع العربون والباقي بالبطاقة أو بالتحويل البنكي", "متابعة سير العمل ومشاركة المستندات في بوابة خاصة"},
 		Owner:     []string{"كتابة عروض الأسعار في لوحتك، مع إضافة ضريبة 5% أو شمولها", "سجل مدفوعات لكل عرض سعر", "يصل العميل بريد إلكتروني عند تحديث عرض السعر", "استرداد مدفوعات البطاقة عند إلغاء العرض، إن اخترت ذلك"}},
+	{ID: "clinics", Tab: "العيادات والزوار بلا موعد", Example: "clinic-queue-uae",
+		Customers: []string{"أخذ رقم من الهاتف عبر رمز QR أو من جهاز الاستقبال", "معرفة عدد من قبلهم والانتظار المتوقع مباشرة", "رسالة واحدة على واتساب عندما يكون قبلهم مريضان", "متابعة الدور بالعربية أو الإنجليزية"},
+		Owner:     []string{"شاشة لقاعة الانتظار على التلفاز تنادي الأرقام إلى الغرف", "نداء التالي أو إعادة النداء أو تسجيل الغياب من صفحة الموظفين", "الطابور يبدأ فارغاً كل صباح", "عدد المرضى في اليوم ومتوسط الانتظار بالبريد كل ليلة"}},
 }
 
 // siteTrades fills the trades with their demos; a trade whose demo is not

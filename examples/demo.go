@@ -84,6 +84,9 @@ var demoImageSets = map[string][]DemoImageSet{
 	"delivery-tracking": {{Table: "shop", Key: "name", Rows: map[string]map[string]string{
 		"Al Noor Flowers": {"hero_image": "delivery-hero.webp", "story_image": "delivery-story.webp"},
 	}}},
+	"clinic-queue-uae": {{Table: "clinic", Key: "name", Rows: map[string]map[string]string{
+		"Shifa Family Clinic": {"hero_image": "clinic-hero.webp", "story_image": "clinic-story.webp", "interior_image": "clinic-interior.webp"},
+	}}},
 	"listings-uae": {{Table: "agency", Key: "name", Rows: map[string]map[string]string{
 		"Marsa Homes": {"hero_image": "listings-hero.webp", "story_image": "listings-story.webp", "interior_image": "listing-living-room.webp"},
 	}}, {Table: "listings", Key: "reference", Rows: map[string]map[string]string{

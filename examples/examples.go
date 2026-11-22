@@ -26,6 +26,8 @@ var (
 	bookingUAE []byte
 	//go:embed listings-uae.json
 	listingsUAE []byte
+	//go:embed clinic-queue-uae.json
+	clinicQueueUAE []byte
 )
 
 // Example is one complete app definition.
@@ -66,7 +68,10 @@ var gallery = map[string]GalleryInfo{
 	"listings-uae": {Order: 6, Title: "Property listings",
 		Summary: "Search homes to buy or rent, listing pages with permit numbers, and viewing requests that land in your calendar with one lane per agent.",
 		For:     []string{"Real-estate brokers", "Property agents", "Car dealers"}},
-	"delivery-tracking": {Order: 7, Title: "Live delivery tracking",
+	"clinic-queue-uae": {Order: 7, Title: "Walk-in queue",
+		Summary: "Patients take a number on their phone or at reception, follow their place live and get a WhatsApp message when two are ahead; a TV screen calls numbers to rooms. No payments: a work app.",
+		For:     []string{"GP, dental and physio clinics", "Barbers and walk-in salons", "Service counters and typing centres"}},
+	"delivery-tracking": {Order: 8, Title: "Live delivery tracking",
 		Summary: "Your courier shares their location from their phone and the customer follows the delivery on a live map.",
 		For:     []string{"Restaurants and grocers", "Couriers", "Any business that delivers"}},
 }
@@ -128,7 +133,7 @@ var all = map[string]Example{
 		"To customise, change the seed rows of business and texts, then: tour operator = items with mode departure plus departures and extras, and delete the range items; " +
 		"car rental = items with mode range (stock = cars of that model, price_day, price_week, min_days, security_deposit) and extras such as child seat or delivery, " +
 		"and leave departures empty; party rental = items with mode range (stock = pieces owned) and a delivery extra. Keep the scripts. " +
-		"Not possible on the platform, so not in the example: later automatic charges of a saved card, WhatsApp messages to customers.", JSON: reservationUAE},
+		"Not possible on the platform, so not in the example: later automatic charges of a saved card.", JSON: reservationUAE},
 	"store-uae": {Name: "store-uae", Description: "A complete online store for the UAE, ready to customise: catalog with photos and categories, cart, " +
 		"AED prices including 5% VAT, a delivery fee (store.delivery_fee) with an optional free-delivery threshold (store.free_delivery_over; " +
 		"set it to 0 or leave it empty for a flat fee on every order), checkout with card payment (Stripe) or cash on delivery, " +
@@ -159,6 +164,22 @@ var all = map[string]Example{
 		"viewing booked with a date and time, on_admin_change emails the visitor a confirmation with the listing and the agent's contact. " +
 		"English and Arabic (right to left), a daily summary for the owner, read-only tools for buyers' AI assistants, and shared helpers in lib. " +
 		"Change the agency, agents, listings and texts tables' seed rows; it also suits car dealers or other listing-and-lead businesses by changing the listing fields.", JSON: listingsUAE},
+	"clinic-queue-uae": {Name: "clinic-queue-uae", Description: "A walk-in queue for a small UAE clinic, ready to customise (no payments, so it is a work app): " +
+		"GP, dental and physiotherapy clinics, and also barbers or a service counter. Patients take a number without signing in, on their phone " +
+		"(from a QR code at reception) or at a reception tablet (/kiosk): name, mobile number and the service or doctor. Their ticket page " +
+		"(/ticket?k=<secret>) shows the number, the patients ahead and an estimated wait (minutes per patient divided by the doctors seeing " +
+		"that service), updating live from one public realtime channel (public:queue, codes and counts only, never names). A waiting-room " +
+		"screen for a TV (/screen) shows the numbers called and their rooms, with a chime, the next numbers and a QR code to take a number. " +
+		"Staff call the next patient, call again, mark done or no-show on /staff (signed-in visitors whose email the owner lists in the staff " +
+		"table) or in the admin panel (on_admin_change sets the times and room and updates the screens). When a patient has notify_ahead " +
+		"(default 2) patients ahead they are told once with whatsapp.send (clinic.whatsapp_alerts; within the plan's WhatsApp messages, " +
+		"falling back to email when it throws) and by email when they gave one. Every ticket belongs to a UAE day, so the queue starts empty " +
+		"each morning; a job at 00:05 closes what was left, writes daily_stats (patients, seen, no-shows, average and longest wait, busiest " +
+		"hour), wipes contact details older than keep_contact_days and emails the owner yesterday's numbers; /staff/report shows the last 14 days. " +
+		"Opening hours, closed days, the last number before closing and a daily limit come from the clinic row. English and Arabic (right to left), " +
+		"read-only tools for patients' AI assistants. To customise, change the seed rows of clinic, services (one ticket letter each, minutes " +
+		"per patient, how many see them at once), rooms (the letters each room calls) and texts, and keep the scripts: a barber has one service " +
+		"per barber and one room (chair) each; a typing centre has counters as rooms.", JSON: clinicQueueUAE},
 	"tasks": {Name: "tasks", Description: "Create, edit, toggle and delete records: forms, path parameters, boolean columns, filters and counts.", JSON: tasks},
 }
 

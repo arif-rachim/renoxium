@@ -72,7 +72,7 @@ func (p *Platform) countWhatsApp(st *stage) {
 	if quota := WhatsAppCodesPerPlan[p.quotaPlan(owner)]; n == quota {
 		p.event(st, "whatsapp", "warn", "", fmt.Sprintf("WhatsApp sign-in quota reached (%d codes this month); visitors now sign in with email", quota))
 		p.mailOwner(context.Background(), st, "WhatsApp sign-in paused until next month",
-			fmt.Sprintf("Your apps sent %d WhatsApp sign-in codes this month, the limit of your plan. Visitors can still sign in with email.\n\n"+
-				"For more codes, %s.", quota, p.moreHint(p.quotaPlan(owner), st.app)))
+			fmt.Sprintf("Your apps sent %d WhatsApp messages this month (sign-in codes and notices), the limit of your plan. Visitors can still sign in with email; WhatsApp notices pause too.\n\n"+
+				"For more messages, %s.", quota, p.moreHint(p.quotaPlan(owner), st.app)))
 	}
 }

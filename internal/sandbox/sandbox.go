@@ -30,6 +30,7 @@ var platformFunctions = map[string][]string{
 	"payments": {"checkout", "get", "refund", "capture", "release", "subscribe", "subscription", "cancel_subscription"},
 	"email":    {"send"},
 	"notify":   {"owner"},
+	"whatsapp": {"send"},
 	"realtime": {"publish", "token"},
 	"http":     {"fetch"},
 	"files":    {"get", "delete", "url"},

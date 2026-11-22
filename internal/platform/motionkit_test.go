@@ -12,7 +12,7 @@ import (
 )
 
 // The business templates that carry the motion kit.
-var motionKitExamples = []string{"store-uae", "booking-uae", "home-service-uae", "reservation-uae", "listings-uae", "quote-portal-uae"}
+var motionKitExamples = []string{"store-uae", "booking-uae", "home-service-uae", "reservation-uae", "listings-uae", "quote-portal-uae", "clinic-queue-uae"}
 
 // The motion kit (templates motion and motion_js) is one kit: every example
 // that carries it carries the same copy, so a fix lands everywhere. A
@@ -128,6 +128,7 @@ var transitionCases = []struct {
 		[]transitionNav{{"/", "limg-", "lttl-", "/l/%s"}, {"/search", "limg-", "lttl-", "/l/%s"}, {"/agents/1", "limg-", "lttl-", "/l/%s"},
 			{"/", "aimg-", "", "/agents/%s"}, {"/l/1", "aimg-", "", "/agents/%s"}}, false},
 	{"quote-portal-uae", "business", map[string]string{"packages": "image"}, []transitionNav{{"/", "kimg-", "kttl-", "/packages/%s"}}, true},
+	{"clinic-queue-uae", "clinic", map[string]string{"services": "image"}, []transitionNav{{"/", "simg-", "sttl-", "/s/%s"}}, false},
 }
 
 // A card and the page it leads to share a view-transition-name, in every
