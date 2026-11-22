@@ -524,6 +524,9 @@ const stripeCheckoutPrefix = "https://checkout.stripe.com/"
 // HandleStripeEvent applies a verified webhook event. It returns an error
 // only for problems worth a retry by Stripe.
 func (p *Platform) HandleStripeEvent(ctx context.Context, e stripe.Event) error {
+	if p.cfg.SelfHosted && e.Account == "" {
+		e.Account = stripe.DirectAccount // an event of the owner's own account
+	}
 	if dedupeEvent(e.Type) {
 		// Events whose effect is not a plain status change are applied once
 		// per event id; Stripe may deliver an event more than once.

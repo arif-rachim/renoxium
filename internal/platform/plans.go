@@ -50,7 +50,7 @@ func ForgetPlan(owner string) { planCache.Delete(owner) }
 
 // applicationFee is Renoxium's cut of a card payment, in the smallest unit.
 func (p *Platform) applicationFee(app string, total int64) int64 {
-	if p.planOf(p.ownerOf(app)) != planFree {
+	if p.cfg.SelfHosted || p.planOf(p.ownerOf(app)) != planFree { // a direct charge has no platform to pay
 		return 0
 	}
 	return int64(math.Round(float64(total) * FreePlanFeePercent / 100))

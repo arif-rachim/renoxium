@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/arif-rachim/renoxium/internal/licence"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/tenantdb"
@@ -74,7 +76,7 @@ func (p *Platform) DeleteApp(app string) error {
 }
 
 // ExportApp writes an app into a zip: its newest definition, a consistent
-// copy of its live database, and the list of its uploaded files.
+// copy of its live database, and its uploaded files with their list.
 func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) error {
 	info, err := p.Info(app)
 	if err != nil {
@@ -92,6 +94,28 @@ func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) er
 	if err := add("app.json", info); err != nil {
 		return err
 	}
+	// A paid account's export may run on its owner's own server: it carries
+	// a licence signed by this server (internal/licence).
+	if p.cfg.LicenceKey != nil {
+		owner := p.ownerOf(app)
+		if plan := p.planOf(owner); licence.SelfHostPlans[plan] {
+			email := ""
+			if p.cfg.OwnerEmail != nil {
+				email, _ = p.cfg.OwnerEmail(owner)
+			}
+			raw, err := licence.Sign(p.cfg.LicenceKey, licence.Licence{App: app, Account: owner, Email: email, Plan: plan})
+			if err != nil {
+				return err
+			}
+			w, err := zw.Create(app + "/licence.json")
+			if err != nil {
+				return err
+			}
+			if _, err := w.Write(raw); err != nil {
+				return err
+			}
+		}
+	}
 	if def, n, err := p.Definition(app, 0); err == nil {
 		if err := add(fmt.Sprintf("definition-v%d.json", n), def); err != nil {
 			return err
@@ -100,6 +124,24 @@ func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) er
 	if files, err := p.Files(app); err == nil {
 		if err := add("files.json", files); err != nil {
 			return err
+		}
+		// The files themselves, under the name their address ends with, so the
+		// export is everything the app needs to run somewhere else.
+		for _, fi := range files {
+			name := strings.TrimPrefix(fi.URL, FilesPrefix)
+			hash, _, _ := strings.Cut(name, ".")
+			fh, err := p.files.Open(hash)
+			if err != nil {
+				continue // a file removed while exporting
+			}
+			w, err := zw.Create(app + "/files/" + name)
+			if err == nil {
+				_, err = io.Copy(w, fh)
+			}
+			fh.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if err := p.exportPrivateFiles(app, zw, add); err != nil {

@@ -4,6 +4,7 @@ package platform
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -74,6 +75,15 @@ type Config struct {
 	// FetchTransport replaces http.fetch's own transport, which refuses
 	// private addresses. Tests only.
 	FetchTransport http.RoundTripper
+	// SelfHosted is set when one app runs on its owner's own server: payments
+	// go to the Stripe key's own account (stripe.DirectAccount), without
+	// Connect and without a platform fee.
+	SelfHosted bool
+	// LicenceKey signs the licence an export from a paid account carries,
+	// which lets it run on its owner's server (internal/licence). Nil: exports
+	// carry none.
+	LicenceKey ed25519.PrivateKey
+
 	// OwnerPlan returns an account's plan: "free", "pro" or "business".
 	// Free-plan apps pay a cut of card payments, show a small badge and
 	// are limited in number. Nil means no plans: nothing is limited.

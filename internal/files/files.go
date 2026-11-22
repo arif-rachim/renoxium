@@ -147,3 +147,47 @@ func (l *limitedBuffer) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+// PutAs stores the content of r under a given hash instead of the hash of
+// its bytes. It is for an app moved from another server: the app's rows
+// hold its files' addresses, which name the hash they had there (a photo
+// shrunk in place keeps the address of the file it replaced). The content
+// type is detected from the bytes, as in Put.
+func (s *Store) PutAs(hash string, r io.Reader) (Blob, error) {
+	if !ValidHash(hash) {
+		return Blob{}, errors.New("not a file address")
+	}
+	tmp, err := os.CreateTemp(filepath.Join(s.dir, "tmp"), "import-*")
+	if err != nil {
+		return Blob{}, err
+	}
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
+	var head bytes.Buffer
+	n, err := io.Copy(io.MultiWriter(tmp, &limitedBuffer{buf: &head, max: 512}), io.LimitReader(r, MaxSize+1))
+	if err != nil {
+		return Blob{}, err
+	}
+	if n > MaxSize {
+		return Blob{}, ErrTooLarge
+	}
+	ctype := Detect(head.Bytes())
+	if _, ok := Allowed[ctype]; !ok {
+		return Blob{}, ErrType
+	}
+	b := Blob{Hash: hash, Size: n, ContentType: ctype}
+	final := s.path(hash)
+	if err := tmp.Sync(); err != nil {
+		return Blob{}, err
+	}
+	if err := tmp.Close(); err != nil {
+		return Blob{}, err
+	}
+	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
+		return Blob{}, err
+	}
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
+		return Blob{}, err
+	}
+	return b, os.Rename(tmp.Name(), final)
+}
