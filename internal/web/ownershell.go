@@ -131,9 +131,9 @@ func appPlanRows(p *platform.Platform, apps []platform.AppInfo) []appPlanRow {
 
 // billingNotices are the messages /billing shows after a redirect.
 var billingNotices = map[string]string{
-	"granted":     "Your plan was given to you by Renoxium, so there is no card, invoice or subscription to manage. To pay for a plan yourself, choose one below.",
-	"no-customer": "There is no Stripe subscription on this account yet, so there is nothing to manage. Choose a plan below to subscribe.",
-	"unavailable": "Paid plans are not available yet. Try again later.",
+	"granted":     "Your plan was given to you by Renoxium, so there is no card, invoice or subscription to manage.",
+	"no-customer": "There is no Stripe subscription on this account yet, so there is nothing to manage. To subscribe, make an app a work app on its Plan page.",
+	"unavailable": "Subscriptions are not available yet. Try again later.",
 }
 
 const ownerTemplates = `

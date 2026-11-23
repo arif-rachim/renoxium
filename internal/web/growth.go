@@ -221,7 +221,7 @@ func (s *Site) growthView(r *http.Request, paying map[string]int) (*growthView, 
 		case growth.CustomerActivity:
 			f.Note = "an owner notice for a new order, booking, lead or enquiry, or a paid card payment, on live; earlier notices are not known"
 		case growth.PaidStarted:
-			f.Note = "Pro or Business through Stripe; granted plans do not count"
+			f.Note = "the account-wide Pro or Business through Stripe; granted plans and work app subscriptions do not count"
 		case growth.RetainedM3:
 			f.Note = fmt.Sprintf("of the %d who started paying 3 or more months ago", row.Base)
 			f.Median = "3 months"

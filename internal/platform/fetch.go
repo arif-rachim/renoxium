@@ -270,7 +270,7 @@ func (h *scriptHost) httpFetch(ctx context.Context, arg any) (any, error) {
 	owner := p.ownerOf(st.app)
 	if p.cfg.OwnerPlan != nil {
 		if used, quota := p.FetchUsage(owner); used >= quota {
-			return nil, fetchError("the account used all %d external calls of this month; upgrade at %s/billing", quota, p.cfg.SiteURL)
+			return nil, fetchError("the account used all %d external calls of this month; for more, %s", quota, p.moreHint(p.quotaPlan(owner), st.app))
 		}
 	}
 	if p.cfg.OwnerEmail != nil {
