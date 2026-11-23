@@ -469,8 +469,7 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if p.cfg.OwnerPlan != nil {
 		plan := p.planOf(owner)
 		if limit := AppsPerPlan[plan]; count >= limit {
-			return AppInfo{}, fmt.Errorf("this account may have %d apps and has %d; for more, contact Renoxium at %s/support",
-				limit, count, p.cfg.SiteURL)
+			return AppInfo{}, &AppLimitError{Plan: plan, Limit: limit, Count: count, site: p.cfg.SiteURL}
 		}
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {
