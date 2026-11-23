@@ -14,7 +14,7 @@ page, template cards, connect page) and on Instagram, TikTok and WhatsApp status
 
 ## The egghead.io style, applied here
 
-- One lesson = one task, 1 to 3 minutes. No intro music, no "hi, welcome", no recap of earlier lessons:
+- One lesson = one task, 1 to 3 minutes (the admin panel tour and the error lessons may run to 5). No intro music, no "hi, welcome", no recap of earlier lessons:
   each lesson stands alone and starts on the screen where the task starts.
 - The title is the task, as an action: "Build a salon booking site from one message",
   "Change a price by chatting", "Publish your site".
@@ -23,17 +23,106 @@ page, template cards, connect page) and on Instagram, TikTok and WhatsApp status
 - Each lesson has a one-paragraph summary and the exact messages typed, to show under the video.
 - Plain language for shop owners, not developers. No code on screen.
 
-## The lessons (adjust after Step 0, keep each one short)
+## The lessons: the course must cover everything
 
-1. Add Renoxium to ChatGPT (once): the connect steps, signing in, allowing access.
-2. Build a booking site for a salon from one message, then open the preview on a phone.
-3. Build an online shop: products, prices, delivery fee, WhatsApp number, cash on delivery.
-4. Change things by chatting: a price, a photo, opening hours, Arabic texts. Make the point that
-   Renoxium has no credits: change it as often as you like.
-5. Publish: the assistant gives a confirm link; the owner opens it and confirms; the site is live.
-6. A customer books, the owner is told on WhatsApp, the booking is in the calendar.
-7. A clinic queue (work app) from one message.
-8. (Optional) Start from a template without chatting: Templates, Use this template, business name.
+The course follows one business from start to finish (Lamsa, a salon in Jumeirah), then adds a shop, a
+clinic queue and an app written from scratch. Together the lessons must use **every one of the 22 tools**
+of the Renoxium connector, **every page of the owner's admin panel**, and show what happens when
+something goes wrong. Keep the coverage table below true: if a lesson changes, move its tools to another.
+
+### A. Getting started
+1. **Add Renoxium to ChatGPT** (connect, sign in, allow), then ask "what apps do I have?" (list_apps).
+2. **What can Renoxium build for me?** The assistant lists the templates and shows one (get_example).
+
+### B. Build the salon site
+3. **A booking site from one message.** create_app from the booking template; the assistant checks the
+   pages (view_page) and shows the home page on a phone (screenshot_preview).
+4. **Make it yours:** name, services and prices, stylists, opening hours, address, WhatsApp, Arabic
+   texts. The assistant reads the app in parts (get_app_outline, get_app_parts) and changes exactly what
+   was asked (edit_app). Point out: no credits, change as often as you like.
+5. **Photos and logo:** the owner attaches pictures in the chat (upload_file) and they go on the site.
+6. **Make it look good, without AI slop.** The owner asks for a refined look: a brand colour, a font,
+   real spacing and hierarchy, no generic gradients, emoji or stock clichés. The assistant restyles in
+   the css_extra template (patch_app), reads the result back (get_app), and checks it on a phone, a
+   tablet and a desktop (screenshot_preview at each size). Show one round of feedback ("the header
+   feels crowded on the phone") and the fix.
+7. **Test it like a customer:** a test customer account (create_test_visitor), booking an appointment
+   with the form (submit_form), uploading a file as a customer (upload_as_visitor), and the customer's
+   bookings page while signed in (view_page as that visitor).
+8. **Test what the owner does:** the owner confirms, moves and cancels a booking (change_preview_row,
+   which runs the app's admin hooks: emails, refunds) and the evening schedule and reminders run once
+   (try_scheduled_jobs).
+9. **Publish:** the assistant gives a confirm link (publish); the owner opens it and confirms; the
+   assistant checks the live site (view_live_page). Also: publishing an earlier version to undo.
+
+### C. Run the business: the owner's admin panel (no chat; a tour of every page)
+10. **Overview:** the three tabs (Overview, Traffic and payments, Status), visitors and page views, card
+    sales, where visitors come from, latest payments, your data, scheduled jobs, addresses, recent errors.
+11. **Your data:** a table's list (search, sort, choose columns, pages), adding and editing a row with a
+    photo, deleting, and the calendar (day and week, one lane per stylist, moving a booking).
+12. **Payments and plan:** connecting Stripe, refunding all or part, capturing or releasing a card hold,
+    customer subscriptions, and the Plan page (shop with 2% of card payments, or work app per month).
+13. **Customers:** customer accounts, searching, deleting one with their uploaded files.
+14. **Settings:** notifications (email, WhatsApp), staff (invite, what they can and cannot do, remove),
+    your own domain, connections (allowing a site, API keys, test calls from the preview), renaming,
+    exporting and deleting an app. Also the Preview link and the publish page.
+
+### D. When something goes wrong
+15. **"Customers say booking fails."** The owner sees Recent errors on the Status tab and asks the
+    assistant to check the logs and fix it: get_logs, a fix with edit_app, a check with view_page and
+    submit_form, then publish. Stage the error honestly on the owner's own test app (for example a
+    change the owner asked for that broke a page), never fake the screens.
+16. **The other things that go wrong**, each shown briefly with what the owner sees and what to do:
+    - the assistant's change is refused because a page would break (the checks after edit_app or
+      apply_change), and the assistant fixes it before anything reaches the preview;
+    - the preview changed since the assistant read it (edit_app with an old base version);
+    - the app name is taken, or the plan does not allow another app;
+    - the confirm link was not opened, so the change is still only on the preview;
+    - card payments asked for before Stripe is connected;
+    - a call to an outside service refused because the owner has not allowed the site in Connections,
+      or test calls from the preview are off;
+    - a scheduled job that failed, shown on the Status tab.
+    Check each against the code before scripting it; leave out any that does not happen as described.
+
+### E. Beyond the salon
+17. **An online shop** from the store template: products, variants, delivery fee, free delivery over an
+    amount, cash on delivery, made-to-order dates.
+18. **A clinic queue (work app)** from the clinic template, with its queue jobs (try_scheduled_jobs).
+19. **An app no template covers:** staff attendance written from scratch. The assistant reads the
+    reference (get_example with reference_only), writes the whole app (apply_change), and tests it
+    (view_page, submit_form).
+20. **Rename and delete an app by chatting:** both only give a link the owner confirms (rename_app,
+    delete_app), and what happens to the old address.
+
+### Coverage table (every tool must appear at least once)
+
+| Tool | Lessons |
+| --- | --- |
+| list_apps | 1 |
+| get_example | 2, 19 |
+| get_app | 6 |
+| get_app_outline | 4 |
+| get_app_parts | 4 |
+| get_logs | 15 |
+| view_live_page | 9 |
+| create_app | 3, 17, 18 |
+| apply_change | 16, 19 |
+| patch_app | 6 |
+| edit_app | 4, 15, 16 |
+| upload_file | 5 |
+| publish | 9, 15 |
+| rename_app | 20 |
+| delete_app | 20 |
+| view_page | 3, 7, 15, 19 |
+| submit_form | 7, 15, 19 |
+| upload_as_visitor | 7 |
+| create_test_visitor | 7 |
+| screenshot_preview | 3, 6 |
+| try_scheduled_jobs | 8, 18 |
+| change_preview_row | 8 |
+
+Check this list against the tools in `internal/mcpserver/mcpserver.go` before planning: if a tool was
+added, renamed or removed, update the table and tell me.
 
 Use the real product as it is today. Check the current texts and flows in the code and on
 renoxium.com before writing a script; do not describe features that do not exist.
@@ -89,5 +178,6 @@ Then:
 - Prices and plans in scripts must match the code (`internal/web/landing.go`, the pricing section) at the
   time you write them.
 - Report what you could not do and why, plainly, instead of working around it.
-- Start by sending me: the result of Step 0, the lesson list you propose, and the script for lesson 2.
+- Start by sending me: the result of Step 0, the lesson list you propose with the coverage table, and the
+  script for lesson 3.
   Wait for my answer before recording.
