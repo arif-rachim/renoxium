@@ -156,9 +156,9 @@ Apps that were live before this rule keep running until they are published again
 Business (AED 299) subscriptions still work for accounts that have them, but are no longer sold on the billing page.
 
 **No credits.** Building and changing apps through the agent is unlimited on every plan, the Free plan included, and is never
-charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. Claude's free
-plan is enough (it allows one custom connector); in ChatGPT, adding the connector by its address needs developer mode, which is
-on its paid plans.
+charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. The free
+plan of either is enough: in ChatGPT the connector is added under Plugins (Add custom MCP server, no developer mode), and
+Claude's free plan allows one custom connector.
 
 Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
 
