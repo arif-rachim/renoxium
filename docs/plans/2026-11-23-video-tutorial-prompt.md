@@ -86,7 +86,14 @@ something goes wrong. Keep the coverage table below true: if a lesson changes, m
 
 ### E. Beyond the salon
 17. **An online shop** from the store template: products, variants, delivery fee, free delivery over an
-    amount, cash on delivery, made-to-order dates.
+    amount, cash on delivery, made-to-order dates. **Show the owner putting their own product photos,
+    from files on their computer, on the shop's products**, both ways:
+    - in the chat: the owner attaches the photos from their computer and asks the assistant to put each
+      on its product (upload_file, then edit_app or patch_app on the product rows), then checks the
+      product pages (view_page, screenshot_preview);
+    - in the admin panel: Products, open a product, choose the photo file from the computer for Image,
+      Photo 2 and Photo 3, save, and see it on the live shop.
+    Name the photo files plainly (royal-oud.jpg) so the viewer can follow which goes where.
 18. **A clinic queue (work app)** from the clinic template, with its queue jobs (try_scheduled_jobs).
 19. **An app no template covers:** staff attendance written from scratch. The assistant reads the
     reference (get_example with reference_only), writes the whole app (apply_change), and tests it
@@ -128,6 +135,12 @@ Use the real product as it is today. Check the current texts and flows in the co
 renoxium.com before writing a script; do not describe features that do not exist.
 
 ## Step 0: check that the free ChatGPT plan can do this (do this first)
+
+Also check, in the same step, how a photo the owner attaches in the chat reaches Renoxium:
+`upload_file` takes the image as base64 data (see `internal/mcpserver/mcpserver.go`). Find out whether
+ChatGPT can pass an attached image's content to a connector tool. If it cannot, say so: the scripts for
+lessons 5 and 17 then show the admin panel upload as the way that works, and the chat way only if it
+does.
 
 Adding Renoxium to ChatGPT by its address needs developer mode, which is on ChatGPT's paid plans. Free
 ChatGPT users can only use apps listed in ChatGPT's app directory. Find out, from OpenAI's own help pages
