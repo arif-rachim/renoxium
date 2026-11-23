@@ -339,17 +339,31 @@ func (p *Platform) CreateFromExample(ctx context.Context, owner, name, example s
 	return p.CreateFromTemplate(ctx, owner, name, example, "")
 }
 
+// CreateForAgent is CreateFromExample for the builder MCP server's
+// create_app: only the examples agents see (examples.ForAgents), and a
+// hidden one is refused exactly like a name that does not exist.
+func (p *Platform) CreateForAgent(ctx context.Context, owner, name, example string) (AppInfo, ApplyResult, error) {
+	if _, ok := examples.GetForAgents(example); !ok {
+		return AppInfo{}, ApplyResult{}, unknownExample(example, examples.ForAgents())
+	}
+	return p.CreateFromTemplate(ctx, owner, name, example, "")
+}
+
+func unknownExample(example string, list []examples.Example) error {
+	names := []string{}
+	for _, x := range list {
+		names = append(names, x.Name)
+	}
+	return fmt.Errorf("no example called %q; choose one of: %s", example, strings.Join(names, ", "))
+}
+
 // CreateFromTemplate is CreateFromExample with the business's name put in
 // the template's settings row (its brand name, English and Arabic), so the
 // preview already carries it; "" keeps the template's sample name.
 func (p *Platform) CreateFromTemplate(ctx context.Context, owner, name, example, business string) (AppInfo, ApplyResult, error) {
 	e, ok := examples.Get(example)
 	if !ok {
-		names := []string{}
-		for _, x := range examples.All() {
-			names = append(names, x.Name)
-		}
-		return AppInfo{}, ApplyResult{}, fmt.Errorf("no example called %q; choose one of: %s", example, strings.Join(names, ", "))
+		return AppInfo{}, ApplyResult{}, unknownExample(example, examples.All())
 	}
 	def, problems := appdef.Parse(e.JSON)
 	if len(problems) > 0 {

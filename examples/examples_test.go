@@ -41,3 +41,25 @@ func TestGalleryOrder(t *testing.T) {
 		}
 	}
 }
+
+// The builder MCP server is frozen for review: agents see every example
+// except those HiddenFromAgents, which the gallery still shows.
+func TestExamplesForAgents(t *testing.T) {
+	for _, e := range ForAgents() {
+		if e.HiddenFromAgents {
+			t.Errorf("%s is hidden from agents but listed for them", e.Name)
+		}
+	}
+	if len(ForAgents()) != len(All())-1 {
+		t.Errorf("%d examples for agents of %d", len(ForAgents()), len(All()))
+	}
+	if _, ok := GetForAgents("clinic-queue-uae"); ok {
+		t.Error("clinic-queue-uae is offered to agents during the review")
+	}
+	if e, ok := Get("clinic-queue-uae"); !ok || e.Gallery == nil {
+		t.Error("clinic-queue-uae left the gallery")
+	}
+	if _, ok := GetForAgents("booking-uae"); !ok {
+		t.Error("booking-uae is not offered to agents")
+	}
+}

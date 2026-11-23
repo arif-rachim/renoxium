@@ -45,3 +45,18 @@ Go tests in `internal/platform/clinic_example_test.go` and `wamessage_test.go`, 
 - **No photos needed:** service cards show the ticket letter; the demo has illustrations drawn for it, not stock photos.
 - **The demo is open around the clock** (demo settings 00:00 to 24:00) so visitors can take a number at any hour; a queue
   under way, two weeks of history and a staff list with `*` (anyone signed in) are added by `demosample_clinic.go`.
+
+## Hidden from agents while the MCP server is in review
+The builder MCP server (renoxium.com/mcp) is under review for the ChatGPT app directory, and what an MCP client receives must
+stay as it was at commit d10b7c5 (guarded by `TestMCPServerIsFrozenForReview` in `internal/mcpserver`, against
+`internal/mcpserver/testdata/mcp-snapshot.json`). So `clinic-queue-uae` has `HiddenFromAgents: true`: `get_example` neither
+lists nor returns it and `create_app {from_example}` refuses it like an unknown name. The gallery, its demo, "use this
+template" on the website and the landing page still offer it.
+
+To offer it to agents after the review:
+1. Remove `HiddenFromAgents: true` from its entry in `examples/examples.go`.
+2. Name it in the instructions of `internal/mcpserver/mcpserver.go` if wanted ("clinic-queue-uae: clinics, walk-in queues",
+   and drop "a clinic queue" from the "no finished example fits" sentence), and add the `whatsapp.send` section to the reference.
+3. Regenerate the snapshot: `RENOXIUM_MCP_SNAPSHOT=update go test ./internal/mcpserver -run TestMCPServerIsFrozenForReview`,
+   and commit it with the change.
+4. In `e2e/tests/13-view-transitions.spec.mjs`, empty `HIDDEN_FROM_AGENTS`.

@@ -17,7 +17,7 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
 
 	list, _ := call(t, s, "get_example", map[string]any{})
-	if names := list["examples"].([]any); len(names) != len(examples.All()) {
+	if names := list["examples"].([]any); len(names) != len(examples.ForAgents()) {
 		t.Fatalf("examples = %v", list)
 	}
 	ex, errText := call(t, s, "get_example", map[string]any{"name": "tasks"})

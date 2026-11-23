@@ -38,6 +38,17 @@ type Example struct {
 	// Gallery puts the example in the public template gallery with a live
 	// demo. Nil keeps it for agents only.
 	Gallery *GalleryInfo
+	// HiddenFromAgents keeps the example out of the builder MCP server:
+	// get_example neither lists nor returns it and create_app refuses it as
+	// an unknown example (ForAgents, GetForAgents, platform.CreateForAgent).
+	// The gallery, the demos and "use this template" on the website still
+	// offer it. The MCP server is frozen while the ChatGPT app directory
+	// reviews it; to offer a hidden example to agents after the review,
+	// remove HiddenFromAgents from its entry in all, add it to the list of
+	// examples in mcpserver's instructions if it should be named there, and
+	// regenerate internal/mcpserver/testdata/mcp-snapshot.json (see
+	// TestMCPServerIsFrozenForReview).
+	HiddenFromAgents bool
 }
 
 // GalleryInfo is how the template gallery presents an example to business
@@ -133,7 +144,7 @@ var all = map[string]Example{
 		"To customise, change the seed rows of business and texts, then: tour operator = items with mode departure plus departures and extras, and delete the range items; " +
 		"car rental = items with mode range (stock = cars of that model, price_day, price_week, min_days, security_deposit) and extras such as child seat or delivery, " +
 		"and leave departures empty; party rental = items with mode range (stock = pieces owned) and a delivery extra. Keep the scripts. " +
-		"Not possible on the platform, so not in the example: later automatic charges of a saved card.", JSON: reservationUAE},
+		"Not possible on the platform, so not in the example: later automatic charges of a saved card, WhatsApp messages to customers.", JSON: reservationUAE},
 	"store-uae": {Name: "store-uae", Description: "A complete online store for the UAE, ready to customise: catalog with photos and categories, cart, " +
 		"AED prices including 5% VAT, a delivery fee (store.delivery_fee) with an optional free-delivery threshold (store.free_delivery_over; " +
 		"set it to 0 or leave it empty for a flat fee on every order), checkout with card payment (Stripe) or cash on delivery, " +
@@ -164,7 +175,7 @@ var all = map[string]Example{
 		"viewing booked with a date and time, on_admin_change emails the visitor a confirmation with the listing and the agent's contact. " +
 		"English and Arabic (right to left), a daily summary for the owner, read-only tools for buyers' AI assistants, and shared helpers in lib. " +
 		"Change the agency, agents, listings and texts tables' seed rows; it also suits car dealers or other listing-and-lead businesses by changing the listing fields.", JSON: listingsUAE},
-	"clinic-queue-uae": {Name: "clinic-queue-uae", Description: "A walk-in queue for a small UAE clinic, ready to customise (no payments, so it is a work app): " +
+	"clinic-queue-uae": {Name: "clinic-queue-uae", HiddenFromAgents: true, Description: "A walk-in queue for a small UAE clinic, ready to customise (no payments, so it is a work app): " +
 		"GP, dental and physiotherapy clinics, and also barbers or a service counter. Patients take a number without signing in, on their phone " +
 		"(from a QR code at reception) or at a reception tablet (/kiosk): name, mobile number and the service or doctor. Their ticket page " +
 		"(/ticket?k=<secret>) shows the number, the patients ahead and an estimated wait (minutes per patient divided by the doctors seeing " +
@@ -197,6 +208,29 @@ func All() []Example {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+// ForAgents returns the examples AI agents see through the builder MCP
+// server (get_example, create_app), sorted by name: every example not
+// HiddenFromAgents.
+func ForAgents() []Example {
+	var out []Example
+	for _, e := range All() {
+		if !e.HiddenFromAgents {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// GetForAgents returns an example by name as the builder MCP server offers
+// it: a HiddenFromAgents example is not found.
+func GetForAgents(name string) (Example, bool) {
+	e, ok := all[name]
+	if !ok || e.HiddenFromAgents {
+		return Example{}, false
+	}
+	return e, true
 }
 
 // Gallery returns the examples shown in the public template gallery, in

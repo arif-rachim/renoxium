@@ -8,6 +8,9 @@
 // A card without a photo moves its title into the page's h1 instead; the
 // demos all have photos, so that is checked on fresh apps made from each
 // example (their seed rows have no photos), on the owner's private preview.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
 import { appURL, RENOXIUM } from '../env.mjs';
 import { person, signUp, email, unique, connectAgent, builder } from '../lib.mjs';
@@ -141,6 +144,8 @@ test('reduced motion: pages change without a view transition', async ({ browser 
 });
 
 // example, prefix of the title's view-transition-name, the detail page's path
+// Examples the builder MCP server does not offer during its review (examples.Example.HiddenFromAgents).
+const HIDDEN_FROM_AGENTS = ['clinic-queue-uae'];
 const TITLES = [
   ['store-uae', 'pttl-', /^\/p\/\d+$/],
   ['booking-uae', 'sttl-', /^\/s\/\d+$/],
@@ -176,7 +181,14 @@ test('a card without a photo moves its title into the h1 of its page, and back',
     const { access_token: token } = await connectAgent(page);
     const agent = await builder(token);
     const app = unique('vt');
-    await agent.call('create_app', { app, from_example: example });
+    if (HIDDEN_FROM_AGENTS.includes(example)) {
+      // Not offered to agents while the MCP server is frozen for review: the agent writes it from scratch instead.
+      await agent.call('create_app', { app });
+      const def = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'examples', example + '.json'), 'utf8'));
+      await agent.call('apply_change', { app, definition: def });
+    } else {
+      await agent.call('create_app', { app, from_example: example });
+    }
     await agent.close();
     await ctx.addInitScript(watchReveals);
 
