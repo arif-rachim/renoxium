@@ -1,0 +1,29 @@
+WEBVTT
+
+1
+00:00:00.500 --> 00:00:32.670
+App name taken: choose another
+
+2
+00:00:33.170 --> 00:01:14.370
+ChatGPT says the change is done…
+
+3
+00:01:14.870 --> 00:01:28.540
+…but the preview doesn't show it
+
+4
+00:01:29.040 --> 00:01:50.170
+Say what you see; it checks the logs and finds the cause
+
+5
+00:01:50.670 --> 00:02:29.770
+Ask it to fix it and check again
+
+6
+00:02:30.270 --> 00:02:41.440
+Fixed on the preview
+
+7
+00:02:41.940 --> 00:02:59.070
+Preview only, until you confirm publishing

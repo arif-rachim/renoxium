@@ -146,10 +146,83 @@ uses a different name so viewers see their own business replace the sample.
 **Gap:** upload_file is covered only if ChatGPT can hand an attached image to Renoxium. If not, it needs `fileParams`
 support in Renoxium, or the course leaves it out and says so.
 
-## Open points before recording
+## Status (recorded 2026-11-23)
 
-- **Lesson 12.** Connecting Stripe and refunds happen on live renoxium.com with real Stripe. We need a Stripe test account,
-  or the lesson is recorded against a local server with the e2e fakes.
-- **Lesson 14.** Staff invites and notifications send real emails and WhatsApp messages, so use the course team's own
-  addresses.
-- **Lesson 16b.** Fix the `get_app {only}` message first.
+All 20 lessons are recorded and built. Each lesson folder has `summary.md` (with what really happened),
+`captions.en.vtt` and `captions.ar.vtt`; lesson 3 also has `script.md`. The videos are in
+`renoxium-video/videos/<nn>-<slug>/`: `<name>.mp4` (web, 1920×1080, narrated, no captions in the picture) and
+`<name>-social.mp4` (1080×1920, captions burned in). They are not in git.
+
+| # | Lesson | Length |
+|---|---|---|
+| 1 | Add Renoxium to ChatGPT | 1:52 |
+| 2 | What can Renoxium build for me? | 0:43 |
+| 3 | Build a salon booking site from one message | 2:50 |
+| 4 | Make it yours | 2:24 |
+| 5 | Photos and logo | 2:54 |
+| 6 | Make it look good, without AI slop | 2:20 |
+| 7 | Test it like a customer | 0:43 |
+| 8 | Test what the owner does | 1:15 |
+| 9 | Publish | 1:31 |
+| 10 | Admin: Overview | 1:02 |
+| 11 | Admin: Data and calendar | 1:43 |
+| 12 | Admin: Payments and Plan | 0:37 |
+| 13 | Admin: Customers | 0:17 |
+| 14 | Admin: Settings pages | 1:41 |
+| 15 | "Card payment fails" | 1:30 |
+| 16 | Other things that go wrong | 2:59 |
+| 17 | An online shop, with product photos | 2:34 |
+| 18 | A clinic queue | 1:01 |
+| 19 | An app no template covers | 1:03 |
+| 20 | Rename and delete by chatting | 1:10 |
+
+The course runs about 32 minutes in all. Test apps made on the reviewer account:
+- noor-beauty-studio (live, v7);
+- oud-house (live v2, preview v4);
+- al-noor-clinic (preview);
+- noor-attendance (preview).
+
+### Tools as recorded
+
+ChatGPT shows activity summaries, not tool names, so the tools below are read from those lines and the results.
+
+- **Seen:** list_apps (1, 16), get_example (2, 3), create_app (3, 17, 18), edit_app / patch_app (4, 6, 16),
+  screenshot_preview (6, 18), create_test_visitor, submit_form and view_page as a visitor (7), change_preview_row and
+  try_scheduled_jobs (8, 18), publish (9, 17), view_live_page (9), get_logs (15, 16), rename_app and delete_app (20).
+- **Probable but not visible by name:** get_app_outline, get_app_parts and get_app (4, 6, 16), and apply_change (19,
+  written from scratch).
+- **Not covered:**
+  - **upload_file**: ChatGPT cannot pass attached photos to it (lesson 5).
+  - **upload_as_visitor**: the booking template has no customer upload.
+
+### Product findings from the recording
+
+1. **Photos before the first publish are impossible.** upload_file takes only base64, and ChatGPT cannot send attached
+   files without `openai/fileParams`. The admin panel edits live data only. Fix: support fileParams or a URL in
+   upload_file, or let the admin panel edit preview data before the first publish.
+2. **screenshot_preview images are not shown in ChatGPT.** ChatGPT also says it cannot see the pixels. A phone header
+   bug took four rounds because each "fix" was checked only by the page loading (lesson 6).
+3. **ChatGPT keeps an old tool list** until Plugins → Renoxium → Settings → **Refresh tools**. Lesson 1 mentions it.
+4. **The agent cannot see whether Stripe is connected.** The preview checkout uses a simulator, so ChatGPT first
+   advised switching card payments on in a live shop without Stripe (lesson 15).
+5. **The delete and rename confirm forms get browser autofill:** an old app name and the saved password. Suggest
+   `autocomplete="off"` on the app-name field and `autocomplete="new-password"` on the password (lesson 20).
+6. The edit_app base-version message points to `get_app {only}`, which does not exist
+   (`internal/platform/partial.go:235`).
+7. **Booking calendar demo data.** Adding a booking by hand in the admin form requires a numeric `user_id`, and live
+   booking needs a customer sign-in code, so the course app has no live bookings to show.
+8. The "Published" result page shows a signed-out header.
+9. **Admin pages were slow during the recording:** about 25 s per save or navigation on renoxium.com for a while.
+10. **ChatGPT behaviour to expect:**
+    - web-search images and links in its answers (dribbble.com, etsy.com and others), captioned in the videos;
+    - "Chat memory full" on the free plan, after which you start a new chat and name the app;
+    - occasional "Which option do you prefer?" comparisons.
+
+### Still open
+
+- **Lesson 12:** refunds, capture and release need a Stripe test account (or the local server with fakes).
+- **Lesson 16:** a refused definition, an old base version, the plan's app limit, a Connections refusal and a failed
+  scheduled job need staging on the local e2e server.
+- **Lesson 11:** moving a booking in the calendar.
+- **Arabic captions** need a native speaker's check.
+- **Hosting.** Before the website PR, decide where the video files are hosted.
