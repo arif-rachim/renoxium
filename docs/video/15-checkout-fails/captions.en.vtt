@@ -1,0 +1,21 @@
+WEBVTT
+
+1
+00:00:00.500 --> 00:00:14.500
+Ask it to read the logs and test a card checkout
+
+2
+00:00:14.500 --> 00:00:41.800
+Card payments are off; the preview test uses a simulator
+
+3
+00:00:41.800 --> 00:00:48.300
+Before switching it on: ask one more question
+
+4
+00:00:48.800 --> 00:01:16.970
+Stripe not verified: keep cards off until it is connected
+
+5
+00:01:16.970 --> 00:01:30.200
+Payments: connect Stripe first, then switch cards on
