@@ -805,7 +805,7 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 {{define "appbottom"}}</main></div>
 <script>(function(){var m=document.querySelector(".appmain");if(!m||!("zoom" in m.style))return;
 function over(){if(m.scrollHeight>m.clientHeight+2)return true;var q=m.querySelectorAll(".bcell,.grow,.fill,.tcard"),i,e;for(i=0;i<q.length;i++){e=q[i];if(e.hasAttribute("data-long")||e.classList.contains("tablebox"))continue;if(e.scrollHeight>e.clientHeight+2)return true}return false}
-function fit(){m.style.zoom="";if(innerWidth<1000||innerHeight<600)return;var z=parseFloat(getComputedStyle(m).zoom)||1;while(z>.74&&over()){z=Math.round((z-.03)*100)/100;m.style.zoom=z}}
+function fit(){m.style.zoom="";if(innerWidth<1000||innerHeight<600||m.querySelector("[data-scrollpage]"))return;var z=parseFloat(getComputedStyle(m).zoom)||1;while(z>.74&&over()){z=Math.round((z-.03)*100)/100;m.style.zoom=z}}
 fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})()</script></body></html>{{end}}
 {{define "sidenav"}}<aside class="sidenav" id="sidemenu" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else if not .SingleApp}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
 <nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
@@ -1522,7 +1522,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 ` + galleryCopyScript + `
 <div class="pagehead"><div><h1>Templates</h1><p class="sub">Finished websites you can start from. Try a demo, then choose Use this template to get your own copy on a private preview at once.</p></div>
 <div class="acts"><a class="button secondary" href="/connect">How to connect</a></div></div>
-<div class="tcards bento fill">` + galleryCardsHTML + `</div>
+<div class="tcards" data-scrollpage>` + galleryCardsHTML + `</div>
 {{template "appbottom"}}{{end}}
 
 {{define "connect_body"}}<div class="card connect fill bcell">{{range .Blocks}}{{if eq .Kind "h1"}}<h1>{{.Text}}</h1>
