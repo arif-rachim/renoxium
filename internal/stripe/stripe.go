@@ -291,7 +291,10 @@ func (c *Client) CreateCheckout(ctx context.Context, account string, p CheckoutP
 	}
 	if p.Hold {
 		form.Set("payment_intent_data[capture_method]", "manual")
-		form.Set("payment_method_types[0]", "card")
+		// allowed_payment_method_types, not payment_method_types: Stripe
+		// refuses the latter from API version 2026-09-30.endive on, and
+		// older versions accept the former too.
+		form.Set("allowed_payment_method_types[0]", "card")
 	}
 	var s Session
 	return s, c.do(ctx, http.MethodPost, "/v1/checkout/sessions", account, form, &s)
@@ -689,7 +692,7 @@ func (c *Client) BillingPortal(ctx context.Context, customer, returnURL string) 
 func (c *Client) SetupCheckout(ctx context.Context, customer, successURL, cancelURL string, metadata map[string]string) (string, error) {
 	form := url.Values{
 		"mode": {"setup"}, "customer": {customer}, "success_url": {successURL}, "cancel_url": {cancelURL},
-		"payment_method_types[0]": {"card"},
+		"allowed_payment_method_types[0]": {"card"}, // see Checkout: payment_method_types is refused by newer API versions
 	}
 	for k, v := range metadata {
 		form.Set("metadata["+k+"]", v)

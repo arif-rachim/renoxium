@@ -29,7 +29,7 @@ func TestHoldCaptureAndRelease(t *testing.T) {
 	var got captured
 	c := fake(t, 200, `{"id":"cs_1","url":"https://checkout.stripe.com/c/pay/cs_1"}`, &got)
 	c.CreateCheckout(context.Background(), "acct_m", CheckoutParams{Currency: "aed", Items: []LineItem{{Name: "Deposit", Amount: 100000, Quantity: 1}}, Hold: true})
-	if got.form.Get("payment_intent_data[capture_method]") != "manual" || got.form.Get("payment_method_types[0]") != "card" {
+	if got.form.Get("payment_intent_data[capture_method]") != "manual" || got.form.Get("allowed_payment_method_types[0]") != "card" {
 		t.Fatalf("%v", got.form)
 	}
 	c = fake(t, 200, `{"id":"pi_1","status":"succeeded","amount_received":30000}`, &got)

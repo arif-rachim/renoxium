@@ -353,7 +353,7 @@ func TestLiveRefundsAndHoldsThroughStripe(t *testing.T) {
 	// A card hold: authorise, then capture part of it with the fee on what is taken.
 	do(t, p, "POST", host, "/buy", url.Values{"hold": {"1"}})
 	s := fs.sessions[len(fs.sessions)-1]
-	if s.Get("payment_intent_data[capture_method]") != "manual" || s.Get("payment_method_types[0]") != "card" || s.Get("payment_intent_data[application_fee_amount]") != "1000" {
+	if s.Get("payment_intent_data[capture_method]") != "manual" || s.Get("allowed_payment_method_types[0]") != "card" || s.Get("payment_intent_data[application_fee_amount]") != "1000" {
 		t.Fatalf("hold session: %v", s)
 	}
 	fs.intents["pi_hold"] = map[string]any{"id": "pi_hold", "status": "requires_capture", "amount": 50000, "amount_capturable": 50000,
