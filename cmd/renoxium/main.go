@@ -234,8 +234,6 @@ func main() {
 	if ops := strings.TrimSpace(os.Getenv("RENOXIUM_OPERATORS")); ops != "" {
 		site.Operators = strings.Split(ops, ",")
 	}
-	// STRIPE_PRICE_PRO and STRIPE_PRICE_BUSINESS, of the former account
-	// plans, are no longer read.
 	site.Billing = web.Billing{Stripe: cfg.Stripe,
 		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET"), PriceWorkApp: os.Getenv("STRIPE_PRICE_WORK_APP"),
 		PriceWorkSeat: os.Getenv("STRIPE_PRICE_WORK_SEAT")}

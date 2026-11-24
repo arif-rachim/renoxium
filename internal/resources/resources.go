@@ -73,8 +73,7 @@ func FromSettings(stored map[string]string) Prices {
 // App is one app as the model needs it.
 type App struct {
 	Name, Owner, OwnerEmail string
-	Plan                    string // free, pro or business
-	PaysPlan                bool   // the plan is paid through Stripe (a granted plan brings in nothing)
+	Plan                    string // free or member ("demo" for a template demo)
 	Live                    bool   // published and not suspended
 	Demo                    bool   // a template demo of the platform itself
 	Usage                   platform.Usage
@@ -108,8 +107,7 @@ type Row struct {
 	EgressGB    float64
 	StorageGB   float64
 	Cost        Cost
-	PlanRevenue float64 // the owner's plan price for the window, split over their live apps
-	FeeRevenue  float64 // Free-plan card fees
+	FeeRevenue  float64 // shop fees on the app's card payments
 	Revenue     float64
 	Margin      float64
 	CostShare   float64 // share of all apps' script time, 0..1
@@ -132,10 +130,9 @@ func (r Row) Has(key string) bool {
 
 // Input is everything Compute needs.
 type Input struct {
-	Apps      []App // every app, idle ones too, so plan revenue is split correctly
-	Days      float64
-	Prices    Prices
-	PlanPrice map[string]int // AED a month per plan
+	Apps   []App // every app, idle ones too
+	Days   float64
+	Prices Prices
 }
 
 const gb = 1 << 30
@@ -153,20 +150,11 @@ const (
 
 // Compute works out cost, revenue, margin and flags for every app.
 //
-// Revenue is apportioned this way: an owner's plan price for the window
-// (monthly price × days ÷ 30, only for plans paid through Stripe) is split
-// equally over the owner's live apps, or over all of their apps when none
-// is live; an app's Free-plan card fees are its own.
+// An app's revenue is the shop fees on its own card payments; account plans
+// cost nothing.
 func Compute(in Input) []Row {
 	days := math.Max(in.Days, 1.0/24)
 	pr := in.Prices
-	liveApps, allApps := map[string]int{}, map[string]int{}
-	for _, a := range in.Apps {
-		allApps[a.Owner]++
-		if a.Live {
-			liveApps[a.Owner]++
-		}
-	}
 	rows := make([]Row, len(in.Apps))
 	var totalScript float64
 	for i, a := range in.Apps {
@@ -183,17 +171,8 @@ func Compute(in Input) []Row {
 		r.Cost.Email = float64(u.Emails) * pr.Email
 		r.Cost.Realtime = float64(u.RTConnSec) / 3600 * pr.RTConnHour
 		r.Cost.Total = r.Cost.CPU + r.Cost.Storage + r.Cost.Egress + r.Cost.WhatsApp + r.Cost.Email + r.Cost.Realtime
-		if a.PaysPlan && !a.Demo {
-			price := float64(in.PlanPrice[a.Plan]) * days / 30
-			switch {
-			case liveApps[a.Owner] > 0 && a.Live:
-				r.PlanRevenue = price / float64(liveApps[a.Owner])
-			case liveApps[a.Owner] == 0:
-				r.PlanRevenue = price / float64(allApps[a.Owner])
-			}
-		}
 		r.FeeRevenue = a.CardFeesAED
-		r.Revenue = r.PlanRevenue + r.FeeRevenue
+		r.Revenue = r.FeeRevenue
 		r.Margin = r.Revenue - r.Cost.Total
 		r.Incidents = u.Timeouts + u.MemKills
 		totalScript += float64(u.ScriptUS)

@@ -133,7 +133,7 @@ func (s *Site) resourceData(ctx context.Context, w resWindow) (*resourceData, er
 		}
 		perApp[u.App].Add(u.Usage)
 	}
-	in := resources.Input{Days: d.Days, Prices: d.Prices, PlanPrice: accounts.PlanPriceAED}
+	in := resources.Input{Days: d.Days, Prices: d.Prices}
 	seen := map[string]bool{}
 	for _, a := range apps {
 		seen[a.Name] = true
@@ -144,8 +144,6 @@ func (s *Site) resourceData(ctx context.Context, w resWindow) (*resourceData, er
 		if app.Plan == "" {
 			app.Plan = accounts.PlanFree
 		}
-		// No account plan is paid for (accounts.PlanPriceAED), so no app
-		// carries a share of one: PaysPlan stays false.
 		if app.Demo {
 			app.Plan, app.OwnerEmail = "demo", "template demo"
 		}
@@ -606,7 +604,7 @@ func (s *Site) resourceAppTab(w http.ResponseWriter, r *http.Request, tab string
 		{Label: "Messages and calls", Value: fmtInt(int(u.Emails + u.WhatsApp)), Note: fmt.Sprintf("%d emails · %d WhatsApp · %d http.fetch · %d job runs (%s)", u.Emails, u.WhatsApp, u.Fetches, u.Jobs, resources.Seconds(u.JobUS))},
 		{Label: "Storage", Value: resources.Bytes(row.Storage.Total()), Note: "live DB " + resources.Bytes(row.Storage.LiveDB) + " · preview DB " + resources.Bytes(row.Storage.PreviewDB) + " · files " + resources.Bytes(row.Storage.Files) + " · visitor uploads " + resources.Bytes(row.Storage.Private)},
 		{Label: "Estimated cost", Value: aed2(row.Cost.Total), Note: fmt.Sprintf("CPU %s · storage %s · bandwidth %s · messages %s · realtime %s", aed2(row.Cost.CPU), aed2(row.Cost.Storage), aed2(row.Cost.Egress), aed2(row.Cost.WhatsApp+row.Cost.Email), aed2(row.Cost.Realtime))},
-		{Label: "Revenue", Value: aed2(row.Revenue), Note: "plan share " + aed2(row.PlanRevenue) + " · card fees " + aed2(row.FeeRevenue)},
+		{Label: "Revenue", Value: aed2(row.Revenue), Note: "shop fees on card payments"},
 		{Label: "Margin", Value: aed2(row.Margin), Bad: row.Margin < 0, Note: "revenue minus estimated cost"},
 	}
 	base, here := "/operator/resources/"+url.PathEscape(app), ""

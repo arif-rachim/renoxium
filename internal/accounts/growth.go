@@ -6,12 +6,6 @@ import (
 	"time"
 )
 
-// PlanPriceAED is the monthly price in AED of each paid account plan, for
-// revenue figures. There are none: an account is free or a member (a card
-// saved, which charges nothing), and apps are paid for one by one. The paid
-// periods of the former Pro and Business plans stay as history.
-var PlanPriceAED = map[string]int{}
-
 // ensureGrowth adds what the operator's funnel needs: when an account
 // first connected an agent, and its paid periods (one row per continuous
 // subscription of the former Pro and Business plans, kept as history for
