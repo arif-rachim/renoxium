@@ -154,7 +154,7 @@ func TestSetupCheckout(t *testing.T) {
 	c := fake(t, 200, `{"id":"cs_3","url":"https://checkout.stripe.com/c/pay/cs_3"}`, &got)
 	u, err := c.SetupCheckout(context.Background(), "cus_1", "https://s/ok", "https://s/no", map[string]string{"rx_user": "usr_1"})
 	if err != nil || u != "https://checkout.stripe.com/c/pay/cs_3" || got.account != "" || got.path != "/v1/checkout/sessions" ||
-		got.form.Get("mode") != "setup" || got.form.Get("customer") != "cus_1" || got.form.Get("payment_method_types[0]") != "card" ||
+		got.form.Get("mode") != "setup" || got.form.Get("customer") != "cus_1" || got.form.Get("allowed_payment_method_types[0]") != "card" ||
 		got.form.Get("success_url") != "https://s/ok" || got.form.Get("setup_intent_data[metadata][rx_user]") != "usr_1" ||
 		got.form.Get("line_items[0][price]") != "" {
 		t.Fatalf("%+v %v", got, err)

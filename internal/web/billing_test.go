@@ -170,7 +170,7 @@ func TestBilling(t *testing.T) {
 		t.Fatalf("card checkout: %d %s", r.StatusCode, r.Header.Get("Location"))
 	}
 	co := fb.checkouts[0]
-	if co.Get("mode") != "setup" || co.Get("customer") != "cus_1" || co.Get("payment_method_types[0]") != "card" || co.Get("line_items[0][price]") != "" ||
+	if co.Get("mode") != "setup" || co.Get("customer") != "cus_1" || co.Get("allowed_payment_method_types[0]") != "card" || co.Get("line_items[0][price]") != "" ||
 		co.Get("success_url") != e.base+"/billing?done=1" || co.Get("cancel_url") != e.base+"/billing" {
 		t.Fatalf("checkout session: %v", co)
 	}
