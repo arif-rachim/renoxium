@@ -60,9 +60,12 @@ func (c Card) Expires() time.Time {
 const planSQL = `CASE WHEN (coalesce(b.status, '') = 'granted' AND coalesce(b.plan, 'free') != 'free') OR coalesce(b.card_exp, 0) > ? THEN 'member' ELSE 'free' END`
 
 func (s *Store) ensureBilling() error {
+	// Databases from before card membership also have the columns
+	// subscription, period_end and cancel_at_period_end of the former paid
+	// plans. Nothing reads or writes them; they stay so that the previous
+	// release still runs on this database if it has to be rolled back.
 	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS billing (user_id TEXT PRIMARY KEY REFERENCES users(id), customer TEXT UNIQUE,
-		plan TEXT NOT NULL DEFAULT 'free', status TEXT NOT NULL DEFAULT '', subscription TEXT NOT NULL DEFAULT '',
-		period_end INTEGER NOT NULL DEFAULT 0, cancel_at_period_end INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`); err != nil {
+		plan TEXT NOT NULL DEFAULT 'free', status TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`); err != nil {
 		return err
 	}
 	for _, col := range []string{`card_brand TEXT NOT NULL DEFAULT ''`, `card_last4 TEXT NOT NULL DEFAULT ''`, `card_exp INTEGER NOT NULL DEFAULT 0`} {
@@ -71,7 +74,7 @@ func (s *Store) ensureBilling() error {
 		}
 	}
 	// The Pro and Business plans are gone: their rows become members (a
-	// grant stays a grant). The subscription columns are no longer used.
+	// grant stays a grant).
 	_, err := s.db.Exec(`UPDATE billing SET plan = 'member' WHERE plan IN ('pro', 'business')`)
 	return err
 }
@@ -182,8 +185,7 @@ func (s *Store) GrantPlan(userID, plan string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO billing (user_id, plan, status, updated_at) VALUES (?, ?, ?, ?)
-		ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, status = excluded.status, subscription = '', period_end = 0,
-		cancel_at_period_end = 0, updated_at = excluded.updated_at`, userID, plan, status, s.now().UTC().Format(time.RFC3339)); err != nil {
+		ON CONFLICT (user_id) DO UPDATE SET plan = excluded.plan, status = excluded.status, updated_at = excluded.updated_at`, userID, plan, status, s.now().UTC().Format(time.RFC3339)); err != nil {
 		return err
 	}
 	// A grant closes any paid period left from the former paid plans.
