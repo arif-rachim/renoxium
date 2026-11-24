@@ -168,7 +168,6 @@ type growthView struct {
 	FeePct              int
 	Templates           []growth.TemplateRow
 	ThisMonth           string
-	Prices              map[string]int
 }
 
 // cohortParam is a sign-up month from the query ("" = all time).
@@ -180,14 +179,14 @@ func cohortParam(r *http.Request) string {
 	return ""
 }
 
-func (s *Site) growthView(r *http.Request, paying map[string]int) (*growthView, error) {
+func (s *Site) growthView(r *http.Request) (*growthView, error) {
 	ctx := r.Context()
 	owners, periods, err := s.growthData(ctx)
 	if err != nil {
 		return nil, err
 	}
 	now := s.growthNow().UTC()
-	v := &growthView{Cohort: cohortParam(r), ThisMonth: now.Format("2006-01"), FeePct: platform.FreePlanFeePercent, Prices: accounts.PlanPriceAED}
+	v := &growthView{Cohort: cohortParam(r), ThisMonth: now.Format("2006-01"), FeePct: platform.FreePlanFeePercent}
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	v.Cohorts = append(v.Cohorts, cohortLink{Label: "All time", Href: "/operator/growth", Current: v.Cohort == ""})
 	for i := 5; i >= 0; i-- {
@@ -244,7 +243,9 @@ func (s *Site) growthView(r *http.Request, paying map[string]int) (*growthView, 
 	if err != nil {
 		return nil, err
 	}
-	v.E = growth.Compute(growth.EconomicsInput{Now: now, Prices: accounts.PlanPriceAED, Paying: paying, Periods: periods,
+	// No account plan is paid for any more: MRR and paying accounts are 0,
+	// and the paid periods are the history of the former Pro and Business plans.
+	v.E = growth.Compute(growth.EconomicsInput{Now: now, Periods: periods,
 		GrossMarginPct: s.platform.GrossMargin(), Spend: spend, Months: 6})
 	v.ARPA = aed(v.E.ARPA)
 	v.Churn = "—"
@@ -326,9 +327,8 @@ func (s *Site) growthTab(w http.ResponseWriter, r *http.Request, tab string) {
 	if !ok {
 		return
 	}
-	paying := map[string]int{} // no account plan is paid for (accounts.PlanPriceAED)
 	csrf := s.csrfToken(w, r)
-	view, err := s.growthView(r, paying)
+	view, err := s.growthView(r)
 	if err != nil {
 		slog.Error("operator growth figures", "err", err)
 	} else {
