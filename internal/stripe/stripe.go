@@ -684,6 +684,57 @@ func (c *Client) BillingPortal(ctx context.Context, customer, returnURL string) 
 	return out.URL, err
 }
 
+// SetupCheckout returns a Checkout URL (mode setup) where the customer
+// saves a card for later payments. Nothing is charged.
+func (c *Client) SetupCheckout(ctx context.Context, customer, successURL, cancelURL string, metadata map[string]string) (string, error) {
+	form := url.Values{
+		"mode": {"setup"}, "customer": {customer}, "success_url": {successURL}, "cancel_url": {cancelURL},
+		"payment_method_types[0]": {"card"},
+	}
+	for k, v := range metadata {
+		form.Set("metadata["+k+"]", v)
+		form.Set("setup_intent_data[metadata]["+k+"]", v)
+	}
+	var out struct {
+		URL string `json:"url"`
+	}
+	err := c.do(ctx, http.MethodPost, "/v1/checkout/sessions", "", form, &out)
+	return out.URL, err
+}
+
+// PaymentMethod is the part of a card payment method Renoxium needs.
+type PaymentMethod struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Customer string `json:"customer"`
+	Card     struct {
+		Brand    string `json:"brand"`
+		Last4    string `json:"last4"`
+		ExpMonth int    `json:"exp_month"`
+		ExpYear  int    `json:"exp_year"`
+	} `json:"card"`
+}
+
+// Expires is the first moment the card no longer works: the start of the
+// month after its expiry month, UTC. Zero when the expiry is unknown.
+func (pm PaymentMethod) Expires() time.Time {
+	if pm.Card.ExpYear == 0 || pm.Card.ExpMonth < 1 || pm.Card.ExpMonth > 12 {
+		return time.Time{}
+	}
+	return time.Date(pm.Card.ExpYear, time.Month(pm.Card.ExpMonth)+1, 1, 0, 0, 0, 0, time.UTC)
+}
+
+// CardPaymentMethods lists the cards saved on a customer of the platform
+// account.
+func (c *Client) CardPaymentMethods(ctx context.Context, customer string) ([]PaymentMethod, error) {
+	var out struct {
+		Data []PaymentMethod `json:"data"`
+	}
+	err := c.do(ctx, http.MethodGet, "/v1/customers/"+url.PathEscape(customer)+"/payment_methods", "",
+		url.Values{"type": {"card"}, "limit": {"20"}}, &out)
+	return out.Data, err
+}
+
 // Charge is the part of a charge Renoxium needs for refunds.
 type Charge struct {
 	ID             string `json:"id"`
@@ -701,6 +752,9 @@ type Event struct {
 	Account string `json:"account"`
 	Data    struct {
 		Object json.RawMessage `json:"object"`
+		// PreviousAttributes holds the fields an update changed, with their
+		// old values (payment_method.detached: the customer it left).
+		PreviousAttributes json.RawMessage `json:"previous_attributes"`
 	} `json:"data"`
 }
 

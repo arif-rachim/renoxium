@@ -65,10 +65,10 @@ func (p *Platform) CustomDomainsAvailable() bool {
 }
 
 // CustomDomainAllowed reports whether the app may have its own domain: shops,
-// work apps and apps of accounts on a paid or granted plan. A static site
-// keeps its Renoxium address.
+// work apps and apps of granted accounts. A static site keeps its Renoxium
+// address, on a member's account too.
 func (p *Platform) CustomDomainAllowed(app string) bool {
-	if p.cfg.OwnerPlan == nil || p.planOf(p.ownerOf(app)) != planFree {
+	if p.cfg.OwnerPlan == nil || p.granted(app) {
 		return true
 	}
 	return p.appKind(app) != ""

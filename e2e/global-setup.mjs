@@ -19,7 +19,7 @@ export default async function globalSetup() {
   execFileSync(go, ['build', '-o', bin, './cmd/renoxium'], { cwd: path.join(here, '..'), stdio: 'inherit' });
 
   const fakes = await startFakes({ port: FAKES_PORT, renoxiumURL: RENOXIUM, webhookSecret: SECRETS.webhook,
-    billingWebhookSecret: SECRETS.billingWebhook, pricePro: SECRETS.pricePro, priceBusiness: SECRETS.priceBusiness });
+    billingWebhookSecret: SECRETS.billingWebhook });
 
   // The agent's OAuth callback: a page that only says it was reached.
   const callback = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('callback'); });
@@ -29,6 +29,8 @@ export default async function globalSetup() {
     PATH: process.env.PATH, HOME: process.env.HOME,
     RESEND_API_KEY: 're_e2e', RESEND_API_URL: `${FAKES}/resend/emails`,
     STRIPE_SECRET_KEY: 'sk_test_e2e', STRIPE_API_BASE: `${FAKES}/stripe`, STRIPE_WEBHOOK_SECRET: SECRETS.webhook,
+    // The prices of the former Pro and Business plans are still set in
+    // production; Renoxium no longer reads them.
     STRIPE_PRICE_PRO: SECRETS.pricePro, STRIPE_PRICE_BUSINESS: SECRETS.priceBusiness, STRIPE_PRICE_WORK_APP: SECRETS.priceWorkApp, STRIPE_BILLING_WEBHOOK_SECRET: SECRETS.billingWebhook,
     WHATSAPP_TOKEN: 'wa_e2e', WHATSAPP_PHONE_NUMBER_ID: '100200300', WHATSAPP_OTP_TEMPLATE: 'login_code',
     WHATSAPP_NOTICE_TEMPLATE: 'owner_notice', WHATSAPP_NOTICE_LANGUAGE: 'en', WHATSAPP_API_BASE: `${FAKES}/meta`,

@@ -94,14 +94,19 @@ func (p *Platform) ExportApp(ctx context.Context, app string, zw *zip.Writer) er
 	if err := add("app.json", info); err != nil {
 		return err
 	}
-	// A paid account's export, or a paid work app's, may run on its owner's
-	// own server: it carries a licence signed by this server
-	// (internal/licence). A work app's licence gives the Pro plan there.
+	// A granted account's export, or a paid work app's, may run on its
+	// owner's own server: it carries a licence signed by this server
+	// (internal/licence). A shop's does not: it would no longer pay the shop
+	// fee. The licence names the former plans ("business" for a grant, "pro"
+	// for a work app) so that self-hosted servers of any version accept it.
 	if p.cfg.LicenceKey != nil {
 		owner := p.ownerOf(app)
-		plan := p.planOf(owner)
-		if !licence.SelfHostPlans[plan] && p.workPaid(app) {
-			plan = planPro
+		plan := ""
+		switch {
+		case p.planOf(owner) == planGranted:
+			plan = "business"
+		case p.workPaid(app):
+			plan = "pro"
 		}
 		if licence.SelfHostPlans[plan] {
 			email := ""

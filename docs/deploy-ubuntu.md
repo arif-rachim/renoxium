@@ -145,27 +145,30 @@ set. Without `STRIPE_SECRET_KEY`, live apps cannot take card payments; previews 
 Without the webhook secret, payments are taken but orders are not marked paid. Move to live keys only after
 testing a full payment in the sandbox, and create the live webhook the same way.
 
-### Renoxium plans: shops, work apps and granted plans (optional)
+### Renoxium billing: cards on file, shops, work apps and grants (optional)
 
 Each app is paid for by what it does. A static site is free. A shop pays a 2% Renoxium fee on its card
 payments (taken by Stripe as an application fee). A work app has its own AED 99 monthly subscription on the
 Renoxium platform's own Stripe account, bought on the app's Plan page; when it ends, the app is paused. An
-operator can grant an account the Pro or Business plan (the agreed price for larger businesses), which covers
-every app. Owners see their apps' plans at `/billing`.
+account is free (3 apps) until its owner saves a card at `/billing` (Stripe Checkout in setup mode, nothing is
+charged), which makes it a member (50 apps, higher limits); members pay for their apps like everyone else. An
+operator can grant an account membership by agreement (larger businesses), which covers every app. Owners see
+their apps' plans at `/billing`.
 
 In the Stripe Dashboard of the platform account (start in the sandbox):
 
 1. **Product catalog:** create the product "Renoxium work app" with a recurring monthly price of AED 99, and
    the product "Renoxium work app staff" with a recurring monthly price of AED 25 (one per staff member beyond
-   the five included). Copy both price IDs (`price_...`). Accounts that already pay for "Renoxium Pro" or "Renoxium Business"
-   (AED 99 and AED 299 a month) keep them; set those price IDs too so their subscriptions are recognised.
-2. **Settings, Billing, Customer portal:** activate it. Allow updating payment methods, viewing invoices,
-   and cancelling.
+   the five included). Copy both price IDs (`price_...`). The former Pro and Business prices are no longer used.
+2. **Settings, Billing, Customer portal:** activate it. Allow updating (adding, replacing and removing) payment
+   methods, viewing invoices, and cancelling.
 3. **Developers, Webhooks:** add a second endpoint, separate from the payments one:
    - URL: `https://www.renoxium.com/stripe/billing-webhook`
    - Listen to: **Events on your account**
    - Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
-     `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`
+     `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`,
+     and for saved cards `setup_intent.succeeded`, `payment_method.attached`, `payment_method.detached`,
+     `payment_method.updated`, `payment_method.automatically_updated`, `customer.updated`
    Copy its signing secret.
 
 Add them to `/etc/renoxium/env` and restart:
@@ -174,31 +177,30 @@ Add them to `/etc/renoxium/env` and restart:
 sudo tee -a /etc/renoxium/env >/dev/null <<'ENV'
 STRIPE_PRICE_WORK_APP=price_your_work_app_price
 STRIPE_PRICE_WORK_SEAT=price_your_work_app_staff_price
-STRIPE_PRICE_PRO=price_your_pro_price
-STRIPE_PRICE_BUSINESS=price_your_business_price
 STRIPE_BILLING_WEBHOOK_SECRET=whsec_your_billing_secret
 ENV
 ```
 
 ```bash
-sudo systemctl restart renoxium && sudo journalctl -u renoxium -n 30 --no-pager | grep -i plans
+sudo systemctl restart renoxium && sudo journalctl -u renoxium -n 30 --no-pager | grep -i billing
 ```
 
-The log line `Renoxium plans` must show the work app price, the work app staff price and the webhook secret as
+The log line `Renoxium billing` must show the work app price, the work app staff price and the webhook secret as
 set. Without the staff price a work app keeps to its five included staff. Subscription revenue appears in Stripe under
 Billing, Subscriptions; the 2% fees under Connect, Collected fees.
 
-To give an account a plan without payment (your own account, partners, trials):
+To make an account a member by agreement (your own account, partners, trials: no shop fee, no work app
+subscription):
 
 ```bash
-sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com business
+sudo /opt/renoxium/renoxium -data /var/lib/renoxium plan owner@example.com member
 ```
 
 `plan EMAIL free` removes such a grant.
 
 ### Licences for self-hosted apps
 
-Owners of a paid work app, or on Pro or Business, can run it on their own server ([docs/self-host.md](self-host.md)). Their
+Owners of a paid work app, or of an account by agreement with Renoxium, can run it on their own server ([docs/self-host.md](self-host.md)). Their
 export then carries a `licence.json` signed with Renoxium's licence key, which the self-hosted server checks
 offline. Set the key's seed in `/etc/renoxium/env` and restart:
 
@@ -255,7 +257,7 @@ To list Renoxium in ChatGPT's app directory, OpenAI asks for a domain check and 
    echo 'OPENAI_APPS_CHALLENGE=the-token' | sudo tee -a /etc/renoxium/env >/dev/null && sudo systemctl restart renoxium
    ```
 
-2. Create the reviewers' account: confirmed, on the Business plan, with the store-uae example published
+2. Create the reviewers' account: confirmed, a member by grant, with the store-uae example published
    as `reviewer-shop`. It prints a new password each time it runs; give the email and password to OpenAI.
 
    ```bash
@@ -360,7 +362,7 @@ When it prints `OK`, restart Renoxium so live apps offer "Sign in with WhatsApp"
 sudo systemctl restart renoxium
 ```
 
-Every code is a paid WhatsApp message. Renoxium allows three codes per number per 15 minutes, and each account's live apps may send 50 (Free), 500 (Pro) or 2,000 (Business) codes per calendar month; past that, sign-in pages offer email only and the owner gets one email. Without
+Every code is a paid WhatsApp message. Renoxium allows three codes per number per 15 minutes, and each account's live apps may send 50 (free limits) or 2,000 (member limits) codes per calendar month; past that, sign-in pages offer email only and the owner gets one email. Without
 the three required settings, WhatsApp sign-in is off on live apps; previews always offer it and write
 the code to the app log instead of sending it.
 
@@ -492,7 +494,7 @@ replace `renoxium.com` with `www.renoxium.com`.
 
 ### Store owners' own domains (optional)
 
-Owners on Pro and Business can serve their app on a domain they own, such as `www.oudshop.ae`, from
+Owners of a shop or a work app (or of an account by agreement) can serve their app on a domain they own, such as `www.oudshop.ae`, from
 **Domain** on the app's page. Renoxium registers the domain as a Cloudflare for SaaS custom hostname
 on the `renoxium.app` zone; Cloudflare issues the certificate, and the request reaches this server
 through the tunnel. The tunnel configuration above ends with a catch-all to Renoxium for this reason.

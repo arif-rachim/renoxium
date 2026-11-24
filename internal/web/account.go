@@ -162,7 +162,7 @@ func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.cancelSubscriptions(r.Context(), u.ID); err != nil {
 		slog.Error("cancel subscription before delete", "user", u.ID, "err", err)
-		s.renderAccount(w, r, u, http.StatusServiceUnavailable, map[string]any{"DeleteError": "Your paid plan could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
+		s.renderAccount(w, r, u, http.StatusServiceUnavailable, map[string]any{"DeleteError": "Your work app subscriptions could not be cancelled at Stripe, so nothing was deleted. Try again in a minute."})
 		return
 	}
 	apps, err := s.platform.Apps(u.ID)
@@ -195,12 +195,9 @@ func (s *Site) cancelSubscriptions(ctx context.Context, userID string) error {
 		return err
 	}
 	if s.Billing.Stripe == nil {
-		if b.Plan != accounts.PlanFree && b.Status != accounts.StatusGranted {
-			return errors.New("billing is not configured on this server")
-		}
-		return nil
+		return nil // nothing could have been subscribed on this server
 	}
-	subs, err := s.Billing.Stripe.Subscriptions(ctx, b.Customer) // the account's plan and its work apps
+	subs, err := s.Billing.Stripe.Subscriptions(ctx, b.Customer) // its work apps, and any left from the former plans
 	if err != nil {
 		return err
 	}

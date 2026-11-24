@@ -6,18 +6,18 @@ import (
 	"time"
 )
 
-// Plan prices in AED per month, shown on the billing page and used for
-// revenue figures. Stripe charges what its price objects say; keep these
-// in step with STRIPE_PRICE_PRO and STRIPE_PRICE_BUSINESS.
-var PlanPriceAED = map[string]int{PlanPro: 99, PlanBusiness: 299}
+// PlanPriceAED is the monthly price in AED of each paid account plan, for
+// revenue figures. There are none: an account is free or a member (a card
+// saved, which charges nothing), and apps are paid for one by one. The paid
+// periods of the former Pro and Business plans stay as history.
+var PlanPriceAED = map[string]int{}
 
 // ensureGrowth adds what the operator's funnel needs: when an account
 // first connected an agent, and its paid periods (one row per continuous
-// paid subscription, for churn and retention). Both are backfilled from
-// what is already stored: agent tokens still held (their issue time is
-// recovered from the refresh expiry, so it is the latest grant, not
-// necessarily the first) and accounts paying now (start = last billing
-// change).
+// subscription of the former Pro and Business plans, kept as history for
+// churn and retention). The first is backfilled from agent tokens still
+// held (their issue time is recovered from the refresh expiry, so it is the
+// latest grant, not necessarily the first).
 func (s *Store) ensureGrowth() error {
 	if _, err := s.db.Exec(`ALTER TABLE users ADD COLUMN agent_connected_at TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		return err
@@ -36,21 +36,12 @@ func (s *Store) ensureGrowth() error {
 		int64(RefreshTokenTTL.Seconds())); err != nil {
 		return err
 	}
-	_, err := s.db.Exec(`INSERT INTO paid_periods (user_id, plan, started_at) SELECT user_id, plan, updated_at FROM billing b
-		WHERE plan != 'free' AND status != ? AND NOT EXISTS (SELECT 1 FROM paid_periods p WHERE p.user_id = b.user_id)`, StatusGranted)
-	return err
+	return nil
 }
 
 // recordAgent notes the first time an account's agent got tokens.
 func (s *Store) recordAgent(tx *sql.Tx, userID string) error {
 	_, err := tx.Exec(`UPDATE users SET agent_connected_at = ? WHERE id = ? AND agent_connected_at IS NULL`, s.now().UTC().Format(time.RFC3339), userID)
-	return err
-}
-
-// recordPaid opens a paid period, or keeps the open one with the new plan.
-func (s *Store) recordPaid(tx *sql.Tx, userID, plan string) error {
-	_, err := tx.Exec(`INSERT INTO paid_periods (user_id, plan, started_at) VALUES (?, ?, ?)
-		ON CONFLICT (user_id) WHERE ended_at IS NULL DO UPDATE SET plan = excluded.plan`, userID, plan, s.now().UTC().Format(time.RFC3339))
 	return err
 }
 
@@ -69,7 +60,7 @@ type GrowthAccount struct {
 // GrowthAccounts lists every account with its funnel timestamps.
 func (s *Store) GrowthAccounts() ([]GrowthAccount, error) {
 	rows, err := s.db.Query(`SELECT u.id, u.email, u.created_at, coalesce(u.verified_at, ''), coalesce(u.agent_connected_at, ''),
-		coalesce(b.plan, 'free'), coalesce(b.status, '') FROM users u LEFT JOIN billing b ON b.user_id = u.id`)
+		`+planSQL+`, coalesce(b.status, '') FROM users u LEFT JOIN billing b ON b.user_id = u.id`, s.now().Unix())
 	if err != nil {
 		return nil, err
 	}

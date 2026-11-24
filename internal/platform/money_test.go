@@ -512,12 +512,12 @@ func TestLiveSubscriptionThroughStripe(t *testing.T) {
 }
 
 func TestSubscriptionFeeFollowsThePlan(t *testing.T) {
-	p, fs, host := liveMoneyShop(t, "pro")
+	p, fs, host := liveMoneyShop(t, "granted")
 	buyer := liveBuyer(t, p, host)
 	do(t, p, "POST", host, "/subscribe", url.Values{})
 	s := fs.sessions[len(fs.sessions)-1]
 	if s.Get("mode") != "subscription" || s.Get("subscription_data[application_fee_percent]") != "" {
-		t.Fatalf("pro plan subscription: %v", s)
+		t.Fatalf("granted account's subscription: %v", s)
 	}
 	// Refunds of payments without a platform fee do not ask Stripe to refund one.
 	do(t, p, "POST", host, "/buy", url.Values{})

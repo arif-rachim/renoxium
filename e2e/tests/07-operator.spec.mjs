@@ -1,5 +1,5 @@
 // The operator panel: only for confirmed operator accounts; figures, search,
-// giving a plan without payment, suspending and bringing back an app, abuse
+// granting membership without a card, suspending and bringing back an app, abuse
 // reports.
 import { test, expect } from '@playwright/test';
 import { OPERATOR } from '../env.mjs';
@@ -37,13 +37,13 @@ test('operator panel', async ({ browser }) => {
   await search('Accounts');
   await expect(page.locator('table').first()).toContainText(shop.email);
 
-  // Give Pro without payment: the owner sees it, and it survives a billing sync.
+  // Grant membership without a card: the owner sees it, and it survives a billing sync.
   const userRow = page.locator('tr', { hasText: shop.email }).first();
-  await userRow.locator('select[name=plan]').selectOption('pro');
+  await userRow.locator('select[name=plan]').selectOption('member');
   await userRow.getByRole('button', { name: 'Set' }).click();
-  await expect(page.locator('tr', { hasText: shop.email }).first()).toContainText('pro granted');
+  await expect(page.locator('tr', { hasText: shop.email }).first()).toContainText('member granted');
   await shop.page.goto('/billing?done=1');
-  await expect(shop.page.locator('body')).toContainText('Current plan: Pro');
+  await expect(shop.page.locator('body')).toContainText('Your account: Member by agreement');
 
   // Suspend: the shop answers 451 with a notice; bring it back.
   await search('Apps');
@@ -94,12 +94,12 @@ test('operator panel', async ({ browser }) => {
   await expect(page.locator('.sidenav a[aria-current]')).toHaveText('Growth');
   await page.goto('/operator');
 
-  // Back to Free removes the grant.
+  // No grant: free again.
   await search('Accounts');
   const row = page.locator('tr', { hasText: shop.email }).first();
   await row.locator('select[name=plan]').selectOption('free');
   await row.getByRole('button', { name: 'Set' }).click();
   await shop.page.goto('/billing');
-  await expect(shop.page.locator('body')).toContainText('Current plan: Pay per app');
+  await expect(shop.page.locator('body')).toContainText('Your account: Free');
   expect(PASSWORD).toBeTruthy();
 });

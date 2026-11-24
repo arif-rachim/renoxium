@@ -39,12 +39,14 @@ var PublicKeys = []string{
 
 // Errors.
 var (
-	ErrUnsigned = errors.New("this export has no licence for running it on your own server; export it again from a paid work app or a Pro or Business account")
+	ErrUnsigned = errors.New("this export has no licence for running it on your own server; export it again from a paid work app or an account by agreement with Renoxium")
 	ErrBadSig   = errors.New("the licence in this export is not signed by Renoxium")
-	ErrPlan     = errors.New("running an app on your own server needs a paid work app or the Pro or Business plan")
+	ErrPlan     = errors.New("running an app on your own server needs a paid work app or an agreement with Renoxium")
 )
 
 // SelfHostPlans are the plans whose exports may run on the owner's server.
+// Licences keep the former plan names: "business" for an account by
+// agreement with Renoxium, "pro" for a paid work app.
 var SelfHostPlans = map[string]bool{"pro": true, "business": true}
 
 // Sign returns licence.json for l, signed with key.

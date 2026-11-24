@@ -18,11 +18,8 @@ type ownerShell struct {
 }
 
 func planName(plan string) string {
-	switch plan {
-	case accounts.PlanPro:
-		return "Pro"
-	case accounts.PlanBusiness:
-		return "Business"
+	if plan == accounts.PlanMember {
+		return "Member"
 	}
 	return "Free"
 }
@@ -109,7 +106,7 @@ func appPlanRows(p *platform.Platform, apps []platform.AppInfo) []appPlanRow {
 		row := appPlanRow{App: a.App, Ready: pl.Ready}
 		switch {
 		case pl.Included:
-			row.Label, row.Status = "Included", "covered by your plan"
+			row.Label, row.Status = "Included", "covered by your agreement"
 		case pl.Static:
 			row.Label, row.Status = "Static site", "free"
 		case pl.Kind == platform.KindShop:
@@ -131,9 +128,9 @@ func appPlanRows(p *platform.Platform, apps []platform.AppInfo) []appPlanRow {
 
 // billingNotices are the messages /billing shows after a redirect.
 var billingNotices = map[string]string{
-	"granted":     "Your plan was given to you by Renoxium, so there is no card, invoice or subscription to manage.",
-	"no-customer": "There is no Stripe subscription on this account yet, so there is nothing to manage. To subscribe, make an app a work app on its Plan page.",
-	"unavailable": "Subscriptions are not available yet. Try again later.",
+	"granted":     "Your membership was given to you by Renoxium, so there is no card, invoice or subscription to manage.",
+	"no-customer": "There is no card or subscription on this account yet, so there is nothing to manage. Save a card above, or make an app a work app on its Plan page.",
+	"unavailable": "Cards and subscriptions are not available yet. Try again later.",
 }
 
 const ownerTemplates = `
@@ -145,7 +142,7 @@ const ownerTemplates = `
 body.own .sidenav .who{display:flex;gap:10px;align-items:center}body.own .sidenav .who .id{min-width:0}
 body.own .sidenav .who strong{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .avatar{flex:none;width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--fg);color:var(--bg);font-weight:600;text-transform:uppercase}
-.pill.plan-pro,.pill.plan-business{background:var(--sun-soft);border-color:transparent}.pill.plan-pro::before,.pill.plan-business::before{background:var(--sun)}a.pill{text-decoration:none}
+.pill.plan-member{background:var(--sun-soft);border-color:transparent}.pill.plan-member::before{background:var(--sun)}a.pill{text-decoration:none}
 .signout button{width:100%;margin-top:22px;font-size:14px;padding:8px 12px}
 @media(max-width:999px){body.own .sidenav .who .id{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.signout button{width:auto;margin:10px 0 0;padding:6px 12px}}
 .panel h2{font-size:16px}.panel .ph h2{margin:0}.panel p:last-child{margin-bottom:0}

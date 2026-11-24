@@ -175,8 +175,8 @@ test('cash-on-delivery orders reach the owner on WhatsApp too; notices can be tu
   expect(wa.params.join(' ')).toContain('New order');
 
   await shop.page.goto(`/apps/${shop.app}/notifications`);
-  // The shop's Stripe account takes payments, so it has the Pro limits: 500 WhatsApp messages.
-  await expect(shop.page.locator('body')).toContainText(/[1-9]\d* of 500 used this month/);
+  // The shop's Stripe account takes payments, so it has the member limits: 2,000 WhatsApp messages.
+  await expect(shop.page.locator('body')).toContainText(/[1-9]\d* of 2000 used this month/);
   await shop.page.getByRole('button', { name: 'Turn off WhatsApp notices' }).click();
   await expect(shop.page.locator('#phone')).toBeVisible();
 });

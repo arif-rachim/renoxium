@@ -15,7 +15,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 
-export function startFakes({ port = 0, renoxiumURL, webhookSecret, billingWebhookSecret, pricePro, priceBusiness }) {
+export function startFakes({ port = 0, renoxiumURL, webhookSecret, billingWebhookSecret }) {
   const state = {
     emails: [], whatsapp: [], stripeCalls: [], apiCalls: [],
     accounts: new Map(),      // acct_ → { id, email, country, charges_enabled, details_submitted }
@@ -23,6 +23,7 @@ export function startFakes({ port = 0, renoxiumURL, webhookSecret, billingWebhoo
     sessions: new Map(),      // cs_ → session
     customers: new Map(),     // cus_ → { id, email, metadata }
     subscriptions: new Map(), // sub_ → subscription
+    paymentMethods: new Map(), // pm_ → { id, customer, card: { brand, last4, exp_month, exp_year } }
     portals: new Map(),       // bps_ → { customer, return_url }
     hostnames: new Map(),     // cf id → hostname object
     txt: new Map(),           // DNS name → TXT value, for domain ownership proofs
@@ -45,7 +46,9 @@ export function startFakes({ port = 0, renoxiumURL, webhookSecret, billingWebhoo
     if (res.status >= 300) throw new Error(`webhook ${event.type} -> ${res.status} ${await res.text()}`);
   }
   const connectEvent = (type, account, object) => webhook('/stripe/webhook', webhookSecret, { type, account, data: { object } });
-  const billingEvent = (type, object) => webhook('/stripe/billing-webhook', billingWebhookSecret, { type, data: { object } });
+  const billingEvent = (type, object, previous) => webhook('/stripe/billing-webhook', billingWebhookSecret,
+    { type, data: previous ? { object, previous_attributes: previous } : { object } });
+  const pmJSON = (pm) => ({ id: pm.id, object: 'payment_method', type: 'card', customer: pm.customer, card: pm.card });
 
   const accountJSON = (a) => ({ id: a.id, object: 'account', email: a.email, country: a.country, default_currency: 'aed',
     charges_enabled: a.charges_enabled, payouts_enabled: a.charges_enabled, details_submitted: a.details_submitted });
@@ -107,7 +110,7 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
         s.currency = form.line_items?.[0]?.price_data?.currency;
         s.amount_total = Object.values(form.line_items || {}).reduce((t, li) => t + Number(li.price_data.unit_amount) * Number(li.quantity), 0);
         s.application_fee_amount = Number(form.payment_intent_data?.application_fee_amount || 0);
-      } else {
+      } else if (s.mode === 'subscription') {
         s.price = form.line_items?.[0]?.price;
       }
       s.url = `${base}/stripe/pages/checkout/${s.id}`;
@@ -118,6 +121,10 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
       const c = { id: id('cus'), email: form.email, metadata: form.metadata || {} };
       state.customers.set(c.id, c);
       return json(res, 200, { id: c.id, object: 'customer', email: c.email });
+    }
+    if (req.method === 'GET' && (m = path.match(/^\/v1\/customers\/(\w+)\/payment_methods$/))) {
+      const data = [...state.paymentMethods.values()].filter((pm) => pm.customer === m[1]).map(pmJSON);
+      return json(res, 200, { object: 'list', data });
     }
     if (req.method === 'GET' && path === '/v1/subscriptions') {
       const q = new URL(req.url, 'http://x').searchParams;
@@ -162,6 +169,10 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
       const s = state.sessions.get(m[1]);
       if (!s) return html(res, '<h1>No such session</h1>');
       if (req.method === 'GET') {
+        if (s.mode === 'setup') {
+          return html(res, `<h1>Save a card</h1><p>Nothing is charged now.</p><form method="post">
+<button name="do" value="save">Save card</button><button name="do" value="save_expired">Save an expired card</button><button name="do" value="back">Back</button></form>`);
+        }
         const total = s.mode === 'payment' ? `${(s.amount_total / 100).toFixed(2)} ${String(s.currency).toUpperCase()}` : s.price;
         return html(res, `<h1>Pay ${esc(total)}</h1><p id="ref">${esc(s.client_reference_id || '')}</p>
 <p id="fee">application fee: ${s.application_fee_amount ?? 0}</p><form method="post">
@@ -172,8 +183,16 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
       if (form.do === 'decline') return html(res, '<h1 id="declined">Your card was declined</h1><a href="' + esc(s.cancel_url) + '">Back to the shop</a>');
       if (form.do === 'back') return redirect(res, s.cancel_url);
       s.status = 'complete';
-      s.payment_status = 'paid';
-      if (s.mode === 'payment') {
+      s.payment_status = s.mode === 'setup' ? 'no_payment_required' : 'paid';
+      if (s.mode === 'setup') {
+        // Stripe attaches the card to the customer, then reports the setup.
+        const year = new Date().getUTCFullYear() + (form.do === 'save_expired' ? -2 : 3);
+        const pm = { id: id('pm'), customer: s.customer, card: { brand: 'visa', last4: '4242', exp_month: 12, exp_year: year } };
+        state.paymentMethods.set(pm.id, pm);
+        await billingEvent('payment_method.attached', pmJSON(pm));
+        await billingEvent('setup_intent.succeeded', { id: id('seti'), object: 'setup_intent', status: 'succeeded', customer: s.customer, payment_method: pm.id });
+        await billingEvent('checkout.session.completed', { id: s.id, object: 'checkout.session', mode: 'setup', status: 'complete', customer: s.customer, metadata: s.metadata });
+      } else if (s.mode === 'payment') {
         s.payment_intent = id('pi');
         await connectEvent('checkout.session.completed', s.account, {
           id: s.id, object: 'checkout.session', status: 'complete', payment_status: 'paid', amount_total: s.amount_total, currency: s.currency,
@@ -191,17 +210,22 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
       const p = state.portals.get(m[1]);
       if (!p) return html(res, '<h1>No such portal session</h1>');
       const sub = [...state.subscriptions.values()].reverse().find((s) => s.customer === p.customer && s.status !== 'canceled');
+      const cards = [...state.paymentMethods.values()].filter((pm) => pm.customer === p.customer);
       if (req.method === 'GET') {
         return html(res, `<h1>Billing portal</h1><p id="current">${sub ? esc(`${sub.price} ${sub.status}${sub.cancel_at_period_end ? ' cancels at period end' : ''}`) : 'no subscription'}</p>
-<form method="post"><button name="do" value="business">Switch to Business</button><button name="do" value="pro">Switch to Pro</button>
+<p id="cards">${cards.map((pm) => esc(`${pm.card.brand} ${pm.card.last4} ${pm.card.exp_month}/${pm.card.exp_year}`)).join(', ') || 'no card'}</p>
+<form method="post"><button name="do" value="remove_card">Remove card</button>
 <button name="do" value="cancel_end">Cancel at period end</button><button name="do" value="renew">Renew</button>
 <button name="do" value="cancel_now">Cancel now</button><button name="do" value="past_due">Payment fails (past due)</button>
 <button name="do" value="return">Return to Renoxium</button></form>`);
       }
-      if (sub && form.do !== 'return') {
+      if (form.do === 'remove_card') {
+        for (const pm of cards) {
+          state.paymentMethods.delete(pm.id);
+          await billingEvent('payment_method.detached', { ...pmJSON(pm), customer: null }, { customer: p.customer });
+        }
+      } else if (sub && form.do !== 'return') {
         let type = 'customer.subscription.updated';
-        if (form.do === 'business') sub.price = priceBusiness;
-        if (form.do === 'pro') sub.price = pricePro;
         if (form.do === 'cancel_end') sub.cancel_at_period_end = true;
         if (form.do === 'renew') sub.cancel_at_period_end = false;
         if (form.do === 'past_due') sub.status = 'past_due';
@@ -246,6 +270,7 @@ button{display:block;margin:8px 0;padding:10px 16px;font:inherit}.note{backgroun
     if (path === '/stripe/calls') return json(res, 200, state.stripeCalls);
     if (path === '/stripe/sessions') return json(res, 200, [...state.sessions.values()]);
     if (path === '/stripe/subscriptions') return json(res, 200, [...state.subscriptions.values()]);
+    if (path === '/stripe/payment_methods') return json(res, 200, [...state.paymentMethods.values()]);
     if (path === '/stripe/accounts') return json(res, 200, [...state.accounts.values()]);
     if (path === '/webhooks') return json(res, 200, state.webhookLog);
     if (path === '/stripe/refund') {

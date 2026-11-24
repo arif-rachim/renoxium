@@ -69,17 +69,15 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 		return
 	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	total, perPlan, paying, err := s.accounts.PlanCounts()
+	total, perPlan, granted, err := s.accounts.PlanCounts()
 	if err != nil {
 		serverError(w, err)
 		return
 	}
 	stats, _ := s.platform.Stats()
-	mrr := 0
-	for plan, n := range paying {
-		mrr += accounts.PlanPriceAED[plan] * n
-	}
-	mrr += platform.WorkAppPriceAED * s.platform.PaidWorkApps() // work apps, each its own subscription
+	// Account plans cost nothing; work apps are each their own subscription.
+	workApps := s.platform.PaidWorkApps()
+	mrr := platform.WorkAppPriceAED * workApps
 	users, _ := s.accounts.Users(q, 100)
 	appSearch := q
 	if u, err := s.accounts.UserByEmail(q); err == nil {
@@ -110,7 +108,7 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 	}
 	csrf := s.csrfToken(w, r)
 	render(w, http.StatusOK, "operator", map[string]any{"Q": q, "Health": health, "CSRF": csrf, "Accounts": total, "PerPlan": perPlan,
-		"Paying": paying, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open,
+		"Granted": granted, "WorkApps": workApps, "MRR": mrr, "Stats": stats, "Users": users, "Apps": apps, "Reports": reports, "OpenReports": open,
 		"Tab": tab, "Tabs": operatorTabs(tab), "Here": map[string]string{"overview": "/operator", "accounts": "/operator/accounts", "apps": "/operator/apps"}[tab],
 		"SearchHint": map[string]string{"accounts": "Search by email", "apps": "Search by app name or owner's email"}[tab],
 		"Shell":      s.ownerShell(op, "Platform", "/operator", csrf)})

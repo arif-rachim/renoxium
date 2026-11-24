@@ -32,7 +32,7 @@ const LivePrefix = "/_rx/live/"
 
 // Limits; variables so tests can change them.
 var (
-	LiveSubscribersPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
+	LiveSubscribersPerPlan = map[string]int{planFree: 50, planMember: 2000}
 	livePerVisitor         = 20               // open subscriptions per visitor address and app
 	livePublishPerMinute   = 600              // publishes per app
 	liveMaxMessage         = 8 << 10          // bytes of JSON per message
@@ -229,7 +229,7 @@ func (p *Platform) serveLive(w http.ResponseWriter, r *http.Request, st *stage) 
 		http.Error(w, "too many connections; try again in a minute", http.StatusTooManyRequests)
 		return
 	}
-	limit := LiveSubscribersPerPlan[planBusiness]
+	limit := LiveSubscribersPerPlan[planMember]
 	if p.cfg.OwnerPlan != nil {
 		limit = LiveSubscribersPerPlan[p.appQuotaPlan(st.app)]
 	}
