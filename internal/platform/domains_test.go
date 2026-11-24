@@ -59,7 +59,7 @@ func TestCustomDomainLifecycle(t *testing.T) {
 	cf := &fakeCloudflare{}
 	srv := httptest.NewServer(cf)
 	defer srv.Close()
-	plans := map[string]string{"usr_free": "free", "usr_pro": "pro", "usr_other": "pro"}
+	plans := map[string]string{"usr_free": "free", "usr_member": "member", "usr_granted": "granted", "usr_other": "granted"}
 	dns := map[string][]string{} // the TXT records "in DNS"
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://renoxium.com",
 		OwnerPlan:  func(id string) string { return plans[id] },
@@ -73,16 +73,19 @@ func TestCustomDomainLifecycle(t *testing.T) {
 	ctx := context.Background()
 	page := &appdef.App{Templates: map[string]string{"t": "<!doctype html><html><head></head><body><h1>Oud shop</h1></body></html>"},
 		Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}}
-	for _, app := range []string{"free-shop", "oud"} {
-		p.CreateApp("usr_"+map[string]string{"free-shop": "free", "oud": "pro"}[app], app)
+	for _, app := range []string{"free-shop", "member-page", "oud"} {
+		p.CreateApp("usr_"+map[string]string{"free-shop": "free", "member-page": "member", "oud": "granted"}[app], app)
 		p.ApplyChange(ctx, app, page)
 		p.Publish(app, 0)
 	}
 
-	// A static site on the free plan keeps its Renoxium address; a shop or a
-	// work app may have its own domain.
+	// A static site keeps its Renoxium address, a member's too; a shop or a
+	// work app may have its own domain, and so may any app of a granted account.
 	if _, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err == nil || !strings.Contains(err.Error(), "shop or a work app") {
 		t.Errorf("free static site: err = %v", err)
+	}
+	if p.CustomDomainAllowed("member-page") || !p.CustomDomainAllowed("oud") {
+		t.Error("custom domains of member and granted static sites")
 	}
 	platform.ReadyShop(t, p, "free-shop")
 	if d, err := p.SetCustomDomain(ctx, "free-shop", "www.free.ae"); err != nil || d.Host != "www.free.ae" {

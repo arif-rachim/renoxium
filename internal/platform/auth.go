@@ -367,7 +367,7 @@ func (p *Platform) sendEmail(ctx context.Context, st *stage, m email.Message) er
 
 // AppEmailsPerPlan is how many emails the scripts of all apps of one
 // account may send with email.send per day.
-var AppEmailsPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
+var AppEmailsPerPlan = map[string]int{planFree: 50, planMember: 2000}
 
 func (p *Platform) sendVerification(ctx context.Context, st *stage, id int64, addr string) {
 	token, err := p.createToken(ctx, st, id, "verify", visitorVerifyTTL)

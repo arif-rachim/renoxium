@@ -221,7 +221,7 @@ func (s *Site) growthView(r *http.Request, paying map[string]int) (*growthView, 
 		case growth.CustomerActivity:
 			f.Note = "an owner notice for a new order, booking, lead or enquiry, or a paid card payment, on live; earlier notices are not known"
 		case growth.PaidStarted:
-			f.Note = "the account-wide Pro or Business through Stripe; granted plans and work app subscriptions do not count"
+			f.Note = "the former account-wide Pro or Business plans, history only: accounts are now free or members (a card saved, charging nothing); work app subscriptions do not count"
 		case growth.RetainedM3:
 			f.Note = fmt.Sprintf("of the %d who started paying 3 or more months ago", row.Base)
 			f.Median = "3 months"
@@ -326,7 +326,7 @@ func (s *Site) growthTab(w http.ResponseWriter, r *http.Request, tab string) {
 	if !ok {
 		return
 	}
-	_, _, paying, _ := s.accounts.PlanCounts()
+	paying := map[string]int{} // no account plan is paid for (accounts.PlanPriceAED)
 	csrf := s.csrfToken(w, r)
 	view, err := s.growthView(r, paying)
 	if err != nil {
@@ -487,7 +487,7 @@ const growthTemplate = `{{define "growth"}}<style>
 </tbody></table></div>
 
 {{else if eq .Tab "economics"}}<div class="grow econ"><div class="col"><h2 style="margin-top:0">Revenue and unit economics</h2><div class="tiles grow">
-<div class="tile"><div class="muted">MRR</div><div class="big">AED {{.E.MRR}}</div><div class="muted">Pro AED {{index .Prices "pro"}}, Business AED {{index .Prices "business"}} a month</div></div>
+<div class="tile"><div class="muted">MRR</div><div class="big">AED {{.E.MRR}}</div><div class="muted">account plans cost nothing; work app subscriptions are on the Platform page</div></div>
 <div class="tile"><div class="muted">Paying accounts</div><div class="big">{{.E.PayingAccounts}}</div><div class="muted">ARPA {{.ARPA}} a month</div></div>
 <div class="tile"><div class="muted">Logo churn, last 30 days</div><div class="big">{{.Churn}}</div><div class="muted">{{.E.Churned}} of {{.E.ChurnBase}} paying 30 days ago stopped</div></div>
 <div class="tile"><div class="muted">Card fees, last 30 days</div><div class="big">{{index .Fees 0}}</div><div class="muted">{{.FeePct}}% of Free-plan live card payments{{range $i, $f := .Fees}}{{if $i}} · {{$f}}{{end}}{{end}} · as of {{.FeesAt}}</div></div>
@@ -503,7 +503,7 @@ const growthTemplate = `{{define "growth"}}<style>
 <div><label for="g-spend">Marketing spend (AED)</label><input id="g-spend" name="spend" inputmode="numeric" pattern="[0-9, ]+" placeholder="1500" required></div><button class="secondary">Save spend</button></form>
 <form method="post" action="/operator/growth"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="margin"><input type="hidden" name="cohort" value="{{.Cohort}}">
 <div><label for="g-margin">Gross margin (%)</label><input id="g-margin" name="margin" type="number" min="1" max="100" value="{{.E.GrossMarginPct}}" required></div><button class="secondary">Save margin</button></form></div>
-<p class="muted">MRR counts subscriptions paid through Stripe, not granted plans; ARPA leaves out card fees. LTV needs at least 5 paying accounts and at least one cancellation in the last 30 days.</p></div></div>
+<p class="muted">MRR counts paid account plans, of which there are none now; ARPA leaves out card fees. LTV needs at least 5 paying accounts and at least one cancellation in the last 30 days.</p></div></div>
 
 {{else}}<h2 style="margin-top:8px">Activation by template <span class="muted">· {{.CohortLabel}}</span></h2>
 {{if .Templates}}<div class="scroll grow"><table><thead><tr><th>Example the first live app came from</th><th class="n">Published</th><th class="n">Reached first customer</th></tr></thead><tbody>

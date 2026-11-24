@@ -142,18 +142,25 @@ Renoxium runs untrusted, agent-written code for many tenants on shared infrastru
 
 ## Plans
 
-Each app is paid for by what it does. A free account may have 10 apps; no app carries Renoxium branding.
+Each app is paid for by what it does, the same on every account; no app carries Renoxium branding.
+
+An account is **free** (no card saved: at most 3 apps) or a **member** (the owner saved a card at `/billing`: at most
+50 apps). Saving a card charges nothing; it is Stripe Checkout in setup mode on the account's Stripe customer, and the
+account is a member while an unexpired card is saved. Members get higher anti-abuse limits (WhatsApp 2,000 a month, app
+emails 2,000 a day, storage 10 GB, 2,000 live connections), which a free account also gets once it pays for a work app or
+has a shop whose Stripe takes card payments. When the card is removed or expires, nothing stops; only new apps beyond 3
+are refused.
 
 | App | Price | Notes |
 |---|---|---|
 | Static site | Free | Only pages and photos (no tables, scripts, jobs or sign-in); keeps its Renoxium address |
 | Shop | AED 0 + 2% of card payments | Takes money from its customers; the fee is a Stripe application fee. Custom domain, 2 staff |
-| Work app | AED 99 / month per app | Does not charge its customers (CRM, queue, attendance), or a shop paid only in cash or by transfer. Custom domain, 5 staff included and AED 25 a month for each one more (up to 10, billed as a second item of the same subscription), Pro limits; paused when its subscription ends |
-| Larger businesses | By agreement | An operator grants the account the Pro or Business plan: every app covered, no fee |
+| Work app | AED 99 / month per app | Does not charge its customers (CRM, queue, attendance), or a shop paid only in cash or by transfer. Custom domain, 5 staff included and AED 25 a month for each one more (up to 10, billed as a second item of the same subscription), member limits; paused when its subscription ends |
+| Larger businesses | By agreement | An operator grants the account membership (`status granted`): every app covered, no fee, 10 staff per app |
 
 The owner chooses shop or work app on the app's Plan page (`/apps/<app>/plan`) before a non-static app first goes live.
-Apps that were live before this rule keep running until they are published again. The account-wide Pro (AED 99) and
-Business (AED 299) subscriptions still work for accounts that have them, but are no longer sold on the billing page.
+Apps that were live before this rule keep running until they are published again. Members pay the shop fee and work app
+subscriptions like everyone else; only granted accounts are exempt.
 
 **No credits.** Building and changing apps through the agent is unlimited on every plan, the Free plan included, and is never
 charged per request: owners use their own ChatGPT or Claude account, so Renoxium has no model costs to pass on. Claude's free
@@ -162,7 +169,7 @@ on its paid plans.
 
 Billing runs on Stripe Checkout and the Stripe Customer Portal at `/billing`.
 
-Owners of a paid work app, or on Pro or Business, can also run it on their own server: the export carries a signed licence, and the same binary with `-self-hosted` serves that one app with its admin panel, payments on the owner's own Stripe account and email through their own sender. See [docs/self-host.md](docs/self-host.md).
+Owners of a paid work app, or of an account by agreement with Renoxium, can also run it on their own server: the export carries a signed licence, and the same binary with `-self-hosted` serves that one app with its admin panel, payments on the owner's own Stripe account and email through their own sender. See [docs/self-host.md](docs/self-host.md).
 
 ---
 

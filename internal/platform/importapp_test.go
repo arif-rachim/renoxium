@@ -47,7 +47,7 @@ func TestImportAppOnOwnServer(t *testing.T) {
 			if owner == "usr_free" {
 				return "free"
 			}
-			return "pro"
+			return "granted"
 		}, OwnerEmail: func(string) (string, bool) { return "owner@shop.ae", true }},
 		sandbox.NewGoja())
 	if err != nil {
@@ -79,7 +79,7 @@ func TestImportAppOnOwnServer(t *testing.T) {
 	}
 	t.Cleanup(own.Close)
 	app, lic, err := own.ImportApp(ctx, "usr_local", export, "")
-	if err != nil || app != "noor-shop" || lic.Plan != "pro" || lic.Email != "owner@shop.ae" {
+	if err != nil || app != "noor-shop" || lic.Plan != "business" || lic.Email != "owner@shop.ae" {
 		t.Fatalf("import: %q %+v %v", app, lic, err)
 	}
 	if err := own.UseOwnDomain(app, "www.noorperfumes.ae"); err != nil {

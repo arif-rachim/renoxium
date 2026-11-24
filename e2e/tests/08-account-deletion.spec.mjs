@@ -11,7 +11,7 @@ test('delete an account with a paid work app', async ({ browser }) => {
 
   await page.goto('/account');
   await expect(page.locator('body')).toContainText('This deletes your account and 1 app(s)');
-  await expect(page.locator('body')).toContainText('Your paid plan and work app subscriptions are cancelled at once');
+  await expect(page.locator('body')).toContainText('Your work app subscriptions are cancelled at once');
 
   await page.fill('#confirm', 'someone@else.test');
   await page.fill('#dpassword', PASSWORD);

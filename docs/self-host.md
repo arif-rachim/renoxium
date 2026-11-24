@@ -4,7 +4,7 @@ This guide moves one app from Renoxium to a server you control. The same pages, 
 panel, scheduled jobs and photo sizes keep working; card payments go to your own Stripe account, and
 emails and WhatsApp codes go out through your own accounts.
 
-**Who can do this.** Self-hosting needs an export of a **paid work app** or from a **Pro or Business** account: the export then
+**Who can do this.** Self-hosting needs an export of a **paid work app** or from an account **by agreement with Renoxium** (granted): the export then
 carries a signed licence (`licence.json`) that the server checks at every start, offline. Exports from a
 Free account hold the same data and can still be downloaded as a backup, but the server does not start
 with them.
@@ -266,7 +266,7 @@ sudo /opt/renoxium/backup.sh && sudo install -m 755 ~/renoxium /opt/renoxium/ren
 ## Troubleshooting
 
 - **The service does not start, log says the licence is not signed or not valid**: the data directory
-  needs the `licence.json` from the export of a paid work app or a Pro or Business account. Make a new export on Renoxium and import it into
+  needs the `licence.json` from the export of a paid work app or an account by agreement with Renoxium. Make a new export on Renoxium and import it into
   an empty directory.
 - **"a self-hosted data directory holds one app"**: the directory was used by a full Renoxium server.
   Import into a new, empty directory.

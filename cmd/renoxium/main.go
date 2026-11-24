@@ -49,7 +49,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "usage: renoxium [flags]                    serve\n"+
 			"       renoxium [flags] suspend APP REASON  take an app offline (a running server notices within 30s)\n"+
 			"       renoxium [flags] unsuspend APP       bring it back\n"+
-			"       renoxium [flags] plan EMAIL PLAN     give an account the free, pro or business plan without payment\n"+
+			"       renoxium [flags] plan EMAIL PLAN     make an account a member by agreement (member) or remove that (free)\n"+
 			"       renoxium [flags] reviewer EMAIL [APP] create or reset an account for a directory's reviewers, with an example store\n"+
 			"       renoxium whatsapp-test NUMBER        send one sign-in code with the WHATSAPP_* settings and print Meta's answer\n"+
 			"       renoxium shot-helper SOCKET          run Chromium for screenshots as a service of its own (deploy/renoxium-shots.service)\n"+
@@ -199,7 +199,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer acc.Close()
-	cfg.OwnerPlan = acc.Plan
+	cfg.OwnerPlan = acc.OwnerPlan
 	cfg.WorkSeats = cfg.Stripe != nil && os.Getenv("STRIPE_PRICE_WORK_SEAT") != "" // extra staff of work apps can be paid for
 	cfg.OwnerEmail = func(id string) (string, bool) {
 		u, err := acc.User(id)
@@ -234,11 +234,13 @@ func main() {
 	if ops := strings.TrimSpace(os.Getenv("RENOXIUM_OPERATORS")); ops != "" {
 		site.Operators = strings.Split(ops, ",")
 	}
-	site.Billing = web.Billing{Stripe: cfg.Stripe, PricePro: os.Getenv("STRIPE_PRICE_PRO"), PriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
+	// STRIPE_PRICE_PRO and STRIPE_PRICE_BUSINESS, of the former account
+	// plans, are no longer read.
+	site.Billing = web.Billing{Stripe: cfg.Stripe,
 		WebhookSecret: os.Getenv("STRIPE_BILLING_WEBHOOK_SECRET"), PriceWorkApp: os.Getenv("STRIPE_PRICE_WORK_APP"),
 		PriceWorkSeat: os.Getenv("STRIPE_PRICE_WORK_SEAT")}
 	if cfg.Stripe != nil {
-		slog.Info("Renoxium plans", "pro_price_set", site.Billing.PricePro != "", "business_price_set", site.Billing.PriceBusiness != "", "work_app_price_set", site.Billing.PriceWorkApp != "", "work_seat_price_set", site.Billing.PriceWorkSeat != "",
+		slog.Info("Renoxium billing", "work_app_price_set", site.Billing.PriceWorkApp != "", "work_seat_price_set", site.Billing.PriceWorkSeat != "",
 			"billing_webhook_secret_set", site.Billing.WebhookSecret != "")
 	}
 	site.AbuseEmail = *abuseEmail

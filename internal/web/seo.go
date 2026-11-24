@@ -67,6 +67,7 @@ func (s *Site) llmsFull() string {
 		b.WriteString("- " + p.Name + ": AED " + p.Price + " a month. " + p.Text + "\n")
 	}
 	b.WriteString("- Larger businesses: a price agreed with Renoxium (" + s.base + "/support).\n")
+	b.WriteString("\nUp to 3 apps on a free account; save a card for up to 50. Saving a card charges nothing, and each app is still paid for as above.\n")
 	b.WriteString("\nStripe charges its own card fees on every plan. Renoxium has no credits: building and changing a site through the assistant is unlimited on every plan and never charged per request. The owner uses their own ChatGPT or Claude account; Claude's free plan is enough (it allows one custom connector), and in ChatGPT adding the connector by its address needs developer mode, which is on its paid plans.\n\n")
 	b.WriteString("## Pages\n\n")
 	for _, p := range publicPages {

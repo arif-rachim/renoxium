@@ -173,7 +173,7 @@ test('external API: only after the owner allows the host and enters the key; the
   await page.goto(`/apps/${app}/t/quotes`);
   await expect(page.locator('body')).toContainText('Sharjah');
   await page.goto('/billing');
-  await expect(page.locator('body')).toContainText(/External API calls this month\s*[1-9]\d* of 20,000/);
+  await expect(page.locator('body')).toContainText(/External API calls this month\s*[1-9]\d* of 100,000/);
 
   // Stop: calls are refused again at once.
   await page.goto(`/apps/${app}/connections`);

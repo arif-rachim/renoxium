@@ -8,18 +8,18 @@ import (
 	"github.com/arif-rachim/renoxium/internal/appdef"
 )
 
-// How an app is paid for. Every app of an account on the free plan is one of:
+// How an app is paid for. Every app of a free or member account is one of:
 //   - static: only pages and pictures (appdef.App.Static). Free, and it keeps
 //     its Renoxium address;
 //   - a shop: it takes money from its customers through payments.checkout,
 //     and Renoxium takes ShopFeePercent of each card payment (it may go live
-//     before Stripe is connected; once Stripe takes its payments it gets the
-//     Pro limits);
+//     before Stripe is connected; once Stripe takes its payments its account
+//     gets the member limits);
 //   - a work app: it does not charge its customers (a CRM, a queue, staff
 //     attendance) and pays a monthly subscription, WorkAppPriceAED.
 //
-// Accounts on a paid or granted plan (pro, business: Renoxium's agreement
-// with the owner) need neither. The owner chooses shop or work app before a
+// Saving a card (a member) changes none of this; only granted accounts
+// (Renoxium's agreement with the owner) need neither. The owner chooses shop or work app before a
 // non-static app first goes live; apps that were live before this rule keep
 // running until they are published again.
 const (
@@ -52,7 +52,7 @@ var workPaying = map[string]bool{"active": true, "trialing": true, "past_due": t
 type AppPlan struct {
 	Kind     string // KindShop, KindWork or "" (not chosen)
 	Static   bool   // the definition is only pages and pictures
-	Included bool   // the account's own plan covers the app
+	Included bool   // the account's grant covers the app
 	// StripeReady is set when the app's Stripe account can take card payments.
 	StripeReady bool
 	// The work app subscription, as last seen from Stripe.
@@ -113,7 +113,7 @@ func (p *Platform) planFor(app string, def *appdef.App) AppPlan {
 	if pa, err := p.PaymentAccount(app); err == nil {
 		pl.StripeReady = pa.StripeAccount != "" && pa.ChargesEnabled
 	}
-	if p.cfg.OwnerPlan == nil || p.cfg.SelfHosted || p.planOf(p.ownerOf(app)) != planFree {
+	if p.cfg.OwnerPlan == nil || p.cfg.SelfHosted || p.granted(app) {
 		pl.Included, pl.Ready = true, true
 		return pl
 	}
@@ -192,11 +192,12 @@ func (p *Platform) PaidWorkApps() int {
 	return n
 }
 
-// quotaPlan is the plan whose limits an account's apps get: an account on
-// the free plan that pays for a work app, or has a shop whose Stripe account
-// takes payments (Stripe has checked who it is), gets the Pro limits.
+// quotaPlan is the plan whose limits an account's apps get, planFree or
+// planMember: members (a card saved, or a grant) get the member limits, and
+// so does a free account that pays for a work app or has a shop whose
+// Stripe account takes payments (Stripe has checked who it is).
 func (p *Platform) quotaPlan(owner string) string {
-	plan := p.planOf(owner)
+	plan := limitPlan(p.planOf(owner))
 	if plan != planFree {
 		return plan
 	}
@@ -205,34 +206,36 @@ func (p *Platform) quotaPlan(owner string) string {
 		((a.plan_kind = ? AND a.work_status IN ('active', 'trialing', 'past_due')) OR (a.plan_kind = ? AND pa.charges_enabled = 1))`,
 		owner, KindWork, KindShop).Scan(&n)
 	if n > 0 {
-		return planPro
+		return planMember
 	}
 	return plan
 }
 
 // moreHint says where the owner gets more than the limits of plan (a
-// quotaPlan or appQuotaPlan): on the free limits, by making the app a shop
-// that takes card payments or a work app; otherwise only a larger plan
-// agreed with Renoxium has more.
+// quotaPlan or appQuotaPlan): on the free limits, by saving a card or
+// making the app a shop that takes card payments or a work app; on the
+// member limits, only by an agreement with Renoxium.
 func (p *Platform) moreHint(plan, app string) string {
 	if plan == planFree {
-		return fmt.Sprintf("make %s a shop that takes card payments or a work app at %s/apps/%s/plan", app, p.cfg.SiteURL, app)
+		return fmt.Sprintf("save a card at %s/billing (saving a card charges nothing), or make %s a shop that takes card payments or a work app at %s/apps/%s/plan",
+			p.cfg.SiteURL, app, p.cfg.SiteURL, app)
 	}
 	return fmt.Sprintf("contact Renoxium at %s/support", p.cfg.SiteURL)
 }
 
-// appQuotaPlan is the plan whose per-app limits the app gets: a paid work
-// app, or a shop whose Stripe account takes payments, gets the Pro limits.
+// appQuotaPlan is the plan whose per-app limits the app gets, planFree or
+// planMember: a member's app, a paid work app, or a shop whose Stripe
+// account takes payments, gets the member limits.
 func (p *Platform) appQuotaPlan(app string) string {
-	if plan := p.planOf(p.ownerOf(app)); plan != planFree {
+	if plan := limitPlan(p.planOf(p.ownerOf(app))); plan != planFree {
 		return plan
 	}
 	if p.workPaid(app) {
-		return planPro
+		return planMember
 	}
 	if p.appKind(app) == KindShop {
 		if pa, err := p.PaymentAccount(app); err == nil && pa.StripeAccount != "" && pa.ChargesEnabled {
-			return planPro
+			return planMember
 		}
 	}
 	return planFree
@@ -253,7 +256,7 @@ func (p *Platform) planLapsed(app string) bool {
 		return c.(lapsedState).lapsed
 	}
 	r := p.appPlanRow(app)
-	lapsed := r.kind == KindWork && !workPaying[r.status] && p.planOf(p.ownerOf(app)) == planFree
+	lapsed := r.kind == KindWork && !workPaying[r.status] && !p.granted(app)
 	p.lapsed.Store(app, lapsedState{lapsed: lapsed, at: time.Now()})
 	return lapsed
 }
