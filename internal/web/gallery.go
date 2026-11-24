@@ -112,8 +112,9 @@ const galleryCardsCSS = `.tcards{display:grid;gap:14px;grid-template-columns:1fr
 @media(min-width:680px){.tcards{grid-template-columns:1fr 1fr}}@media(min-width:1000px){.tcards{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1180px){.tcards{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .tcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;scroll-margin-top:16px}
 .tcard:target{border-color:var(--gold)}
-.tcard .pic{display:block;flex:1 1 0;min-height:70px;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
+.tcard .pic{display:block;flex:none;aspect-ratio:16/10;background:var(--bg);border-bottom:1px solid var(--line);overflow:hidden}
 .tcard .pic img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.tcards[data-scrollpage]{flex:none;grid-auto-rows:auto}.appmain:has(>[data-scrollpage]){zoom:1!important}
 .tcard .tx{padding:12px 14px 14px}
 .tcard h3{font-size:16px;margin:0 0 2px}.tcard .job{font-size:12.5px;color:var(--muted);margin:0 0 6px}
 .tcard p.sum{margin:0 0 8px;font-size:13.5px;line-height:1.45;color:var(--muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
