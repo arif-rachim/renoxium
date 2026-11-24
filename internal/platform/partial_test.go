@@ -93,8 +93,12 @@ func TestPartialReadsAndEdits(t *testing.T) {
 		t.Fatalf("css_extra: %v %+v", err, r2)
 	}
 	// Every example's head includes css_extra after the base css.
-	if home, _ := p.TestRequest(ctx, "sparkle", platform.TestRequestInput{Path: "/"}); !strings.Contains(home.Body, ":root{--brand:#0a7}") {
+	if home, _ := p.TestRequest(ctx, "sparkle", platform.TestRequestInput{Path: "/"}); !strings.Contains(home.Body, "<style>\n:root{--brand:#0a7}\n</style>") {
 		t.Fatal("css_extra is not on the page")
+	}
+	// Bare CSS would show as text in <head>: it was wrapped, and said so.
+	if !strings.Contains(strings.Join(r2.Fixed, " "), "wrapped") {
+		t.Fatalf("fixed: %+v", r2.Fixed)
 	}
 	r3, _ := p.ApplyEdits(ctx, "sparkle", n+2, []platform.Edit{{Target: "templates.css_extra", OldText: ":root", NewText: "{{if}}:root"}})
 	if r3.OK {

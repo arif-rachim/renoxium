@@ -37,3 +37,26 @@ func TestMatch(t *testing.T) {
 		t.Fatal("method ignored")
 	}
 }
+
+func TestFixStyleSlots(t *testing.T) {
+	head := `<head>{{template "css" .}}{{template "css_extra" .}}</head>`
+	a := &App{Templates: map[string]string{"page": head, "css": "<style>a{}</style>", "css_extra": ".hero{color:red}"}}
+	fixed, problems := a.FixStyleSlots()
+	if len(fixed) != 1 || len(problems) != 0 || a.Templates["css_extra"] != "<style>\n.hero{color:red}\n</style>" {
+		t.Fatalf("bare CSS: %q %q %q", fixed, problems, a.Templates["css_extra"])
+	}
+	a.Templates["css_extra"] = "<style>a{}</style>\n.hero{color:red}"
+	if _, problems := a.FixStyleSlots(); len(problems) != 1 || !strings.Contains(problems[0], "show as text") {
+		t.Fatalf("text after style: %q", problems)
+	}
+	a.Templates["css_extra"] = "{{if .x}}<style>a{}</style>{{end}}<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/x\">"
+	if fixed, problems := a.FixStyleSlots(); len(fixed)+len(problems) != 0 {
+		t.Fatalf("good slot: %q %q", fixed, problems)
+	}
+	// Included inside <style> by the page: the slot is CSS by design.
+	a.Templates["page"] = `<style>{{template "css_extra" .}}</style>`
+	a.Templates["css_extra"] = ".hero{color:red}"
+	if fixed, problems := a.FixStyleSlots(); len(fixed)+len(problems) != 0 || a.Templates["css_extra"] != ".hero{color:red}" {
+		t.Fatalf("inside style: %q %q", fixed, problems)
+	}
+}

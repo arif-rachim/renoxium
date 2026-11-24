@@ -177,6 +177,18 @@ func TestPrivatePreview(t *testing.T) {
 	if w := v.do("GET", "/", nil); w.Code != 200 {
 		t.Fatalf("preview with access: %d", w.Code)
 	}
+	// A link to a page of the preview lands on that page; one that points
+	// elsewhere lands on the home page.
+	for next, want := range map[string]string{"/queue?lang=ar": "/queue?lang=ar", "//evil.example/x": "/", "/_rx/preview?t=x": "/"} {
+		deep, _ := url.Parse(p.PreviewLinkTo("guard", next))
+		if w := newVisitor(t, p, host).do("GET", deep.RequestURI(), nil); w.Code != 303 || w.Header().Get("Location") != want {
+			t.Fatalf("link to %s: %d %s", next, w.Code, w.Header().Get("Location"))
+		}
+	}
+	// A private page links back to itself through the owner's account.
+	if r := do(t, p, "GET", host, "/queue", nil); !strings.Contains(r.body, "https://site.test/apps/guard/preview/queue") {
+		t.Fatalf("locked deep page: %s", r.body)
+	}
 	// A link for one app does not open another.
 	p.CreateApp("usr_test", "other")
 	p.ApplyChange(context.Background(), "other", guardApp())

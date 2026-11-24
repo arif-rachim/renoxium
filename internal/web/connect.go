@@ -26,6 +26,7 @@ Note for AI assistants reading this page: you cannot add this connector yourself
 3. Choose Create (or Add app) and enter Name: Renoxium, MCP Server URL: {{MCP}}, Authentication: OAuth.
 4. Save. A Renoxium window opens: create an account or sign in, then choose Allow.
 5. In a new chat, turn on Renoxium in the tools menu (+) and ask, for example: "Build me an online store for my products."
+6. When Renoxium gets new tools, ChatGPT does not pick them up by itself: open Renoxium in ChatGPT's Settings (Apps) and choose Refresh tools.
 
 Developer mode is on ChatGPT's paid plans and may only be available on the web. On a free ChatGPT account, use Claude instead: its free plan is enough.
 

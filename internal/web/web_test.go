@@ -239,8 +239,13 @@ func (e *env) confirmPublish(c *http.Client, pub map[string]any) {
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	if body := read(e.t, r); r.StatusCode != 200 || !strings.Contains(body, "is live") {
+	body := read(e.t, r)
+	if r.StatusCode != 200 || !strings.Contains(body, "is live") {
 		e.t.Fatalf("confirm publish: %d %s", r.StatusCode, body)
+	}
+	// The owner just published: the page shows them signed in.
+	if strings.Contains(body, "Create account") || !strings.Contains(body, "Your apps") {
+		e.t.Fatalf("published page looks signed out: %s", body)
 	}
 }
 

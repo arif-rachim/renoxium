@@ -257,3 +257,23 @@ func TestFitStored(t *testing.T) {
 		t.Error("a GIF was changed")
 	}
 }
+
+func TestPutImageRefusesDamagedPhotos(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	whole := photo(400, 300, 0)
+	if _, _, err := s.PutImage(bytes.NewReader(whole[:len(whole)*2/3])); !errors.Is(err, ErrDamaged) {
+		t.Fatalf("cut JPEG: got %v, want ErrDamaged", err)
+	}
+	var pngBuf bytes.Buffer
+	png.Encode(&pngBuf, image.NewRGBA(image.Rect(0, 0, 300, 200)))
+	cut := pngBuf.Bytes()[:pngBuf.Len()-20]
+	if _, _, err := s.PutImage(bytes.NewReader(cut)); !errors.Is(err, ErrDamaged) {
+		t.Fatalf("cut PNG: got %v, want ErrDamaged", err)
+	}
+	if _, _, err := s.PutImage(bytes.NewReader(whole)); err != nil {
+		t.Fatalf("whole JPEG: %v", err)
+	}
+}

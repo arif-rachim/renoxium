@@ -72,6 +72,8 @@ type TestResponse struct {
 	Redirects []string `json:"redirects,omitempty" jsonschema:"redirects followed, in order, as status and target"`
 	// Admin is set for test_request {admin}: the row after the change.
 	Admin *TestAdminResult `json:"admin,omitempty"`
+	// Payment is set when the request reached the preview's checkout.
+	Payment string `json:"payment,omitempty" jsonschema:"set when this request went to a checkout: on preview it is always the simulator (no money moves, Stripe is not used), so a paid preview order says nothing about live card payments; it also says whether the owner has connected Stripe for live"`
 }
 
 // maxTestBody is where a test response's body is cut; tests that run a page's
@@ -207,6 +209,7 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 	one := testHop{method: method, host: host, path: path, body: body, ctype: ctype, form: in.Form, files: len(in.Files) > 0}
 	out, at, err := p.testSend(ctx, app, stage, one, jar, visitorToken)
 	if err != nil || !in.Follow {
+		p.notePayment(app, stage, &out, path)
 		return out, err
 	}
 	for hops := 0; out.Location != "" && out.Status >= 300 && out.Status < 400; hops++ {
@@ -233,7 +236,50 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 		}
 		out.Redirects, out.Logs = chain, append(logs, out.Logs...) // the log of every hop, in order
 	}
+	p.notePayment(app, stage, &out, path)
 	return out, nil
+}
+
+// notePayment labels a test that went through the preview's checkout as
+// simulated, so a paid test order is not taken for working card payments.
+func (p *Platform) notePayment(app, stage string, out *TestResponse, path string) {
+	if stage != Preview {
+		return
+	}
+	seen := strings.HasPrefix(path, PayPrefix) || strings.Contains(out.Location, PayPrefix)
+	for _, r := range out.Redirects {
+		seen = seen || strings.Contains(r, PayPrefix)
+	}
+	if !seen {
+		return
+	}
+	out.Payment = "simulated: the preview's checkout is a simulator; no money moved and Stripe was not used. " + p.PaymentStatus(app).Note
+}
+
+// PaymentStatus says whether an app can take card payments live.
+type PaymentStatus struct {
+	StripeConnected bool   `json:"stripe_connected" jsonschema:"the owner has linked a Stripe account to this app"`
+	CanCharge       bool   `json:"can_charge" jsonschema:"live checkouts work: Stripe is connected and allowed to charge cards"`
+	SetupURL        string `json:"setup_url" jsonschema:"where the owner connects Stripe, signed in to Renoxium; give the user this full link"`
+	Note            string `json:"note"`
+}
+
+// PaymentStatus reports the app's Stripe link for the agent.
+func (p *Platform) PaymentStatus(app string) PaymentStatus {
+	pa, _ := p.PaymentAccount(app)
+	st := PaymentStatus{StripeConnected: pa.StripeAccount != "", CanCharge: pa.StripeConfigured && pa.StripeAccount != "" && pa.ChargesEnabled,
+		SetupURL: p.cfg.SiteURL + "/apps/" + app + "/payments"}
+	switch {
+	case st.CanCharge:
+		st.Note = "Live card payments work: the owner's Stripe account is connected and can charge."
+	case !pa.StripeConfigured:
+		st.Note = "Live card payments are not available on this server; offer cash or bank transfer, and do not suggest turning card payments on."
+	case st.StripeConnected:
+		st.Note = "Live card payments do not work yet: the owner started connecting Stripe but has not finished; they finish at " + st.SetupURL + ". Until then live checkouts fail, so do not turn card payments on for the live app."
+	default:
+		st.Note = "Live card payments do not work yet: the owner has not connected Stripe; they connect it at " + st.SetupURL + ". Until then live checkouts fail, so do not turn card payments on for the live app."
+	}
+	return st
 }
 
 // testHop is one request of a test, after the input is checked.

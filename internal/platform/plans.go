@@ -100,7 +100,8 @@ func (p *Platform) appLimitError(owner string, count int) error {
 	site := p.cfg.SiteURL
 	if plan == planFree {
 		return fmt.Errorf("A free account may have %d apps. Save a card at %s/billing to create up to %d (saving a card charges nothing), "+
-			"or delete an app you no longer need at %s/apps/<app>/delete.", limit, site, MaxAppsPerOwner, site)
+			"delete an app you no longer need (open it at %s, then Delete app), or change one of your apps instead of making a new one.", limit, site, MaxAppsPerOwner, site)
 	}
-	return fmt.Errorf("this account has the maximum of %d apps; delete one you no longer need, or contact Renoxium at %s/support", limit, site)
+	return fmt.Errorf("this account has the maximum of %d apps; delete one you no longer need (open it at %s, then Delete app), "+
+		"change one of your apps instead of making a new one, or contact Renoxium at %s/support for more", limit, site, site)
 }

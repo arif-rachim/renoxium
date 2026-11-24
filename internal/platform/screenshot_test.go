@@ -134,6 +134,50 @@ func TestScreenshotBlocksOtherHosts(t *testing.T) {
 	}
 }
 
+// What is wrong in the picture is also said in words, for assistants that
+// cannot see images: a broken image, unreadable text, CSS shown as text, a
+// page wider than the phone, text on text, a leftover dark block. A clean
+// page reports none of these.
+func TestScreenshotPageChecks(t *testing.T) {
+	bin := chromium(t)
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Chromium: bin, ChromiumNoSandbox: true}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "audit")
+	def := catalog(t)
+	def.Templates["bad"] = `<!doctype html><html><head><title>b</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#fff">
+<header>.hero { color: red; padding: 4px; }</header>
+<img src="/_rx/files/missing.png" alt="logo" width="80" height="80">
+<p style="color:#fafafa">Our prices today</p>
+<div style="width:900px;height:10px"></div>
+<div style="position:relative;height:40px"><span style="position:absolute;top:0;left:0">Gold 22K</span><span style="position:absolute;top:2px;left:2px">Gold 24K</span></div>
+<section style="background:#000;height:400px"></section>
+<script>fetch("https://api.goldprice.example/rates").catch(()=>{})</script>
+</body></html>`
+	def.Templates["good"] = `<!doctype html><html><head><title>g</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font:16px sans-serif;color:#222;background:#fff;margin:0;padding:16px}</style></head><body><h1>Al Safa</h1><p>Open daily.</p></body></html>`
+	def.Routes = append(def.Routes, appdef.Route{Method: "GET", Path: "/bad", Template: "bad"}, appdef.Route{Method: "GET", Path: "/good", Template: "good"})
+	if res, err := p.ApplyChange(ctx, "audit", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	r, err := p.ScreenshotPreview(ctx, "audit", platform.ScreenshotInput{Path: "/bad"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(r.PageChecks, "\n")
+	for _, want := range []string{"image did not load", "hard to read", "CSS shows as text", "scrolls sideways", "text overlaps text", "empty dark block", "api.goldprice.example"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q in page checks:\n%s", want, got)
+		}
+	}
+	r, err = p.ScreenshotPreview(ctx, "audit", platform.ScreenshotInput{Path: "/good"})
+	if err != nil || len(r.PageChecks) != 0 {
+		t.Fatalf("clean page: %v %q", err, r.PageChecks)
+	}
+}
+
 // Without a browser configured, the tool says so.
 func TestScreenshotNeedsBrowser(t *testing.T) {
 	p := newPlatform(t)

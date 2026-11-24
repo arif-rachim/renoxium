@@ -29,7 +29,7 @@ func (s *Site) renderDeleteApp(w http.ResponseWriter, r *http.Request, app strin
 	}
 	info, _ := s.platform.Info(app)
 	render(w, status, "admin_delete", map[string]any{"Shell": s.shell(u, app, "Delete app", "/apps/"+app+"/delete", false), "App": app,
-		"Info": info, "Running": running, "Losses": s.appLosses(r, app), "CSRF": s.csrfToken(w, r), "Error": errText})
+		"Info": info, "Running": running, "Losses": s.appLosses(r, app), "CSRF": s.csrfToken(w, r), "Error": errText, "Email": u.Email})
 }
 
 // loss is one kind of data a delete destroys, with how much of it there is.
@@ -112,7 +112,7 @@ func (s *Site) deleteApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("app deleted", "user", u.ID, "app", app)
-	render(w, http.StatusOK, "notice", map[string]any{"Title": "App deleted",
+	render(w, http.StatusOK, "notice", map[string]any{"Signed": true, "Title": "App deleted",
 		"Message": fmt.Sprintf("%s and all its data were deleted. Your Stripe account is yours and was not changed.", app), "Link": "/"})
 }
 

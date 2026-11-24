@@ -3,6 +3,7 @@ package files
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -27,6 +28,23 @@ const MaxUpload = 25 << 20
 // ErrPhotoTooLarge is returned for photos over MaxUpload.
 var ErrPhotoTooLarge = fmt.Errorf("the photo is larger than %d MB", MaxUpload>>20)
 
+// ErrDamaged is returned for a JPEG, PNG or WebP that cannot be read to the
+// end: most often data cut short on the way, such as base64 that lost its
+// tail. Stored as sent, it would only fail later, when a page asks for a
+// smaller copy of it.
+var ErrDamaged = errors.New("the image is incomplete or damaged and cannot be read; send the whole file again")
+
+// damaged reports a read error as ErrDamaged, unless the image is only of a
+// kind the decoder does not support (such images are stored as sent).
+func damaged(err error, n int64) error {
+	var ju jpeg.UnsupportedError
+	var pu png.UnsupportedError
+	if errors.As(err, &ju) || errors.As(err, &pu) {
+		return nil
+	}
+	return fmt.Errorf("%w (%d bytes received: %v)", ErrDamaged, n, err)
+}
+
 // ShrinkPixels is the largest photo shrunk on upload. Decoding one needs
 // about 1.5 bytes a pixel, one photo at a time; bigger ones are stored as
 // sent.
@@ -44,8 +62,9 @@ const masterQuality = 88
 // PNG or WebP whose longest side is over MaxSide is scaled down to it, and a
 // JPEG taken with the camera turned is turned upright, since the copy that
 // is stored carries no orientation note. JPEG and WebP become JPEG; PNG
-// stays PNG and keeps its transparency. Everything else, and a photo that
-// cannot be read, is stored as sent.
+// stays PNG and keeps its transparency. A JPEG, PNG or WebP that cannot be
+// read to the end is refused with ErrDamaged; everything else is stored as
+// sent.
 func (s *Store) PutImage(r io.Reader) (Blob, bool, error) {
 	tmp, err := os.CreateTemp(filepath.Join(s.dir, "tmp"), "incoming-*")
 	if err != nil {
@@ -60,7 +79,11 @@ func (s *Store) PutImage(r io.Reader) (Blob, bool, error) {
 	if n > MaxUpload {
 		return Blob{}, false, ErrPhotoTooLarge
 	}
-	if small := s.shrink(tmp, true); small != nil {
+	small, err := s.shrink(tmp, true)
+	if err != nil {
+		return Blob{}, false, damaged(err, n)
+	}
+	if small != nil {
 		return s.Put(small)
 	}
 	if n > MaxSize { // not a photo that could be made smaller
@@ -73,20 +96,25 @@ func (s *Store) PutImage(r io.Reader) (Blob, bool, error) {
 }
 
 // shrink returns the smaller copy of the photo in f, or nil when f should be
-// stored as it is. With upright, a JPEG that already fits but carries an
-// orientation note is turned too.
-func (s *Store) shrink(f *os.File, upright bool) *bytes.Reader {
+// stored as it is. With upright (an upload), a JPEG that already fits but
+// carries an orientation note is turned too, and a photo small enough to
+// decode is read to the end even when it fits: the error from reading it is
+// returned, so a damaged upload is refused instead of stored.
+func (s *Store) shrink(f *os.File, upright bool) (*bytes.Reader, error) {
 	head := make([]byte, 512)
 	f.Seek(0, io.SeekStart)
 	k, _ := io.ReadFull(f, head)
 	ctype := Detect(head[:k])
 	if !Resizable(ctype) {
-		return nil
+		return nil, nil
 	}
 	f.Seek(0, io.SeekStart)
 	cfg, _, err := image.DecodeConfig(f)
-	if err != nil || cfg.Width <= 0 || cfg.Height <= 0 {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return nil, errors.New("the image has no width or height")
 	}
 	turn := 1
 	if ctype == "image/jpeg" {
@@ -94,19 +122,31 @@ func (s *Store) shrink(f *os.File, upright bool) *bytes.Reader {
 		turn = jpegOrientation(f)
 	}
 	long := max(cfg.Width, cfg.Height)
-	if (long <= MaxSide && (turn == 1 || !upright)) || cfg.Width*cfg.Height > ShrinkPixels {
-		return nil
+	if cfg.Width*cfg.Height > ShrinkPixels {
+		return nil, nil
+	}
+	fits := long <= MaxSide && (turn == 1 || !upright)
+	if fits && !upright {
+		return nil, nil
 	}
 	select {
 	case resizing <- struct{}{}:
 	case <-time.After(ShrinkWait):
-		return nil
+		return nil, nil
 	}
 	defer func() { <-resizing }()
 	f.Seek(0, io.SeekStart)
 	img, _, err := image.Decode(f)
 	if err != nil {
-		return nil
+		// The WebP decoder does not read every valid WebP (animated ones):
+		// only data cut short counts as damaged there.
+		if ctype == "image/webp" && !errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if fits {
+		return nil, nil
 	}
 	w, h := cfg.Width, cfg.Height
 	if long > MaxSide {
@@ -128,9 +168,9 @@ func (s *Store) shrink(f *os.File, upright bool) *bytes.Reader {
 		err = jpeg.Encode(&out, turned(dst, turn), &jpeg.Options{Quality: masterQuality})
 	}
 	if err != nil {
-		return nil
+		return nil, nil
 	}
-	return bytes.NewReader(out.Bytes())
+	return bytes.NewReader(out.Bytes()), nil
 }
 
 // jpegOrientation reads the EXIF orientation of a JPEG (1 to 8); 1, upright,
@@ -235,7 +275,7 @@ func (s *Store) FitStored(b Blob) (int64, bool, error) {
 	if err != nil {
 		return b.Size, false, err
 	}
-	small := s.shrink(f, false)
+	small, _ := s.shrink(f, false)
 	f.Close()
 	if small == nil || int64(small.Len()) >= b.Size {
 		return b.Size, false, nil

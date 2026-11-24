@@ -1376,7 +1376,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if .Running}}<p class="error">{{.Running}} customer subscription(s) are still running. Cancel them in <a href="/apps/{{.App}}/payments">Payments</a> first, so nobody keeps being charged.</p>
 {{else}}<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">To confirm, type the app's name: <strong>{{.App}}</strong></label>
 <input id="confirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="{{.App}}" data-name="{{.App}}">
-<label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
+<input type="text" name="username" value="{{.Email}}" autocomplete="username" hidden><label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger" id="delete-btn" disabled>Delete {{.App}} for good</button>
 <script>(function(){var i=document.getElementById("confirm"),b=document.getElementById("delete-btn");function f(){b.disabled=i.value.trim()!==i.dataset.name}i.addEventListener("input",f);f()})()</script>{{end}}</form>
 </div>{{template "appbottom"}}{{end}}
@@ -1389,7 +1389,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <label for="to">New name</label><input id="to" name="to" value="{{.To}}" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="[a-z][a-z0-9-]{1,38}[a-z0-9]">
 <p class="help muted">3-40 lowercase letters, digits and hyphens. The address becomes <strong>{{if .To}}{{.To}}{{else}}new-name{{end}}.{{.Domain}}</strong>.</p>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
-<label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
+<input type="text" name="username" value="{{.Email}}" autocomplete="username" hidden><label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
 <button>Rename {{.App}}{{if .Ready}} to {{.To}}{{end}}</button></form>
 <section class="panel bcell"><div class="ph"><h2>What changes</h2></div><ul class="howto">
 <li>The old addresses send visitors to the same page on the new ones for {{.RedirectDays}} days, and nobody else can take the old name in that time.</li>
@@ -1542,11 +1542,12 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
 <button>Save and sign in</button><p class="muted" style="margin-top:16px">You will be signed out on every other device, and agents will need to connect again.</p></form>{{template "authbottom"}}{{end}}
 
-{{define "notice"}}{{template "top" .Title}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">Continue</a></p>{{end}}</div>{{template "bottom"}}{{end}}
+{{define "notice"}}{{if .Signed}}{{template "signedtop" .Title}}{{else}}{{template "top" .Title}}{{end}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">{{if $.LinkText}}{{$.LinkText}}{{else}}Continue{{end}}</a></p>{{end}}{{with .Back}}<p><a href="{{.}}">Back to the app</a></p>{{end}}</div>{{template "bottom"}}{{end}}
+{{define "signedtop"}}{{template "head" .}}<body><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a><nav aria-label="Site"><a href="/">Your apps</a><a href="/support">Support</a></nav></div></header><main>{{end}}
 
 {{define "notfound"}}{{template "top" "Page not found"}}<div class="card"><h1>This page does not exist</h1><p>The address may be mistyped, or the page was moved.</p><p><a class="button" href="/">Go to Renoxium</a></p></div>{{template "bottom"}}{{end}}
 
-{{define "error"}}{{template "top" "Error"}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
+{{define "error"}}{{if .Signed}}{{template "signedtop" "Error"}}{{else}}{{template "top" "Error"}}{{end}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
 `))
 
 func render(w http.ResponseWriter, status int, name string, data any) {

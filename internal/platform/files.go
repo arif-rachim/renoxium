@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -105,7 +106,14 @@ func (p *Platform) serveFile(w http.ResponseWriter, r *http.Request, app string)
 			return !deferred
 		})
 		etag = fmt.Sprintf("%s-%d", b.Hash, width)
-		if err == nil && (deferred || files.Deferred(f, b, width)) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			// A file the resizer cannot read (stored before damaged uploads
+			// were refused) is still served as it is: the browser may manage,
+			// and a server error would hide the image for certain.
+			slog.Warn("resize stored file", "app", app, "hash", b.Hash, "width", width, "err", err)
+			f, err = p.files.Open(hash)
+			ctype, etag = b.ContentType, b.Hash
+		} else if err == nil && (deferred || files.Deferred(f, b, width)) {
 			// Not the final answer for this address: do not let it be cached.
 			defer f.Close()
 			h := w.Header()
@@ -166,4 +174,55 @@ func (p *Platform) FitStoredPhotos(ctx context.Context, pause time.Duration) int
 		}
 	}
 	return changed
+}
+
+// AddFileFrom downloads an image from a public https address and stores it
+// for an app like AddFile. It is how an assistant hands over a photo the
+// user attached in the chat (ChatGPT gives a temporary download address)
+// or one already on the web, instead of typing the file out as base64. The
+// download uses the same guarded client as http.fetch: public addresses
+// only, at most a few redirects, each checked again.
+func (p *Platform) AddFileFrom(ctx context.Context, app, address string) (FileInfo, error) {
+	if _, err := p.Info(app); err != nil {
+		return FileInfo{}, err
+	}
+	if err := downloadable(address); err != nil {
+		return FileInfo{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("the file address cannot be used: %v", err)
+	}
+	req.Header.Set("Accept", "image/*")
+	client := p.fetchClient()
+	client.CheckRedirect = func(r *http.Request, via []*http.Request) error {
+		if len(via) >= 5 {
+			return errors.New("too many redirects")
+		}
+		return downloadable(r.URL.String())
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("the file could not be downloaded from %s: %v", req.URL.Host, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return FileInfo{}, fmt.Errorf("the file could not be downloaded from %s: it answered %d %s (a chat attachment's address expires after a while: attach the file again)",
+			req.URL.Host, resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+	if resp.ContentLength > files.MaxUpload {
+		return FileInfo{}, files.ErrPhotoTooLarge
+	}
+	return p.AddFile(app, resp.Body)
+}
+
+// downloadable checks an address AddFileFrom may download from.
+func downloadable(address string) error {
+	u, err := url.Parse(address)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Hostname() == "" || (u.Port() != "" && u.Port() != "443") {
+		return errors.New("the file address must be a public https:// address on port 443")
+	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
 func tinyPNG(t *testing.T, shade uint8) []byte {
@@ -153,4 +155,101 @@ func TestAdminImageUpload(t *testing.T) {
 func publish(e *env, c *http.Client, app string, def *appdef.App) {
 	e.t.Helper()
 	e.publishDef(c, app, def)
+}
+
+type roundTrip func(*http.Request) (*http.Response, error)
+
+func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// A photo the user attached in ChatGPT arrives as a download address
+// (openai/fileParams), and any public https image can be copied by url;
+// neither needs the assistant to type the file out as base64.
+func TestAgentUploadsFromAnAddress(t *testing.T) {
+	img := tinyPNG(t, 90)
+	var asked []string
+	e := newEnvPlans(t, false, func(c *platform.Config) {
+		c.FetchTransport = roundTrip(func(r *http.Request) (*http.Response, error) {
+			asked = append(asked, r.URL.String())
+			switch r.URL.Path {
+			case "/attachment":
+				h := http.Header{"Location": {"https://cdn.example.com/photo.png"}}
+				return &http.Response{StatusCode: 302, Header: h, Body: http.NoBody, Request: r}, nil
+			case "/photo.png":
+				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(img)), Request: r}, nil
+			}
+			return &http.Response{StatusCode: 403, Header: http.Header{}, Body: http.NoBody, Request: r}, nil
+		})
+	})
+	c := e.browser()
+	e.signup(c, "ivo@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "ivo-shop"})
+
+	out, errText := call(t, s, "upload_file", map[string]any{"app": "ivo-shop",
+		"file": map[string]any{"download_url": "https://files.example.com/attachment", "file_id": "file_123"}})
+	if errText != "" {
+		t.Fatalf("chat file: %s (asked %v)", errText, asked)
+	}
+	if w := e.appGet("ivo-shop.renoxium.test", out["url"].(string)); w.Code != 200 || !bytes.Equal(w.Body.Bytes(), img) {
+		t.Fatalf("serve: %d", w.Code)
+	}
+	again, errText := call(t, s, "upload_file", map[string]any{"app": "ivo-shop", "url": "https://cdn.example.com/photo.png"})
+	if errText != "" || again["url"] != out["url"] {
+		t.Fatalf("by url: %v %s", again, errText)
+	}
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "ivo-shop", "url": "https://files.example.com/expired"}); !strings.Contains(errText, "403") {
+		t.Fatalf("expired address: %q", errText)
+	}
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "ivo-shop", "url": "http://cdn.example.com/photo.png"}); !strings.Contains(errText, "https") {
+		t.Fatalf("plain http: %q", errText)
+	}
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "ivo-shop", "url": "https://cdn.example.com/photo.png",
+		"data_base64": base64.StdEncoding.EncodeToString(img)}); !strings.Contains(errText, "exactly one") {
+		t.Fatalf("two sources: %q", errText)
+	}
+}
+
+// What assistants commonly get wrong in base64 is accepted where it is
+// harmless and named where it is not.
+func TestAgentUploadBase64Errors(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "juno@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "juno-shop"})
+	img := tinyPNG(t, 30)
+	b64 := base64.StdEncoding.EncodeToString(img)
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "juno-shop", "data_base64": "data:image/png;base64," + b64}); errText != "" {
+		t.Fatalf("data URL: %s", errText)
+	}
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "juno-shop", "data_base64": base64.RawURLEncoding.EncodeToString(img)}); errText != "" {
+		t.Fatalf("URL-safe: %s", errText)
+	}
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "juno-shop", "data_base64": b64[:10] + "*" + b64[11:]}); !strings.Contains(errText, "character 11") {
+		t.Fatalf("bad character: %q", errText)
+	}
+	var photo bytes.Buffer
+	jpeg.Encode(&photo, image.NewRGBA(image.Rect(0, 0, 600, 400)), nil)
+	cut := base64.StdEncoding.EncodeToString(photo.Bytes()[:photo.Len()/2])
+	if _, errText := call(t, s, "upload_file", map[string]any{"app": "juno-shop", "data_base64": cut}); !strings.Contains(errText, "incomplete or damaged") {
+		t.Fatalf("cut photo: %q", errText)
+	}
+}
+
+// A link to a page of the preview through the owner's account opens that
+// page, as assistants link to the pages they changed.
+func TestPreviewDeepLink(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "lena@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "lena-shop"})
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	r, err := c.Get(e.base + "/apps/lena-shop/preview/queue?lang=ar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loc := r.Header.Get("Location"); r.StatusCode != 303 || !strings.Contains(loc, "lena-shop--preview.") || !strings.HasSuffix(loc, "/queue?lang=ar") && !strings.Contains(loc, "next=%2Fqueue%3Flang%3Dar") {
+		t.Fatalf("deep link: %d %s", r.StatusCode, loc)
+	}
 }

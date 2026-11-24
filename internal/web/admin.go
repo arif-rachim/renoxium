@@ -30,6 +30,7 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}/visitors", s.adminVisitors)
 	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
 	s.mux.HandleFunc("GET /apps/{app}/preview", s.adminPreview)
+	s.mux.HandleFunc("GET /apps/{app}/preview/{page...}", s.adminPreview)
 	s.mux.HandleFunc("GET /apps/{app}/publish", s.publishForm)
 	s.mux.HandleFunc("GET /apps/{app}/files/{id}", s.adminPrivateFile)
 	s.mux.HandleFunc("POST /apps/{app}/publish", s.publishConfirm)
@@ -83,19 +84,25 @@ func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := s.platform.Publish(app, version)
 	if err != nil {
-		render(w, http.StatusConflict, "error", map[string]any{"Message": "Could not publish: " + err.Error()})
+		render(w, http.StatusConflict, "error", map[string]any{"Signed": true, "Message": "Could not publish: " + err.Error()})
 		return
 	}
 	s.platform.Note(app, fmt.Sprintf("%s published version %d", u.Email, version))
-	render(w, http.StatusOK, "notice", map[string]any{"Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL), "Link": res.LiveURL})
+	render(w, http.StatusOK, "notice", map[string]any{"Signed": true, "Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL),
+		"Link": res.LiveURL, "LinkText": "Open the live site", "Back": "/apps/" + app})
 }
 
 // adminPreview sends the owner to their app's private preview with a
-// short-lived link that unlocks it in this browser.
+// short-lived link that unlocks it in this browser. /apps/<app>/preview/<page>
+// opens that page of the preview, as assistants link to pages they changed.
 func (s *Site) adminPreview(w http.ResponseWriter, r *http.Request) {
 	if _, app, ok := s.member(w, r); ok {
+		next := "/" + r.PathValue("page")
+		if r.URL.RawQuery != "" {
+			next += "?" + r.URL.RawQuery
+		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		http.Redirect(w, r, s.platform.PreviewLink(app), http.StatusSeeOther)
+		http.Redirect(w, r, s.platform.PreviewLinkTo(app, next), http.StatusSeeOther)
 	}
 }
 
