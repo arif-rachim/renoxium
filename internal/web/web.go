@@ -967,8 +967,10 @@ body.app .sidenav{position:static;height:100%;max-height:none;overflow:auto;scro
 .appmain{display:flex;flex-direction:column;height:100%;padding:20px 0;overflow:auto;scrollbar-width:thin}
 .appmain>*{flex:none}.appmain>.fill{flex:1 1 0;min-height:0;margin-bottom:0}
 .appmain>:last-child:not(.fill):not(.pager):not(script):not(style):not(.pagehead):not(.tabs){flex:1 0 auto;margin-bottom:0}
-.bento.bill{grid-template-rows:auto minmax(0,1fr)}.settings-grid.bento{align-items:stretch;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
-.settings-grid.bento>:nth-child(1){grid-area:1/1}.settings-grid.bento>:nth-child(3){grid-area:2/1}.settings-grid.bento>:nth-child(2){grid-area:1/2/3/3}.settings-grid.bento>:nth-child(4){grid-area:1/3/3/4}
+.appmain>.bento.bill,.appmain>.settings-grid.bento{flex:none}.bento.bill{grid-template-rows:auto auto;align-content:start}.bill .tiers{flex:none;overflow:visible}@media(min-width:1200px){.bill .tiers{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.settings-grid.bento{align-content:start;align-items:stretch;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto auto}
+.settings-grid.bento>:nth-child(1){grid-area:1/1}.settings-grid.bento>:nth-child(3){grid-area:2/1}.settings-grid.bento>:nth-child(2){grid-area:1/2}.settings-grid.bento>:nth-child(4){grid-area:2/2}.settings-grid.bento>:nth-child(5){grid-area:1/3/3/4}
+.settings-grid .panel,.bill .panel{font-size:15.5px}.settings-grid .panel h2,.bill .panel h2{font-size:19px}.settings-grid .muted,.bill .muted,.settings-grid .kv,.bill table{font-size:15px}.settings-grid .fine,.bill .fine{font-size:14px}.settings-grid label,.bill .meter{font-size:15px}.bill .tier ul{font-size:14.5px}.bill .tier .tag{font-size:14.5px}.bill .tier .price{font-size:22px;line-height:1.25}.bill .tier{padding:16px}
 .connect.fill{column-count:3;column-gap:36px;font-size:15px}.connect.fill h2{break-after:avoid;margin-top:18px}.connect.fill p,.connect.fill ul,.connect.fill ol{break-inside:avoid}.formcard,.settings{max-width:none}
 .bcell{overflow:auto;scrollbar-width:thin}
 .bento{display:grid;gap:14px;grid-auto-rows:minmax(0,1fr)}.ovw{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}.ovw .tables{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}@media(max-width:999px){.ovw{grid-template-columns:1fr}.ovw>*{grid-area:auto!important}}.bento>*{min-height:0;min-width:0;margin:0!important}
@@ -1258,7 +1260,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if .AppPlans}}<div class="scroll"><table><thead><tr><th>App</th><th>Plan</th><th>Status</th><th></th></tr></thead><tbody>
 {{range .AppPlans}}<tr><td><strong>{{.App}}</strong></td><td>{{.Label}}</td><td>{{if .Ready}}<span class="ok">{{.Status}}</span>{{else}}{{.Status}}{{end}}</td><td><a href="/apps/{{.App}}/plan">Plan</a></td></tr>{{end}}
 </tbody></table></div>{{else}}<p class="muted">No apps yet.</p>{{end}}
-<div class="tiers grow" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier">
+<div class="tiers" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier">
 <h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">{{.Price}}</p>
 <ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>{{if eq .ID "enterprise"}}<a class="button secondary" href="/support">Contact Renoxium</a>{{end}}</div>{{end}}</div>
 <p class="fine">Cards are kept by Stripe. Work app subscriptions are paid by card through Stripe; cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
