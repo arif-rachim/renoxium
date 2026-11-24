@@ -380,10 +380,7 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not load your apps", http.StatusInternalServerError)
 		return
 	}
-	plan := map[string]string{accounts.PlanPro: "Pro", accounts.PlanBusiness: "Business"}[s.accounts.Plan(u.ID)]
-	if plan == "" {
-		plan = "Free"
-	}
+	plan := planName(s.accounts.Plan(u.ID))
 	var shared []platform.AppInfo
 	if u.Verified {
 		shared, _ = s.platform.StaffApps(u.Email)
@@ -405,7 +402,7 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 	}
 	csrf := s.csrfToken(w, r)
 	render(w, http.StatusOK, "dashboard", map[string]any{"User": u, "Apps": cards, "MCP": s.base + "/mcp", "CSRF": csrf, "Plan": plan,
-		"Shared": sharedCards, "AppLimit": platform.AppsPerPlan[s.accounts.Plan(u.ID)], "Live": live, "Errors": errs, "Customers": customers,
+		"Shared": sharedCards, "AppLimit": platform.AppsPerPlan[s.accounts.OwnerPlan(u.ID)], "Live": live, "Errors": errs, "Customers": customers,
 		"Shell": s.ownerShell(u, "Your apps", "/", csrf)})
 }
 
@@ -1184,8 +1181,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="pagehead"><div><h1>Platform</h1><p class="sub">Accounts, apps and abuse reports across Renoxium.</p></div></div>{{template "tabs" .Tabs}}
 {{if eq .Tab "overview"}}{{with .Health}}{{range .Problems}}<p class="flash bad error">{{.}}</p>{{end}}{{end}}
 <div class="kpis">
-<div class="kpi"><div class="l">Accounts</div><div class="v">{{.Accounts}}</div><div class="n">Free {{index .PerPlan "free"}} · Pro {{index .PerPlan "pro"}} · Business {{index .PerPlan "business"}}</div></div>
-<div class="kpi"><div class="l">Subscription revenue</div><div class="v">AED {{.MRR}}</div><div class="n">per month · paying Pro {{index .Paying "pro"}}, Business {{index .Paying "business"}}</div></div>
+<div class="kpi"><div class="l">Accounts</div><div class="v">{{.Accounts}}</div><div class="n">Free {{index .PerPlan "free"}} · Members {{index .PerPlan "member"}} ({{.Granted}} granted)</div></div>
+<div class="kpi"><div class="l">Subscription revenue</div><div class="v">AED {{.MRR}}</div><div class="n">per month · {{.WorkApps}} work app subscription{{if ne .WorkApps 1}}s{{end}}</div></div>
 <div class="kpi"><div class="l">Apps</div><div class="v">{{.Stats.Apps}}</div><div class="n">{{.Stats.LiveApps}} live · {{.Stats.SuspendedApps}} suspended · {{.Stats.StripeReady}} take cards</div></div>
 <div class="kpi"><div class="l">WhatsApp codes</div><div class="v">{{.Stats.WhatsAppCodes}}</div><div class="n">this month, all accounts</div></div>
 {{with .Health}}<div class="kpi"><div class="l">Server</div><div class="v">{{.DiskFreeGB}} GB</div><div class="n">free of {{.DiskTotalGB}} GB · backup {{.BackupAge}} · off-site {{.OffsiteAge}}</div></div>{{end}}
@@ -1196,10 +1193,10 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <section class="panel col"><div class="ph"><h2>Recent alerts</h2><span class="muted">disk, backups and error spikes, checked every 5 minutes</span></div><div class="grow" data-long>{{with .Health}}{{if .Alerts}}<ul class="alerts" style="padding-inline-start:18px">{{range .Alerts}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">No alerts.</p>{{end}}{{else}}<p class="muted">Monitoring is off on this server.</p>{{end}}
 <p class="muted" style="margin-top:14px">Card fees and subscription payments are in the Stripe Dashboard.</p></div></section></div>
 {{else if eq .Tab "accounts"}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
-<section class="panel col fill"><div class="ph"><h2>Accounts</h2><span class="muted">Setting a plan here grants it without payment; Stripe subscriptions are managed in Stripe.</span></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Give plan</th></tr></thead><tbody>
+<section class="panel col fill"><div class="ph"><h2>Accounts</h2><span class="muted">An account is a member when it has a card saved. Granting membership here makes it a member by agreement: its apps pay no shop fee and need no work app subscription.</span></div><div class="scroll grow" data-long><table class="optable"><thead><tr><th>Email</th><th>Plan</th><th>Joined</th><th>Grant</th></tr></thead><tbody>
 {{range .Users}}<tr><td class="em"><a href="/operator/apps?q={{.Email}}">{{.Email}}</a>{{if not .Verified}} <span class="muted">unconfirmed</span>{{end}}</td><td><span class="tag">{{.Plan}}{{with .Status}} <span class="muted">{{.}}</span>{{end}}</span></td><td class="muted">{{.CreatedAt}}</td>
 <td><form method="post" action="/operator/plan" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.ID}}"><input type="hidden" name="q" value="{{$.Q}}">
-<select name="plan" aria-label="Plan"><option value="free">free</option><option value="pro">pro</option><option value="business">business</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
+<select name="plan" aria-label="Plan"><option value="free">no grant</option><option value="member">member by agreement</option></select><button class="secondary">Set</button></form></td></tr>{{end}}
 </tbody></table></div></section>
 
 {{else}}<form method="get" class="toolbar"><div class="search" style="display:flex;gap:6px;flex:1 1 300px;min-width:260px;max-width:460px"><input name="q" value="{{.Q}}" placeholder="{{.SearchHint}}" aria-label="Search" style="margin:0"><button class="secondary" style="margin:0">Search</button></div>{{if .Q}}<a href="{{.Here}}">Clear</a>{{end}}</form>
@@ -1233,7 +1230,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <section class="panel bcell"><div class="ph"><h2>Export your data</h2></div><p class="muted">A zip file with your account details and, for each app, its definition, its live data and its uploaded photos and files.</p>
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
-<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if or (ne .Billing.Plan "free") .WorkApps}} Your paid plan and work app subscriptions are cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
+<p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if .WorkApps}} Your work app subscriptions are cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
 <label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger">Delete my account</button></form></div>{{template "appbottom"}}{{end}}
@@ -1241,14 +1238,17 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{define "billing"}}{{template "owntop" .}}{{template "owncss"}}
 <div class="pagehead"><div><h1>Plan and billing</h1><p class="sub">How your apps are paid for, what you have used this month, and payments.</p></div></div>
 {{with .Notice}}<p class="flash" role="status">{{.}}</p>{{end}}
-<div class="bento fill bill"><div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Current plan: <strong>{{if or .Paying .Granted}}{{.PlanName}}{{else}}Pay per app{{end}}</strong></p>
-<p class="name">{{if .Granted}}Included{{else if .Paying}}AED {{index .Prices .Billing.Plan}}{{else}}AED 0{{end}} <span class="per">{{if .Granted}}at no charge{{else if .Paying}}/ month{{else}}for your account{{end}}</span></p>
-{{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium, no payment needed.</span></p>
-{{else if .Paying}}<p><span class="pill {{if eq .Billing.Status "active" "trialing"}}live{{else}}wait{{end}}">{{.Billing.Status}}{{with .PeriodEnd}} · {{if $.Billing.CancelAtPeriodEnd}}ends{{else}}renews{{end}} {{.}}{{end}}</span></p>
-<p class="muted">Your plan covers all your apps: no Renoxium fee on card payments and no per-app subscription.</p>
-{{else}}<p class="muted">Each app is paid for on its own: static sites are free, shops pay {{.Fee}}% of their card payments, work apps AED {{.WorkPrice}} a month each.</p>{{end}}</div>
-{{if .CanManage}}<div><div class="acts"><form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Manage billing</button></form></div>
-<p class="fine" style="margin-top:8px">Change plan, update your card, download invoices or cancel.</p></div>{{end}}</div></section>
+<div class="bento fill bill"><div class="grid2"><section class="panel"><div class="hero"><div><p class="muted" style="margin:0">Your account: <strong>{{if .Granted}}Member by agreement{{else if .Member}}Member{{else}}Free{{end}}</strong></p>
+<p class="name">{{if .Member}}Up to {{.MaxApps}} apps{{else}}Up to {{.FreeApps}} apps{{end}} <span class="per">{{.AppCount}} used</span></p>
+{{if .Granted}}<p><span class="pill plain">granted</span> <span class="muted">Given by Renoxium: your apps pay no shop fee and need no work app subscription.</span></p>
+{{else if .HasCard}}<p><span class="pill live">card saved</span> <span class="muted">{{.Card}}</span></p>
+<p class="muted">Saving a card charges nothing. Each app is still paid for on its own: static sites are free, shops pay {{.Fee}}% of their card payments, work apps AED {{.WorkPrice}} a month each.</p>
+{{else}}{{if .CardExpired}}<p><span class="pill wait">card expired</span> <span class="muted">{{.Card}}</span></p>{{end}}
+<p class="muted">A free account may have {{.FreeApps}} apps. Save a card to create up to {{.MaxApps}}: saving a card charges nothing, and your apps keep running if you remove it later.</p>
+<p class="muted">Each app is paid for on its own: static sites are free, shops pay {{.Fee}}% of their card payments, work apps AED {{.WorkPrice}} a month each.</p>{{end}}</div>
+{{if not .Granted}}<div><div class="acts">{{if and .Ready (not .HasCard)}}<form method="post" action="/billing/card"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Save a card</button></form>{{end}}
+{{if .CanManage}}<form method="post" action="/billing/portal"><input type="hidden" name="csrf" value="{{.CSRF}}"><button{{if not .HasCard}} class="secondary"{{end}}>Manage billing</button></form>{{end}}</div>
+{{if .CanManage}}<p class="fine" style="margin-top:8px">Replace or remove your card, manage work app subscriptions and download invoices.</p>{{end}}</div>{{end}}</div></section>
 
 <section class="panel"><div class="ph"><h2>Usage</h2><span class="muted">resets on the 1st of each month</span></div><div class="meters">
 {{range .Meters}}<div class="meter{{if .Warn}} warn{{end}}"><div class="top"><span>{{.Label}}</span><span><b>{{.Used}}{{.Unit}}</b> of {{.Quota}}{{.Unit}}</span></div><div class="tr" role="progressbar" aria-label="{{.Label}}" aria-valuenow="{{.Pct}}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{.Pct}}%"></i></div></div>{{end}}
@@ -1261,7 +1261,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="tiers grow" style="margin-top:14px;padding-top:12px">{{range .Plans}}<div class="tier">
 <h3>{{.Name}}</h3><span class="tag">{{.Tagline}}</span><p class="price">{{.Price}}</p>
 <ul>{{range .Features}}<li>{{.}}</li>{{end}}</ul>{{if eq .ID "enterprise"}}<a class="button secondary" href="/support">Contact Renoxium</a>{{end}}</div>{{end}}</div>
-<p class="fine">Subscriptions are paid by card through Stripe. Cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
+<p class="fine">Cards are kept by Stripe. Work app subscriptions are paid by card through Stripe; cancel any time.</p></section></div>{{template "appbottom"}}{{end}}
 
 {{define "admin_connections"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Connections</h1><p class="sub">Your app can call other services, such as a courier or SMS service, only with your permission. Allow a site only if you trust it: your app can send it data, including your customers' details.</p></div></div>
@@ -1308,7 +1308,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{define "admin_plan"}}{{template "apptop" .}}
 <div class="pagehead"><div><h1>Plan</h1><p class="sub">How {{.App}} is paid for. Building and changing it stay free and unlimited.</p></div></div>
 {{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
-{{if .Plan.Included}}<section class="panel"><p>Your account's plan covers this app: no fee on card payments and no subscription.</p></section>
+{{if .Plan.Included}}<section class="panel"><p>Your agreement with Renoxium covers this app: no fee on card payments and no subscription.</p></section>
 {{else}}<div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
 <section class="panel bcell{{if .Plan.Static}} current{{end}}"><div class="ph"><h2>Static site</h2>{{if .Plan.Static}}<span class="pill live">this app now</span>{{end}}</div>
 <p class="price">Free</p><p>Pages and photos only: no database, no server code, no sign-in. It stays at its Renoxium address.</p>

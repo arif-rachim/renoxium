@@ -144,7 +144,8 @@ func (s *Site) resourceData(ctx context.Context, w resWindow) (*resourceData, er
 		if app.Plan == "" {
 			app.Plan = accounts.PlanFree
 		}
-		app.PaysPlan = app.Plan != accounts.PlanFree && acc.Status != accounts.StatusGranted
+		// No account plan is paid for (accounts.PlanPriceAED), so no app
+		// carries a share of one: PaysPlan stays false.
 		if app.Demo {
 			app.Plan, app.OwnerEmail = "demo", "template demo"
 		}
@@ -818,7 +819,7 @@ const resourcesTemplate = `{{define "operator_resources"}}{{template "owntop" .}
 <li><span class="flag">Unprofitable heavy</span> Among the 10% of apps with the highest estimated cost, costing at least AED 0.01, and bringing in less than they cost.</li>
 <li><span class="flag errors">Error-prone</span> At least 3 runs, and at least 2% of runs, stopped at the 2 s time limit or a memory limit. Each holds a worker until it is stopped, and a memory kill restarts the worker.</li>
 <li><span class="flag">Free plan over fair use</span> A Free-plan app above the fair-use thresholds below (script seconds a day or MB sent a day, averaged over the period).</li></ul>
-<p class="muted">Script time is how long scripts held a worker, database calls and waiting included; CPU is measured inside the worker process (user and system time from the kernel) plus the time the server spent on the app's database calls. Wait caused: when a run had to wait for a free worker, the wait is shared out over the apps whose runs held the workers. Cost share is the app's part of all script time. Revenue: the owner's plan price for the period (paid plans only, not granted ones), split equally over the owner's live apps (all their apps if none is live), plus the Free-plan card fees of the app's own live payments (AED only).</p>
+<p class="muted">Script time is how long scripts held a worker, database calls and waiting included; CPU is measured inside the worker process (user and system time from the kernel) plus the time the server spent on the app's database calls. Wait caused: when a run had to wait for a free worker, the wait is shared out over the apps whose runs held the workers. Cost share is the app's part of all script time. Revenue: the shop fees of the app's own live card payments (AED only); account plans cost nothing, and work app subscriptions are on the Platform page.</p>
 </details>
 {{else}}<h2 style="margin-top:0" id="prices">Unit prices and fair use</h2>
 <form class="col grow" method="post" action="/operator/resources/prices"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="window" value="{{.Window.Key}}"><div class="prices grow">

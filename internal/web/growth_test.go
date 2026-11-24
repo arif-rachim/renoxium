@@ -30,12 +30,13 @@ func TestOperatorGrowth(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("order: %d", w.Code)
 	}
-	// One only signs up; one pays for Pro without building anything yet.
+	// One only signs up; one saves a card without building anything yet
+	// (a member, which is not paying).
 	e.signup(e.browser(), "lead@shop.ae")
 	e.signup(e.browser(), "payer@shop.ae")
 	payer, _ := e.acc.UserByEmail("payer@shop.ae")
 	e.acc.SetCustomer(payer.ID, "cus_payer")
-	e.acc.SetSubscription(payer.ID, accounts.Billing{Plan: accounts.PlanPro, Status: "active", Subscription: "sub_1"})
+	e.acc.SetCard(payer.ID, accounts.Card{Brand: "visa", Last4: "4242", ExpMonth: 12, ExpYear: 2099})
 
 	ops := e.browser()
 	e.signup(ops, "ops@renoxium.ae")
@@ -69,7 +70,7 @@ func TestOperatorGrowth(t *testing.T) {
 	page := all()
 	for _, want := range []string{`id="growth"`, `<a href="/operator/growth/economics">Unit economics</a>`, `aria-label="Account"`, `href="/operator/growth" aria-current="page"`, "3 owners, all time", "Signed up", "Email confirmed", "Agent connected", "First publish to live",
 		"First customer activity", "Paid plan started", "Still paying after 3 months", "33%", // 1 of 3 sign-ups published
-		"AED 99", "not enough data: fewer than 5 paying accounts", "enter marketing spend for the last three months", "aim for 3 or more",
+		"account plans cost nothing", "not enough data: fewer than 5 paying accounts", "enter marketing spend for the last three months", "aim for 3 or more",
 		"Activation by template", "<td>custom</td>", "Download funnel CSV", "Last 12 weeks"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("growth section lacks %q", want)
@@ -124,8 +125,8 @@ func TestOperatorGrowth(t *testing.T) {
 		}
 	}
 	page = all()
-	// The payer started this month: CAC = 1500 ÷ 1.
-	for _, want := range []string{"<td class=\"n\">AED 1500</td>", `value="70"`, "AED 1500</div>"} {
+	// Nobody started paying this month, so there is spend but no CAC.
+	for _, want := range []string{"<td class=\"n\">AED 1500</td>", `value="70"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("after saving, page lacks %q", want)
 		}
@@ -156,7 +157,7 @@ func TestOperatorGrowth(t *testing.T) {
 			t.Errorf("zara lacks %s", rows[0][i])
 		}
 	}
-	if p := byEmail["payer@shop.ae"]; p == nil || p[2] != "pro" || p[10] == "" || p[7] != "" {
+	if p := byEmail["payer@shop.ae"]; p == nil || p[2] != "member" || p[10] != "" || p[7] != "" {
 		t.Errorf("payer row %v", p)
 	}
 	if _, ok := byEmail["ops@renoxium.ae"]; ok {

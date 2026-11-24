@@ -49,7 +49,9 @@ func (s *Site) adminPayments(w http.ResponseWriter, r *http.Request) {
 
 func (s *Site) renderPayments(w http.ResponseWriter, r *http.Request, u accounts.User, app string, status int, notice, problem string) {
 	fee := 0
-	if b, _ := s.accounts.Billing(u.ID); b.Plan == accounts.PlanFree {
+	// Shops pay the fee on free and member accounts alike; a paid work app
+	// and a granted account's apps do not.
+	if b, _ := s.accounts.Billing(u.ID); !b.Granted() {
 		if pl, _ := s.platform.AppPlan(app); !pl.WorkPaid {
 			fee = platform.ShopFeePercent
 		}

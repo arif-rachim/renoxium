@@ -19,7 +19,7 @@ import (
 func TestPlansDecideFeeAndPublishing(t *testing.T) {
 	fs := &fakeStripe{charges: true}
 	srv := fs.server(t)
-	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
+	plans := map[string]string{"usr_free": "free", "usr_member": "member", "usr_granted": "granted"}
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://www.renoxium.test",
 		Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: srv.URL}, OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
 	if err != nil {
@@ -36,83 +36,165 @@ func TestPlansDecideFeeAndPublishing(t *testing.T) {
 			t.Fatal(pa, err)
 		}
 	}
-	for owner, app := range map[string]string{"usr_free": "free-shop", "usr_pro": "pro-shop"} {
+	for owner, app := range map[string]string{"usr_free": "free-shop", "usr_member": "member-shop", "usr_granted": "granted-shop"} {
 		if _, err := p.CreateApp(owner, app); err != nil {
 			t.Fatal(err)
 		}
 		p.ApplyChange(ctx, app, shopWithCheckout())
 	}
 
-	// A free account's app with server code goes live only once the owner
-	// chose how it is paid for; a shop may connect Stripe afterwards.
-	if _, err := p.Publish("free-shop", 0); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/apps/free-shop/plan") {
-		t.Fatalf("publish without a plan: %v", err)
-	}
-	p.SetAppKind("free-shop", platform.KindShop)
-	if _, err := p.Publish("free-shop", 0); err != nil {
-		t.Fatalf("shop: %v", err)
+	// A free or member account's app with server code goes live only once
+	// the owner chose how it is paid for; a shop may connect Stripe afterwards.
+	for _, app := range []string{"free-shop", "member-shop"} {
+		if _, err := p.Publish(app, 0); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/apps/"+app+"/plan") {
+			t.Fatalf("%s: publish without a plan: %v", app, err)
+		}
+		if pl, _ := p.AppPlan(app); pl.Included {
+			t.Fatalf("%s is included", app)
+		}
+		p.SetAppKind(app, platform.KindShop)
+		if _, err := p.Publish(app, 0); err != nil {
+			t.Fatalf("%s: shop: %v", app, err)
+		}
 	}
 	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["free"] {
 		t.Fatalf("shop without Stripe: quota %d", q)
 	}
+	if _, q := p.WhatsAppUsage("usr_member"); q != 2000 {
+		t.Fatalf("member: quota %d", q)
+	}
 	connect("free-shop")
 	platform.ForgetPlan("usr_free")
-	// Once Stripe takes its payments, the shop gets the Pro limits.
-	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["pro"] {
+	// Once Stripe takes its payments, the shop's account gets the member limits.
+	if _, q := p.WhatsAppUsage("usr_free"); q != platform.WhatsAppCodesPerPlan["member"] {
 		t.Fatalf("shop with Stripe: quota %d", q)
 	}
-	// An account on a paid plan needs neither.
-	if _, err := p.Publish("pro-shop", 0); err != nil {
-		t.Fatalf("pro: %v", err)
+	// A granted account needs neither.
+	if pl, _ := p.AppPlan("granted-shop"); !pl.Included || !pl.Ready {
+		t.Fatalf("granted plan %+v", pl)
 	}
-	connect("pro-shop")
+	if _, err := p.Publish("granted-shop", 0); err != nil {
+		t.Fatalf("granted: %v", err)
+	}
+	connect("member-shop")
+	connect("granted-shop")
 
-	// A shop pays 2% of 500 AED = 10 AED (1000 fils); Pro pays nothing.
-	do(t, p, "POST", "free-shop.renoxium.test", "/buy", url.Values{})
-	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
-		t.Fatalf("shop fee = %q", fee)
+	// A shop pays 2% of 500 AED = 10 AED (1000 fils), on a member's account
+	// too; a granted account pays nothing.
+	for _, app := range []string{"free-shop", "member-shop"} {
+		do(t, p, "POST", app+".renoxium.test", "/buy", url.Values{})
+		if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "1000" {
+			t.Fatalf("%s fee = %q", app, fee)
+		}
 	}
-	do(t, p, "POST", "pro-shop.renoxium.test", "/buy", url.Values{})
+	do(t, p, "POST", "granted-shop.renoxium.test", "/buy", url.Values{})
 	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
-		t.Fatalf("pro plan fee = %q", fee)
+		t.Fatalf("granted fee = %q", fee)
 	}
 
-	// A work app pays its subscription instead of the fee, and pauses when
-	// the subscription ends.
-	p.CreateApp("usr_free", "free-work")
-	p.ApplyChange(ctx, "free-work", shopWithCheckout())
-	p.SetAppKind("free-work", platform.KindWork)
-	if _, err := p.Publish("free-work", 0); err == nil || !strings.Contains(err.Error(), "subscribe") {
-		t.Fatalf("work app without a subscription: %v", err)
+	// A work app pays its subscription instead of the fee, on a member's
+	// account too, and pauses when the subscription ends.
+	for _, owner := range []string{"usr_free", "usr_member"} {
+		app := strings.TrimPrefix(owner, "usr_") + "-work"
+		p.CreateApp(owner, app)
+		p.ApplyChange(ctx, app, shopWithCheckout())
+		p.SetAppKind(app, platform.KindWork)
+		if _, err := p.Publish(app, 0); err == nil || !strings.Contains(err.Error(), "subscribe") {
+			t.Fatalf("%s without a subscription: %v", app, err)
+		}
+		platform.PaidWorkApp(t, p, app)
+		if _, err := p.Publish(app, 0); err != nil {
+			t.Fatal(err)
+		}
+		connect(app)
+		do(t, p, "POST", app+".renoxium.test", "/buy", url.Values{})
+		if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
+			t.Fatalf("%s fee = %q", app, fee)
+		}
+		if got := p.StaffLimit(app); got != platform.WorkAppUsers {
+			t.Fatalf("%s staff = %d", app, got)
+		}
+		if !p.CustomDomainAllowed(app) {
+			t.Fatalf("%s may not have its own domain", app)
+		}
+		p.SetWorkSubscription(app, "sub_"+app, "canceled", time.Time{})
+		if r := do(t, p, "GET", app+".renoxium.test", "/", nil); r.status != 402 || !strings.Contains(r.body, "paused") {
+			t.Fatalf("lapsed %s: %d %s", app, r.status, r.body)
+		}
 	}
-	platform.PaidWorkApp(t, p, "free-work")
-	if _, err := p.Publish("free-work", 0); err != nil {
+	// A granted account's work app needs no subscription.
+	p.CreateApp("usr_granted", "granted-work")
+	p.ApplyChange(ctx, "granted-work", shopWithCheckout())
+	p.SetAppKind("granted-work", platform.KindWork)
+	if _, err := p.Publish("granted-work", 0); err != nil {
+		t.Fatalf("granted work app: %v", err)
+	}
+	if r := do(t, p, "GET", "granted-work.renoxium.test", "/", nil); r.status == 402 {
+		t.Fatal("granted work app paused")
+	}
+}
+
+// A free account may have 3 apps, a member 50. Apps beyond the limit keep
+// running when the card goes; only new ones are refused.
+func TestAppLimits(t *testing.T) {
+	plans := map[string]string{"usr_a": "free"}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://www.renoxium.test",
+		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
+	if err != nil {
 		t.Fatal(err)
 	}
-	connect("free-work")
-	do(t, p, "POST", "free-work.renoxium.test", "/buy", url.Values{})
-	if fee := fs.sessions[len(fs.sessions)-1].Get("payment_intent_data[application_fee_amount]"); fee != "" {
-		t.Fatalf("work app fee = %q", fee)
+	defer p.Close()
+	if platform.AppsPerPlan["free"] != 3 || platform.AppsPerPlan["member"] != 50 || platform.AppsPerPlan["granted"] != 50 {
+		t.Fatalf("limits %v", platform.AppsPerPlan)
 	}
-	if got := p.StaffLimit("free-work"); got != platform.WorkAppUsers {
-		t.Fatalf("work app staff = %d", got)
-	}
-	if !p.CustomDomainAllowed("free-work") {
-		t.Fatal("work app may not have its own domain")
-	}
-	p.SetWorkSubscription("free-work", "sub_free-work", "canceled", time.Time{})
-	if r := do(t, p, "GET", "free-work.renoxium.test", "/", nil); r.status != 402 || !strings.Contains(r.body, "paused") {
-		t.Fatalf("lapsed work app: %d %s", r.status, r.body)
-	}
-
-	// The free plan allows ten apps.
-	for i := 3; i <= platform.AppsPerPlan["free"]; i++ {
-		if _, err := p.CreateApp("usr_free", fmt.Sprintf("free-%d", i)); err != nil {
+	for i := 1; i <= 3; i++ {
+		if _, err := p.CreateApp("usr_a", fmt.Sprintf("app-%d", i)); err != nil {
 			t.Fatalf("free app %d: %v", i, err)
 		}
 	}
-	if _, err := p.CreateApp("usr_free", "free-too-many"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/support") {
+	freeMsg := "A free account may have 3 apps. Save a card at https://www.renoxium.test/billing to create up to 50 (saving a card charges nothing), " +
+		"or delete an app you no longer need at https://www.renoxium.test/apps/<app>/delete."
+	if _, err := p.CreateApp("usr_a", "app-4"); err == nil || err.Error() != freeMsg {
 		t.Fatalf("app over the free limit: %v", err)
+	}
+	// A card saved: up to 50.
+	plans["usr_a"] = "member"
+	platform.ForgetPlan("usr_a")
+	for i := 4; i <= 50; i++ {
+		if _, err := p.CreateApp("usr_a", fmt.Sprintf("app-%d", i)); err != nil {
+			t.Fatalf("member app %d: %v", i, err)
+		}
+	}
+	memberMsg := "this account has the maximum of 50 apps; delete one you no longer need, or contact Renoxium at https://www.renoxium.test/support"
+	if _, err := p.CreateApp("usr_a", "app-51"); err == nil || err.Error() != memberMsg {
+		t.Fatalf("app over the member limit: %v", err)
+	}
+	// The card is removed: all 50 apps stay, a new one is refused.
+	p.ApplyChange(context.Background(), "app-12", &appdef.App{Templates: map[string]string{"t": "<h1>Twelve</h1>"}, Routes: []appdef.Route{{Method: "GET", Path: "/", Template: "t"}}})
+	if _, err := p.Publish("app-12", 0); err != nil {
+		t.Fatal(err)
+	}
+	plans["usr_a"] = "free"
+	platform.ForgetPlan("usr_a")
+	if apps, _ := p.Apps("usr_a"); len(apps) != 50 {
+		t.Fatalf("%d apps after the card went", len(apps))
+	}
+	if r := do(t, p, "GET", "app-12.renoxium.test", "/", nil); r.status != 200 || !strings.Contains(r.body, "Twelve") {
+		t.Fatalf("app over the free limit stopped: %d", r.status)
+	}
+	if _, err := p.CreateApp("usr_a", "app-51"); err == nil || err.Error() != freeMsg {
+		t.Fatalf("new app after the card went: %v", err)
+	}
+	// Without plans nothing but the hard cap limits.
+	open, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https"}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer open.Close()
+	for i := 1; i <= 4; i++ {
+		if _, err := open.CreateApp("usr_b", fmt.Sprintf("open-%d", i)); err != nil {
+			t.Fatalf("no plans, app %d: %v", i, err)
+		}
 	}
 }
 
@@ -193,7 +275,7 @@ func TestWhatsAppQuotaPerPlan(t *testing.T) {
 }
 
 func TestStaffLimitPerPlan(t *testing.T) {
-	plans := map[string]string{"usr_free": "free", "usr_pro": "pro"}
+	plans := map[string]string{"usr_free": "free", "usr_member": "member", "usr_granted": "granted"}
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", SiteURL: "https://www.renoxium.test",
 		OwnerPlan: func(id string) string { return plans[id] }}, sandbox.NewGoja())
 	if err != nil {
@@ -201,7 +283,6 @@ func TestStaffLimitPerPlan(t *testing.T) {
 	}
 	defer p.Close()
 	p.CreateApp("usr_free", "free-shop")
-	p.CreateApp("usr_pro", "pro-shop")
 	// A free account's app gets staff once it is a shop (2) or a paid work app (5).
 	if err := p.AddStaff("free-shop", "a@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "shop or a work app") {
 		t.Fatalf("free staff: %v", err)
@@ -219,19 +300,28 @@ func TestStaffLimitPerPlan(t *testing.T) {
 	if err := p.AddStaff("free-shop", "c@x.ae", "usr_free"); err == nil || !strings.Contains(err.Error(), "https://www.renoxium.test/apps/free-shop/plan") {
 		t.Fatalf("third shop staff: %v", err)
 	}
-	for _, e := range []string{"a@x.ae", "b@x.ae"} {
-		if err := p.AddStaff("pro-shop", e, "usr_pro"); err != nil {
+	// A member's apps get staff the same way; only a grant gives 10 to any app.
+	p.CreateApp("usr_member", "member-shop")
+	if err := p.AddStaff("member-shop", "a@x.ae", "usr_member"); err == nil || !strings.Contains(err.Error(), "shop or a work app") {
+		t.Fatalf("member staff: %v", err)
+	}
+	p.CreateApp("usr_granted", "granted-app")
+	if got := p.StaffLimit("granted-app"); got != platform.GrantedStaff {
+		t.Fatalf("granted staff limit = %d", got)
+	}
+	for i := 0; i < platform.GrantedStaff; i++ {
+		if err := p.AddStaff("granted-app", fmt.Sprintf("s%d@x.ae", i), "usr_granted"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := p.AddStaff("pro-shop", "c@x.ae", "usr_pro"); err == nil || !strings.Contains(err.Error(), "may have 2 staff members") ||
+	if err := p.AddStaff("granted-app", "more@x.ae", "usr_granted"); err == nil || !strings.Contains(err.Error(), "may have 10 staff members") ||
 		!strings.Contains(err.Error(), "https://www.renoxium.test/support") {
-		t.Fatalf("third pro staff: %v", err)
+		t.Fatalf("eleventh granted staff: %v", err)
 	}
-	if err := p.AddStaff("pro-shop", "A@X.ae", "usr_pro"); err != nil || !p.IsStaff("pro-shop", "a@x.ae") {
+	if err := p.AddStaff("granted-app", "S1@X.ae", "usr_granted"); err != nil || !p.IsStaff("granted-app", "s1@x.ae") {
 		t.Fatalf("existing staff again: %v", err)
 	}
-	if err := p.AddStaff("pro-shop", "not an email", "usr_pro"); err == nil {
+	if err := p.AddStaff("granted-app", "not an email", "usr_granted"); err == nil {
 		t.Fatal("bad email accepted")
 	}
 }

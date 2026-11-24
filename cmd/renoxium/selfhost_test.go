@@ -31,9 +31,9 @@ func TestSelfHostCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// On Renoxium: a Pro account's shop, exported from the console.
+	// On Renoxium: a granted account's shop, exported from the console.
 	hosted, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", LicenceKey: key,
-		OwnerPlan:  func(string) string { return accounts.PlanPro },
+		OwnerPlan:  func(string) string { return accounts.PlanGranted },
 		OwnerEmail: func(string) (string, bool) { return "owner@shop.ae", true }}, sandbox.NewGoja())
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func TestSelfHostCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	u, err := acc.UserByEmail("admin@noorperfumes.ae")
-	if err != nil || !u.Verified || acc.Plan(u.ID) != accounts.PlanPro {
+	if err != nil || !u.Verified || acc.OwnerPlan(u.ID) != accounts.PlanGranted {
 		t.Errorf("admin account: %+v %v plan %s", u, err, acc.Plan(u.ID))
 	}
 	acc.Close()

@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/appdef"
 	"github.com/arif-rachim/renoxium/internal/stripe"
 	"github.com/arif-rachim/renoxium/internal/web"
@@ -83,16 +83,16 @@ func TestAccountPage(t *testing.T) {
 		}
 	}
 
-	// Delete: a running paid plan is cancelled at Stripe first; nothing is
-	// deleted when that fails or the confirmation is wrong.
-	fb := &fakeBilling{status: "active", price: "price_pro"}
+	// Delete: a running work app subscription is cancelled at Stripe first;
+	// nothing is deleted when that fails or the confirmation is wrong.
+	fb := &fakeBilling{status: "active", price: "price_work"}
 	e.site.Billing = web.Billing{Stripe: &stripe.Client{Key: "sk_test_x", BaseURL: fb.server(t).URL},
-		PricePro: "price_pro", PriceBusiness: "price_business", WebhookSecret: "whsec_billing"}
+		PriceWorkApp: "price_work", WebhookSecret: "whsec_billing"}
 	u, _ := e.acc.UserByEmail("xena@shop.ae")
 	e.acc.SetCustomer(u.ID, "cus_1")
-	e.acc.SetSubscription(u.ID, accounts.Billing{Plan: "pro", Status: "active", Subscription: "sub_1"})
-	if r, _ := c.Get(e.base + "/account"); !strings.Contains(read(t, r), "Your paid plan and work app subscriptions are cancelled at once") {
-		t.Fatal("the delete form does not warn about the paid plan")
+	e.p.SetWorkSubscription("xena-shop", "sub_1", "active", time.Now().Add(720*time.Hour))
+	if r, _ := c.Get(e.base + "/account"); !strings.Contains(read(t, r), "Your work app subscriptions are cancelled at once") {
+		t.Fatal("the delete form does not warn about the work app subscription")
 	}
 	fb.failCancel = true
 	if r, page := post("/account/delete", url.Values{"confirm": {"xena@shop.ae"}, "password": {"a brand new password"}}); r.StatusCode != 503 || !strings.Contains(page, "nothing was deleted") {

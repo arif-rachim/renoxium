@@ -36,11 +36,11 @@ func mailApp() *appdef.App {
 // one sign-in emails use, so nobody's scripts can stop other apps'
 // confirmation and reset emails.
 func TestScriptEmailBudgetPerAccount(t *testing.T) {
-	defer func(n int) { platform.AppEmailsPerPlan["pro"] = n }(platform.AppEmailsPerPlan["pro"])
-	platform.AppEmailsPerPlan["pro"] = 3
+	defer func(n int) { platform.AppEmailsPerPlan["member"] = n }(platform.AppEmailsPerPlan["member"])
+	platform.AppEmailsPerPlan["member"] = 3
 	box := &outbox{}
 	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Mailer: box,
-		OwnerPlan:  func(string) string { return "pro" },
+		OwnerPlan:  func(string) string { return "member" },
 		OwnerEmail: func(string) (string, bool) { return "owner@club.ae", true },
 		Daily:      platform.DailyLimits{Emails: 4}}, sandbox.NewGoja())
 	if err != nil {
@@ -50,7 +50,10 @@ func TestScriptEmailBudgetPerAccount(t *testing.T) {
 	for _, app := range []string{"club", "club-two"} {
 		p.CreateApp("usr_sender", app)
 		p.ApplyChange(context.Background(), app, mailApp())
-		p.Publish(app, 0)
+		p.SetAppKind(app, platform.KindShop) // a member chooses how each app is paid for, too
+		if _, err := p.Publish(app, 0); err != nil {
+			t.Fatal(err)
+		}
 	}
 	send := func(app string, i int) int {
 		return do(t, p, "POST", app+".renoxium.test", "/mail", url.Values{"to": {fmt.Sprintf("someone%d@example.com", i)}}).status

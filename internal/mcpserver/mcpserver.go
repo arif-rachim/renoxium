@@ -161,7 +161,7 @@ Visitor accounts (sign-in for the app's own users, e.g. customers or members):
 - Emails (confirmation and reset) are sent from live only. On preview they are written to get_logs, links included.
 - Test with create_test_visitor and as_visitor (above), or follow the real sign-up in a session.
 
-Payments (card payments through the owner's own Stripe account; on the Free plan Renoxium takes a 2% fee, on paid plans none):
+Payments (card payments through the owner's own Stripe account; in a shop Renoxium takes a 2% fee, on free and member accounts alike; a paid work app and accounts by agreement with Renoxium pay none):
 - Never collect card details yourself. In a script, create the order first, then call
   payments.checkout({items: [{name, price, quantity}], reference, success_path, cancel_path, customer_email})
   and return {redirect: result.url}. price is in AED with at most 2 decimals (250 or 99.5, not fils); quantity defaults to 1;
@@ -185,7 +185,7 @@ Payments (card payments through the owner's own Stripe account; on the Free plan
 - Refunds (e.g. a customer cancels): payments.refund({reference, amount, reason}) refunds the newest paid payment for the reference;
   without amount, everything not yet refunded; amount in AED with at most 2 decimals, never more than what is left (else it throws).
   It returns {status: "partially_refunded"|"refunded", refunded_amount, amount}. on_payment then runs once with that event (after
-  your script finishes). On the Free plan Renoxium's 2% fee is refunded in proportion. The owner can also refund on the Payments page.
+  your script finishes). Where Renoxium took its 2% fee, it is refunded in proportion. The owner can also refund on the Payments page.
 - Card holds (e.g. a car rental deposit): payments.checkout({..., hold: true}) only authorises the card; on_payment gets "authorized".
   Then payments.capture({reference, amount}) takes all or part of it (e.g. a damage charge; on_payment gets "paid" with the amount
   taken, the rest is released) or payments.release({reference}) cancels it (on_payment gets "released"). Cards drop a hold after about
@@ -208,7 +208,8 @@ Payments (card payments through the owner's own Stripe account; on the Free plan
 
 Emails (plain text; live sends them, preview writes them with their links to get_logs):
 - email.send({to, subject, text}) emails one address from the app, e.g. an order confirmation to req.user.email.
-  At most 10 emails per address per day, within the account's daily number over all its apps (50 Free, 500 Pro, 2,000 Business);
+  At most 10 emails per address per day, within the account's daily number over all its apps (50 on the free limits, 2,000 on the member limits;
+  member limits come with a card saved at Renoxium, a paid work app or a shop whose Stripe takes card payments);
   past it email.send throws an error. Replies go to the owner.
 - notify.owner({subject, text}) emails the app owner, e.g. "New order #12". Card payments already email the owner
   "Payment received" automatically, so use it for other events such as cash-on-delivery orders.
@@ -222,7 +223,7 @@ WhatsApp messages (a short one-way notice to one number, e.g. "two patients are 
   the app, so give a phone number or link in the text when the visitor may need to answer. Send it only to a number the visitor gave
   for that purpose, at most once per event. It returns {sent} and throws when the number or text is wrong, when the number had
   5 messages from the app today, or when the account's monthly WhatsApp messages (shared with sign-in codes and owner notices:
-  50 Free, 500 Pro and paid work apps, 2,000 Business) or the daily limit are used up: catch the error and fall back to
+  50 on the free limits, 2,000 on the member limits) or the daily limit are used up: catch the error and fall back to
   email.send. Preview writes the message to get_logs instead of sending it.
 
 Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an ERP:
@@ -235,7 +236,7 @@ Calling other services (http.fetch), e.g. courier prices, SMS, Google Sheets, an
   secret: "EXAMPLE_KEY", timeout_ms: 5000}). It returns {status, ok, headers, body (text), json (when the answer is JSON), truncated}.
   Redirects are not followed (you get the 3xx). The platform adds the key; the script never sees it.
 - Limits: 5 calls per request or job, at most 8 s of waiting in all, 60 calls a minute per app, 1 MB answers, and a monthly
-  quota per plan (1,000 Free, 20,000 Pro, 100,000 Business). Waiting for the answer does not count towards the 2-second script limit.
+  quota (1,000 on the free limits, 100,000 on the member limits). Waiting for the answer does not count towards the 2-second script limit.
 - Preview makes real calls only while the owner has turned on test calls at /apps/<app>/connections (2 hours at a time); otherwise
   http.fetch throws an error saying so. Ask the user to turn it on when you need to test a connection, then open the page with view_page.
   Preview calls count towards the monthly quota.
@@ -246,13 +247,13 @@ Realtime (live updates in the browser, e.g. a courier on a map, a queue number, 
 - In the browser: new EventSource('/_rx/live/' + channel + '?token=' + token), then onmessage = e => JSON.parse(e.data).
   Channels starting with "public:" need no token; for any other channel a script must hand the page realtime.token(channel)
   (valid 24 hours), e.g. only on the buyer's own order page. Never put tokens of private channels on public pages.
-- Live connections per app are limited by plan (50 Free, 500 Pro, 2000 Business). Publishing is limited to 600 messages a minute per app,
+- Live connections per app are limited (50 on the free limits, 2,000 on the member limits). Publishing is limited to 600 messages a minute per app,
   so send positions every few seconds, not on every GPS event. The delivery-tracking example shows a courier page and a live customer map.
 
 Scheduled jobs:
 - "jobs": [{name, script, every: "15m"} or {name, script, daily_at: "21:00", timezone: "Asia/Dubai" (default)}] run scripts on the live
   app on a schedule, e.g. a daily sales report with notify.owner, reminders with email.send, or cancelling unpaid orders.
-  every is at least 1m (5m on the Free plan). A new job first runs after its interval or at its next daily time.
+  every is at least 1m (5m on the free limits). A new job first runs after its interval or at its next daily time.
 - The script gets req.method "JOB", req.body {job, scheduled_at} and no visitor; return {text: "..."} for the log. Same limits as requests.
 - Jobs never run on preview by themselves: try them with try_scheduled_jobs {"app": "..."}, which runs every listed job once and returns each result. The owner sees last and next runs on the app page.
 
@@ -379,7 +380,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Apply   *platform.ApplyResult `json:"apply,omitempty" jsonschema:"result of applying the example to the preview (checks of every page)"`
 		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read them with get_app_parts {paths: [\"templates.css\"]}"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new app for the signed-in user and return its live and preview addresses. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
+	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new app for the signed-in user and return its live and preview addresses. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
 			user, err := userOf(req)
 			if err != nil {

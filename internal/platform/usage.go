@@ -9,11 +9,11 @@ import (
 // WhatsAppCodesPerPlan is how many sign-in codes the live apps of one
 // account may send per calendar month. Each code is a paid WhatsApp
 // message; past the quota visitors sign in with email instead.
-var WhatsAppCodesPerPlan = map[string]int{planFree: 50, planPro: 500, planBusiness: 2000}
+var WhatsAppCodesPerPlan = map[string]int{planFree: 50, planMember: 2000}
 
 // StorageMBPerPlan is how much file storage all apps of one account may use.
 // A file used by several of the account's apps counts once.
-var StorageMBPerPlan = map[string]int64{planFree: 200, planPro: 2048, planBusiness: 10240}
+var StorageMBPerPlan = map[string]int64{planFree: 200, planMember: 10240}
 
 // StorageUsage is the bytes of files an account's apps use, and its quota.
 func (p *Platform) StorageUsage(owner string) (used, quota int64) {

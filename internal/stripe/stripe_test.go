@@ -148,3 +148,31 @@ func TestSubscriptionHelpers(t *testing.T) {
 		t.Fatalf("%+v %v %v", subs, err, got.form)
 	}
 }
+
+func TestSetupCheckout(t *testing.T) {
+	var got captured
+	c := fake(t, 200, `{"id":"cs_3","url":"https://checkout.stripe.com/c/pay/cs_3"}`, &got)
+	u, err := c.SetupCheckout(context.Background(), "cus_1", "https://s/ok", "https://s/no", map[string]string{"rx_user": "usr_1"})
+	if err != nil || u != "https://checkout.stripe.com/c/pay/cs_3" || got.account != "" || got.path != "/v1/checkout/sessions" ||
+		got.form.Get("mode") != "setup" || got.form.Get("customer") != "cus_1" || got.form.Get("payment_method_types[0]") != "card" ||
+		got.form.Get("success_url") != "https://s/ok" || got.form.Get("setup_intent_data[metadata][rx_user]") != "usr_1" ||
+		got.form.Get("line_items[0][price]") != "" {
+		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+func TestCardPaymentMethods(t *testing.T) {
+	var got captured
+	c := fake(t, 200, `{"data":[{"id":"pm_1","type":"card","customer":"cus_1","card":{"brand":"visa","last4":"4242","exp_month":12,"exp_year":2030}}]}`, &got)
+	pms, err := c.CardPaymentMethods(context.Background(), "cus_1")
+	if err != nil || len(pms) != 1 || pms[0].Card.Last4 != "4242" || pms[0].Card.ExpMonth != 12 ||
+		!pms[0].Expires().Equal(time.Date(2031, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("%+v %v", pms, err)
+	}
+	if got.method != "GET" || got.path != "/v1/customers/cus_1/payment_methods" || got.form.Get("type") != "card" || got.account != "" {
+		t.Fatalf("%+v", got)
+	}
+	if (PaymentMethod{}).Expires() != (time.Time{}) {
+		t.Fatal("unknown expiry")
+	}
+}

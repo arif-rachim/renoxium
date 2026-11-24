@@ -6,8 +6,11 @@ import (
 	"strings"
 )
 
-// StaffPerPlan is how many staff members each app of an account may have.
-var StaffPerPlan = map[string]int{planFree: 0, planPro: 2, planBusiness: 10}
+// GrantedStaff is how many staff members each app of a granted account (or
+// of a server without plans) may have. On free and member accounts staff
+// come with the app's kind: ShopStaff for a shop, WorkAppUsers (up to
+// WorkAppMaxUsers, paid per seat) for a work app.
+const GrantedStaff = 10
 
 func (p *Platform) ensureStaffTable() error {
 	_, err := p.db.Exec(`CREATE TABLE IF NOT EXISTS app_staff (app TEXT NOT NULL, email TEXT NOT NULL, added_by TEXT NOT NULL,
@@ -33,13 +36,10 @@ func (p *Platform) Staff(app string) ([]string, error) {
 	return out, rows.Err()
 }
 
-// StaffLimit is how many staff members the app's owner's plan allows.
+// StaffLimit is how many staff members the app may have.
 func (p *Platform) StaffLimit(app string) int {
-	if p.cfg.OwnerPlan == nil {
-		return StaffPerPlan[planBusiness]
-	}
-	if plan := p.planOf(p.ownerOf(app)); plan != planFree {
-		return StaffPerPlan[plan]
+	if p.cfg.OwnerPlan == nil || p.granted(app) {
+		return GrantedStaff
 	}
 	switch {
 	case p.workPaid(app) && p.cfg.WorkSeats:
@@ -74,7 +74,7 @@ func (p *Platform) AddStaff(app, email, by string) error {
 		if limit == WorkAppMaxUsers && p.workPaid(app) {
 			return fmt.Errorf("a work app may have at most %d staff members for now", limit)
 		}
-		if p.planOf(p.ownerOf(app)) == planFree && p.appKind(app) == KindShop {
+		if p.appKind(app) == KindShop {
 			return fmt.Errorf("a shop may have %d staff members; for more, make %s a work app at %s/apps/%s/plan", limit, app, p.cfg.SiteURL, app)
 		}
 		return fmt.Errorf("this app may have %d staff members; for more, contact Renoxium at %s/support", limit, p.cfg.SiteURL)

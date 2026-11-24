@@ -53,12 +53,12 @@ func TestOperatorPanel(t *testing.T) {
 		read(t, r)
 		return r.StatusCode
 	}
-	// Grant a plan.
+	// Grant membership.
 	u, _ := e.acc.UserByEmail("zara@shop.ae")
-	if code := post("/operator/plan", url.Values{"user": {u.ID}, "plan": {"business"}}); code != 303 {
+	if code := post("/operator/plan", url.Values{"user": {u.ID}, "plan": {"member"}}); code != 303 {
 		t.Fatalf("grant: %d", code)
 	}
-	if e.acc.Plan(u.ID) != "business" {
+	if e.acc.Plan(u.ID) != "member" || e.acc.OwnerPlan(u.ID) != "granted" {
 		t.Fatal("plan not granted")
 	}
 	// Suspend and bring back.

@@ -35,7 +35,7 @@ import (
 
 // FetchCallsPerPlan is how many http.fetch calls an account's live apps may
 // make per calendar month.
-var FetchCallsPerPlan = map[string]int{planFree: 1000, planPro: 20000, planBusiness: 100000}
+var FetchCallsPerPlan = map[string]int{planFree: 1000, planMember: 100000}
 
 // Per-run limits; variables so tests can change them.
 var (

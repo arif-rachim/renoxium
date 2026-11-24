@@ -83,87 +83,41 @@ func TestAgentBackfillFromTokens(t *testing.T) {
 	}
 }
 
+// Paid periods of the former Pro and Business plans stay as history: a
+// grant or the account's deletion closes an open one, and nothing opens a
+// new one (saving a card charges nothing).
 func TestPaidPeriods(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "accounts.db")
 	s, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer s.Close()
 	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	s.now = func() time.Time { return clock }
 	u, _ := s.CreateUser("a@example.com", "correct horse battery")
-	s.SetCustomer(u.ID, "cus_1")
-	s.SetSubscription(u.ID, Billing{Plan: PlanPro, Status: "active", Subscription: "sub_1"})
+	g, _ := s.CreateUser("b@example.com", "correct horse battery")
+	for _, id := range []string{u.ID, g.ID} {
+		if _, err := s.db.Exec(`INSERT INTO paid_periods (user_id, plan, started_at) VALUES (?, 'pro', ?)`, id, clock.Format(time.RFC3339)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	clock = clock.AddDate(0, 1, 0)
-	s.SetSubscription(u.ID, Billing{Plan: PlanBusiness, Status: "active", Subscription: "sub_1"}) // upgrade: same period
-	clock = clock.AddDate(0, 1, 0)
-	s.SetSubscription(u.ID, Billing{Plan: PlanFree, Status: "canceled"})
-	clock = clock.AddDate(0, 1, 0)
-	s.SetSubscription(u.ID, Billing{Plan: PlanPro, Status: "active", Subscription: "sub_2"})
-	clock = clock.AddDate(0, 1, 0)
-	s.GrantPlan(u.ID, PlanBusiness) // a grant is not paying
-
-	granted, _ := s.CreateUser("b@example.com", "correct horse battery")
-	s.GrantPlan(granted.ID, PlanPro)
-
-	list, err := s.PaidPeriods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(list) != 2 {
-		t.Fatalf("periods %+v", list)
-	}
-	jan, mar, apr, may := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	byStart := map[time.Time]PaidPeriod{}
-	for _, p := range list {
-		byStart[p.Start] = p
-	}
-	if p := byStart[jan]; p.Plan != PlanBusiness || !p.End.Equal(mar) {
-		t.Errorf("first period %+v", p)
-	}
-	if p := byStart[apr]; p.Plan != PlanPro || !p.End.Equal(may) {
-		t.Errorf("second period %+v", p)
-	}
-
-	// Paying again, then the account is deleted: the period closes and stays.
-	s.SetSubscription(u.ID, Billing{Plan: PlanPro, Status: "active", Subscription: "sub_3"})
+	s.SetCard(u.ID, Card{Brand: "visa", Last4: "4242", ExpMonth: 12, ExpYear: 2030})
+	s.GrantPlan(g.ID, PlanMember)
 	clock = clock.AddDate(0, 1, 0)
 	if err := s.DeleteUser(u.ID); err != nil {
 		t.Fatal(err)
 	}
-	list, _ = s.PaidPeriods()
-	if len(list) != 3 {
-		t.Fatalf("after delete %+v", list)
+	list, err := s.PaidPeriods()
+	if err != nil || len(list) != 2 {
+		t.Fatalf("periods %+v %v", list, err)
 	}
+	feb, mar := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 	for _, p := range list {
-		if p.End.IsZero() {
-			t.Errorf("open period after delete: %+v", p)
+		want := map[string]time.Time{u.ID: mar, g.ID: feb}[p.UserID]
+		if p.Plan != "pro" || !p.End.Equal(want) {
+			t.Errorf("period %+v, want end %v", p, want)
 		}
-	}
-
-	// Accounts paying before paid periods existed are backfilled.
-	c, _ := s.CreateUser("c@example.com", "correct horse battery")
-	s.SetCustomer(c.ID, "cus_c")
-	s.SetSubscription(c.ID, Billing{Plan: PlanPro, Status: "active", Subscription: "sub_c"})
-	s.db.Exec(`DELETE FROM paid_periods WHERE user_id = ?`, c.ID)
-	s.Close()
-	s, err = Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	list, _ = s.PaidPeriods()
-	found := false
-	for _, p := range list {
-		if p.UserID == c.ID && p.End.IsZero() && p.Plan == PlanPro {
-			found = true
-		}
-		if p.UserID == granted.ID {
-			t.Error("granted plan backfilled as paying")
-		}
-	}
-	if !found {
-		t.Fatalf("not backfilled: %+v", list)
 	}
 }

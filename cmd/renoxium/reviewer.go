@@ -18,13 +18,13 @@ import (
 )
 
 // reviewerCommand prepares an account for a directory's reviewers (ChatGPT,
-// Claude): confirmed, on the Business plan so every tool works, with a new
+// Claude): confirmed, a member by grant so every tool works, with a new
 // password printed once, and a published example store to try the read
 // tools on. Running it again gives a new password and keeps the rest.
 func reviewerCommand(dataDir, appsDomain string, args []string) int {
 	if len(args) < 1 || len(args) > 2 {
 		fmt.Fprintln(os.Stderr, "usage: renoxium -data DIR -apps-domain DOMAIN reviewer EMAIL [APP]\n"+
-			"  creates or resets a reviewer account (Business plan, confirmed) and, unless it has apps, publishes the store-uae example as APP (default reviewer-shop)")
+			"  creates or resets a reviewer account (member by grant, confirmed) and, unless it has apps, publishes the store-uae example as APP (default reviewer-shop)")
 		return 2
 	}
 	email, app := strings.ToLower(strings.TrimSpace(args[0])), "reviewer-shop"
@@ -60,7 +60,7 @@ func reviewerCommand(dataDir, appsDomain string, args []string) int {
 			acc.VerifyEmail(tok)
 		}
 	}
-	if err := acc.GrantPlan(u.ID, accounts.PlanBusiness); err != nil {
+	if err := acc.GrantPlan(u.ID, accounts.PlanMember); err != nil {
 		fmt.Fprintln(os.Stderr, "plan:", err)
 		return 1
 	}
@@ -83,7 +83,7 @@ func reviewerCommand(dataDir, appsDomain string, args []string) int {
 		}
 		apps, _ = p.Apps(u.ID)
 	}
-	fmt.Printf("Reviewer account ready (Business plan, email confirmed)\n  email:    %s\n  password: %s\n", u.Email, password)
+	fmt.Printf("Reviewer account ready (member by grant, email confirmed)\n  email:    %s\n  password: %s\n", u.Email, password)
 	for _, a := range apps {
 		fmt.Printf("  app:      %s  live %s\n", a.App, a.LiveURL)
 	}

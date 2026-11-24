@@ -87,10 +87,12 @@ type Config struct {
 	// carry none.
 	LicenceKey ed25519.PrivateKey
 
-	// OwnerPlan returns an account's plan: "free", "pro" or "business".
-	// On the free plan each app is a static site, a shop (a cut of card
-	// payments) or a work app (a subscription), and apps are limited in
-	// number. Nil means no plans: nothing is limited.
+	// OwnerPlan returns an account's plan: "free", "member" (a card saved)
+	// or "granted" (a member by agreement with Renoxium). On free and member
+	// accounts each app is a static site, a shop (a cut of card payments) or
+	// a work app (a subscription); a free account may have AppsPerPlan
+	// "free" apps, a member MaxAppsPerOwner. Nil means no plans: nothing is
+	// limited.
 	OwnerPlan func(ownerID string) string
 	// OwnerEmail returns an app owner's verified email address, used as the
 	// reply-to address of visitor emails. ok is false when there is none.
@@ -463,15 +465,8 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	if err := p.db.QueryRow(`SELECT count(*) FROM apps WHERE owner = ?`, owner).Scan(&count); err != nil {
 		return AppInfo{}, err
 	}
-	if count >= MaxAppsPerOwner {
-		return AppInfo{}, fmt.Errorf("an account can have at most %d apps", MaxAppsPerOwner)
-	}
-	if p.cfg.OwnerPlan != nil {
-		plan := p.planOf(owner)
-		if limit := AppsPerPlan[plan]; count >= limit {
-			return AppInfo{}, fmt.Errorf("this account may have %d apps and has %d; for more, contact Renoxium at %s/support",
-				limit, count, p.cfg.SiteURL)
-		}
+	if err := p.appLimitError(owner, count); err != nil {
+		return AppInfo{}, err
 	}
 	if err := os.MkdirAll(p.appDir(name), 0o755); err != nil {
 		return AppInfo{}, err
