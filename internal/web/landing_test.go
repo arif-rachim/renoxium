@@ -67,11 +67,12 @@ func TestLandingAndLegalPages(t *testing.T) {
 		t.Error("the English home page does not link to the Arabic one")
 	}
 	// The old wording that a paid assistant is needed is gone, and the connect page says which free plan works.
-	if strings.Contains(page, "a paid plan with developer mode") || strings.Contains(ar, "خطة مدفوعة مع وضع المطوّر") {
+	if strings.Contains(page, "a paid plan with developer mode") || strings.Contains(ar, "خطة مدفوعة مع وضع المطوّر") ||
+		strings.Contains(page, "needs developer mode") || strings.Contains(ar, "وضع المطوّر") {
 		t.Error("the home page still says a paid assistant plan is needed")
 	}
 	r, _ = http.Get(e.base + "/connect")
-	if p := read(t, r); !strings.Contains(p, "Renoxium has no credits") || !strings.Contains(p, "Claude&#39;s free plan") {
+	if p := read(t, r); !strings.Contains(p, "Renoxium has no credits") || !strings.Contains(p, "Claude&#39;s free plan") || !strings.Contains(p, "ChatGPT&#39;s free plan") {
 		t.Errorf("connect page lacks the no-credits or free-plan line")
 	}
 	// Signed in, / is still the dashboard.
