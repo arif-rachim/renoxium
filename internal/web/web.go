@@ -1136,7 +1136,7 @@ This is the owner's admin panel of a template demo, shown read-only. In your own
 {{if and .Shell.IsOwner (gt .Info.PreviewVersion .Info.LiveVersion)}}<a class="button" href="/apps/{{.Info.App}}/publish?version={{.Info.PreviewVersion}}">Publish version {{.Info.PreviewVersion}}</a>{{end}}
 {{if not .Shell.Demo}}<a class="button secondary" href="/apps/{{.Info.App}}/preview">Open preview</a>{{end}}</div></div>
 {{if .Welcome}}<div class="welcome"><div><strong>{{.Info.App}} is ready on its private preview.</strong> It is the {{.Welcome}} template with your business name; its sample texts, prices and photos stay until you change them, and nothing is live yet.
-Next: connect your AI assistant and ask it to change the names, prices and photos to yours. ChatGPT's or Claude's free plan is enough, and there are no credits: change it as often as you like.</div>
+Next: connect your AI assistant and ask it to change the names, prices and photos to yours. Claude's free plan is enough, and there are no credits: change it as often as you like.</div>
 <div class="acts"><a class="button" href="/apps/{{.Info.App}}/preview" target="_blank" rel="noopener">Open the preview</a><a class="button secondary" href="/connect">Connect your assistant</a></div></div>{{end}}
 {{template "tabs" .Tabs}}
 {{if and .Problems (ne .Tab "status")}}<p class="flash bad"><span><strong>Recent errors:</strong> {{len .Problems}} on your site. <a href="/apps/{{.Info.App}}/status">See them</a>, then ask your assistant to check the Renoxium logs and fix them.</span></p>{{end}}
@@ -1508,7 +1508,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <button>Create my app</button></form>
 <section class="panel"><div class="ph"><h2>What happens next</h2></div><ol class="next">
 <li><div><strong>Your copy is made</strong><span>With your business name; its address on Renoxium is made from the name. The template's sample texts, prices and photos stay until you change them.</span></div></li>
-<li><div><strong>Connect ChatGPT or Claude</strong><span>Once, from the <a href="/connect">connect page</a>. ChatGPT's or Claude's free plan is enough.</span></div></li>
+<li><div><strong>Connect ChatGPT or Claude</strong><span>Once, from the <a href="/connect">connect page</a>. Claude's free plan is enough.</span></div></li>
 <li><div><strong>Tell it what to change, in your own words</strong><span>For example:</span><ul class="change"><li>your products or services</li><li>prices</li><li>photos and logo</li><li>opening hours</li><li>address and WhatsApp</li><li>delivery fee</li><li>colours</li><li>Arabic texts</li></ul><span>No credits: change it as often as you like.</span></div></li>
 <li><div><strong>Check the preview, then publish</strong><span>Your site goes live at your address only when you press Publish.</span></div></li></ol></section>
 </div></div>

@@ -547,8 +547,8 @@ The first prints `ok`. The second returns JSON containing `"issuer":"https://ren
 Then try the whole flow:
 
 1. Open `https://renoxium.com` and create an account.
-2. In ChatGPT (Plugins, then Add, then Add custom MCP server; the free plan is enough) or Claude (the free plan
-   allows one custom connector), add a custom connector with the address
+2. In ChatGPT (with developer mode on, which needs a paid ChatGPT plan) or Claude (the free plan allows one
+   custom connector), add a custom connector with the address
    `https://renoxium.com/mcp`. The agent opens the Renoxium sign-in and consent screens.
 3. Ask the agent: "Build an online perfume store with three products, then publish it."
 4. Open the store at `https://STORE-NAME.renoxium.app` and manage its data at

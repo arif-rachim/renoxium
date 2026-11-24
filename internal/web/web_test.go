@@ -573,7 +573,7 @@ func TestMCPEndpointExplainsHowToConnect(t *testing.T) {
 	}
 	for _, path := range []string{"/connect", "/llms.txt"} {
 		r, _ = http.Get(e.base + path)
-		if body := read(t, r); r.StatusCode != 200 || !strings.Contains(body, e.base+"/mcp") || !strings.Contains(body, "Add custom MCP server") || strings.Contains(body, "Turn on Developer mode") {
+		if body := read(t, r); r.StatusCode != 200 || !strings.Contains(body, e.base+"/mcp") || !strings.Contains(body, "Developer mode") {
 			t.Fatalf("%s: %d", path, r.StatusCode)
 		}
 	}
