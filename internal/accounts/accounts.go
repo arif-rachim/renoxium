@@ -40,11 +40,14 @@ var (
 	ErrInvalidGrant   = errors.New("invalid_grant")
 )
 
-// User is a Renoxium account.
+// User is a Renoxium account. An account made with WhatsApp has a Phone
+// and no Email or password until the owner adds them.
 type User struct {
-	ID       string
-	Email    string
-	Verified bool
+	ID          string
+	Email       string
+	Verified    bool   // the email is confirmed
+	Phone       string // confirmed WhatsApp number (E.164), or empty
+	HasPassword bool
 }
 
 // Client is an OAuth client registered dynamically by an agent platform.
@@ -77,7 +80,7 @@ func Open(path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	for _, stmt := range []string{
-		`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, name TEXT NOT NULL, redirect_uris TEXT NOT NULL, created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS codes (hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id TEXT NOT NULL, redirect_uri TEXT NOT NULL,
@@ -110,6 +113,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := s.ensurePhone(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -126,6 +133,7 @@ func (s *Store) Cleanup() {
 	} {
 		s.db.Exec(stmt, now)
 	}
+	cleanupPhoneCodes(s.db, now)
 }
 
 // Close closes the database.
@@ -200,7 +208,8 @@ func (s *Store) Authenticate(email, pw string) (User, error) {
 func (s *Store) User(id string) (User, error) {
 	u := User{ID: id}
 	var verified sql.NullString
-	err := s.db.QueryRow(`SELECT email, verified_at FROM users WHERE id = ?`, id).Scan(&u.Email, &verified)
+	err := s.db.QueryRow(`SELECT coalesce(email, ''), verified_at, coalesce(phone, ''), password_hash != '' FROM users WHERE id = ?`, id).
+		Scan(&u.Email, &verified, &u.Phone, &u.HasPassword)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

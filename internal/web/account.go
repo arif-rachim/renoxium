@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 func (s *Site) registerAccount() {
@@ -76,7 +77,8 @@ func (s *Site) renderAccount(w http.ResponseWriter, r *http.Request, u accounts.
 		}
 	}
 	data := map[string]any{"User": u, "CSRF": csrf, "Apps": apps, "Billing": b, "PlanName": planName(b.Plan), "Connections": s.connections(u.ID), "WorkApps": workApps,
-		"Shell": s.ownerShell(u, "Account", "/account", csrf)}
+		"Shell": s.ownerShell(u, "Account", "/account", csrf), "Reauth": s.reauthView(r, u, "dpassword"), "WhatsAppOn": s.WhatsApp != nil,
+		"PhoneLinked": r.URL.Query().Get("phone") == "1", "EmailAdded": r.URL.Query().Get("email") == "1"}
 	for k, v := range extra {
 		data[k] = v
 	}
@@ -129,7 +131,7 @@ func (s *Site) exportAccount(w http.ResponseWriter, r *http.Request) {
 	if f, err := zw.Create("account.json"); err == nil {
 		enc := json.NewEncoder(f)
 		enc.SetIndent("", " ")
-		enc.Encode(map[string]any{"email": u.Email, "email_confirmed": u.Verified, "plan": b.Plan, "exported_at": time.Now().UTC(), "apps": len(apps)})
+		enc.Encode(map[string]any{"email": u.Email, "email_confirmed": u.Verified, "whatsapp": u.Phone, "plan": b.Plan, "exported_at": time.Now().UTC(), "apps": len(apps)})
 	}
 	for _, a := range apps {
 		if err := s.platform.ExportApp(r.Context(), a.App, zw); err != nil {
@@ -152,12 +154,28 @@ func (s *Site) deleteAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many attempts; try again later", http.StatusTooManyRequests)
 		return
 	}
-	if !strings.EqualFold(strings.TrimSpace(r.PostFormValue("confirm")), u.Email) {
-		s.renderAccount(w, r, u, http.StatusBadRequest, map[string]any{"DeleteError": "Type your email address exactly to confirm."})
+	if wantsReauthCode(r, u) {
+		if err := s.sendReauthCode(r, u); err != nil {
+			s.renderAccount(w, r, u, http.StatusTooManyRequests, map[string]any{"DeleteError": capitalize(err.Error()) + "."})
+			return
+		}
+		s.renderAccount(w, r, u, http.StatusOK, nil)
 		return
 	}
-	if _, err := s.accounts.Authenticate(u.Email, r.PostFormValue("password")); err != nil {
-		s.renderAccount(w, r, u, http.StatusUnauthorized, map[string]any{"DeleteError": "Your password is not right."})
+	typed := strings.TrimSpace(r.PostFormValue("confirm"))
+	if u.Email == "" {
+		typed, _ = whatsapp.Normalize(typed)
+	}
+	if !strings.EqualFold(typed, u.Label()) {
+		what := "email address"
+		if u.Email == "" {
+			what = "WhatsApp number"
+		}
+		s.renderAccount(w, r, u, http.StatusBadRequest, map[string]any{"DeleteError": "Type your " + what + " exactly to confirm."})
+		return
+	}
+	if err := s.checkReauth(r, u); err != nil {
+		s.renderAccount(w, r, u, http.StatusUnauthorized, map[string]any{"DeleteError": err.Error()})
 		return
 	}
 	if err := s.cancelSubscriptions(r.Context(), u.ID); err != nil {

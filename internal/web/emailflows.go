@@ -140,6 +140,10 @@ func (s *Site) resendVerification(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many emails; try again later", http.StatusTooManyRequests)
 		return
 	}
+	if u.Email == "" {
+		http.Redirect(w, r, "/account", http.StatusSeeOther)
+		return
+	}
 	if !u.Verified {
 		s.sendVerification(r.Context(), u)
 	}

@@ -28,7 +28,7 @@ func (s *Site) renderRenameApp(w http.ResponseWriter, r *http.Request, app, to s
 	info, _ := s.platform.Info(app)
 	data := map[string]any{"Shell": s.shell(u, app, "Rename app", "/apps/"+app+"/rename", false), "App": app, "Info": info,
 		"To": to, "CSRF": s.csrfToken(w, r), "Error": errText, "Domain": s.platform.AppsDomain(),
-		"RedirectDays": int(platform.RenameRedirect.Hours() / 24)}
+		"RedirectDays": int(platform.RenameRedirect.Hours() / 24), "Reauth": s.reauthView(r, u, "rpassword")}
 	if to != "" && errText == "" {
 		if err := s.platform.CheckNewName(app, to); err != nil {
 			data["Error"] = err.Error()
@@ -60,8 +60,16 @@ func (s *Site) renameApp(w http.ResponseWriter, r *http.Request) {
 		s.renderRenameApp(w, r, app, to, http.StatusTooManyRequests, "Too many attempts. Try again later.")
 		return
 	}
-	if _, err := s.accounts.Authenticate(u.Email, r.PostFormValue("password")); err != nil {
-		s.renderRenameApp(w, r, app, to, http.StatusUnauthorized, "Your password is not right.")
+	if wantsReauthCode(r, u) {
+		if err := s.sendReauthCode(r, u); err != nil {
+			s.renderRenameApp(w, r, app, to, http.StatusTooManyRequests, capitalize(err.Error())+".")
+			return
+		}
+		s.renderRenameApp(w, r, app, to, http.StatusOK, "")
+		return
+	}
+	if err := s.checkReauth(r, u); err != nil {
+		s.renderRenameApp(w, r, app, to, http.StatusUnauthorized, err.Error())
 		return
 	}
 	info, err := s.platform.RenameApp(r.Context(), app, to)

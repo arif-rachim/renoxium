@@ -549,7 +549,10 @@ const DirectAccount = "direct"
 
 // CreateCustomer creates a customer on the platform account.
 func (c *Client) CreateCustomer(ctx context.Context, email string, metadata map[string]string) (string, error) {
-	form := url.Values{"email": {email}}
+	form := url.Values{}
+	if email != "" {
+		form.Set("email", email)
+	}
 	for k, v := range metadata {
 		form.Set("metadata["+k+"]", v)
 	}

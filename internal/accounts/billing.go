@@ -237,7 +237,8 @@ func (s *Store) DeleteUser(userID string) error {
 	defer tx.Rollback()
 	for _, q := range []string{
 		`DELETE FROM sessions WHERE user_id = ?`, `DELETE FROM tokens WHERE user_id = ?`, `DELETE FROM codes WHERE user_id = ?`, `DELETE FROM grants WHERE user_id = ?`,
-		`DELETE FROM email_tokens WHERE user_id = ?`, `DELETE FROM billing WHERE user_id = ?`, `DELETE FROM users WHERE id = ?`,
+		`DELETE FROM email_tokens WHERE user_id = ?`, `DELETE FROM phone_codes WHERE user_id = ?`, `DELETE FROM billing WHERE user_id = ?`,
+		`DELETE FROM users WHERE id = ?`,
 	} {
 		if _, err := tx.Exec(q, userID); err != nil {
 			return err
@@ -260,11 +261,11 @@ type UserRow struct {
 // Users lists accounts for the operator, newest first, optionally filtered
 // by email.
 func (s *Store) Users(search string, limit int) ([]UserRow, error) {
-	q := `SELECT u.id, u.email, u.created_at, u.verified_at IS NOT NULL, ` + planSQL + `, coalesce(b.status, '')
+	q := `SELECT u.id, coalesce(u.email, u.phone, ''), u.created_at, u.verified_at IS NOT NULL, ` + planSQL + `, coalesce(b.status, '')
 		FROM users u LEFT JOIN billing b ON b.user_id = u.id`
 	args := []any{s.now().Unix()}
 	if search != "" {
-		q += ` WHERE u.email LIKE ? ESCAPE '\'`
+		q += ` WHERE u.email LIKE ?2 ESCAPE '\' OR u.phone LIKE ?2 ESCAPE '\'`
 		args = append(args, "%"+strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(search))+"%")
 	}
 	q += ` ORDER BY u.created_at DESC LIMIT ?`

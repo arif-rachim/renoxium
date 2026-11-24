@@ -8,7 +8,7 @@ calendar.
 | --- | --- | --- |
 | Website | Customers browse, order, book and pay (cards, cash on delivery) | — |
 | Customers' AI assistants (ChatGPT, Claude) | Per-app public MCP tools: find products, check free times, get the link to book or pay | Book and pay without leaving the chat (agentic checkout), see below |
-| WhatsApp | Customers sign in with a WhatsApp code; owners get a WhatsApp message for each order | Customers order and book by chatting with the business's own WhatsApp number (this document's first item) |
+| WhatsApp | Customers and owners sign in with a WhatsApp code (owners can sign up with only a number); owners get a WhatsApp message for each order | Customers order and book by chatting with the business's own WhatsApp number (this document's first item) |
 
 ## 1. WhatsApp ordering (next)
 

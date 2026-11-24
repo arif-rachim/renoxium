@@ -9,6 +9,7 @@ import (
 
 	"github.com/arif-rachim/renoxium/internal/accounts"
 	"github.com/arif-rachim/renoxium/internal/platform"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 func (s *Site) registerOperator() {
@@ -82,6 +83,10 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 	appSearch := q
 	if u, err := s.accounts.UserByEmail(q); err == nil {
 		appSearch = u.ID // searching an owner's email lists their apps
+	} else if phone, ok := whatsapp.Normalize(q); ok {
+		if u, err := s.accounts.UserByPhone(phone); err == nil {
+			appSearch = u.ID // or their WhatsApp number
+		}
 	}
 	rows, _ := s.platform.AllApps(appSearch, 100)
 	emails := map[string]string{}
@@ -89,7 +94,7 @@ func (s *Site) operatorView(w http.ResponseWriter, r *http.Request, tab string) 
 	for _, a := range rows {
 		if _, seen := emails[a.Owner]; !seen {
 			if u, err := s.accounts.User(a.Owner); err == nil {
-				emails[a.Owner] = u.Email
+				emails[a.Owner] = u.Label()
 			}
 		}
 		info, _ := s.platform.Info(a.Name)

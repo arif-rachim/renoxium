@@ -99,13 +99,13 @@ func (s *Site) paymentAction(w http.ResponseWriter, r *http.Request) {
 	notice := ""
 	switch r.PathValue("action") {
 	case "refund":
-		pm, err = s.platform.AdminRefund(r.Context(), app, id, amount, u.Email)
+		pm, err = s.platform.AdminRefund(r.Context(), app, id, amount, u.Label())
 		notice = fmt.Sprintf("Refunded. %.2f %s of the payment for %s is refunded in all.", pm.Refunded, strings.ToUpper(pm.Currency), pm.Reference)
 	case "capture":
-		pm, err = s.platform.AdminCapture(r.Context(), app, id, amount, u.Email)
+		pm, err = s.platform.AdminCapture(r.Context(), app, id, amount, u.Label())
 		notice = fmt.Sprintf("Captured %.2f %s for %s; the rest of the hold is released.", pm.Amount, strings.ToUpper(pm.Currency), pm.Reference)
 	case "release":
-		pm, err = s.platform.AdminRelease(r.Context(), app, id, u.Email)
+		pm, err = s.platform.AdminRelease(r.Context(), app, id, u.Label())
 		notice = "The card hold for " + pm.Reference + " is released."
 	default:
 		http.NotFound(w, r)
@@ -132,7 +132,7 @@ func (s *Site) cancelSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	atEnd := r.PostFormValue("when") != "now"
-	sub, err := s.platform.AdminCancelSubscription(r.Context(), app, r.PathValue("id"), atEnd, u.Email)
+	sub, err := s.platform.AdminCancelSubscription(r.Context(), app, r.PathValue("id"), atEnd, u.Label())
 	if err != nil {
 		s.renderPayments(w, r, u, app, http.StatusBadRequest, "", moneyError(err))
 		return

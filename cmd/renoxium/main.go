@@ -223,6 +223,9 @@ func main() {
 	}
 	site.TrustedIPHeader = *trustedIPHeader
 	site.Mailer = mailer
+	if cfg.WhatsApp != nil && os.Getenv("RENOXIUM_OWNER_WHATSAPP") != "off" {
+		site.WhatsApp = cfg.WhatsApp // owners sign up and sign in with a WhatsApp code too
+	}
 	site.Version = buildVersion()
 	site.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
 	site.Legal = web.Legal{Company: os.Getenv("RENOXIUM_LEGAL_NAME"), Address: os.Getenv("RENOXIUM_LEGAL_ADDRESS"),

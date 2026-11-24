@@ -315,6 +315,11 @@ On a development machine, `RENOXIUM_CHROMIUM=/path/to/chrome` starts Chromium fr
 ### WhatsApp sign-in codes (optional)
 
 Visitors of an app can sign in with a 6-digit code sent on WhatsApp, through Meta's WhatsApp Cloud API.
+The same settings let Renoxium owners sign up and sign in with a WhatsApp code on `/login/whatsapp`: the first
+code creates an account without email, and the owner can add an email and password later in Account settings.
+Accounts without a password confirm deleting and renaming with a WhatsApp code. The site sends at most 500 owner
+codes a day, 3 per number per 15 minutes and 5 per address per hour. To keep WhatsApp for visitors only, set
+`RENOXIUM_OWNER_WHATSAPP=off`.
 The setup happens in Meta Business Suite, WhatsApp Manager and developers.facebook.com, in this order:
 
 1. **Business portfolio and WhatsApp account.** Verify the business, then add the sending number to the

@@ -31,7 +31,7 @@ func (s *Site) ownerShell(u accounts.User, title, current, csrf string) ownerShe
 	link := func(label, href string) shellLink {
 		return shellLink{Label: label, Href: href, Current: href == current}
 	}
-	sh := ownerShell{Title: title, Email: u.Email, Plan: plan, PlanName: planName(plan), CSRF: csrf, Verified: u.Verified,
+	sh := ownerShell{Title: title, Email: u.Label(), Plan: plan, PlanName: planName(plan), CSRF: csrf, Verified: u.Verified,
 		Main:    []shellLink{link("Your apps", "/"), link("Templates", "/templates")},
 		Account: []shellLink{link("Plan and billing", "/billing"), link("Account settings", "/account"), link("Connect and help", "/connect")}}
 	if s.SingleApp != "" { // a self-hosted server: one app, no Renoxium service pages

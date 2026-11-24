@@ -68,7 +68,7 @@ func (s *Site) addStaff(w http.ResponseWriter, r *http.Request) {
 	slog.Info("staff added", "app", app, "by", u.ID)
 	if s.mailLimiter.allow("staff-invite:" + app) {
 		s.send(r.Context(), email.Message{To: addr, Tag: "staff_invite", ReplyTo: u.Email, Subject: "You can now help run " + app + " on Renoxium",
-			Text: u.Email + " added you as staff of " + app + ".\n\nSign in or create a Renoxium account with this email address, confirm the address, " +
+			Text: u.Label() + " added you as staff of " + app + ".\n\nSign in or create a Renoxium account with this email address, confirm the address, " +
 				"and open:\n\n" + s.base + "/apps/" + app + "\n"})
 	}
 	http.Redirect(w, r, "/apps/"+app+"/staff", http.StatusSeeOther)

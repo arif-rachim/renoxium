@@ -29,7 +29,7 @@ func (s *Site) renderDeleteApp(w http.ResponseWriter, r *http.Request, app strin
 	}
 	info, _ := s.platform.Info(app)
 	render(w, status, "admin_delete", map[string]any{"Shell": s.shell(u, app, "Delete app", "/apps/"+app+"/delete", false), "App": app,
-		"Info": info, "Running": running, "Losses": s.appLosses(r, app), "CSRF": s.csrfToken(w, r), "Error": errText})
+		"Info": info, "Running": running, "Losses": s.appLosses(r, app), "CSRF": s.csrfToken(w, r), "Error": errText, "Reauth": s.reauthView(r, u, "dpassword")})
 }
 
 // loss is one kind of data a delete destroys, with how much of it there is.
@@ -77,12 +77,20 @@ func (s *Site) deleteApp(w http.ResponseWriter, r *http.Request) {
 		s.renderDeleteApp(w, r, app, http.StatusTooManyRequests, "Too many attempts. Try again later.")
 		return
 	}
+	if wantsReauthCode(r, u) {
+		if err := s.sendReauthCode(r, u); err != nil {
+			s.renderDeleteApp(w, r, app, http.StatusTooManyRequests, capitalize(err.Error())+".")
+			return
+		}
+		s.renderDeleteApp(w, r, app, http.StatusOK, "")
+		return
+	}
 	if strings.TrimSpace(r.PostFormValue("confirm")) != app {
 		s.renderDeleteApp(w, r, app, http.StatusBadRequest, "Type the app's name exactly to confirm.")
 		return
 	}
-	if _, err := s.accounts.Authenticate(u.Email, r.PostFormValue("password")); err != nil {
-		s.renderDeleteApp(w, r, app, http.StatusUnauthorized, "Your password is not right.")
+	if err := s.checkReauth(r, u); err != nil {
+		s.renderDeleteApp(w, r, app, http.StatusUnauthorized, err.Error())
 		return
 	}
 	running, err := s.platform.RunningSubscriptions(r.Context(), app)

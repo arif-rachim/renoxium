@@ -59,7 +59,7 @@ type GrowthAccount struct {
 
 // GrowthAccounts lists every account with its funnel timestamps.
 func (s *Store) GrowthAccounts() ([]GrowthAccount, error) {
-	rows, err := s.db.Query(`SELECT u.id, u.email, u.created_at, coalesce(u.verified_at, ''), coalesce(u.agent_connected_at, ''),
+	rows, err := s.db.Query(`SELECT u.id, coalesce(u.email, u.phone, ''), u.created_at, coalesce(u.verified_at, u.phone_verified_at, ''), coalesce(u.agent_connected_at, ''),
 		`+planSQL+`, coalesce(b.status, '') FROM users u LEFT JOIN billing b ON b.user_id = u.id`, s.now().Unix())
 	if err != nil {
 		return nil, err

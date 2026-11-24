@@ -27,6 +27,7 @@ import (
 	"github.com/arif-rachim/renoxium/internal/mcpserver"
 	"github.com/arif-rachim/renoxium/internal/monitor"
 	"github.com/arif-rachim/renoxium/internal/platform"
+	"github.com/arif-rachim/renoxium/internal/whatsapp"
 )
 
 const (
@@ -65,6 +66,13 @@ type Site struct {
 	Mailer email.Sender
 	// mailLimiter caps emails per address or user.
 	mailLimiter *limiter
+
+	// WhatsApp, when set, sends the codes owners sign up and sign in with.
+	// Nil hides WhatsApp sign-in.
+	WhatsApp whatsapp.Sender
+	// waLimiter caps codes per visitor address, waNumberLimiter per number
+	// and waDailyLimiter for the whole site.
+	waLimiter, waNumberLimiter, waDailyLimiter *limiter
 
 	// AbuseEmail receives abuse reports from /abuse. Empty only logs them.
 	AbuseEmail string
@@ -110,7 +118,8 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 		host = h
 	}
 	s := &Site{base: base, host: strings.ToLower(host), secure: strings.HasPrefix(base, "https://"), accounts: acc, platform: p,
-		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), takenLimiter: newLimiter(5, time.Hour), apiLimiter: newLimiter(30, 10*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour)}
+		mux: http.NewServeMux(), limiter: newLimiter(10, 15*time.Minute), accountLimiter: newLimiter(100, time.Hour), takenLimiter: newLimiter(5, time.Hour), apiLimiter: newLimiter(30, 10*time.Minute), Mailer: email.Log{}, mailLimiter: newLimiter(3, time.Hour),
+		waLimiter: newLimiter(5, time.Hour), waNumberLimiter: newLimiter(3, 15*time.Minute), waDailyLimiter: newLimiter(DefaultWhatsAppDaily, 24*time.Hour)}
 	s.mcp = mcpserver.Handler(mcpserver.New(p, mcpserver.Options{ConfirmPublish: s.publishLink, ConfirmRename: s.renameLink, ConfirmDelete: s.deleteLink}), s.verify, base+"/.well-known/oauth-protected-resource/mcp")
 
 	s.mux.HandleFunc("GET /{$}", s.home)
@@ -135,6 +144,7 @@ func New(base string, acc *accounts.Store, p *platform.Platform) *Site {
 	s.mux.HandleFunc("GET /llms.txt", s.llmsTxt)
 	s.registerAdmin()
 	s.registerEmailFlows()
+	s.registerWhatsApp()
 	s.registerPayments()
 	s.registerBilling()
 	s.registerAccount()
@@ -233,8 +243,8 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // singleApp pages are what a self-hosted server shows besides its one app's
 // admin panel: signing in, password reset, account settings, the Stripe
 // webhook and the brand's icons.
-var singleAppPages = map[string]bool{"/healthz": true, "/version": true, "/login": true, "/logout": true, "/forgot": true,
-	"/reset": true, "/verify": true, "/verify/resend": true, "/account": true, "/account/password": true, "/account/export": true,
+var singleAppPages = map[string]bool{"/healthz": true, "/version": true, "/login": true, "/login/whatsapp": true, "/login/whatsapp/verify": true, "/logout": true, "/forgot": true,
+	"/reset": true, "/verify": true, "/verify/resend": true, "/account": true, "/account/password": true, "/account/export": true, "/account/whatsapp": true, "/account/email": true,
 	"/stripe/webhook": true, "/site.webmanifest": true}
 
 // singleAppDenied are the app's console pages that need the Renoxium
@@ -407,7 +417,7 @@ func (s *Site) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) signupForm(w http.ResponseWriter, r *http.Request) {
-	render(w, http.StatusOK, "signup", map[string]any{"CSRF": s.csrfToken(w, r), "Next": safeNext(r.URL.Query().Get("next"))})
+	render(w, http.StatusOK, "signup", map[string]any{"CSRF": s.csrfToken(w, r), "Next": safeNext(r.URL.Query().Get("next")), "WhatsApp": s.WhatsApp != nil})
 }
 
 func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
@@ -432,7 +442,7 @@ func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
 		s.takenLimiter.allow(dupKey)
 	}
 	if err != nil {
-		render(w, http.StatusBadRequest, "signup", map[string]any{"CSRF": s.csrfToken(w, r), "Next": next, "Error": err.Error(), "Email": r.PostFormValue("email")})
+		render(w, http.StatusBadRequest, "signup", map[string]any{"CSRF": s.csrfToken(w, r), "Next": next, "Error": err.Error(), "Email": r.PostFormValue("email"), "WhatsApp": s.WhatsApp != nil})
 		return
 	}
 	s.sendVerification(r.Context(), u)
@@ -440,7 +450,7 @@ func (s *Site) signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Site) loginForm(w http.ResponseWriter, r *http.Request) {
-	render(w, http.StatusOK, "login", map[string]any{"CSRF": s.csrfToken(w, r), "Next": safeNext(r.URL.Query().Get("next"))})
+	render(w, http.StatusOK, "login", map[string]any{"CSRF": s.csrfToken(w, r), "Next": safeNext(r.URL.Query().Get("next")), "WhatsApp": s.WhatsApp != nil})
 }
 
 func (s *Site) login(w http.ResponseWriter, r *http.Request) {
@@ -460,7 +470,7 @@ func (s *Site) login(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := s.accounts.Authenticate(r.PostFormValue("email"), r.PostFormValue("password"))
 	if err != nil {
-		render(w, http.StatusUnauthorized, "login", map[string]any{"CSRF": s.csrfToken(w, r), "Next": next, "Error": "Wrong email or password.", "Email": r.PostFormValue("email")})
+		render(w, http.StatusUnauthorized, "login", map[string]any{"CSRF": s.csrfToken(w, r), "Next": next, "Error": "Wrong email or password.", "Email": r.PostFormValue("email"), "WhatsApp": s.WhatsApp != nil})
 		return
 	}
 	s.startSession(w, r, u, next)
@@ -1053,7 +1063,7 @@ body.menu-open .sidenav .signout button{width:100%;margin-top:24px;padding:12px}
 </style>
 <div class="pagehead"><div><h1>Your apps</h1><p class="sub"><a href="/billing">{{.Plan}} plan</a> · {{len .Apps}} of {{.AppLimit}} app{{if ne .AppLimit 1}}s{{end}} used</p></div>
 <div class="acts"><a class="button secondary" href="/templates">Browse templates</a><a class="button" href="/connect">New app</a></div></div>
-{{if not .User.Verified}}<form class="flash" method="post" action="/verify/resend" style="justify-content:space-between;align-items:center;flex-wrap:wrap"><span><strong>Confirm your email.</strong> You need it to publish apps and to reset your password if you forget it.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0">Send the link again</button></form>{{end}}
+{{if and .User.Email (not .User.Verified)}}<form class="flash" method="post" action="/verify/resend" style="justify-content:space-between;align-items:center;flex-wrap:wrap"><span><strong>Confirm your email.</strong> You need it to publish apps and to reset your password if you forget it.</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary" style="margin:0">Send the link again</button></form>{{end}}
 {{if .Apps}}<div class="kpis"><div class="kpi"><div class="l">Apps</div><div class="v">{{len .Apps}}</div><div class="n">of {{.AppLimit}} on your plan</div></div>
 <div class="kpi"><div class="l">Live</div><div class="v">{{.Live}}</div><div class="n">published sites</div></div>
 <div class="kpi"><div class="l">Customers</div><div class="v">{{.Customers}}</div><div class="n">accounts across your apps</div></div>
@@ -1083,14 +1093,34 @@ body.menu-open .sidenav .signout button{width:100%;margin-top:24px;padding:12px}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
-<button>Create account</button><p class="muted" style="margin-top:16px">Already have an account? <a href="/login?next={{.Next}}">Sign in</a></p></form>{{template "authbottom"}}{{end}}
+<button>Create account</button>{{if .WhatsApp}}{{template "wa_button" .}}{{end}}<p class="muted" style="margin-top:16px">Already have an account? <a href="/login?next={{.Next}}">Sign in</a></p></form>{{template "authbottom"}}{{end}}
 
 {{define "login"}}{{template "auth" "Sign in"}}<form class="card" method="post" action="/login"><h1>Sign in to Renoxium</h1>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
 <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}">
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<button>Sign in</button><p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "authbottom"}}{{end}}
+<button>Sign in</button>{{if .WhatsApp}}{{template "wa_button" .}}{{end}}<p class="muted" style="margin-top:16px"><a href="/forgot">Forgot your password?</a></p><p class="muted">New here? <a href="/signup?next={{.Next}}">Create an account</a></p></form>{{template "authbottom"}}{{end}}
+
+{{define "wa_button"}}<p class="muted or" style="text-align:center;margin:14px 0 6px">or</p><a class="button secondary" style="display:block;text-align:center" href="/login/whatsapp?next={{.Next}}">Continue with WhatsApp</a>{{end}}
+
+{{define "wa_phone"}}{{template "auth" "Continue with WhatsApp"}}<form class="card" method="post" action="/login/whatsapp"><h1>Continue with WhatsApp</h1>
+<p class="muted">We send a 6-digit code to your WhatsApp. New here? Your account is created when you enter the code, no email or password needed.</p>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}">
+<label for="phone">WhatsApp number</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+971 50 123 4567" required value="{{.Phone}}">
+<button>Send code</button><p class="muted" style="margin-top:16px"><a href="/login?next={{.Next}}">Sign in with email instead</a></p></form>{{template "authbottom"}}{{end}}
+
+{{define "wa_code"}}{{template "auth" "Enter your code"}}<form class="card" method="post" action="/login/whatsapp/verify"><h1>Enter your code</h1>
+<p class="muted">We sent a 6-digit code to <bdi dir="ltr"><strong>{{.Phone}}</strong></bdi> on WhatsApp. It works for 10 minutes.</p>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Next}}"><input type="hidden" name="phone" value="{{.Phone}}">
+<label for="code">Code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus>
+<button>Continue</button><p class="muted" style="margin-top:16px"><a href="/login/whatsapp?next={{.Next}}">Use another number or send a new code</a></p></form>{{template "authbottom"}}{{end}}
+
+{{define "reauth"}}{{if .HasPassword}}<label for="{{.ID}}">Your Renoxium password</label><input id="{{.ID}}" name="password" type="password" autocomplete="current-password" required>
+{{else}}<label for="{{.ID}}">Code from WhatsApp</label>{{if .Sent}}<p class="flash ok" role="status">We sent a code to <bdi dir="ltr">{{.Phone}}</bdi>. It works for 10 minutes.</p>{{else}}<p class="help muted">Your account has no password, so confirm with a code sent to <bdi dir="ltr">{{.Phone}}</bdi>.</p>{{end}}
+<input id="{{.ID}}" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7"><button class="secondary" name="send_code" value="1" formnovalidate style="margin:6px 0 12px">{{if .Sent}}Send a new code{{else}}Send code to WhatsApp{{end}}</button>{{end}}{{end}}
 
 {{define "consent"}}{{template "authsigned" "Connect an AI assistant"}}<form class="card consent" method="post" action="/oauth/authorize">
 <style>
@@ -1110,7 +1140,7 @@ body.menu-open .sidenav .signout button{width:100%;margin-top:24px;padding:12px}
 <h1>Connect {{.Client}} to your Renoxium account</h1>
 <p class="lead">{{.Client}} is the AI assistant you are adding Renoxium to. Once connected, it builds and changes your apps for you, as this account:</p>
 {{with .Warning}}<p class="warn" role="alert"><strong>Warning:</strong> {{.}}</p>{{end}}
-<div class="acct"><span class="av" aria-hidden="true">{{slice .User.Email 0 1}}</span><div class="who"><strong>{{.User.Email}}</strong>
+<div class="acct"><span class="av" aria-hidden="true">{{if .User.Email}}{{slice .User.Email 0 1}}{{else}}#{{end}}</span><div class="who"><strong>{{.User.Label}}</strong>
 <span class="meta">Renoxium account · {{.Plan}} plan · {{.Apps}} app{{if ne .Apps 1}}s{{end}}</span>
 <a class="switch" href="{{.Switch}}">Not you? Switch account</a></div></div>
 <h2>{{.Client}} will be able to</h2>
@@ -1213,13 +1243,33 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{define "account"}}{{template "owntop" .}}{{template "owncss"}}
 <div class="pagehead"><div><h1>Account settings</h1><p class="sub">Sign-in, your data and your account.</p></div></div>
 <div class="settings-grid bento fill">
-<section class="panel bcell"><div class="ph"><h2>Profile</h2></div><dl class="kv"><dt>Email</dt><dd>{{.User.Email}} {{if .User.Verified}}<span class="pill live">confirmed</span>{{else}}<span class="pill wait">not confirmed</span>{{end}}</dd>
+<section class="panel bcell"><div class="ph"><h2>Profile</h2></div><dl class="kv"><dt>Email</dt><dd>{{if .User.Email}}{{.User.Email}} {{if .User.Verified}}<span class="pill live">confirmed</span>{{else}}<span class="pill wait">not confirmed</span>{{end}}{{else}}<span class="muted">none yet</span>{{end}}</dd>
+<dt>WhatsApp</dt><dd>{{with .User.Phone}}<bdi dir="ltr">{{.}}</bdi> <span class="pill live">sign-in on</span>{{else}}<span class="muted">not linked</span>{{end}}</dd>
 <dt>Plan</dt><dd>{{.PlanName}}{{if not .Shell.SingleApp}} · <a href="/billing">Plan and billing</a>{{end}}</dd><dt>Apps</dt><dd>{{len .Apps}}</dd></dl></section>
-<form class="panel bcell" method="post" action="/account/password"><div class="ph"><h2>Change password</h2></div>
+{{if .EmailAdded}}<p class="flash ok bcell" role="status">Email and password added. We sent a link to confirm the email.</p>{{end}}
+{{if .User.HasPassword}}<form class="panel bcell" method="post" action="/account/password"><div class="ph"><h2>Change password</h2></div>
 {{if .Changed}}<p class="flash ok">Password changed. Other devices and connected agents were signed out.</p>{{end}}{{with .PasswordError}}<p class="flash bad error">{{.}}</p>{{end}}
 <input type="hidden" name="csrf" value="{{.CSRF}}"><label for="current">Current password</label><input id="current" name="current" type="password" autocomplete="current-password" required>
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
 <button>Change password</button><p class="fine">Connected agents (ChatGPT, Claude) will need to connect again.</p></form>
+{{else}}<form class="panel bcell" method="post" action="/account/email"><div class="ph"><h2>Add email and password</h2></div>
+<p class="muted">You sign in with WhatsApp. Add an email to get notices and receipts by email, to be added as staff of other apps, and to sign in with a password too.</p>{{with .EmailError}}<p class="flash bad error">{{.}}</p>{{end}}
+<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="nemail">Email</label><input id="nemail" name="email" type="email" autocomplete="email" required value="{{.NewEmail}}">
+<label for="npassword">Password (at least 10 characters)</label><input id="npassword" name="password" type="password" autocomplete="new-password" minlength="10" required>
+<button>Add email</button></form>{{end}}
+{{if or .WhatsAppOn .User.Phone}}<section class="panel bcell" id="whatsapp"><div class="ph"><h2>Sign in with WhatsApp</h2></div>
+{{if .PhoneLinked}}<p class="flash ok" role="status">WhatsApp number linked. You can now sign in with a code.</p>{{end}}{{with .PhoneError}}<p class="flash bad error">{{.}}</p>{{end}}
+{{if .PendingPhone}}{{if not .PhoneError}}<p>We sent a code to <bdi dir="ltr"><strong>{{.PendingPhone}}</strong></bdi>. It works for 10 minutes.</p>{{end}}
+<form method="post" action="/account/whatsapp"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="confirm"><input type="hidden" name="phone" value="{{.PendingPhone}}">
+<label for="pcode">Code from WhatsApp</label><input id="pcode" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required><button>Confirm number</button></form>
+<p class="fine"><a href="/account#whatsapp">Use another number</a></p>
+{{else if .User.Phone}}<p>Sign in with a code sent to <bdi dir="ltr"><strong>{{.User.Phone}}</strong></bdi>.</p>
+{{if .WhatsAppOn}}<form method="post" action="/account/whatsapp"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="send">
+<label for="phone">Change to another number</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+971 50 123 4567" required><button class="secondary">Send code</button></form>{{end}}
+{{if and .User.Email .User.HasPassword}}<form method="post" action="/account/whatsapp"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="remove"><button class="secondary">Stop WhatsApp sign-in</button></form>{{end}}
+{{else}}<p class="muted">Sign in with a code sent to your WhatsApp instead of your password.</p>
+<form method="post" action="/account/whatsapp"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="send">
+<label for="phone">WhatsApp number</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+971 50 123 4567" required><button>Send code</button></form>{{end}}</section>{{end}}
 <section class="panel bcell" id="assistants"><div class="ph"><h2>Connected AI assistants</h2></div>
 {{with .Disconnected}}<p class="flash ok">{{.}} was disconnected. It can no longer reach your account.</p>{{end}}
 {{if .Connections}}<ul class="plain conns">{{range .Connections}}<li><div><strong>{{.Name}}</strong><span class="muted"> · {{.Host}}</span>
@@ -1231,8 +1281,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <a class="button secondary" href="/account/export" style="margin-top:4px">Download export</a></section>
 <form class="panel danger-zone bcell" method="post" action="/account/delete"><div class="ph"><h2>Delete account</h2></div>
 <p>This deletes your account and {{len .Apps}} app(s) with all their data, for good. Export first if you want a copy.{{if .WorkApps}} Your work app subscriptions are cancelled at once, without a refund for the rest of the period.{{end}}</p>{{with .DeleteError}}<p class="flash bad error">{{.}}</p>{{end}}
-<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your email address to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
-<label for="dpassword">Password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
+<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">Type your {{if .User.Email}}email address{{else}}WhatsApp number{{end}} to confirm</label><input id="confirm" name="confirm" autocomplete="off" required>
+{{template "reauth" .Reauth}}
 <button class="danger">Delete my account</button></form></div>{{template "appbottom"}}{{end}}
 
 {{define "billing"}}{{template "owntop" .}}{{template "owncss"}}
@@ -1291,7 +1341,8 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <div class="pagehead"><div><h1>Notifications</h1><p class="sub">Where Renoxium tells you about new orders, bookings and problems on your site.</p></div></div>
 {{with .Error}}<p class="flash bad error">{{.}}</p>{{end}}
 <div class="bento fill" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
-<section class="panel bcell"><div class="ph"><h2>Email</h2><span class="pill live">on</span></div><p>Notices from your app, such as new orders, are emailed to <strong>{{.Email}}</strong>.</p><p class="muted">This is the address of your Renoxium account. Change it in <a href="/account">Account settings</a>.</p></section>
+{{if .Email}}<section class="panel bcell"><div class="ph"><h2>Email</h2><span class="pill live">on</span></div><p>Notices from your app, such as new orders, are emailed to <strong>{{.Email}}</strong>.</p><p class="muted">This is the address of your Renoxium account. Change it in <a href="/account">Account settings</a>.</p></section>
+{{else}}<section class="panel bcell"><div class="ph"><h2>Email</h2><span class="pill wait">off</span></div><p>Your account has no email, so notices are not emailed.</p><p class="muted">Add one in <a href="/account">Account settings</a>.</p></section>{{end}}
 <section class="panel bcell"><div class="ph"><h2>WhatsApp</h2></div>{{if not .Available}}<p class="muted">WhatsApp notices are not available on this Renoxium server yet.</p>
 {{else if not .Phone}}<p>Get them on WhatsApp too. We send a code to confirm the number.</p>
 <form method="post"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="action" value="send">
@@ -1376,7 +1427,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if .Running}}<p class="error">{{.Running}} customer subscription(s) are still running. Cancel them in <a href="/apps/{{.App}}/payments">Payments</a> first, so nobody keeps being charged.</p>
 {{else}}<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">To confirm, type the app's name: <strong>{{.App}}</strong></label>
 <input id="confirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="{{.App}}" data-name="{{.App}}">
-<label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
+{{template "reauth" .Reauth}}
 <button class="danger" id="delete-btn" disabled>Delete {{.App}} for good</button>
 <script>(function(){var i=document.getElementById("confirm"),b=document.getElementById("delete-btn");function f(){b.disabled=i.value.trim()!==i.dataset.name}i.addEventListener("input",f);f()})()</script>{{end}}</form>
 </div>{{template "appbottom"}}{{end}}
@@ -1389,7 +1440,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <label for="to">New name</label><input id="to" name="to" value="{{.To}}" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="[a-z][a-z0-9-]{1,38}[a-z0-9]">
 <p class="help muted">3-40 lowercase letters, digits and hyphens. The address becomes <strong>{{if .To}}{{.To}}{{else}}new-name{{end}}.{{.Domain}}</strong>.</p>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
-<label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
+{{template "reauth" .Reauth}}
 <button>Rename {{.App}}{{if .Ready}} to {{.To}}{{end}}</button></form>
 <section class="panel bcell"><div class="ph"><h2>What changes</h2></div><ul class="howto">
 <li>The old addresses send visitors to the same page on the new ones for {{.RedirectDays}} days, and nobody else can take the old name in that time.</li>

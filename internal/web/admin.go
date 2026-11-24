@@ -86,7 +86,7 @@ func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
 		render(w, http.StatusConflict, "error", map[string]any{"Message": "Could not publish: " + err.Error()})
 		return
 	}
-	s.platform.Note(app, fmt.Sprintf("%s published version %d", u.Email, version))
+	s.platform.Note(app, fmt.Sprintf("%s published version %d", u.Label(), version))
 	render(w, http.StatusOK, "notice", map[string]any{"Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL), "Link": res.LiveURL})
 }
 
@@ -255,7 +255,7 @@ func (s *Site) hookNotice(r *http.Request, app string) string {
 	if !ok {
 		return ""
 	}
-	return s.platform.AdminNotice(app, u.Email)
+	return s.platform.AdminNotice(app, u.Label())
 }
 
 func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
@@ -333,7 +333,7 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	if len(uploadErrs) > 0 {
 		err = uploadErrs
 	} else {
-		newID, err = s.platform.AdminSave(r.Context(), app, table, id, values, u.Email)
+		newID, err = s.platform.AdminSave(r.Context(), app, table, id, values, u.Label())
 	}
 	var ferr platform.FieldErrors
 	switch {
@@ -350,7 +350,7 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 	default:
 		for _, id := range dropFiles {
 			if s.platform.DeletePrivateFile(app, platform.Live, id) == nil {
-				s.platform.Note(app, fmt.Sprintf("%s deleted uploaded file %s", u.Email, id))
+				s.platform.Note(app, fmt.Sprintf("%s deleted uploaded file %s", u.Label(), id))
 			}
 		}
 		next := fmt.Sprintf("/apps/%s/t/%s/%d?saved=1", app, table, newID)
@@ -409,7 +409,7 @@ func (s *Site) adminDelete(w http.ResponseWriter, r *http.Request) {
 		notFound(w, err)
 		return
 	}
-	if err := s.platform.AdminDelete(r.Context(), app, table, id, u.Email); err != nil {
+	if err := s.platform.AdminDelete(r.Context(), app, table, id, u.Label()); err != nil {
 		if errors.Is(err, platform.ErrNotFound) {
 			notFound(w, err)
 			return
@@ -438,7 +438,7 @@ func (s *Site) adminDeleteVisitor(w http.ResponseWriter, r *http.Request) {
 		notFound(w, err)
 		return
 	}
-	if err := s.platform.DeleteVisitor(r.Context(), app, id, u.Email); err != nil {
+	if err := s.platform.DeleteVisitor(r.Context(), app, id, u.Label()); err != nil {
 		notFound(w, err)
 		return
 	}
