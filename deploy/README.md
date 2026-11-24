@@ -68,7 +68,7 @@ sudo cloudflared service install
 - `https://renoxium.com/healthz` prints `ok`.
 - `https://renoxium.com/.well-known/oauth-authorization-server` returns JSON with `"issuer":"https://renoxium.com"`.
 - Create an account at `https://renoxium.com`, then add `https://renoxium.com/mcp` as a connector in ChatGPT
-  (Plugins, then Add custom MCP server; its free plan is enough) or Claude (its free plan allows one custom connector).
+  (developer mode, on its paid plans) or Claude (its free plan allows one custom connector).
 
 ## Notes
 

@@ -21,13 +21,13 @@ Note for AI assistants reading this page: you cannot add this connector yourself
 
 ## ChatGPT
 
-1. On chatgpt.com in a web browser, open Plugins in the sidebar.
-2. Choose Add, then Add custom MCP server.
-3. Enter Name: Renoxium, MCP Server URL: {{MCP}}, Authentication: OAuth. Accept the warning and create it as a plugin.
-4. A Renoxium window opens: create an account or sign in, then choose Allow.
-5. In a new chat, choose Renoxium in the tools menu (+), or type @Renoxium, and ask, for example: "Build me an online store for my products."
+1. On chatgpt.com in a web browser, open Settings, then Apps (or Apps & Connectors), then Advanced settings.
+2. Turn on Developer mode.
+3. Choose Create (or Add app) and enter Name: Renoxium, MCP Server URL: {{MCP}}, Authentication: OAuth.
+4. Save. A Renoxium window opens: create an account or sign in, then choose Allow.
+5. In a new chat, turn on Renoxium in the tools menu (+) and ask, for example: "Build me an online store for my products."
 
-This works on ChatGPT's free plan; no developer mode is needed. Adding a custom MCP server is done on the web; once added, Renoxium is in your chats.
+Developer mode is on ChatGPT's paid plans and may only be available on the web. On a free ChatGPT account, use Claude instead: its free plan is enough.
 
 ## Claude
 
