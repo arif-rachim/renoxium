@@ -226,3 +226,60 @@ func downloadable(address string) error {
 	}
 	return nil
 }
+
+// UploadedFile is a file of an app as the assistant sees it: its address
+// and where the preview's rows use it.
+type UploadedFile struct {
+	URL       string   `json:"url"`
+	UsedIn    []string `json:"used_in,omitempty" jsonschema:"preview rows whose image columns hold this url, as table#id.column; rows the owner edited in the admin panel's preview data are replaced on the next change, so copy the url into the seed rows or settings to keep it"`
+	CreatedAt string   `json:"created_at"`
+}
+
+// RecentFiles lists an app's newest uploaded files (at most limit) and the
+// preview rows that use each one, so an assistant can pick up photos the
+// owner added in the admin panel.
+func (p *Platform) RecentFiles(ctx context.Context, app string, limit int) ([]UploadedFile, error) {
+	rows, err := p.db.Query(`SELECT b.hash, b.content_type, f.created_at FROM app_files f JOIN blobs b ON b.hash = f.hash
+		WHERE f.app = ? ORDER BY f.created_at DESC, f.rowid DESC LIMIT ?`, app, limit)
+	if err != nil {
+		return nil, err
+	}
+	var out []UploadedFile
+	index := map[string]int{}
+	for rows.Next() {
+		var b files.Blob
+		var at string
+		if err := rows.Scan(&b.Hash, &b.ContentType, &at); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		index[fileURL(b)] = len(out)
+		out = append(out, UploadedFile{URL: fileURL(b), CreatedAt: at})
+	}
+	rows.Close()
+	if len(out) == 0 {
+		return out, rows.Err()
+	}
+	st, err := p.loadStage(app, Preview)
+	if err != nil || st == nil {
+		return out, err
+	}
+	for _, t := range st.def.Tables {
+		for _, c := range t.Columns {
+			if c.Type != "image" {
+				continue
+			}
+			found, err := st.db.Query(ctx, "SELECT id, "+quote(c.Name)+" AS v FROM "+quote(t.Name)+" WHERE "+quote(c.Name)+" LIKE ? LIMIT 200", []any{FilesPrefix + "%"})
+			if err != nil {
+				continue
+			}
+			for _, r := range found {
+				v, _ := r["v"].(string)
+				if i, ok := index[strings.SplitN(v, "?", 2)[0]]; ok && len(out[i].UsedIn) < 10 {
+					out[i].UsedIn = append(out[i].UsedIn, fmt.Sprintf("%s#%v.%s", t.Name, r["id"], c.Name))
+				}
+			}
+		}
+	}
+	return out, nil
+}

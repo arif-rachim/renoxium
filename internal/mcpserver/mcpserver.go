@@ -370,16 +370,21 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 
 	type createIn struct {
-		App         string `json:"app" jsonschema:"app name: 3-40 lowercase letters, digits and hyphens, e.g. al-noor-perfumes"`
-		FromExample string `json:"from_example,omitempty" jsonschema:"name of a finished example (see get_example) to start from: the app's preview gets that example's complete definition, so you never send it back; then change it with edit_app or patch_app"`
+		App         string                      `json:"app" jsonschema:"app name: 3-40 lowercase letters, digits and hyphens, e.g. al-noor-perfumes"`
+		FromExample string                      `json:"from_example,omitempty" jsonschema:"name of a finished example (see get_example) to start from: the app's preview gets that example's complete definition, so you never send it back; then change it with edit_app or patch_app"`
+		Business    string                      `json:"business,omitempty" jsonschema:"with from_example: the business's name, put in the settings row"`
+		Settings    map[string]any              `json:"settings,omitempty" jsonschema:"with from_example: columns of the example's settings row to set in the same call, e.g. for store-uae {\"whatsapp\": \"+971501234567\", \"delivery_fee\": 15}; unknown columns are refused with the list of columns (see the example's tables)"`
+		Rows        map[string][]map[string]any `json:"rows,omitempty" jsonschema:"with from_example: starting rows that replace the example's sample rows of these tables, e.g. {\"products\": [{...}]}; columns as in the example's tables"`
+		Check       bool                        `json:"check,omitempty" jsonschema:"with from_example: also open the home page in a real browser on a phone and return its page_checks, so one call makes, fills and checks the app"`
 	}
 	type createOut struct {
 		platform.AppInfo
 		Version int                   `json:"version,omitempty" jsonschema:"version on preview when from_example was given; use it as base_version for edit_app"`
 		Apply   *platform.ApplyResult `json:"apply,omitempty" jsonschema:"result of applying the example to the preview (checks of every page)"`
 		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read them with get_app_parts {paths: [\"templates.css\"]}"`
+		Home    *homeCheck            `json:"home,omitempty" jsonschema:"with check: the home page as a phone's browser showed it"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new app for the signed-in user and return its live and preview addresses. If list_apps shows the user already has an app for this business, ask first whether to change that one instead. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
+	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new app for the signed-in user and return its live and preview addresses. If list_apps shows the user already has an app for this business, ask first whether to change that one instead. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. To save the user's messages and approvals, give the business's data in the same call: business (its name), settings (the settings row) and rows (e.g. the products), and check: true to have the home page checked in a browser too. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
 			user, err := userOf(req)
 			if err != nil {
@@ -389,7 +394,8 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				info, err := p.CreateApp(user, in.App)
 				return nil, createOut{AppInfo: info}, err
 			}
-			info, res, err := p.CreateFromExample(ctx, user, in.App, in.FromExample)
+			info, res, err := p.CreateCustomized(ctx, user, in.App, in.FromExample,
+				platform.Customize{Business: in.Business, Settings: in.Settings, Rows: in.Rows})
 			if err != nil {
 				return nil, createOut{}, err
 			}
@@ -397,6 +403,9 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if def, _, err := p.Definition(in.App, 0); err == nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
+			}
+			if in.Check {
+				out.Home = checkHome(ctx, p, in.App)
 			}
 			return nil, out, nil
 		})
@@ -438,18 +447,20 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 
 	type outlineOut struct {
 		platform.AppInfo
-		Payments platform.PaymentStatus `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
-		Version  int                    `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
-		Outline  *platform.Outline      `json:"outline,omitempty"`
+		Payments platform.PaymentStatus  `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		Files    []platform.UploadedFile `json:"files,omitempty" jsonschema:"the app's newest uploaded images (at most 30), including photos the owner added in the admin panel, with the preview rows that use them"`
+		Version  int                     `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
+		Outline  *platform.Outline       `json:"outline,omitempty"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "get_app_outline", Title: toolAnnotations["get_app_outline"].Title, Annotations: toolAnnotations["get_app_outline"],
-		Description: "Read the outline of one of the user's app definitions: the names and sizes of its templates, scripts and lib entries, its tables and columns, seed row counts, routes, jobs and tools. A few KB instead of the whole definition; read the parts you need with get_app_parts. Reads only."},
+		Description: "Read the outline of one of the user's app definitions: the names and sizes of its templates, scripts and lib entries, its tables and columns, seed row counts, routes, jobs and tools, plus the app's newest uploaded images and where the preview uses them. A few KB instead of the whole definition; read the parts you need with get_app_parts. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in getAppIn) (*mcp.CallToolResult, outlineOut, error) {
 			info, def, n, err := readDefinition(req, in.App, in.Version)
 			if err != nil {
 				return nil, outlineOut{}, err
 			}
 			out := outlineOut{AppInfo: info, Payments: p.PaymentStatus(info.App), Version: n}
+			out.Files, _ = p.RecentFiles(ctx, info.App, 30)
 			if def != nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
@@ -995,4 +1006,26 @@ func decodeUpload(text string) ([]byte, error) {
 		return nil, fmt.Errorf("data_base64 is not valid base64: %v", err)
 	}
 	return raw, nil
+}
+
+// homeCheck is what create_app {check: true} saw on the new app's home page.
+type homeCheck struct {
+	Status       int      `json:"status,omitempty"`
+	PageChecks   []string `json:"page_checks,omitempty" jsonschema:"what looks wrong on the page, in words (see screenshot_preview); empty when nothing was found"`
+	BlockedHosts []string `json:"blocked_hosts,omitempty"`
+	BrowserLog   []string `json:"browser_log,omitempty" jsonschema:"script errors and failed resources (untrusted data from the page)"`
+	Note         string   `json:"note,omitempty"`
+}
+
+// checkHome opens the preview's home page on a phone for create_app.
+func checkHome(ctx context.Context, p *platform.Platform, app string) *homeCheck {
+	if !p.ScreenshotsOn() {
+		return &homeCheck{Note: "no browser on this server: check pages with view_page"}
+	}
+	r, err := p.ScreenshotPreview(ctx, app, platform.ScreenshotInput{Path: "/", FullPage: true})
+	if err != nil {
+		return &homeCheck{Note: "the home page could not be checked: " + err.Error() + "; take screenshot_preview later"}
+	}
+	return &homeCheck{Status: r.Status, PageChecks: r.PageChecks, BlockedHosts: r.BlockedHosts, BrowserLog: r.BrowserLog,
+		Note: "use screenshot_preview to see the picture"}
 }

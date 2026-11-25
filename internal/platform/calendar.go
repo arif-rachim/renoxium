@@ -33,7 +33,7 @@ type CalendarRows struct {
 // end_date column, whose range overlaps them. Rows with a status in
 // hide_status are left out unless all is true.
 func (p *Platform) AdminCalendar(ctx context.Context, app, table, from, to string, all bool) (CalendarRows, error) {
-	st, t, err := p.liveTable(app, table)
+	st, t, err := p.liveTable(ctx, app, table)
 	if err != nil {
 		return CalendarRows{}, err
 	}

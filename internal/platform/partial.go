@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -343,6 +344,77 @@ func (p *Platform) CreateFromExample(ctx context.Context, owner, name, example s
 // the template's settings row (its brand name, English and Arabic), so the
 // preview already carries it; "" keeps the template's sample name.
 func (p *Platform) CreateFromTemplate(ctx context.Context, owner, name, example, business string) (AppInfo, ApplyResult, error) {
+	return p.CreateCustomized(ctx, owner, name, example, Customize{Business: business})
+}
+
+// Customize is the business's own data for a new app from an example, so
+// one call makes the app with its name, settings and products in place.
+type Customize struct {
+	Business string                      // the business's name, put in the settings row's name columns
+	Settings map[string]any              // columns of the settings row (the example's brand table) to set
+	Rows     map[string][]map[string]any // tables whose starting rows are replaced, e.g. products
+}
+
+// customize puts c into def's seed rows. Every table and column must exist,
+// so a mistake is reported before an app is made.
+func (c Customize) apply(def *appdef.App) error {
+	tables := map[string]appdef.Table{}
+	for _, t := range def.Tables {
+		tables[t.Name] = t
+	}
+	check := func(table string, row map[string]any) error {
+		t := tables[table]
+		var names []string
+		for _, col := range t.Columns {
+			names = append(names, col.Name)
+		}
+		for k := range row {
+			if !slices.Contains(names, k) {
+				return fmt.Errorf("%s has no column %q; its columns are: %s", table, k, strings.Join(names, ", "))
+			}
+		}
+		return nil
+	}
+	if len(c.Settings) > 0 {
+		if def.Brand == nil || len(def.Seed[def.Brand.Table]) == 0 {
+			return errors.New("this example has no settings row; set its data with edit_app")
+		}
+		if err := check(def.Brand.Table, c.Settings); err != nil {
+			return fmt.Errorf("settings: %w", err)
+		}
+		for k, v := range c.Settings {
+			def.Seed[def.Brand.Table][0][k] = v
+		}
+	}
+	for table, rows := range c.Rows {
+		if _, ok := tables[table]; !ok {
+			var names []string
+			for _, t := range def.Tables {
+				names = append(names, t.Name)
+			}
+			return fmt.Errorf("rows: the example has no table %q; its tables are: %s", table, strings.Join(names, ", "))
+		}
+		if def.Brand != nil && table == def.Brand.Table {
+			return fmt.Errorf("rows: %s is the settings row; give its values in settings", table)
+		}
+		for i, row := range rows {
+			if err := check(table, row); err != nil {
+				return fmt.Errorf("rows %s[%d]: %w", table, i, err)
+			}
+		}
+		if def.Seed == nil {
+			def.Seed = map[string][]map[string]any{}
+		}
+		def.Seed[table] = rows
+	}
+	return nil
+}
+
+// CreateCustomized creates an app from an example with the business's own
+// data (see Customize) and applies it to the preview, checked like
+// apply_change.
+func (p *Platform) CreateCustomized(ctx context.Context, owner, name, example string, c Customize) (AppInfo, ApplyResult, error) {
+	business := c.Business
 	e, ok := examples.Get(example)
 	if !ok {
 		names := []string{}
@@ -363,6 +435,19 @@ func (p *Platform) CreateFromTemplate(ctx context.Context, owner, name, example,
 			}
 		}
 	}
+	plain, _ := appdef.Parse(e.JSON) // the example with only the business's name, if the data is refused
+	if plain.Brand != nil && def.Brand != nil {
+		if rows, ok := def.Seed[def.Brand.Table]; ok && len(rows) > 0 && len(plain.Seed[plain.Brand.Table]) > 0 {
+			plain.Seed[plain.Brand.Table][0][def.Brand.Name] = rows[0][def.Brand.Name]
+			if def.Brand.NameAr != "" {
+				plain.Seed[plain.Brand.Table][0][def.Brand.NameAr] = rows[0][def.Brand.NameAr]
+			}
+		}
+	}
+	custom := len(c.Settings) > 0 || len(c.Rows) > 0
+	if err := c.apply(def); err != nil {
+		return AppInfo{}, ApplyResult{}, err
+	}
 	info, err := p.CreateApp(owner, name)
 	if err != nil {
 		return AppInfo{}, ApplyResult{}, err
@@ -370,6 +455,16 @@ func (p *Platform) CreateFromTemplate(ctx context.Context, owner, name, example,
 	res, err := p.ApplyChange(ctx, name, def)
 	if err != nil {
 		return info, res, err
+	}
+	if !res.OK && custom {
+		// The app exists now: give it the example, and say what was refused.
+		problems := res.Problems
+		if res, err = p.ApplyChange(ctx, name, plain); err != nil {
+			return info, res, err
+		}
+		info, _ = p.Info(name)
+		return info, res, fmt.Errorf("app %s was created from %s, but its settings and rows were refused: %s; set them with edit_app (base_version %d)",
+			name, example, strings.Join(problems, "; "), res.Version)
 	}
 	info, err = p.Info(name)
 	return info, res, err

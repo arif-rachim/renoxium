@@ -13,7 +13,7 @@ func (s *Site) renderAlerts(w http.ResponseWriter, r *http.Request, app string, 
 	u, _ := s.currentUser(r)
 	used, quota := s.platform.WhatsAppUsage(u.ID)
 	u0, _ := s.currentUser(r)
-	render(w, status, "admin_alerts", map[string]any{"Shell": s.shell(u0, app, "Notifications", "/apps/"+app+"/notifications", false), "App": app, "Phone": s.platform.AlertPhoneOf(app), "CSRF": s.csrfToken(w, r),
+	render(w, status, "admin_alerts", map[string]any{"Shell": s.shell(r, u0, app, "Notifications", "/apps/"+app+"/notifications", false), "App": app, "Phone": s.platform.AlertPhoneOf(app), "CSRF": s.csrfToken(w, r),
 		"Error": errText, "Available": s.platform.WhatsAppAlertsAvailable(), "Email": u.Email, "Used": used, "Quota": quota})
 }
 

@@ -28,7 +28,7 @@ func (s *Site) renderDeleteApp(w http.ResponseWriter, r *http.Request, app strin
 		slog.Error("count subscriptions", "app", app, "err", err)
 	}
 	info, _ := s.platform.Info(app)
-	render(w, status, "admin_delete", map[string]any{"Shell": s.shell(u, app, "Delete app", "/apps/"+app+"/delete", false), "App": app,
+	render(w, status, "admin_delete", map[string]any{"Shell": s.shell(r, u, app, "Delete app", "/apps/"+app+"/delete", false), "App": app,
 		"Info": info, "Running": running, "Losses": s.appLosses(r, app), "CSRF": s.csrfToken(w, r), "Error": errText, "Email": u.Email})
 }
 
