@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,6 +31,8 @@ func (s *Site) registerAdmin() {
 	s.mux.HandleFunc("GET /apps/{app}/visitors", s.adminVisitors)
 	s.mux.HandleFunc("POST /apps/{app}/visitors/{id}/delete", s.adminDeleteVisitor)
 	s.mux.HandleFunc("GET /apps/{app}/preview", s.adminPreview)
+	s.mux.HandleFunc("GET /apps/{app}/data-stage", s.adminDataStage)
+	s.mux.HandleFunc("GET /apps/{app}/preview/{page...}", s.adminPreview)
 	s.mux.HandleFunc("GET /apps/{app}/publish", s.publishForm)
 	s.mux.HandleFunc("GET /apps/{app}/files/{id}", s.adminPrivateFile)
 	s.mux.HandleFunc("POST /apps/{app}/publish", s.publishConfirm)
@@ -63,7 +66,7 @@ func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
 	if pl.Problem == "" {
 		pl.Ready = true
 	}
-	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r),
+	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(r, u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r),
 		"Rollback": version < info.LiveVersion, "Plan": pl})
 }
 
@@ -83,20 +86,52 @@ func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := s.platform.Publish(app, version)
 	if err != nil {
-		render(w, http.StatusConflict, "error", map[string]any{"Message": "Could not publish: " + err.Error()})
+		render(w, http.StatusConflict, "error", map[string]any{"Signed": true, "Message": "Could not publish: " + err.Error()})
 		return
 	}
 	s.platform.Note(app, fmt.Sprintf("%s published version %d", u.Email, version))
-	render(w, http.StatusOK, "notice", map[string]any{"Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL), "Link": res.LiveURL})
+	render(w, http.StatusOK, "notice", map[string]any{"Signed": true, "Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL),
+		"Link": res.LiveURL, "LinkText": "Open the live site", "Back": "/apps/" + app})
 }
 
 // adminPreview sends the owner to their app's private preview with a
-// short-lived link that unlocks it in this browser.
+// short-lived link that unlocks it in this browser. /apps/<app>/preview/<page>
+// opens that page of the preview, as assistants link to pages they changed.
 func (s *Site) adminPreview(w http.ResponseWriter, r *http.Request) {
 	if _, app, ok := s.member(w, r); ok {
+		next := "/" + r.PathValue("page")
+		if r.URL.RawQuery != "" {
+			next += "?" + r.URL.RawQuery
+		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		http.Redirect(w, r, s.platform.PreviewLink(app), http.StatusSeeOther)
+		http.Redirect(w, r, s.platform.PreviewLinkTo(app, next), http.StatusSeeOther)
 	}
+}
+
+// previewDataCookie marks, for one app's pages, that the admin panel shows
+// and edits the preview's data instead of live data.
+const previewDataCookie = "rx_data"
+
+// adminDataStage switches the data pages of an app between live data and
+// the preview's test data. Preview data lets the owner add photos and rows
+// before the first publish; it is replaced each time the app is changed.
+// It only changes what this browser shows, like a filter, so it is a link.
+func (s *Site) adminDataStage(w http.ResponseWriter, r *http.Request) {
+	_, app, ok := s.member(w, r)
+	if !ok {
+		return
+	}
+	c := &http.Cookie{Name: previewDataCookie, Value: "preview", Path: "/apps/" + app, HttpOnly: true, Secure: s.secure,
+		SameSite: http.SameSiteLaxMode, MaxAge: 12 * 3600}
+	if r.URL.Query().Get("stage") != "preview" || s.platform.IsDemo(app) {
+		c.Value, c.MaxAge = "", -1
+	}
+	http.SetCookie(w, c)
+	back := r.URL.Query().Get("back")
+	if !strings.HasPrefix(back, "/apps/"+app) || strings.HasPrefix(back, "//") {
+		back = "/apps/" + app
+	}
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 // owner returns the signed-in user if they own the app in the path. It has
@@ -151,7 +186,7 @@ func (s *Site) adminForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	table := r.PathValue("table")
-	t, err := s.table(app, table)
+	t, err := s.table(r.Context(), app, table)
 	if err != nil {
 		notFound(w, err)
 		return
@@ -209,7 +244,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		case "file":
 			f.Input = "file"
 			f.OwnerOnly = !isOwner
-			if pf, err := s.platform.PrivateFileInfo(app, s.platform.AdminStage(app), f.Value); err == nil {
+			if pf, err := s.platform.PrivateFileInfo(app, s.platform.AdminStageFor(r.Context(), app), f.Value); err == nil {
 				f.FileName = pf.Name
 				if !isOwner {
 					f.FileName = "Document"
@@ -244,7 +279,7 @@ func (s *Site) renderForm(w http.ResponseWriter, r *http.Request, status int, ap
 		"App": app, "Table": t.Name, "Label": tableLabel(t), "ID": id, "Fields": fields, "Created": created,
 		"CSRF": s.csrfToken(w, r), "Saved": saved, "Error": other, "HasErrors": len(errs) > 0,
 		"HasImage": hasImage, "LiveURL": liveURL, "Back": calendarBack(r, app, t.Name), "Notice": s.hookNotice(r, app),
-		"Demo": s.platform.IsDemo(app), "Shell": s.shell(u, app, tableLabel(t), "/apps/"+app+"/t/"+t.Name, s.platform.IsDemo(app)),
+		"Demo": s.platform.IsDemo(app), "Shell": s.shell(r, u, app, tableLabel(t), "/apps/"+app+"/t/"+t.Name, s.platform.IsDemo(app)),
 	})
 }
 
@@ -281,7 +316,7 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	table := r.PathValue("table")
-	t, err := s.table(app, table)
+	t, err := s.table(r.Context(), app, table)
 	if err != nil {
 		notFound(w, err)
 		return
@@ -349,7 +384,7 @@ func (s *Site) adminSave(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 	default:
 		for _, id := range dropFiles {
-			if s.platform.DeletePrivateFile(app, platform.Live, id) == nil {
+			if s.platform.DeletePrivateFile(app, s.platform.AdminStageFor(r.Context(), app), id) == nil {
 				s.platform.Note(app, fmt.Sprintf("%s deleted uploaded file %s", u.Email, id))
 			}
 		}
@@ -373,7 +408,7 @@ func (s *Site) adminPrivateFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	f, fh, err := s.platform.OpenPrivateFile(app, platform.Live, r.PathValue("id"))
+	f, fh, err := s.platform.OpenPrivateFile(app, s.platform.AdminStageFor(r.Context(), app), r.PathValue("id"))
 	if err != nil {
 		notFound(w, err)
 		return
@@ -383,12 +418,12 @@ func (s *Site) adminPrivateFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // privateFileName is what the table list shows for a file column.
-func (s *Site) privateFileName(app string, v any) string {
+func (s *Site) privateFileName(ctx context.Context, app string, v any) string {
 	id, _ := v.(string)
 	if id == "" {
 		return ""
 	}
-	if f, err := s.platform.PrivateFileInfo(app, s.platform.AdminStage(app), id); err == nil {
+	if f, err := s.platform.PrivateFileInfo(app, s.platform.AdminStageFor(ctx, app), id); err == nil {
 		return f.Name
 	}
 	return "(file deleted)"
@@ -445,8 +480,8 @@ func (s *Site) adminDeleteVisitor(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/apps/"+app+"/visitors", http.StatusSeeOther)
 }
 
-func (s *Site) table(app, name string) (appdef.Table, error) {
-	tables, err := s.platform.Tables(app)
+func (s *Site) table(ctx context.Context, app, name string) (appdef.Table, error) {
+	tables, err := s.platform.TablesFor(ctx, app)
 	if err != nil {
 		return appdef.Table{}, err
 	}

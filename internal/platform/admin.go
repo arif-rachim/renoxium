@@ -19,15 +19,21 @@ const AdminPageSize = 50
 // Tables returns the tables of an app's live version, or nil if it has not
 // been published yet.
 func (p *Platform) Tables(app string) ([]appdef.Table, error) {
-	st, err := p.loadStage(app, p.AdminStage(app))
+	return p.TablesFor(context.Background(), app)
+}
+
+// TablesFor returns the tables of the stage the admin panel shows for this
+// request (see AdminStageFor), or nil before that stage has a version.
+func (p *Platform) TablesFor(ctx context.Context, app string) ([]appdef.Table, error) {
+	st, err := p.loadStage(app, p.AdminStageFor(ctx, app))
 	if err != nil || st == nil {
 		return nil, err
 	}
 	return st.def.Tables, nil
 }
 
-func (p *Platform) liveTable(app, table string) (*stage, appdef.Table, error) {
-	return p.stageTable(app, p.AdminStage(app), table)
+func (p *Platform) liveTable(ctx context.Context, app, table string) (*stage, appdef.Table, error) {
+	return p.stageTable(app, p.AdminStageFor(ctx, app), table)
 }
 
 // AdminStage is the stage the admin panel shows: live, or for a template
@@ -37,6 +43,30 @@ func (p *Platform) AdminStage(app string) string {
 		return Preview
 	}
 	return Live
+}
+
+type previewDataKey struct{}
+
+// WithPreviewData marks a request of the admin panel as working on the
+// preview's data instead of live data: the owner chose to edit the
+// preview's test rows, e.g. to add photos before the first publish.
+func WithPreviewData(ctx context.Context) context.Context {
+	return context.WithValue(ctx, previewDataKey{}, true)
+}
+
+// PreviewData reports whether a request works on the preview's data.
+func PreviewData(ctx context.Context) bool {
+	on, _ := ctx.Value(previewDataKey{}).(bool)
+	return on
+}
+
+// AdminStageFor is AdminStage for one request: the preview when the owner
+// chose to edit preview data (WithPreviewData).
+func (p *Platform) AdminStageFor(ctx context.Context, app string) string {
+	if PreviewData(ctx) {
+		return Preview
+	}
+	return p.AdminStage(app)
 }
 
 // stageTable finds a table of a stage. The admin panel uses live only;
@@ -82,7 +112,7 @@ var PageSizes = []int{25, 50, 100}
 
 // AdminQuery returns one page of a table and how many rows match.
 func (p *Platform) AdminQuery(ctx context.Context, app, table string, q ListQuery) (rows []map[string]any, total int, err error) {
-	st, t, err := p.liveTable(app, table)
+	st, t, err := p.liveTable(ctx, app, table)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -142,7 +172,7 @@ func hasColumn(t appdef.Table, name string) bool {
 
 // AdminGet returns one row of a live table.
 func (p *Platform) AdminGet(ctx context.Context, app, table string, id int64) (map[string]any, error) {
-	st, t, err := p.liveTable(app, table)
+	st, t, err := p.liveTable(ctx, app, table)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +202,7 @@ func (f FieldErrors) Error() string {
 // The app's on_admin_change script then runs; its failure is logged and
 // does not undo or fail the save.
 func (p *Platform) AdminSave(ctx context.Context, app, table string, id int64, values map[string]string, by string) (int64, error) {
-	st, t, err := p.liveTable(app, table)
+	st, t, err := p.liveTable(ctx, app, table)
 	if err != nil {
 		return 0, err
 	}
@@ -218,7 +248,7 @@ func (p *Platform) adminSave(ctx context.Context, st *stage, t appdef.Table, id 
 
 // AdminDelete deletes one row, then runs the app's on_admin_change script.
 func (p *Platform) AdminDelete(ctx context.Context, app, table string, id int64, by string) error {
-	st, t, err := p.liveTable(app, table)
+	st, t, err := p.liveTable(ctx, app, table)
 	if err != nil {
 		return err
 	}

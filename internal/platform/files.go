@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -105,7 +106,14 @@ func (p *Platform) serveFile(w http.ResponseWriter, r *http.Request, app string)
 			return !deferred
 		})
 		etag = fmt.Sprintf("%s-%d", b.Hash, width)
-		if err == nil && (deferred || files.Deferred(f, b, width)) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			// A file the resizer cannot read (stored before damaged uploads
+			// were refused) is still served as it is: the browser may manage,
+			// and a server error would hide the image for certain.
+			slog.Warn("resize stored file", "app", app, "hash", b.Hash, "width", width, "err", err)
+			f, err = p.files.Open(hash)
+			ctype, etag = b.ContentType, b.Hash
+		} else if err == nil && (deferred || files.Deferred(f, b, width)) {
 			// Not the final answer for this address: do not let it be cached.
 			defer f.Close()
 			h := w.Header()
@@ -166,4 +174,112 @@ func (p *Platform) FitStoredPhotos(ctx context.Context, pause time.Duration) int
 		}
 	}
 	return changed
+}
+
+// AddFileFrom downloads an image from a public https address and stores it
+// for an app like AddFile. It is how an assistant hands over a photo the
+// user attached in the chat (ChatGPT gives a temporary download address)
+// or one already on the web, instead of typing the file out as base64. The
+// download uses the same guarded client as http.fetch: public addresses
+// only, at most a few redirects, each checked again.
+func (p *Platform) AddFileFrom(ctx context.Context, app, address string) (FileInfo, error) {
+	if _, err := p.Info(app); err != nil {
+		return FileInfo{}, err
+	}
+	if err := downloadable(address); err != nil {
+		return FileInfo{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("the file address cannot be used: %v", err)
+	}
+	req.Header.Set("Accept", "image/*")
+	client := p.fetchClient()
+	client.CheckRedirect = func(r *http.Request, via []*http.Request) error {
+		if len(via) >= 5 {
+			return errors.New("too many redirects")
+		}
+		return downloadable(r.URL.String())
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("the file could not be downloaded from %s: %v", req.URL.Host, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return FileInfo{}, fmt.Errorf("the file could not be downloaded from %s: it answered %d %s (a chat attachment's address expires after a while: attach the file again)",
+			req.URL.Host, resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+	if resp.ContentLength > files.MaxUpload {
+		return FileInfo{}, files.ErrPhotoTooLarge
+	}
+	return p.AddFile(app, resp.Body)
+}
+
+// downloadable checks an address AddFileFrom may download from.
+func downloadable(address string) error {
+	u, err := url.Parse(address)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Hostname() == "" || (u.Port() != "" && u.Port() != "443") {
+		return errors.New("the file address must be a public https:// address on port 443")
+	}
+	return nil
+}
+
+// UploadedFile is a file of an app as the assistant sees it: its address
+// and where the preview's rows use it.
+type UploadedFile struct {
+	URL       string   `json:"url"`
+	UsedIn    []string `json:"used_in,omitempty" jsonschema:"preview rows whose image columns hold this url, as table#id.column; rows the owner edited in the admin panel's preview data are replaced on the next change, so copy the url into the seed rows or settings to keep it"`
+	CreatedAt string   `json:"created_at"`
+}
+
+// RecentFiles lists an app's newest uploaded files (at most limit) and the
+// preview rows that use each one, so an assistant can pick up photos the
+// owner added in the admin panel.
+func (p *Platform) RecentFiles(ctx context.Context, app string, limit int) ([]UploadedFile, error) {
+	rows, err := p.db.Query(`SELECT b.hash, b.content_type, f.created_at FROM app_files f JOIN blobs b ON b.hash = f.hash
+		WHERE f.app = ? ORDER BY f.created_at DESC, f.rowid DESC LIMIT ?`, app, limit)
+	if err != nil {
+		return nil, err
+	}
+	var out []UploadedFile
+	index := map[string]int{}
+	for rows.Next() {
+		var b files.Blob
+		var at string
+		if err := rows.Scan(&b.Hash, &b.ContentType, &at); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		index[fileURL(b)] = len(out)
+		out = append(out, UploadedFile{URL: fileURL(b), CreatedAt: at})
+	}
+	rows.Close()
+	if len(out) == 0 {
+		return out, rows.Err()
+	}
+	st, err := p.loadStage(app, Preview)
+	if err != nil || st == nil {
+		return out, err
+	}
+	for _, t := range st.def.Tables {
+		for _, c := range t.Columns {
+			if c.Type != "image" {
+				continue
+			}
+			found, err := st.db.Query(ctx, "SELECT id, "+quote(c.Name)+" AS v FROM "+quote(t.Name)+" WHERE "+quote(c.Name)+" LIKE ? LIMIT 200", []any{FilesPrefix + "%"})
+			if err != nil {
+				continue
+			}
+			for _, r := range found {
+				v, _ := r["v"].(string)
+				if i, ok := index[strings.SplitN(v, "?", 2)[0]]; ok && len(out[i].UsedIn) < 10 {
+					out[i].UsedIn = append(out[i].UsedIn, fmt.Sprintf("%s#%v.%s", t.Name, r["id"], c.Name))
+				}
+			}
+		}
+	}
+	return out, nil
 }

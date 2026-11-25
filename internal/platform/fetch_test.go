@@ -81,7 +81,7 @@ func TestHTTPFetch(t *testing.T) {
 		t.Fatal(err, res)
 	}
 	if got := strings.Join(res.OwnerActions, "; "); !strings.Contains(got, "allow api.courier.ae at https://renoxium.test/apps/shop/connections") ||
-		!strings.Contains(got, "enter COURIER_KEY") {
+		!strings.Contains(got, "enter COURIER_KEY") || !strings.Contains(got, "turn on test calls for 2 hours") {
 		t.Fatalf("owner actions: %s", got)
 	}
 	call := func(args map[string]any) map[string]any {

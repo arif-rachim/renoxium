@@ -59,6 +59,14 @@ func TestPreviewCheckoutIsSimulated(t *testing.T) {
 	if err != nil || buy.Status != 303 || !strings.HasPrefix(buy.Location, "/_rx/pay/sim_") {
 		t.Fatalf("buy: %v %+v", err, buy)
 	}
+	// The agent is told the payment was simulated and that live card
+	// payments need the owner to connect Stripe first.
+	if !strings.HasPrefix(buy.Payment, "simulated") || !strings.Contains(buy.Payment, "/apps/oud/payments") && !strings.Contains(buy.Payment, "not available") {
+		t.Fatalf("payment label: %q", buy.Payment)
+	}
+	if st := p.PaymentStatus("oud"); st.CanCharge || st.StripeConnected || st.Note == "" {
+		t.Fatalf("payment status: %+v", st)
+	}
 	page, _ := p.TestRequest(ctx, "oud", platform.TestRequestInput{Path: buy.Location})
 	if page.Status != 200 || !strings.Contains(page.Body, "500.00 AED") || !strings.Contains(page.Body, "simulated") {
 		t.Fatalf("pay page: %+v", page)

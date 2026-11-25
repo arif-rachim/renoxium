@@ -18,7 +18,7 @@ func (s *Site) registerStaff() {
 func (s *Site) renderStaff(w http.ResponseWriter, r *http.Request, app string, status int, errText string) {
 	staff, _ := s.platform.Staff(app)
 	u0, _ := s.currentUser(r)
-	render(w, status, "admin_staff", map[string]any{"Shell": s.shell(u0, app, "Staff", "/apps/"+app+"/staff", false), "App": app, "Staff": staff, "Limit": s.platform.StaffLimit(app), "CSRF": s.csrfToken(w, r), "Error": errText,
+	render(w, status, "admin_staff", map[string]any{"Shell": s.shell(r, u0, app, "Staff", "/apps/"+app+"/staff", false), "App": app, "Staff": staff, "Limit": s.platform.StaffLimit(app), "CSRF": s.csrfToken(w, r), "Error": errText,
 		"SeatNote": s.seatNote(app, len(staff))})
 }
 

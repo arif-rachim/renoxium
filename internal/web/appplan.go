@@ -25,7 +25,7 @@ func (s *Site) renderAppPlan(w http.ResponseWriter, r *http.Request, app string,
 		notFound(w, err)
 		return
 	}
-	render(w, status, "admin_plan", map[string]any{"Shell": s.shell(u, app, "Plan", "/apps/"+app+"/plan", false), "App": app,
+	render(w, status, "admin_plan", map[string]any{"Shell": s.shell(r, u, app, "Plan", "/apps/"+app+"/plan", false), "App": app,
 		"Plan": pl, "CSRF": s.csrfToken(w, r), "Error": errText, "Ready": s.Billing.workReady(),
 		"Fee": platform.ShopFeePercent, "Price": platform.WorkAppPriceAED, "Users": platform.WorkAppUsers, "ShopStaff": platform.ShopStaff,
 		"PeriodEnd": formatDate(pl.WorkPeriodEnd), "SeatPrice": platform.WorkSeatPriceAED, "MaxUsers": platform.WorkAppMaxUsers,

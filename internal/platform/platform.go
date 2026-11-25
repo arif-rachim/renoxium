@@ -194,7 +194,7 @@ type AppInfo struct {
 	LiveVersion    int    `json:"live_version" jsonschema:"version currently served on live_url; 0 means not published yet"`
 	PreviewVersion int    `json:"preview_version" jsonschema:"version currently served on preview_url; 0 means nothing applied yet"`
 	LiveURL        string `json:"live_url"`
-	PreviewURL     string `json:"preview_url"`
+	PreviewURL     string `json:"preview_url" jsonschema:"opens the private preview for the owner; add a page path to open that page, e.g. <preview_url>/queue"`
 }
 
 // Check is the result of rendering one route during ApplyChange.
@@ -215,9 +215,11 @@ type ApplyResult struct {
 	Version    int      `json:"version,omitempty"`
 	PreviewURL string   `json:"preview_url,omitempty"`
 	Migrations []string `json:"migrations,omitempty" jsonschema:"schema changes applied to the preview database"`
+	Fixed      []string `json:"fixed,omitempty" jsonschema:"mistakes in the definition the platform repaired as it saved it"`
+	Warnings   []string `json:"warnings,omitempty" jsonschema:"parts of the definition saved as written that will not work for visitors, although the checks pass; fix them before telling the user the feature works"`
 	Checks     []Check  `json:"checks,omitempty" jsonschema:"result of rendering every GET route on preview: parameters filled from preview rows, signed-in routes as a visitor"`
 	// OwnerActions are steps only the owner can take before http.fetch works.
-	OwnerActions []string `json:"owner_actions,omitempty" jsonschema:"things the owner must do in the admin panel (allow hosts, enter API keys); tell the user and give them the link"`
+	OwnerActions []string `json:"owner_actions,omitempty" jsonschema:"steps only the owner can take, signed in to Renoxium (allow hosts, enter API keys, turn on test calls for the preview). Tell the user all of them now, in this reply, each with its full link, before testing or saying the feature works"`
 }
 
 // PublishResult reports what Publish did.
@@ -486,6 +488,11 @@ func (p *Platform) CreateApp(owner, name string) (AppInfo, error) {
 	// Its owner taking the name back ends the redirects from it.
 	tx.Exec(`DELETE FROM host_redirects WHERE host IN (?, ?, ?, ?)`, p.host(name, Live), p.host(name, Preview), p.idHost(name, Live), p.idHost(name, Preview))
 	if _, err := tx.Exec(`INSERT INTO apps (name, created_at, owner) VALUES (?, ?, ?)`, name, now(), owner); err != nil {
+		var mine int
+		tx.QueryRow(`SELECT count(*) FROM apps WHERE name = ? AND owner = ?`, name, owner).Scan(&mine)
+		if mine > 0 {
+			return AppInfo{}, fmt.Errorf("you already have an app called %q: ask the user whether to change that app (edit_app) or create a new one under another name", name)
+		}
 		return AppInfo{}, fmt.Errorf("app name %q is already taken", name)
 	}
 	for _, s := range []string{Live, Preview} {
@@ -578,7 +585,8 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	if _, err := p.Info(name); err != nil {
 		return ApplyResult{}, err
 	}
-	problems := append(def.Validate(), p.checkScripts(def)...)
+	fixed, styleProblems := def.FixStyleSlots()
+	problems := append(append(def.Validate(), styleProblems...), p.checkScripts(def)...)
 	raw, err := json.Marshal(def)
 	if err != nil {
 		return ApplyResult{}, err
@@ -622,7 +630,8 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	}
 
 	p.db.Exec(`DELETE FROM versions WHERE app = ? AND n <= ? AND n != (SELECT live_version FROM apps WHERE name = ?)`, name, n-keepVersions, name)
-	res := ApplyResult{OK: true, Version: n, PreviewURL: p.previewURL(name), Migrations: migrations}
+	res := ApplyResult{OK: true, Version: n, PreviewURL: p.previewURL(name), Migrations: migrations, Fixed: fixed,
+		Warnings: p.browserFetchWarnings(name, def)}
 	st, err := p.loadStage(name, Preview)
 	if err != nil {
 		return res, err
@@ -642,6 +651,12 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 			if !s.Set || s.Mismatch {
 				res.OwnerActions = append(res.OwnerActions, "enter "+s.Name+" at "+link)
 			}
+		}
+		// The preview makes no real calls until the owner turns them on, as
+		// a second step after allowing: say both now, not one failure at a time.
+		if len(hosts) > 0 && !p.PreviewFetchOn(name) {
+			res.OwnerActions = append(res.OwnerActions, "to test these calls on the preview, turn on test calls for 2 hours at "+link+
+				" (after allowing the hosts); until then http.fetch fails on the preview")
 		}
 	}
 	return res, nil

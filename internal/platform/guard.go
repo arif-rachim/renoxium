@@ -143,11 +143,20 @@ func (p *Platform) validPreviewToken(app, token string) bool {
 
 // PreviewLink is a short-lived link that opens an app's private preview
 // in the browser. Only hand it to the app's owner.
-func (p *Platform) PreviewLink(app string) string {
+func (p *Platform) PreviewLink(app string) string { return p.PreviewLinkTo(app, "/") }
+
+// PreviewLinkTo is PreviewLink opening a page of the preview other than its
+// home page: next is a path with an optional query, e.g. /queue?lang=ar.
+func (p *Platform) PreviewLinkTo(app, next string) string {
+	next = localPath(next)
 	if len(p.cfg.PreviewKey) == 0 {
-		return p.URL(app, Preview)
+		return p.URL(app, Preview) + next
 	}
-	return p.URL(app, Preview) + previewPath + "?t=" + url.QueryEscape(p.previewToken(app, time.Now().Add(previewLinkTTL)))
+	link := p.URL(app, Preview) + previewPath + "?t=" + url.QueryEscape(p.previewToken(app, time.Now().Add(previewLinkTTL)))
+	if next != "/" {
+		link += "&next=" + url.QueryEscape(next)
+	}
+	return link
 }
 
 func (p *Platform) previewCookie(app string) *http.Cookie {
@@ -164,12 +173,16 @@ func (p *Platform) guardPreview(w http.ResponseWriter, r *http.Request, app stri
 	}
 	if r.URL.Path == previewPath {
 		if !p.validPreviewToken(app, r.URL.Query().Get("t")) {
-			p.previewLocked(w, app, "This preview link has expired.")
+			p.previewLocked(w, app, "This preview link has expired.", r.URL.Query().Get("next"))
 			return false
 		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		http.SetCookie(w, p.previewCookie(app))
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		next := localPath(r.URL.Query().Get("next"))
+		if strings.HasPrefix(next, previewPath) {
+			next = "/"
+		}
+		http.Redirect(w, r, next, http.StatusSeeOther)
 		return false
 	}
 	if c, err := r.Cookie(p.cookieName("rx_preview")); err == nil && p.validPreviewToken(app, c.Value) {
@@ -181,14 +194,20 @@ func (p *Platform) guardPreview(w http.ResponseWriter, r *http.Request, app stri
 		http.SetCookie(w, p.previewCookie(app))
 		return true
 	}
-	p.previewLocked(w, app, "This preview is private.")
+	p.previewLocked(w, app, "This preview is private.", r.URL.RequestURI())
 	return false
 }
 
-func (p *Platform) previewLocked(w http.ResponseWriter, app, why string) {
+// previewLocked answers a request the preview does not let in. Its link,
+// through the owner's account, comes back to the page asked for.
+func (p *Platform) previewLocked(w http.ResponseWriter, app, why, page string) {
+	link := p.cfg.SiteURL + "/apps/" + app + "/preview"
+	if page = localPath(page); page != "/" && !strings.HasPrefix(page, previewPath) {
+		link += page
+	}
 	writeSysPage(w, http.StatusForbidden, sysPageData{Title: "Private preview", Heading: "Private preview",
 		Body: template.HTML("<p>" + template.HTMLEscapeString(why) + " Only the app's owner can open it, from their Renoxium account.</p>"),
-		Link: p.cfg.SiteURL + "/apps/" + app + "/preview", LinkText: "Open the preview from your account"})
+		Link: link, LinkText: "Open the preview from your account"})
 }
 
 // ownerVerified reports whether an app's owner has confirmed their email.

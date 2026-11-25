@@ -65,7 +65,7 @@ func (s *Site) adminCalendar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	table := r.PathValue("table")
-	t, err := s.table(app, table)
+	t, err := s.table(r.Context(), app, table)
 	if err != nil || t.Calendar == nil {
 		notFound(w, err)
 		return
@@ -121,7 +121,7 @@ func (s *Site) adminCalendar(w http.ResponseWriter, r *http.Request) {
 		"Capped": res.Capped, "Limit": platform.CalendarLimit, "Statuses": statuses, "Empty": len(items) == 0,
 		"AddLink": "/apps/" + app + "/t/" + table + "/new?back=" + url.QueryEscape(self),
 		"Demo":    demo,
-		"Shell":   s.shell(u, app, tableLabel(t), "/apps/"+app+"/t/"+table, demo),
+		"Shell":   s.shell(r, u, app, tableLabel(t), "/apps/"+app+"/t/"+table, demo),
 	}
 	if view == "day" {
 		lanes, hours, height := dayView(items, day.Format(time.DateOnly))

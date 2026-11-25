@@ -75,7 +75,7 @@ func (s *Site) renderPayments(w http.ResponseWriter, r *http.Request, u accounts
 	for _, f := range []struct{ v, l string }{{"", "All"}, {"paid", "Paid"}, {"pending", "Waiting"}, {"authorized", "Card holds"}, {"refunded", "Refunded"}} {
 		filters = append(filters, shellLink{Label: f.l, Href: "?status=" + f.v, Current: f.v == filter})
 	}
-	render(w, status, "admin_payments", map[string]any{"Shell": s.shell(u, app, "Payments", "/apps/"+app+"/payments", false),
+	render(w, status, "admin_payments", map[string]any{"Shell": s.shell(r, u, app, "Payments", "/apps/"+app+"/payments", false),
 		"App": app, "Account": pa, "Payments": list, "Subscriptions": subs, "Total": total, "Pager": newPager(r, page, platform.AdminPageSize, total),
 		"Filters": filters, "Filter": filter, "CSRF": s.csrfToken(w, r), "Fee": fee, "Notice": notice, "Error": problem})
 }

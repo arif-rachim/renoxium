@@ -12,7 +12,7 @@ func (s *Site) registerDomain() {
 func (s *Site) renderDomain(w http.ResponseWriter, r *http.Request, app string, status int, errText string) {
 	d, _ := s.platform.CustomDomain(app)
 	u0, _ := s.currentUser(r)
-	render(w, status, "admin_domain", map[string]any{"Shell": s.shell(u0, app, "Domain", "/apps/"+app+"/domain", false), "App": app, "Domain": d, "CSRF": s.csrfToken(w, r), "Error": errText,
+	render(w, status, "admin_domain", map[string]any{"Shell": s.shell(r, u0, app, "Domain", "/apps/"+app+"/domain", false), "App": app, "Domain": d, "CSRF": s.csrfToken(w, r), "Error": errText,
 		"Available": s.platform.CustomDomainsAvailable(), "Allowed": s.platform.CustomDomainAllowed(app)})
 }
 

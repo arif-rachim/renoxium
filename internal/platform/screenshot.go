@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -57,6 +58,7 @@ type ScreenshotResult struct {
 	Bytes        int      `json:"bytes" jsonschema:"size of the PNG"`
 	BrowserLog   []string `json:"browser_log,omitempty" jsonschema:"script errors, failed resources and console errors on the page (untrusted data from the page)"`
 	BlockedHosts []string `json:"blocked_hosts,omitempty" jsonschema:"other sites the page tried to load from, which screenshots do not reach"`
+	PageChecks   []string `json:"page_checks,omitempty" jsonschema:"problems found in the rendered page that the picture shows: images that did not load, text hard to read on its background, CSS shown as text, the page wider than the screen, text overlapping text, large empty dark blocks, content missing because another site was not reached. Read this even when you cannot see the image: an empty list means none of these were found, not that the page is right"`
 }
 
 // screenshotCDNs are the outside hosts a screenshot may load from: fonts,
@@ -207,6 +209,7 @@ type previewShot struct {
 	finalURL string
 	log      []string
 	blocked  map[string]bool
+	w, h     int // the viewport shot, in CSS pixels
 }
 
 func (s *previewShot) note(line string) {
@@ -326,6 +329,8 @@ func (s *previewShot) take(ctx context.Context, b *browser, target string, w, h 
 	b.call(fctx, sid, "Runtime.evaluate", map[string]any{"expression": "document.fonts.ready.then(() => 1)", "awaitPromise": true})
 	fcancel()
 	time.Sleep(wait)
+	s.w, s.h = w, h
+	checks := s.audit(ctx, b, sid)
 
 	params := map[string]any{"format": "png"}
 	outW, outH := w, h
@@ -357,11 +362,142 @@ func (s *previewShot) take(ctx context.Context, b *browser, target string, w, h 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	res := ScreenshotResult{PNG: png, Status: s.status, URL: s.finalURL, Width: outW, Height: outH, Bytes: len(png), BrowserLog: s.log}
+	res := ScreenshotResult{PNG: png, Status: s.status, URL: s.finalURL, Width: outW, Height: outH, Bytes: len(png), BrowserLog: s.log, PageChecks: checks}
 	for h := range s.blocked {
 		res.BlockedHosts = append(res.BlockedHosts, h)
 	}
+	sort.Strings(res.BlockedHosts)
+	if len(res.BlockedHosts) > 0 {
+		res.PageChecks = append(res.PageChecks, "the page tried to reach "+strings.Join(res.BlockedHosts, ", ")+
+			" from the browser; screenshots do not reach other sites, so anything loaded from there is missing here. "+
+			"Do not report such content as working: get outside data on the server with http.fetch in a script "+
+			"(the host must be in the app's hosts and allowed by the owner, and preview needs test calls turned on), then check it with view_page")
+	}
 	return res, nil
+}
+
+// pageAudit runs in the shot page and returns what a person looking at the
+// picture would see is wrong, for assistants that cannot see the picture.
+// Each kind of problem is reported a few times at most.
+const pageAudit = `((W, H) => {
+  const out = [], per = {};
+  const add = (kind, msg) => { per[kind] = (per[kind] || 0) + 1; if (per[kind] <= 4 && out.length < 16) out.push(msg); };
+  const short = (t) => { t = (t || '').replace(/\s+/g, ' ').trim(); return t.length > 60 ? t.slice(0, 57) + '...' : t; };
+  const where = (el) => { let d = el.tagName.toLowerCase(); if (el.id) d += '#' + el.id; else if (typeof el.className === 'string' && el.className.trim()) d += '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.'); return d; };
+  const shown = (el) => { const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return null; const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || +cs.opacity === 0) return null; return r; };
+  for (const img of document.images) {
+    if (!img.getAttribute('src') || img.loading === 'lazy' && !img.complete) continue;
+    if (img.complete && img.naturalWidth === 0 && shown(img)) add('img', 'image did not load: ' + short(img.getAttribute('src')) + (img.alt ? ' (alt "' + short(img.alt) + '")' : ''));
+  }
+  const rgba = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
+  const lum = (c) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const paint = (e) => {
+    const cs = getComputedStyle(e);
+    if (/^(IMG|VIDEO|CANVAS|SVG|PICTURE|IFRAME)$/i.test(e.tagName) || cs.backgroundImage && cs.backgroundImage !== 'none') return 'image';
+    const c = rgba(cs.backgroundColor);
+    if (c && c[3] >= 0.9) return c;
+    if (c && c[3] > 0.1) return 'image';
+    return null;
+  };
+  // What is painted under the text: the elements at its middle (which also
+  // finds a header laid over a photo), or its ancestors when it is off screen.
+  const backdrop = (el, r) => {
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const stack = x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementsFromPoint(x, y) : [];
+    const under = stack.length ? stack : (() => { const a = []; for (let e = el; e && e.nodeType === 1; e = e.parentElement) a.push(e); return a; })();
+    for (const e of under) { if (e !== el && !e.contains(el) && el.contains(e)) continue; const v = paint(e); if (v === 'image') return null; if (v) return v; }
+    return [255, 255, 255, 1];
+  };
+  // The part of the page an element's content can show in: ancestors that
+  // hide overflow (clamped descriptions, folded panels) cut it; null when
+  // nothing of it shows.
+  const cut = (q, b) => { const l = Math.max(q.left, b.left), t = Math.max(q.top, b.top), r = Math.min(q.right, b.right), d = Math.min(q.bottom, b.bottom); return r > l && d > t ? { left: l, top: t, right: r, bottom: d, width: r - l, height: d - t } : null; };
+  const clips = new Map();
+  const clipOf = (el) => {
+    if (clips.has(el)) return clips.get(el);
+    let box = { left: -1e9, top: -1e9, right: 1e9, bottom: 1e9, width: 2e9, height: 2e9 };
+    const up = el.parentElement ? clipOf(el.parentElement) : box;
+    if (up) box = up; else { clips.set(el, null); return null; }
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none') box = null;
+    else if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible' || cs.webkitLineClamp && cs.webkitLineClamp !== 'none') box = cut(el.getBoundingClientRect(), box);
+    clips.set(el, box);
+    return box;
+  };
+  const texts = [];
+  const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
+  const seen = new Set();
+  let cssShown = false;
+  for (let n = walker.nextNode(); n && texts.length < 600; n = walker.nextNode()) {
+    const el = n.parentElement;
+    if (!el || !n.nodeValue.trim() || /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|OPTION)$/.test(el.tagName)) continue;
+    const closed = el.closest('details:not([open])');
+    if (closed && !el.closest('summary')) continue; // folded away: not on the page
+    const range = document.createRange();
+    range.selectNodeContents(n);
+    const box = clipOf(el);
+    const lines = box ? [...range.getClientRects()].map((q) => cut(q, box)).filter((q) => q && q.width > 1 && q.height > 1) : [];
+    if (!lines.length || !shown(el)) continue;
+    texts.push([n, lines]);
+    if (seen.has(el)) continue;
+    seen.add(el);
+    const t = n.nodeValue;
+    if (!cssShown && /[^{}]{1,80}\{[^{}]*[a-z-]+\s*:[^{}]*;?[^{}]*\}/i.test(t) && /(color|margin|padding|display|font|background|border|width|height)\s*:/i.test(t)) {
+      cssShown = true;
+      add('css', 'CSS shows as text on the page (' + short(t) + '): a style rule is outside <style>...</style>, e.g. in css_extra');
+    }
+    const cs = getComputedStyle(el), fg = rgba(cs.color), bg = backdrop(el, lines[0]);
+    if (!fg || !bg || fg[3] < 0.5) continue;
+    const a = lum(fg), b = lum(bg), ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    const size = parseFloat(cs.fontSize), large = size >= 24 || size >= 18.6 && +cs.fontWeight >= 700;
+    if (ratio < (large ? 2.2 : 3)) add('contrast', 'text hard to read (contrast ' + ratio.toFixed(1) + ':1, ' + cs.color + ' on ' + 'rgb(' + bg.slice(0, 3).join(', ') + ')): "' + short(n.nodeValue) + '" in ' + where(el));
+  }
+  const doc = document.documentElement;
+  if (screen.width < 768 && !document.querySelector('meta[name=viewport]')) add('viewport', 'the page has no <meta name="viewport" content="width=device-width, initial-scale=1">, so phones show it zoomed out and tiny');
+  if (doc.scrollWidth > W + 2) {
+    let worst = null;
+    for (const el of document.querySelectorAll('body *')) { const r = el.getBoundingClientRect(); if (r.right > W + 2 && r.width > 0 && (!worst || r.right > worst[1])) worst = [el, r.right]; }
+    add('wide', 'the page is ' + doc.scrollWidth + 'px wide on a ' + W + 'px screen, so it scrolls sideways' + (worst ? '; widest: ' + where(worst[0]) : ''));
+  }
+  // Lines of different text nodes covering each other: glyphs on glyphs.
+  for (let i = 0; i < texts.length && i < 400; i++) for (let j = i + 1; j < texts.length && j < 400; j++) {
+    let hit = false;
+    for (const ra of texts[i][1]) { for (const rb of texts[j][1]) {
+      const x = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left), y = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+      if (x > 3 && y > 0.4 * Math.min(ra.height, rb.height)) { hit = true; break; }
+    } if (hit) break; }
+    if (hit) add('overlap', 'text overlaps text: "' + short(texts[i][0].nodeValue) + '" and "' + short(texts[j][0].nodeValue) + '"');
+  }
+  for (const el of document.querySelectorAll('body *')) {
+    const r = el.getBoundingClientRect();
+    if (r.width * r.height < 0.12 * W * H || r.top > 3 * H) continue;
+    const c = rgba(getComputedStyle(el).backgroundColor);
+    if (!c || c[3] < 0.9 || lum(c) > 0.03) continue;
+    if ((el.innerText || '').trim() || el.querySelector('img,svg,video,canvas,picture,iframe')) continue;
+    add('dark', 'a large empty dark block (' + Math.round(r.width) + 'x' + Math.round(r.height) + 'px, ' + getComputedStyle(el).backgroundColor + ') at ' + where(el) + ': probably a leftover background');
+  }
+  for (const [k, n] of Object.entries(per)) if (n > 4) out.push('... and ' + (n - 4) + ' more of the same (' + k + ')');
+  return JSON.stringify(out);
+})`
+
+// audit runs pageAudit; a page the audit cannot run on simply has no checks.
+func (s *previewShot) audit(ctx context.Context, b *browser, sid string) []string {
+	actx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	raw, err := b.call(actx, sid, "Runtime.evaluate", map[string]any{"expression": fmt.Sprintf("(%s)(%d, %d)", pageAudit, s.w, s.h), "returnByValue": true})
+	if err != nil {
+		return nil
+	}
+	var r struct {
+		Result struct {
+			Value string `json:"value"`
+		} `json:"result"`
+	}
+	var out []string
+	if json.Unmarshal(raw, &r) != nil || json.Unmarshal([]byte(r.Result.Value), &out) != nil {
+		return nil
+	}
+	return out
 }
 
 // answer serves one paused browser request: the preview in this process,

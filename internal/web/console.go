@@ -29,15 +29,21 @@ type shellLink struct {
 type appShell struct {
 	App, Title, Status, StatusText, SiteURL string
 	Demo, IsOwner                           bool
+	PreviewData                             bool   // the data pages show the preview's test data
+	CanPreviewData                          bool   // the app has a preview to switch its data pages to
+	Here                                    string // this page, to come back to after the data switch
 	SingleApp                               bool   // on the owner's own server: no list of apps to go back to
 	Throttle                                string // the operator's throttle notice, while it lasts
 	Main, Data, Business, Settings          []shellLink
 }
 
 // shell builds the navigation of an app; current is the href of this page.
-func (s *Site) shell(u accounts.User, app, title, current string, demo bool) appShell {
+func (s *Site) shell(r *http.Request, u accounts.User, app, title, current string, demo bool) appShell {
 	sh := appShell{App: app, Title: title, Demo: demo, IsOwner: !demo && s.isOwnerOf(u, app), SingleApp: s.SingleApp != ""}
+	sh.PreviewData = !demo && platform.PreviewData(r.Context())
+	sh.Here = r.URL.Path
 	if info, err := s.platform.Info(app); err == nil {
+		sh.CanPreviewData = !demo && info.PreviewVersion > 0
 		sh.Status, sh.StatusText = appStatus(info)
 		if info.LiveVersion > 0 || demo {
 			sh.SiteURL = info.LiveURL
@@ -51,7 +57,7 @@ func (s *Site) shell(u accounts.User, app, title, current string, demo bool) app
 		return shellLink{Label: label, Href: href, Current: href == current}
 	}
 	sh.Main = []shellLink{link("Overview", base)}
-	if tables, err := s.platform.Tables(app); err == nil {
+	if tables, err := s.platform.TablesFor(r.Context(), app); err == nil {
 		for _, t := range tables {
 			l := link(tableLabel(t), base+"/t/"+t.Name)
 			l.Current = strings.HasPrefix(current, l.Href+"/") || current == l.Href
@@ -282,7 +288,7 @@ func (s *Site) adminApp(w http.ResponseWriter, r *http.Request) {
 		days = 30
 	}
 	ctx := r.Context()
-	sh := s.shell(u, app, app, "/apps/"+app, demo)
+	sh := s.shell(r, u, app, app, "/apps/"+app, demo)
 
 	traffic := s.platform.Traffic(app, days)
 	currency, sales, _ := s.platform.SalesDaily(ctx, app, days)
@@ -438,7 +444,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	table := r.PathValue("table")
-	t, err := s.table(app, table)
+	t, err := s.table(r.Context(), app, table)
 	if err != nil {
 		notFound(w, err)
 		return
@@ -525,7 +531,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 			ce := cell{Label: c.Label, Title: i == 0}
 			switch types[c.Name] {
 			case "file":
-				name := s.privateFileName(app, row[c.Name])
+				name := s.privateFileName(r.Context(), app, row[c.Name])
 				if !isOwner && name != "" && name != "(file deleted)" {
 					name = "Document" // staff do not see visitors' documents, not even their names
 				}
@@ -552,7 +558,7 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 			keep.Set(k, v)
 		}
 	}
-	sh := s.shell(u, app, tableLabel(t), "/apps/"+app+"/t/"+table, demo)
+	sh := s.shell(r, u, app, tableLabel(t), "/apps/"+app+"/t/"+table, demo)
 	render(w, http.StatusOK, "admin_list", map[string]any{
 		"Shell": sh, "App": app, "Table": table, "Label": tableLabel(t), "Columns": cols, "Rows": list, "Choices": choices,
 		"Query": q.Search, "Total": total, "Pager": newPager(r, q.Page, q.PageSize, total), "Size": q.PageSize, "Sizes": platform.PageSizes,
@@ -574,7 +580,7 @@ func (s *Site) adminVisitors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render(w, http.StatusOK, "admin_visitors", map[string]any{
-		"Shell": s.shell(u, app, "Customers", "/apps/"+app+"/visitors", false),
+		"Shell": s.shell(r, u, app, "Customers", "/apps/"+app+"/visitors", false),
 		"App":   app, "Visitors": list, "Total": total, "Query": q, "Pager": newPager(r, page, platform.AdminPageSize, total), "CSRF": s.csrfToken(w, r),
 	})
 }

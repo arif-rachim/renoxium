@@ -153,7 +153,7 @@ func TestAppLimits(t *testing.T) {
 		}
 	}
 	freeMsg := "A free account may have 3 apps. Save a card at https://www.renoxium.test/billing to create up to 50 (saving a card charges nothing), " +
-		"or delete an app you no longer need at https://www.renoxium.test/apps/<app>/delete."
+		"delete an app you no longer need (open it at https://www.renoxium.test, then Delete app), or change one of your apps instead of making a new one."
 	if _, err := p.CreateApp("usr_a", "app-4"); err == nil || err.Error() != freeMsg {
 		t.Fatalf("app over the free limit: %v", err)
 	}
@@ -165,7 +165,8 @@ func TestAppLimits(t *testing.T) {
 			t.Fatalf("member app %d: %v", i, err)
 		}
 	}
-	memberMsg := "this account has the maximum of 50 apps; delete one you no longer need, or contact Renoxium at https://www.renoxium.test/support"
+	memberMsg := "this account has the maximum of 50 apps; delete one you no longer need (open it at https://www.renoxium.test, then Delete app), " +
+		"change one of your apps instead of making a new one, or contact Renoxium at https://www.renoxium.test/support for more"
 	if _, err := p.CreateApp("usr_a", "app-51"); err == nil || err.Error() != memberMsg {
 		t.Fatalf("app over the member limit: %v", err)
 	}

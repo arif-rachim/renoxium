@@ -26,8 +26,8 @@ func (s *Site) deleteLink(app string) string { return s.base + "/apps/" + app + 
 func (s *Site) renderRenameApp(w http.ResponseWriter, r *http.Request, app, to string, status int, errText string) {
 	u, _ := s.currentUser(r)
 	info, _ := s.platform.Info(app)
-	data := map[string]any{"Shell": s.shell(u, app, "Rename app", "/apps/"+app+"/rename", false), "App": app, "Info": info,
-		"To": to, "CSRF": s.csrfToken(w, r), "Error": errText, "Domain": s.platform.AppsDomain(),
+	data := map[string]any{"Shell": s.shell(r, u, app, "Rename app", "/apps/"+app+"/rename", false), "App": app, "Info": info,
+		"To": to, "CSRF": s.csrfToken(w, r), "Error": errText, "Domain": s.platform.AppsDomain(), "Email": u.Email,
 		"RedirectDays": int(platform.RenameRedirect.Hours() / 24)}
 	if to != "" && errText == "" {
 		if err := s.platform.CheckNewName(app, to); err != nil {
@@ -70,7 +70,7 @@ func (s *Site) renameApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("app renamed", "user", u.ID, "app", app, "to", to)
-	render(w, http.StatusOK, "notice", map[string]any{"Title": "App renamed",
+	render(w, http.StatusOK, "notice", map[string]any{"Signed": true, "Title": "App renamed",
 		"Message": app + " is now " + info.App + " at " + info.LiveURL + ". The old addresses send visitors to the new ones for a year.",
 		"Link":    "/apps/" + info.App})
 }

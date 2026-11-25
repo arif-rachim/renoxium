@@ -227,6 +227,11 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.servePublic(w, r)
 		return
 	}
+	// The cookie is scoped to one app's pages (/apps/<app>), so only those
+	// requests work on that app's preview data.
+	if c, err := r.Cookie(previewDataCookie); err == nil && c.Value == "preview" && strings.HasPrefix(r.URL.Path, "/apps/") {
+		r = r.WithContext(platform.WithPreviewData(r.Context()))
+	}
 	s.mux.ServeHTTP(w, r)
 }
 
@@ -801,14 +806,14 @@ var pages = template.Must(template.New("").Parse(brandDefines + `
 <p class="ar" lang="ar" dir="rtl">الطلبات والحجوزات والمدفوعات في مكان واحد</p>
 <p>Describe your business to ChatGPT or Claude. Renoxium builds the website, you check the preview, and nothing goes live until you publish.</p>
 <ul><li>Card payments to your own Stripe account, or cash on delivery</li><li>English and Arabic, with AED prices and 5% VAT</li><li>No credits: change your site as often as you like</li><li>Free to start: one site, no card needed</li></ul></aside></div></body></html>{{end}}
-{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{if .Shell.SingleApp}}{{template "nav" "single"}}{{else}}{{template "nav"}}{{end}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{end}}
+{{define "apptop"}}{{template "head" .Shell.Title}}<body class="app">{{if .Shell.SingleApp}}{{template "nav" "single"}}{{else}}{{template "nav"}}{{end}}<div class="shell">{{template "sidenav" .Shell}}<main class="appmain">{{if .Shell.Demo}}{{template "demo_note"}}{{end}}{{with .Shell.Throttle}}<p class="note throttle" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Limited by Renoxium.</strong> {{.}}</p>{{end}}{{if .Shell.PreviewData}}<p class="note previewdata" role="status" style="border-color:var(--sun);background:var(--sun-soft)"><strong>Preview data.</strong> You are seeing and editing the preview's test data, not your live site. It is replaced with a fresh copy (of the live data, or the starting rows before the first publish) each time your assistant changes the app. Photos you upload keep working: to keep one in the app, tell your assistant where it belongs, as it can see the photos you uploaded. <a href="/apps/{{.Shell.App}}/data-stage?back={{.Shell.Here}}">Back to live data</a></p>{{end}}{{end}}
 {{define "appbottom"}}</main></div>
 <script>(function(){var m=document.querySelector(".appmain");if(!m||!("zoom" in m.style))return;
 function over(){if(m.scrollHeight>m.clientHeight+2)return true;var q=m.querySelectorAll(".bcell,.grow,.fill,.tcard"),i,e;for(i=0;i<q.length;i++){e=q[i];if(e.hasAttribute("data-long")||e.classList.contains("tablebox"))continue;if(e.scrollHeight>e.clientHeight+2)return true}return false}
 function fit(){m.style.zoom="";if(innerWidth<1000||innerHeight<600||m.querySelector("[data-scrollpage]"))return;var z=parseFloat(getComputedStyle(m).zoom)||1;while(z>.74&&over()){z=Math.round((z-.03)*100)/100;m.style.zoom=z}}
 fit();addEventListener("resize",fit);addEventListener("load",fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})()</script></body></html>{{end}}
 {{define "sidenav"}}<aside class="sidenav" id="sidemenu" aria-label="{{.App}}">{{if .Demo}}<a class="back" href="/templates">← Templates</a>{{else if not .SingleApp}}<a class="back" href="/">← Your apps</a>{{end}}<div class="who"><strong>{{.App}}</strong>{{with .StatusText}}<span class="pill {{$.Status}}">{{.}}</span>{{end}}{{with .SiteURL}}<a class="site" href="{{.}}/">Open site</a>{{end}}</div>
-<nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data</h3>{{template "navlist" .}}{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
+<nav>{{template "navlist" .Main}}{{with .Data}}<h3>Data{{if $.PreviewData}} <span class="pill plain">preview</span>{{end}}</h3>{{template "navlist" .}}{{end}}{{if .CanPreviewData}}<p class="datastage">{{if .PreviewData}}<a href="/apps/{{.App}}/data-stage?back={{.Here}}">Back to live data</a>{{else}}<a href="/apps/{{.App}}/data-stage?stage=preview&amp;back={{.Here}}">Edit preview data</a>{{end}}</p>{{end}}{{with .Business}}<h3>Business</h3>{{template "navlist" .}}{{end}}{{with .Settings}}<h3>Settings</h3>{{template "navlist" .}}{{end}}</nav></aside>{{end}}
 {{define "tabs"}}<nav class="tabs" aria-label="Sections">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
 {{define "navlist"}}<ul>{{range .}}<li><a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a></li>{{end}}</ul>{{end}}
 {{define "pager"}}{{if .Total}}<nav class="pager" aria-label="Pages"><span class="muted">{{.From}}–{{.To}} of {{.Of}}</span>{{if gt .Pages 1}}<span class="pages">{{if .Prev}}<a href="{{.Prev}}" rel="prev" aria-label="Previous page">‹</a>{{end}}{{range .Links}}{{if .Ellip}}<span>…</span>{{else}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}{{end}}{{if .Next}}<a href="{{.Next}}" rel="next" aria-label="Next page">›</a>{{end}}</span>{{end}}</nav>{{end}}{{end}}
@@ -1376,7 +1381,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 {{if .Running}}<p class="error">{{.Running}} customer subscription(s) are still running. Cancel them in <a href="/apps/{{.App}}/payments">Payments</a> first, so nobody keeps being charged.</p>
 {{else}}<input type="hidden" name="csrf" value="{{.CSRF}}"><label for="confirm">To confirm, type the app's name: <strong>{{.App}}</strong></label>
 <input id="confirm" name="confirm" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="{{.App}}" data-name="{{.App}}">
-<label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
+<input type="text" name="username" value="{{.Email}}" autocomplete="username" hidden><label for="dpassword">Your Renoxium password</label><input id="dpassword" name="password" type="password" autocomplete="current-password" required>
 <button class="danger" id="delete-btn" disabled>Delete {{.App}} for good</button>
 <script>(function(){var i=document.getElementById("confirm"),b=document.getElementById("delete-btn");function f(){b.disabled=i.value.trim()!==i.dataset.name}i.addEventListener("input",f);f()})()</script>{{end}}</form>
 </div>{{template "appbottom"}}{{end}}
@@ -1389,7 +1394,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <label for="to">New name</label><input id="to" name="to" value="{{.To}}" autocomplete="off" autocapitalize="off" spellcheck="false" required pattern="[a-z][a-z0-9-]{1,38}[a-z0-9]">
 <p class="help muted">3-40 lowercase letters, digits and hyphens. The address becomes <strong>{{if .To}}{{.To}}{{else}}new-name{{end}}.{{.Domain}}</strong>.</p>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
-<label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
+<input type="text" name="username" value="{{.Email}}" autocomplete="username" hidden><label for="rpassword">Your Renoxium password</label><input id="rpassword" name="password" type="password" autocomplete="current-password" required>
 <button>Rename {{.App}}{{if .Ready}} to {{.To}}{{end}}</button></form>
 <section class="panel bcell"><div class="ph"><h2>What changes</h2></div><ul class="howto">
 <li>The old addresses send visitors to the same page on the new ones for {{.RedirectDays}} days, and nobody else can take the old name in that time.</li>
@@ -1542,11 +1547,12 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <label for="password">New password (at least 10 characters)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required>
 <button>Save and sign in</button><p class="muted" style="margin-top:16px">You will be signed out on every other device, and agents will need to connect again.</p></form>{{template "authbottom"}}{{end}}
 
-{{define "notice"}}{{template "top" .Title}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">Continue</a></p>{{end}}</div>{{template "bottom"}}{{end}}
+{{define "notice"}}{{if .Signed}}{{template "signedtop" .Title}}{{else}}{{template "top" .Title}}{{end}}<div class="card"><h1>{{.Title}}</h1><p>{{.Message}}</p>{{with .Link}}<p><a href="{{.}}">{{if $.LinkText}}{{$.LinkText}}{{else}}Continue{{end}}</a></p>{{end}}{{with .Back}}<p><a href="{{.}}">Back to the app</a></p>{{end}}</div>{{template "bottom"}}{{end}}
+{{define "signedtop"}}{{template "head" .}}<body><header class="bar-top"><div class="in"><a class="logo" href="/" aria-label="Renoxium: your apps">{{template "brandlogo"}}</a><nav aria-label="Site"><a href="/">Your apps</a><a href="/support">Support</a></nav></div></header><main>{{end}}
 
 {{define "notfound"}}{{template "top" "Page not found"}}<div class="card"><h1>This page does not exist</h1><p>The address may be mistyped, or the page was moved.</p><p><a class="button" href="/">Go to Renoxium</a></p></div>{{template "bottom"}}{{end}}
 
-{{define "error"}}{{template "top" "Error"}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
+{{define "error"}}{{if .Signed}}{{template "signedtop" "Error"}}{{else}}{{template "top" "Error"}}{{end}}<div class="card"><h1>Something is wrong</h1><p>{{.Message}}</p></div>{{template "bottom"}}{{end}}
 `))
 
 func render(w http.ResponseWriter, status int, name string, data any) {

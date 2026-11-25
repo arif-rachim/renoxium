@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -33,31 +34,25 @@ Every action is one of these tools; there are no other operations:
   try_scheduled_jobs, change_preview_row
 
 How to work:
-1. Ask the user only what the business needs: its name, what it sells or offers, prices, delivery fee, language. No technical questions.
-2. Call get_example without a name to list the finished examples. store-uae: shops (for made-to-order goods set
-   store.preorder_days); booking-uae: salons, spas, tutors; home-service-uae: cleaning, AC, handyman; reservation-uae: tours,
-   yacht trips, rentals; quote-portal-uae: business services and agencies; listings-uae: real-estate brokers;
-   clinic-queue-uae: clinics, walk-in queues.
-   If no finished example fits what the user wants (e.g. staff attendance, a members' portal), write a new
-   definition from scratch following the reference (get_example with reference_only true): start from the small examples
-   tasks (forms and records) or catalog (pages and a JSON API) for the structure, and use the platform's built-in visitor accounts,
-   payments and emails instead of building your own.
-   For store-uae ask for the shop's name, WhatsApp number, delivery fee, the order amount above which delivery is free
-   (store.free_delivery_over; 0 or empty: always charged) and the products. Brand colour, font and logo go in
-   the settings row (store-uae: store), not in the CSS.
-3. Call list_apps to find the user's apps. For a new app from an example call create_app {app, from_example}: the preview
-   starts as that example, so you never send it back. Definitions are large: read them in parts with
-   get_app_outline and get_app_parts. Change them with edit_app (exact text replacements, all or none), or patch_app to
-   replace whole entries; apply_change only for a definition written from scratch. Before changing an app, if this
-   conversation does not have the reference yet, call get_example with reference_only true. Restyle in the empty
-   css_extra template, not in css. For product photos call upload_file and put the url in the seed rows.
-4. These changes reach only the app's private preview, and every page is checked (with parameters and signed in). Test
-   with view_page and submit_form (follow_redirects true), create_test_visitor (then as_visitor), screenshot_preview
-   (a page on a phone), try_scheduled_jobs and change_preview_row. Show the user the preview_url, and call publish
-   when they agree. publish changes nothing live: it returns confirm_url, and the new version goes live only when the user
-   opens that link and confirms, signed in to Renoxium. Never say the app is live before they have confirmed.
-   rename_app and delete_app also only return a link the user confirms; ask before calling them.
-5. When something is wrong, read get_logs.
+1. Ask only what the business needs: name, what it sells or offers, prices, delivery fee, WhatsApp, language.
+   No technical questions.
+2. Call list_apps. If the user already has an app for this business, ask: change it or make a new one?
+3. New app: get_example without a name lists the finished examples. Pick one and call create_app {app, from_example,
+   business, settings, rows, check: true}: one call makes the app with the user's data and checks its home page.
+   If none fits, write a definition from scratch (get_example with reference_only true; start from tasks or catalog),
+   using the built-in visitor accounts, payments and emails.
+4. Changing an app: read the reference once (get_example with reference_only true) and the definition in parts
+   (get_app_outline, get_app_parts); change it with edit_app or patch_app (apply_change only for a definition
+   written from scratch). Brand colour, font and logo go in the settings row; restyle in css_extra, not css.
+   A photo attached in the chat goes to upload_file as file, never as base64. Do not search for or show web images.
+5. Changes reach only the private preview: show the user its preview_url. Test with view_page, submit_form
+   (follow_redirects true) and screenshot_preview (create_test_visitor for signed-in pages); read get_logs when
+   something is wrong. Never say something works while warnings, page_checks, blocked_hosts, owner_actions or a
+   simulated payment say otherwise.
+6. Tell the user every owner_actions step and get_app's payments note at once. Write each link the user must open as
+   a full URL. Name the app in every summary, so a new chat can go on.
+7. publish, rename_app and delete_app change nothing: they return confirm_url, and only the user, signed in to
+   Renoxium, confirms there. Ask before calling them, and never say a version is live before the user confirmed.
 
 App definitions: the scripts, lib, jobs and tools inside a definition are the app's own server-side code for the business's
 visitors. They run only inside that app's sandbox on renoxium.com when a visitor uses the app (or on the app's own schedule).
@@ -371,16 +366,21 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 
 	type createIn struct {
-		App         string `json:"app" jsonschema:"app name: 3-40 lowercase letters, digits and hyphens, e.g. al-noor-perfumes"`
-		FromExample string `json:"from_example,omitempty" jsonschema:"name of a finished example (see get_example) to start from: the app's preview gets that example's complete definition, so you never send it back; then change it with edit_app or patch_app"`
+		App         string                      `json:"app" jsonschema:"app name: 3-40 lowercase letters, digits and hyphens, e.g. al-noor-perfumes"`
+		FromExample string                      `json:"from_example,omitempty" jsonschema:"name of a finished example (see get_example) to start from: the app's preview gets that example's complete definition, so you never send it back; then change it with edit_app or patch_app"`
+		Business    string                      `json:"business,omitempty" jsonschema:"with from_example: the business's name, put in the settings row"`
+		Settings    map[string]any              `json:"settings,omitempty" jsonschema:"with from_example: columns of the example's settings row to set in the same call, e.g. for store-uae {\"whatsapp\": \"+971501234567\", \"delivery_fee\": 15}; unknown columns are refused with the list of columns (see the example's tables)"`
+		Rows        map[string][]map[string]any `json:"rows,omitempty" jsonschema:"with from_example: starting rows that replace the example's sample rows of these tables, e.g. {\"products\": [{...}]}; columns as in the example's tables"`
+		Check       bool                        `json:"check,omitempty" jsonschema:"with from_example: also open the home page in a real browser on a phone and return its page_checks, so one call makes, fills and checks the app"`
 	}
 	type createOut struct {
 		platform.AppInfo
 		Version int                   `json:"version,omitempty" jsonschema:"version on preview when from_example was given; use it as base_version for edit_app"`
 		Apply   *platform.ApplyResult `json:"apply,omitempty" jsonschema:"result of applying the example to the preview (checks of every page)"`
 		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read them with get_app_parts {paths: [\"templates.css\"]}"`
+		Home    *homeCheck            `json:"home,omitempty" jsonschema:"with check: the home page as a phone's browser showed it"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], Description: "Create a new app for the signed-in user and return its live and preview addresses. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
+	mcp.AddTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], InputSchema: inputSchema[createIn](), Description: "Create a new app for the signed-in user and return its live and preview addresses. If list_apps shows the user already has an app for this business, ask first whether to change that one instead. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. To save the user's messages and approvals, give the business's data in the same call: business (its name), settings (the settings row) and rows (e.g. the products), and check: true to have the home page checked in a browser too. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
 			user, err := userOf(req)
 			if err != nil {
@@ -390,7 +390,8 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				info, err := p.CreateApp(user, in.App)
 				return nil, createOut{AppInfo: info}, err
 			}
-			info, res, err := p.CreateFromExample(ctx, user, in.App, in.FromExample)
+			info, res, err := p.CreateCustomized(ctx, user, in.App, in.FromExample,
+				platform.Customize{Business: in.Business, Settings: in.Settings, Rows: in.Rows})
 			if err != nil {
 				return nil, createOut{}, err
 			}
@@ -398,6 +399,9 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if def, _, err := p.Definition(in.App, 0); err == nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
+			}
+			if in.Check {
+				out.Home = checkHome(ctx, p, in.App)
 			}
 			return nil, out, nil
 		})
@@ -408,8 +412,9 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 	type getAppOut struct {
 		platform.AppInfo
-		Version    int         `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
-		Definition *appdef.App `json:"definition,omitempty"`
+		Payments   platform.PaymentStatus `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		Version    int                    `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
+		Definition *appdef.App            `json:"definition,omitempty"`
 	}
 	// readDefinition returns an app's addresses and a stored version of its
 	// definition, nil before the first change.
@@ -433,22 +438,25 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err != nil {
 				return nil, getAppOut{}, err
 			}
-			return nil, getAppOut{AppInfo: info, Version: n, Definition: def}, nil
+			return nil, getAppOut{AppInfo: info, Payments: p.PaymentStatus(in.App), Version: n, Definition: def}, nil
 		})
 
 	type outlineOut struct {
 		platform.AppInfo
-		Version int               `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
-		Outline *platform.Outline `json:"outline,omitempty"`
+		Payments platform.PaymentStatus  `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		Files    []platform.UploadedFile `json:"files,omitempty" jsonschema:"the app's newest uploaded images (at most 30), including photos the owner added in the admin panel, with the preview rows that use them"`
+		Version  int                     `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
+		Outline  *platform.Outline       `json:"outline,omitempty"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "get_app_outline", Title: toolAnnotations["get_app_outline"].Title, Annotations: toolAnnotations["get_app_outline"],
-		Description: "Read the outline of one of the user's app definitions: the names and sizes of its templates, scripts and lib entries, its tables and columns, seed row counts, routes, jobs and tools. A few KB instead of the whole definition; read the parts you need with get_app_parts. Reads only."},
+		Description: "Read the outline of one of the user's app definitions: the names and sizes of its templates, scripts and lib entries, its tables and columns, seed row counts, routes, jobs and tools, plus the app's newest uploaded images and where the preview uses them. A few KB instead of the whole definition; read the parts you need with get_app_parts. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in getAppIn) (*mcp.CallToolResult, outlineOut, error) {
 			info, def, n, err := readDefinition(req, in.App, in.Version)
 			if err != nil {
 				return nil, outlineOut{}, err
 			}
-			out := outlineOut{AppInfo: info, Version: n}
+			out := outlineOut{AppInfo: info, Payments: p.PaymentStatus(info.App), Version: n}
+			out.Files, _ = p.RecentFiles(ctx, info.App, 30)
 			if def != nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
@@ -465,7 +473,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Version int            `json:"version" jsonschema:"version the parts are from. Pass it as base_version to edit_app"`
 		Parts   map[string]any `json:"parts" jsonschema:"the parts asked for, by path"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "get_app_parts", Title: toolAnnotations["get_app_parts"].Title, Annotations: toolAnnotations["get_app_parts"],
+	mcp.AddTool(s, &mcp.Tool{Name: "get_app_parts", Title: toolAnnotations["get_app_parts"].Title, Annotations: toolAnnotations["get_app_parts"], InputSchema: inputSchema[partsIn](),
 		Description: "Read chosen parts of one of the user's app definitions by path, e.g. one template, one script and the seed rows of one table, instead of the whole definition. Unknown paths are an error that lists the names there are. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in partsIn) (*mcp.CallToolResult, partsOut, error) {
 			if len(in.Paths) == 0 {
@@ -489,7 +497,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App        string     `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		Definition appdef.App `json:"definition" jsonschema:"the complete app definition; replaces the previous version"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "apply_change", Title: toolAnnotations["apply_change"].Title, Annotations: toolAnnotations["apply_change"], InputSchema: definitionSchema[applyIn](),
+	mcp.AddTool(s, &mcp.Tool{Name: "apply_change", Title: toolAnnotations["apply_change"].Title, Annotations: toolAnnotations["apply_change"], InputSchema: inputSchema[applyIn](),
 		Description: "Check a complete app definition, save it as a new version and serve it on the app's private preview address (reachable on the internet with the preview link) with a fresh copy of live data, replacing the previous preview and its data. Renders every page without parameters and reports failures. The live site is not changed. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in applyIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -510,7 +518,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Version           int    `json:"version,omitempty" jsonschema:"the version that will go live"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "publish", Title: toolAnnotations["publish"].Title, Annotations: toolAnnotations["publish"],
-		Description: "Ask to make a version live (also to roll back to an earlier version). This call changes nothing live: it only returns confirm_url. The user opens that link, signed in to Renoxium, and chooses Publish; only then does the version go live (live data is backed up first and only additive schema changes are applied). Ask the user before calling it."},
+		Description: "Ask to make a version live (also to roll back to an earlier version). This call changes nothing live: it only returns confirm_url. The user opens that link, signed in to Renoxium, and chooses Publish; only then does the version go live (live data is backed up first and only additive schema changes are applied). Ask the user before calling it. Write confirm_url in your reply as a full URL, and never say the version is live until the user says they confirmed."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in publishIn) (*mcp.CallToolResult, publishOut, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, publishOut{}, err
@@ -556,19 +564,21 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				if err := p.CheckNewName(in.App, in.NewName); err != nil {
 					return nil, linkOut{}, err
 				}
-				return nil, linkOut{NeedsConfirmation: true, ConfirmURL: opts.ConfirmRename(in.App, in.NewName),
-					Note: "Nothing has changed yet. The app is renamed when the user confirms at confirm_url."}, nil
+				link := opts.ConfirmRename(in.App, in.NewName)
+				return nil, linkOut{NeedsConfirmation: true, ConfirmURL: link,
+					Note: "Nothing has changed yet. The app is renamed when the user confirms at " + link + " (write this full link in your reply)."}, nil
 			})
 	}
 	if opts.ConfirmDelete != nil {
 		mcp.AddTool(s, &mcp.Tool{Name: "delete_app", Title: toolAnnotations["delete_app"].Title, Annotations: toolAnnotations["delete_app"],
-			Description: "Ask to delete an app for good. This call changes nothing: it returns confirm_url, where the user, signed in to Renoxium, sees what would be lost, can export the app, and deletes it by typing its name and their password. Ask the user before calling it, and never suggest deleting an app with customers' data unless they asked."},
+			Description: "Ask to delete an app for good. This call changes nothing: it returns confirm_url, where the user, signed in to Renoxium, sees what would be lost, can export the app, and deletes it by typing its name and their password. Ask the user 'Are you sure?' naming the app before calling it, call it only after a clear yes, and never suggest deleting an app with customers' data unless they asked. Write confirm_url in your reply as a full URL."},
 			func(ctx context.Context, req *mcp.CallToolRequest, in appName) (*mcp.CallToolResult, linkOut, error) {
 				if err := owns(p, req, in.App); err != nil {
 					return nil, linkOut{}, err
 				}
-				return nil, linkOut{NeedsConfirmation: true, ConfirmURL: opts.ConfirmDelete(in.App),
-					Note: "Nothing has changed yet. The app is deleted only if the user confirms at confirm_url."}, nil
+				link := opts.ConfirmDelete(in.App)
+				return nil, linkOut{NeedsConfirmation: true, ConfirmURL: link,
+					Note: "Nothing has changed yet. The app is deleted only if the user confirms at " + link + " (write this full link in your reply)."}, nil
 			})
 	}
 
@@ -615,7 +625,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		platform.Patch
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "patch_app", Title: toolAnnotations["patch_app"].Title, Annotations: toolAnnotations["patch_app"], InputSchema: definitionSchema[patchIn](),
+	mcp.AddTool(s, &mcp.Tool{Name: "patch_app", Title: toolAnnotations["patch_app"].Title, Annotations: toolAnnotations["patch_app"], InputSchema: inputSchema[patchIn](),
 		Description: "Change part of the newest app definition and apply it to the app's private preview address (reachable on the internet with the preview link), replacing the previous preview and its data: add or replace templates, scripts and lib entries by name, delete them, replace the route list, or add tables and columns. Fields you leave out are kept. The live site is not changed. Returns the same result as apply_change. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in patchIn) (*mcp.CallToolResult, platform.ApplyResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -630,7 +640,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		BaseVersion int             `json:"base_version" jsonschema:"the newest version, as create_app, get_app or the last edit returned; the call is refused if a newer version exists"`
 		Edits       []platform.Edit `json:"edits" jsonschema:"exact text replacements, applied in order and all or none, e.g. [{\"target\": \"templates.css\", \"old_text\": \"--radius:14px\", \"new_text\": \"--radius:20px\"}]"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "edit_app", Title: toolAnnotations["edit_app"].Title, Annotations: toolAnnotations["edit_app"],
+	mcp.AddTool(s, &mcp.Tool{Name: "edit_app", Title: toolAnnotations["edit_app"].Title, Annotations: toolAnnotations["edit_app"], InputSchema: inputSchema[editIn](),
 		Description: "Change a few lines of the newest app definition without sending whole entries: each edit replaces old_text, which must occur exactly once, inside one template, script or lib entry (an empty old_text creates a new entry). All edits apply or none. The result is checked and applied to the app's private preview exactly like patch_app, replacing the previous preview and its data; the live site is not changed. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, platform.EditResult, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -651,7 +661,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Follow    bool   `json:"follow_redirects,omitempty" jsonschema:"follow redirects (up to 8) within the preview, as a browser does; the answer is the last page and redirects lists the hops"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "view_page", Title: toolAnnotations["view_page"].Title, Annotations: toolAnnotations["view_page"],
-		Description: "Open one page of the user's own app website on its private preview, as a visitor's browser would, and return the page: its status, HTML (or JSON) and the app's log for that page view. Use it to check that a page you built shows what it should. Only the preview is opened; nothing on the live site is modified. The page's own script may record the visit in the preview data, which is discarded on the next change."},
+		Description: "Open one page of the user's own app website on its private preview, as a visitor's browser would, and return the page: its status, HTML (or JSON) and the app's log for that page view. Use it to check that a page you built shows what it should. Only the preview is opened; nothing on the live site is modified. The page's own script may record the visit in the preview data, which is discarded on the next change. The HTML is rendered on the server: the browser's JavaScript does not run, so anything a page script fetches or draws is not in it; check that with screenshot_preview (page_checks)."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in viewIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.TestResponse{}, err
@@ -684,12 +694,12 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App       string            `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		Path      string            `json:"path" jsonschema:"address the form is sent to on the app's website, e.g. /orders or /book"`
 		Form      map[string]string `json:"form,omitempty" jsonschema:"the form's fields by name, as a browser sends them"`
-		JSON      map[string]any    `json:"json,omitempty" jsonschema:"for pages whose browser script sends JSON instead of a form: the JSON object it sends"`
+		JSON      jsonObject        `json:"json,omitempty" jsonschema:"for pages whose browser script sends JSON instead of a form: the JSON object it sends"`
 		AsVisitor string            `json:"as_visitor,omitempty" jsonschema:"send the form signed in as the preview visitor with this email or WhatsApp number (see create_test_visitor)"`
 		Session   string            `json:"session,omitempty" jsonschema:"name of a cookie jar kept between calls for an hour, e.g. s1, as a browser keeps cookies between pages"`
 		Follow    bool              `json:"follow_redirects,omitempty" jsonschema:"follow the redirect after the form (up to 8) within the preview, as a browser does; the answer is the page the visitor lands on"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "submit_form", Title: toolAnnotations["submit_form"].Title, Annotations: toolAnnotations["submit_form"],
+	mcp.AddTool(s, &mcp.Tool{Name: "submit_form", Title: toolAnnotations["submit_form"].Title, Annotations: toolAnnotations["submit_form"], InputSchema: inputSchema[formIn](),
 		Description: "Fill in and send one form of the user's own app website on its private preview, as a visitor would (an order, a booking, a contact form), and return the answer: status, redirect, page and the app's log. Use it to check that a form you built works. The form can add, change or delete preview data, as it does for visitors; the preview data is discarded on the next change and nothing on the live site is modified."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in formIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -700,7 +710,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			}
 			var body any // a missing json must stay nil, not become an empty object
 			if in.JSON != nil {
-				body = in.JSON
+				body = map[string]any(in.JSON)
 			}
 			res, err := p.TestRequest(ctx, in.App, platform.TestRequestInput{Method: "POST", Path: in.Path, Form: in.Form, JSON: body,
 				UserEmail: in.AsVisitor, Session: in.Session, Follow: in.Follow})
@@ -746,7 +756,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.ScreenshotInput
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "screenshot_preview", Title: toolAnnotations["screenshot_preview"].Title, Annotations: toolAnnotations["screenshot_preview"],
-		Description: "See a page of the app's private preview as a visitor would: a PNG rendered by a real browser with the preview's data and fonts, on a phone (default), tablet or desktop, optionally the whole page and signed in as a test visitor (as_visitor, see create_test_visitor). Only GET pages of the preview; the live site is never opened. Also returns the page's status and its script errors. Use it after a change to check the design."},
+		Description: "See a page of the app's private preview as a visitor would: a PNG rendered by a real browser with the preview's data and fonts, on a phone (default), tablet or desktop, optionally the whole page and signed in as a test visitor (as_visitor, see create_test_visitor). Only GET pages of the preview; the live site is never opened. Also returns the page's status, its script errors and page_checks: in words, what looks wrong (images not loaded, text hard to read, CSS shown as text, sideways scrolling, overlapping text, empty dark blocks, content from other sites missing). Use it after a change to check the design, and read page_checks even when you cannot see images."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in shotIn) (*mcp.CallToolResult, platform.ScreenshotResult, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.ScreenshotResult{}, err
@@ -780,7 +790,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		App string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		platform.TestAdminInput
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "change_preview_row", Title: toolAnnotations["change_preview_row"].Title, Annotations: toolAnnotations["change_preview_row"],
+	mcp.AddTool(s, &mcp.Tool{Name: "change_preview_row", Title: toolAnnotations["change_preview_row"].Title, Annotations: toolAnnotations["change_preview_row"], InputSchema: inputSchema[rowIn](),
 		Description: "Add, change or delete one row of the app's private preview database as the owner would in the admin panel (with the admin panel's checks), then run the app's on_admin_change script, to test it. Only the preview changes; its data is discarded on the next change and nothing on the live site is modified. Returns the script's answer, the row after the change and the log."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in rowIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
@@ -790,23 +800,48 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			return nil, res, err
 		})
 
-	type uploadIn struct {
-		App        string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
-		DataBase64 string `json:"data_base64" jsonschema:"the image file content, base64-encoded (standard alphabet, padding optional)"`
+	type chatFile struct {
+		DownloadURL string `json:"download_url" jsonschema:"the attachment's temporary https download address"`
+		FileID      string `json:"file_id,omitempty" jsonschema:"the attachment's file id"`
 	}
-	mcp.AddTool(s, &mcp.Tool{Name: "upload_file", Title: toolAnnotations["upload_file"].Title, Annotations: toolAnnotations["upload_file"],
-		Description: "Upload an image (JPEG, PNG, GIF, WebP or AVIF, at most 10 MB) for one of the user's apps and get its url. The image becomes publicly reachable at that url, for use on the app's pages. Identical content is stored once and returns the same url."},
+	type uploadIn struct {
+		App        string    `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
+		File       *chatFile `json:"file,omitempty" jsonschema:"an image the user attached in the chat (ChatGPT fills this in from the attachment). Prefer this to data_base64"`
+		URL        string    `json:"url,omitempty" jsonschema:"a public https:// address of the image to copy, e.g. a download link of a photo the user attached or one they named"`
+		DataBase64 string    `json:"data_base64,omitempty" jsonschema:"the image file content, base64-encoded (standard or URL-safe alphabet, padding optional, a data:image/...;base64, prefix is ignored). Only when neither file nor url can be given"`
+	}
+	mcp.AddTool(s, &mcp.Tool{Name: "upload_file", Title: toolAnnotations["upload_file"].Title, Annotations: toolAnnotations["upload_file"], InputSchema: inputSchema[uploadIn](),
+		Meta: mcp.Meta{"openai/fileParams": []string{"file"}},
+		Description: "Upload an image (JPEG, PNG, GIF, WebP or AVIF, at most 25 MB; large photos are scaled down) for one of the user's apps and get its url. " +
+			"Give exactly one of: file (a photo the user attached in this chat: pass the attachment itself, never convert it), url (a public https address to copy from) " +
+			"or data_base64 (the file's bytes; slow and error-prone for photos, so only as a last resort). " +
+			"The image becomes publicly reachable at that url, for use on the app's pages. Identical content is stored once and returns the same url. " +
+			"An error says why the image was refused (size, type, damaged or cut-off data, download failure): fix that cause instead of sending the same data again. " +
+			"Uploading does not show the image anywhere: put the url in the settings row (logo) or the seed rows, then check the page with screenshot_preview."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in uploadIn) (*mcp.CallToolResult, platform.FileInfo, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.FileInfo{}, err
 			}
-			data := strings.TrimRight(strings.Join(strings.Fields(in.DataBase64), ""), "=")
-			if base64.RawStdEncoding.DecodedLen(len(data)) > files.MaxSize {
-				return nil, platform.FileInfo{}, files.ErrTooLarge
+			sources := 0
+			for _, given := range []bool{in.File != nil && in.File.DownloadURL != "", in.URL != "", in.DataBase64 != ""} {
+				if given {
+					sources++
+				}
 			}
-			raw, err := base64.RawStdEncoding.DecodeString(data)
+			if sources != 1 {
+				return nil, platform.FileInfo{}, errors.New("give exactly one of file, url or data_base64")
+			}
+			switch {
+			case in.File != nil && in.File.DownloadURL != "":
+				info, err := p.AddFileFrom(ctx, in.App, in.File.DownloadURL)
+				return nil, info, err
+			case in.URL != "":
+				info, err := p.AddFileFrom(ctx, in.App, in.URL)
+				return nil, info, err
+			}
+			raw, err := decodeUpload(in.DataBase64)
 			if err != nil {
-				return nil, platform.FileInfo{}, errors.New("data_base64 is not valid base64")
+				return nil, platform.FileInfo{}, err
 			}
 			info, err := p.AddFile(in.App, bytes.NewReader(raw))
 			return nil, info, err
@@ -912,14 +947,60 @@ var toolAnnotations = map[string]*mcp.ToolAnnotations{
 // app definition. It is inferred from T like any other, except that a list
 // of column names may also be given as one name, which every parameter's
 // schema must say: directories refuse a parameter without a type.
-func definitionSchema[T any]() *jsonschema.Schema {
+// cellSchema is a value of one column of a row: rows are flat, and a json
+// column's value is given as JSON text, as in the examples' seed rows.
+func cellSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{Types: []string{"string", "number", "boolean", "null"}}
+}
+
+// rowSchema is a table row by column name.
+func rowSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{Type: "object", AdditionalProperties: cellSchema()}
+}
+
+// jsonObject is a JSON object of any shape, such as the body a page's own
+// script sends; its schema still names every type a value can have.
+type jsonObject map[string]any
+
+// inputSchema is a tool's input schema with every value typed: a row's
+// cells are scalars instead of "anything", which directories reject.
+func inputSchema[T any]() *jsonschema.Schema {
 	schema, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: map[reflect.Type]*jsonschema.Schema{
-		reflect.TypeFor[appdef.Columns](): {Types: []string{"string", "array"}, Items: &jsonschema.Schema{Type: "string"}},
+		reflect.TypeFor[appdef.Columns]():   {Types: []string{"string", "array"}, Items: &jsonschema.Schema{Type: "string"}},
+		reflect.TypeFor[map[string]any]():   rowSchema(),
+		reflect.TypeFor[[]map[string]any](): {Type: "array", Items: rowSchema()},
+		reflect.TypeFor[jsonObject](): {Type: "object", AdditionalProperties: &jsonschema.Schema{
+			Types: []string{"string", "number", "boolean", "null", "object", "array"}}},
 	}})
 	if err != nil {
 		panic(err)
 	}
+	notNull(schema)
 	return schema
+}
+
+// notNull drops "null" from the types of optional lists and objects ("array
+// or null" becomes "array"): leaving a parameter out is how it is not
+// given. Deliberate unions of more types (a row's cell) keep it.
+func notNull(s *jsonschema.Schema) {
+	if s == nil {
+		return
+	}
+	if len(s.Types) == 2 && slices.Contains(s.Types, "null") {
+		for _, t := range s.Types {
+			if t != "null" {
+				s.Type, s.Types = t, nil
+			}
+		}
+	}
+	for _, p := range s.Properties {
+		notNull(p)
+	}
+	notNull(s.Items)
+	notNull(s.AdditionalProperties)
+	for _, d := range s.Defs {
+		notNull(d)
+	}
 }
 
 func readOnly(title string) *mcp.ToolAnnotations {
@@ -928,4 +1009,65 @@ func readOnly(title string) *mcp.ToolAnnotations {
 
 func write(title string, destructive, idempotent, openWorld bool) *mcp.ToolAnnotations {
 	return &mcp.ToolAnnotations{Title: title, DestructiveHint: &destructive, IdempotentHint: idempotent, OpenWorldHint: &openWorld}
+}
+
+// decodeUpload turns upload_file's data_base64 into bytes. It accepts what
+// assistants commonly send: a data: URL prefix, line breaks, the URL-safe
+// alphabet and missing padding. Its errors say what is wrong, so the
+// assistant can fix that instead of sending the same text again.
+func decodeUpload(text string) ([]byte, error) {
+	data := strings.Join(strings.Fields(text), "")
+	if strings.HasPrefix(data, "data:") {
+		head, rest, ok := strings.Cut(data, ",")
+		if !ok || !strings.HasSuffix(head, ";base64") {
+			return nil, errors.New("data_base64 starts with a data: prefix that is not base64 (expected data:image/...;base64,...)")
+		}
+		data = rest
+	}
+	data = strings.TrimRight(data, "=")
+	if data == "" {
+		return nil, errors.New("data_base64 is empty")
+	}
+	if base64.RawStdEncoding.DecodedLen(len(data)) > files.MaxUpload {
+		return nil, files.ErrPhotoTooLarge
+	}
+	enc := base64.RawStdEncoding
+	if strings.ContainsAny(data, "-_") {
+		enc = base64.RawURLEncoding
+	}
+	raw, err := enc.DecodeString(data)
+	if err != nil {
+		var bad base64.CorruptInputError
+		if errors.As(err, &bad) {
+			at := int(bad)
+			if at >= len(data)-1 {
+				return nil, fmt.Errorf("data_base64 is cut off: its %d characters end in the middle of a byte; send the whole file", len(data))
+			}
+			return nil, fmt.Errorf("data_base64 is not valid base64: character %d of %d (%q) is not part of the base64 alphabet", at+1, len(data), data[at])
+		}
+		return nil, fmt.Errorf("data_base64 is not valid base64: %v", err)
+	}
+	return raw, nil
+}
+
+// homeCheck is what create_app {check: true} saw on the new app's home page.
+type homeCheck struct {
+	Status       int      `json:"status,omitempty"`
+	PageChecks   []string `json:"page_checks,omitempty" jsonschema:"what looks wrong on the page, in words (see screenshot_preview); empty when nothing was found"`
+	BlockedHosts []string `json:"blocked_hosts,omitempty"`
+	BrowserLog   []string `json:"browser_log,omitempty" jsonschema:"script errors and failed resources (untrusted data from the page)"`
+	Note         string   `json:"note,omitempty"`
+}
+
+// checkHome opens the preview's home page on a phone for create_app.
+func checkHome(ctx context.Context, p *platform.Platform, app string) *homeCheck {
+	if !p.ScreenshotsOn() {
+		return &homeCheck{Note: "no browser on this server: check pages with view_page"}
+	}
+	r, err := p.ScreenshotPreview(ctx, app, platform.ScreenshotInput{Path: "/", FullPage: true})
+	if err != nil {
+		return &homeCheck{Note: "the home page could not be checked: " + err.Error() + "; take screenshot_preview later"}
+	}
+	return &homeCheck{Status: r.Status, PageChecks: r.PageChecks, BlockedHosts: r.BlockedHosts, BrowserLog: r.BrowserLog,
+		Note: "use screenshot_preview to see the picture"}
 }
