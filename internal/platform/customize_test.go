@@ -46,3 +46,28 @@ func TestCreateCustomized(t *testing.T) {
 		}
 	}
 }
+
+// A page whose browser script calls another site passes every check, but
+// visitors see nothing: the save says so, and names the way that works.
+func TestBrowserFetchWarning(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "gold")
+	def := catalog(t)
+	def.Templates["rates"] = `<!doctype html><p id="g"></p><script>fetch("https://api.goldprice.example/v1/aed").then(r => r.json()).then(d => g.textContent = d.price)</script>
+<script>fetch("/api/products")</script>`
+	res, err := p.ApplyChange(ctx, "gold", def)
+	if err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	if got := strings.Join(res.Warnings, " "); len(res.Warnings) != 1 || !strings.Contains(got, "api.goldprice.example") || !strings.Contains(got, "http.fetch") {
+		t.Fatalf("warnings: %q", res.Warnings)
+	}
+	// The finished examples call no other site from the browser.
+	for i, ex := range []string{"store-uae", "booking-uae", "home-service-uae", "reservation-uae", "quote-portal-uae", "listings-uae", "clinic-queue-uae"} {
+		_, res, err := p.CreateFromExample(ctx, "usr_test", "ex-"+string(rune('a'+i))+"-app", ex)
+		if err != nil || len(res.Warnings) > 0 {
+			t.Errorf("%s: %v %q", ex, err, res.Warnings)
+		}
+	}
+}

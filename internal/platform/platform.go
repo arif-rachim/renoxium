@@ -216,6 +216,7 @@ type ApplyResult struct {
 	PreviewURL string   `json:"preview_url,omitempty"`
 	Migrations []string `json:"migrations,omitempty" jsonschema:"schema changes applied to the preview database"`
 	Fixed      []string `json:"fixed,omitempty" jsonschema:"mistakes in the definition the platform repaired as it saved it"`
+	Warnings   []string `json:"warnings,omitempty" jsonschema:"parts of the definition saved as written that will not work for visitors, although the checks pass; fix them before telling the user the feature works"`
 	Checks     []Check  `json:"checks,omitempty" jsonschema:"result of rendering every GET route on preview: parameters filled from preview rows, signed-in routes as a visitor"`
 	// OwnerActions are steps only the owner can take before http.fetch works.
 	OwnerActions []string `json:"owner_actions,omitempty" jsonschema:"steps only the owner can take, signed in to Renoxium (allow hosts, enter API keys, turn on test calls for the preview). Tell the user all of them now, in this reply, each with its full link, before testing or saying the feature works"`
@@ -629,7 +630,8 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	}
 
 	p.db.Exec(`DELETE FROM versions WHERE app = ? AND n <= ? AND n != (SELECT live_version FROM apps WHERE name = ?)`, name, n-keepVersions, name)
-	res := ApplyResult{OK: true, Version: n, PreviewURL: p.previewURL(name), Migrations: migrations, Fixed: fixed}
+	res := ApplyResult{OK: true, Version: n, PreviewURL: p.previewURL(name), Migrations: migrations, Fixed: fixed,
+		Warnings: p.browserFetchWarnings(name, def)}
 	st, err := p.loadStage(name, Preview)
 	if err != nil {
 		return res, err

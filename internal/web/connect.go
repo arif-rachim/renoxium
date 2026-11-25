@@ -51,6 +51,8 @@ Finished websites for UAE businesses (online store, appointments and classes, ho
 
 - Your apps: {{BASE}}
 - Manage an app's data (orders, products): {{BASE}}/apps/<app-name>
+- Long chats: on free plans a chat fills up after a few long messages. Start a new chat and name your app, for example "Continue with my app al-noor-perfumes": your apps, their versions and data are kept in Renoxium, not in the chat.
+- Photos: attach them in the chat (free plans allow only a few per message), or upload them in your app's admin panel; before the first publish, choose Edit preview data there, then tell your assistant which photo goes where.
 `
 
 func (s *Site) connectBody() string {
