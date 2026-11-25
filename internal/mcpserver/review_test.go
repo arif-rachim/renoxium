@@ -75,6 +75,7 @@ func TestWhatReviewersRead(t *testing.T) {
 		b, _ := json.Marshal(tool.InputSchema)
 		json.Unmarshal(b, &schema)
 		checkSchema(t, tool.Name, schema)
+		checkTyped(t, tool.Name, schema)
 	}
 	// What a visitor does is one tool per operation: none takes an HTTP
 	// method, a stage or a command that would choose the operation.
@@ -136,4 +137,33 @@ func checkSchema(t *testing.T, path string, s map[string]any) {
 	if items, ok := s["items"].(map[string]any); ok {
 		checkSchema(t, path+"[]", items)
 	}
+}
+
+// checkTyped finds values a directory cannot type: "anything" (an empty
+// schema or additionalProperties true) and "this or null" for parameters
+// that are simply left out when not given.
+func checkTyped(t *testing.T, path string, v any) {
+	t.Helper()
+	s, ok := v.(map[string]any)
+	if !ok {
+		return
+	}
+	if len(s) == 0 {
+		t.Errorf("%s may be anything", path)
+	}
+	if s["additionalProperties"] == true {
+		t.Errorf("%s holds values of any type", path)
+	}
+	if types, ok := s["type"].([]any); ok && len(types) == 2 && (types[0] == "null" || types[1] == "null") {
+		t.Errorf("%s is %v: leave the parameter out instead of null", path, types)
+	}
+	for _, k := range []string{"properties", "$defs"} {
+		if props, ok := s[k].(map[string]any); ok {
+			for name, sub := range props {
+				checkTyped(t, path+"."+name, sub)
+			}
+		}
+	}
+	checkTyped(t, path+"[]", s["items"])
+	checkTyped(t, path+"{}", s["additionalProperties"])
 }
