@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -353,6 +354,68 @@ type Customize struct {
 	Business string                      // the business's name, put in the settings row's name columns
 	Settings map[string]any              // columns of the settings row (the example's brand table) to set
 	Rows     map[string][]map[string]any // tables whose starting rows are replaced, e.g. products
+	// ForBusiness makes the app for a real business: the example's own
+	// legal name, address and contacts are cleared, and what else is still
+	// the example's is reported (see Leftovers).
+	ForBusiness bool
+}
+
+// Leftovers is what a new app still has from its example, for the
+// assistant to replace with the owner's own or to ask about.
+type Leftovers struct {
+	Cleared    []string       `json:"cleared_from_example,omitempty" jsonschema:"the example business's legal name, address and contacts, cleared because the call did not give the owner's; ask the owner for theirs and set them in the settings row"`
+	Kept       []string       `json:"kept_from_example,omitempty" jsonschema:"settings the example still provides (column: value): texts and photos of the example business; ask the owner, then set them in the settings row"`
+	SampleRows map[string]int `json:"sample_rows_from_example,omitempty" jsonschema:"tables still holding the example's sample rows (table: number of rows), e.g. its products or reviews; replace them with the owner's or remove them"`
+}
+
+// identityColumnRE names the settings columns that identify the example's
+// business: never left for another business.
+var identityColumnRE = regexp.MustCompile(`^(legal_name|address|whatsapp|phone|mobile|email|licen[cs]e|trn|tax_number|vat_number|bank_details|iban|office_reg_value|lat|lng|instagram|facebook|tiktok|website|map_url)(_ar)?$`)
+
+// leftovers clears def's settings row of the example's identity (unless
+// set) and lists what else is the example's.
+func (c Customize) leftovers(def *appdef.App, set map[string]bool) Leftovers {
+	var out Leftovers
+	if def.Brand == nil || len(def.Seed[def.Brand.Table]) == 0 {
+		return out
+	}
+	row := def.Seed[def.Brand.Table][0]
+	var settings appdef.Table
+	for _, t := range def.Tables {
+		if t.Name == def.Brand.Table {
+			settings = t
+		}
+	}
+	for _, col := range settings.Columns {
+		v, ok := row[col.Name]
+		if !ok || set[col.Name] || v == nil || fmt.Sprint(v) == "" {
+			continue
+		}
+		if c.Business != "" && (col.Name == def.Brand.Name || col.Name == def.Brand.NameAr) {
+			continue
+		}
+		switch {
+		case identityColumnRE.MatchString(col.Name):
+			row[col.Name] = ""
+			out.Cleared = append(out.Cleared, col.Name)
+		case (col.Type == "text" || col.Type == "image") && col.Name != "font" && col.Name != def.Brand.Color && len(col.Options) == 0:
+			text := fmt.Sprint(v)
+			if r := []rune(text); len(r) > 60 {
+				text = string(r[:57]) + "..."
+			}
+			out.Kept = append(out.Kept, col.Name+": "+text)
+		}
+	}
+	for table, rows := range def.Seed {
+		if table == def.Brand.Table || table == "texts" || len(rows) == 0 || c.Rows[table] != nil {
+			continue
+		}
+		if out.SampleRows == nil {
+			out.SampleRows = map[string]int{}
+		}
+		out.SampleRows[table] = len(rows)
+	}
+	return out
 }
 
 // customize puts c into def's seed rows. Every table and column must exist,
@@ -414,6 +477,14 @@ func (c Customize) apply(def *appdef.App) error {
 // data (see Customize) and applies it to the preview, checked like
 // apply_change.
 func (p *Platform) CreateCustomized(ctx context.Context, owner, name, example string, c Customize) (AppInfo, ApplyResult, error) {
+	info, res, _, err := p.CreateForBusiness(ctx, owner, name, example, c)
+	return info, res, err
+}
+
+// CreateForBusiness is CreateCustomized that also says what the new app
+// still has from its example (with c.ForBusiness).
+func (p *Platform) CreateForBusiness(ctx context.Context, owner, name, example string, c Customize) (AppInfo, ApplyResult, Leftovers, error) {
+	var left Leftovers
 	business := c.Business
 	e, ok := examples.Get(example)
 	if !ok {
@@ -421,11 +492,11 @@ func (p *Platform) CreateCustomized(ctx context.Context, owner, name, example st
 		for _, x := range examples.All() {
 			names = append(names, x.Name)
 		}
-		return AppInfo{}, ApplyResult{}, fmt.Errorf("no example called %q; choose one of: %s", example, strings.Join(names, ", "))
+		return AppInfo{}, ApplyResult{}, left, fmt.Errorf("no example called %q; choose one of: %s", example, strings.Join(names, ", "))
 	}
 	def, problems := appdef.Parse(e.JSON)
 	if len(problems) > 0 {
-		return AppInfo{}, ApplyResult{}, fmt.Errorf("example %s: %s", example, strings.Join(problems, "; "))
+		return AppInfo{}, ApplyResult{}, left, fmt.Errorf("example %s: %s", example, strings.Join(problems, "; "))
 	}
 	if business = strings.TrimSpace(business); business != "" && def.Brand != nil {
 		if rows := def.Seed[def.Brand.Table]; len(rows) > 0 {
@@ -446,26 +517,34 @@ func (p *Platform) CreateCustomized(ctx context.Context, owner, name, example st
 	}
 	custom := len(c.Settings) > 0 || len(c.Rows) > 0
 	if err := c.apply(def); err != nil {
-		return AppInfo{}, ApplyResult{}, err
+		return AppInfo{}, ApplyResult{}, left, err
+	}
+	if c.ForBusiness {
+		set := map[string]bool{}
+		for k := range c.Settings {
+			set[k] = true
+		}
+		left = c.leftovers(def, set)
+		Customize{Business: business}.leftovers(plain, nil) // the fallback never keeps them either
 	}
 	info, err := p.CreateApp(owner, name)
 	if err != nil {
-		return AppInfo{}, ApplyResult{}, err
+		return AppInfo{}, ApplyResult{}, left, err
 	}
 	res, err := p.ApplyChange(ctx, name, def)
 	if err != nil {
-		return info, res, err
+		return info, res, left, err
 	}
 	if !res.OK && custom {
 		// The app exists now: give it the example, and say what was refused.
 		problems := res.Problems
 		if res, err = p.ApplyChange(ctx, name, plain); err != nil {
-			return info, res, err
+			return info, res, left, err
 		}
 		info, _ = p.Info(name)
-		return info, res, fmt.Errorf("app %s was created from %s, but its settings and rows were refused: %s; set them with edit_app (base_version %d)",
+		return info, res, left, fmt.Errorf("app %s was created from %s, but its settings and rows were refused: %s; set them with edit_app (base_version %d)",
 			name, example, strings.Join(problems, "; "), res.Version)
 	}
 	info, err = p.Info(name)
-	return info, res, err
+	return info, res, left, err
 }

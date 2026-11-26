@@ -380,8 +380,9 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Apply   *platform.ApplyResult `json:"apply,omitempty" jsonschema:"result of applying the example to the preview (checks of every page)"`
 		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read them with get_app_parts {paths: [\"templates.css\"]}"`
 		Home    *homeCheck            `json:"home,omitempty" jsonschema:"with check: the home page as a phone's browser showed it"`
+		platform.Leftovers
 	}
-	addTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], InputSchema: inputSchema[createIn](), Description: "Create a new app for the signed-in user and return its live and preview addresses. If list_apps shows the user already has an app for this business, ask first whether to change that one instead. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. To save the user's messages and approvals, give the business's data in the same call: business (its name), settings (the settings row) and rows (e.g. the products), and check: true to have the home page checked in a browser too. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
+	addTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], InputSchema: inputSchema[createIn](), Description: "Create a new app for the signed-in user and return its live and preview addresses. If list_apps shows the user already has an app for this business, ask first whether to change that one instead. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. To save the user's messages and approvals, give the business's data in the same call: business (its name), settings (the settings row) and rows (e.g. the products), and check: true to have the home page checked in a browser too. The example's own legal name, address and contacts are cleared unless you set them (cleared_from_example); its texts, photos and sample rows that are still there are listed (kept_from_example, sample_rows_from_example): ask the owner for theirs. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
 			user, err := userOf(req)
 			if err != nil {
@@ -391,12 +392,12 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				info, err := p.CreateApp(user, in.App)
 				return nil, createOut{AppInfo: info}, err
 			}
-			info, res, err := p.CreateCustomized(ctx, user, in.App, in.FromExample,
-				platform.Customize{Business: in.Business, Settings: in.Settings, Rows: in.Rows})
+			info, res, left, err := p.CreateForBusiness(ctx, user, in.App, in.FromExample,
+				platform.Customize{Business: in.Business, Settings: in.Settings, Rows: in.Rows, ForBusiness: true})
 			if err != nil {
 				return nil, createOut{}, err
 			}
-			out := createOut{AppInfo: info, Version: res.Version, Apply: &res}
+			out := createOut{AppInfo: info, Version: res.Version, Apply: &res, Leftovers: left}
 			if def, _, err := p.Definition(in.App, 0); err == nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
