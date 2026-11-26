@@ -36,9 +36,16 @@ import (
 const maxCheckedRoutes = 60
 
 func (p *Platform) checkRoutes(ctx context.Context, st *stage, def *appdef.App) []Check {
-	var checks []Check
+	checks, _ := p.checkRoutesSeen(ctx, st, def)
+	return checks
+}
+
+// checkRoutesSeen is checkRoutes that also says which templates the checked
+// pages rendered; nil when that is not known.
+func (p *Platform) checkRoutesSeen(ctx context.Context, st *stage, def *appdef.App) (checks []Check, seen map[string]bool) {
 	if strict := newStrictChecker(def); strict != nil {
 		ctx = context.WithValue(ctx, strictKey{}, strict)
+		seen = strict.seen
 	}
 	var checkUser int64 // a throwaway visitor for signed-in routes, made on first need
 	defer func() {
@@ -101,7 +108,7 @@ func (p *Platform) checkRoutes(ctx context.Context, st *stage, def *appdef.App) 
 		}
 		checks = append(checks, c)
 	}
-	return checks
+	return checks, seen
 }
 
 // filled is a route path with its parameters filled in, and the visitor
@@ -281,12 +288,13 @@ var missingKeyRE = regexp.MustCompile(`template: ([^:]+):(\d+):(\d+): executing 
 type strictChecker struct {
 	src  map[string]string
 	tmpl *template.Template
+	seen map[string]bool // templates that ran to their end on a checked page
 }
 
 const maxStrictPasses = 40
 
 func newStrictChecker(def *appdef.App) *strictChecker {
-	c := &strictChecker{src: map[string]string{}}
+	c := &strictChecker{src: map[string]string{}, seen: map[string]bool{}}
 	for k, v := range def.Templates {
 		c.src[k] = v
 	}
@@ -297,9 +305,12 @@ func newStrictChecker(def *appdef.App) *strictChecker {
 }
 
 func (c *strictChecker) parse() error {
-	root := template.New("").Funcs(template.FuncMap{"rxget": lenientGet}).Option("missingkey=error")
+	root := template.New("").Funcs(template.FuncMap{"rxget": lenientGet,
+		"rxseen": func(n string) string { c.seen[n] = true; return "" }}).Option("missingkey=error")
 	for n, src := range c.src {
-		t, err := root.New(n).Parse(src)
+		// A mark at the end, so line and column numbers in errors stay the
+		// template's own: it tells which templates the checked pages render.
+		t, err := root.New(n).Parse(src + `{{rxseen "` + strings.ReplaceAll(n, `"`, ``) + `"}}`)
 		if err != nil {
 			return err
 		}

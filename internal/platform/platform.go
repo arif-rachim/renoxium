@@ -603,6 +603,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 
 	p.change.Lock()
 	defer p.change.Unlock()
+	prev, _, _ := p.Definition(name, 0) // to tell which templates this change touches
 
 	// Build the preview database first; a failed migration leaves no new version.
 	migrations, problem, err := p.rebuildPreview(name, def)
@@ -639,7 +640,9 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	if err != nil {
 		return res, err
 	}
-	res.Checks = p.checkRoutes(ctx, st, def)
+	var seen map[string]bool
+	res.Checks, seen = p.checkRoutesSeen(ctx, st, def)
+	res.Warnings = append(res.Warnings, unusedTemplateWarnings(prev, def, seen)...)
 	for _, problem := range checkSitemap(ctx, st) {
 		res.Checks = append(res.Checks, Check{Route: "GET " + SitemapPath, Status: http.StatusInternalServerError, Error: problem})
 	}
