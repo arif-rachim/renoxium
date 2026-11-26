@@ -613,7 +613,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 
 	p.change.Lock()
 	defer p.change.Unlock()
-	prev, _, _ := p.Definition(name, 0) // to tell which templates this change touches
+	prev, _, _ := p.Definition(name, 0)  // to tell which templates this change touches
 	emptySeeds := emptySeedWarnings(def) // before the preview is seeded from def
 
 	// Build the preview database first; a failed migration leaves no new version.
