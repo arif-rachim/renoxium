@@ -44,6 +44,7 @@ How to work:
 4. Changing an app: read the reference once (get_example with reference_only true) and the definition in parts
    (get_app_outline, get_app_parts); change it with edit_app or patch_app (apply_change only for a definition
    written from scratch). Brand colour, font and logo go in the settings row; restyle in css_extra, not css.
+   Data the owner wants live (services, staff, prices, photos) goes in seed rows; change_preview_row is test data.
    A photo attached in the chat goes to upload_file as file, never as base64. Do not search for or show web images.
 5. Changes reach only the private preview: show the user its preview_url. Test with view_page, submit_form
    (follow_redirects true) and screenshot_preview (create_test_visitor for signed-in pages); read get_logs when
@@ -412,9 +413,11 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 	type getAppOut struct {
 		platform.AppInfo
-		Payments   platform.PaymentStatus `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
-		Version    int                    `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
-		Definition *appdef.App            `json:"definition,omitempty"`
+		Payments    platform.PaymentStatus `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		Unsaved     []platform.PreviewEdit `json:"unsaved_preview_changes,omitempty" jsonschema:"rows of the business's data changed only in the preview's test data; publish does not take them"`
+		UnsavedNote string                 `json:"unsaved_note,omitempty"`
+		Version     int                    `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
+		Definition  *appdef.App            `json:"definition,omitempty"`
 	}
 	// readDefinition returns an app's addresses and a stored version of its
 	// definition, nil before the first change.
@@ -438,15 +441,21 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err != nil {
 				return nil, getAppOut{}, err
 			}
-			return nil, getAppOut{AppInfo: info, Payments: p.PaymentStatus(in.App), Version: n, Definition: def}, nil
+			out := getAppOut{AppInfo: info, Payments: p.PaymentStatus(in.App), Version: n, Definition: def}
+			if out.Unsaved = p.UnsavedPreviewChanges(in.App); len(out.Unsaved) > 0 {
+				out.UnsavedNote = platform.UnsavedNote
+			}
+			return nil, out, nil
 		})
 
 	type outlineOut struct {
 		platform.AppInfo
-		Payments platform.PaymentStatus  `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
-		Files    []platform.UploadedFile `json:"files,omitempty" jsonschema:"the app's newest uploaded images (at most 30), including photos the owner added in the admin panel, with the preview rows that use them"`
-		Version  int                     `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
-		Outline  *platform.Outline       `json:"outline,omitempty"`
+		Payments    platform.PaymentStatus  `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		Unsaved     []platform.PreviewEdit  `json:"unsaved_preview_changes,omitempty" jsonschema:"rows of the business's data changed only in the preview's test data; publish does not take them"`
+		UnsavedNote string                  `json:"unsaved_note,omitempty"`
+		Files       []platform.UploadedFile `json:"files,omitempty" jsonschema:"the app's newest uploaded images (at most 30), including photos the owner added in the admin panel, with the preview rows that use them"`
+		Version     int                     `json:"version" jsonschema:"version the outline is of; 0 if none yet. Pass it as base_version to edit_app"`
+		Outline     *platform.Outline       `json:"outline,omitempty"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "get_app_outline", Title: toolAnnotations["get_app_outline"].Title, Annotations: toolAnnotations["get_app_outline"],
 		Description: "Read the outline of one of the user's app definitions: the names and sizes of its templates, scripts and lib entries, its tables and columns, seed row counts, routes, jobs and tools, plus the app's newest uploaded images and where the preview uses them. A few KB instead of the whole definition; read the parts you need with get_app_parts. Reads only."},
@@ -457,6 +466,9 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			}
 			out := outlineOut{AppInfo: info, Payments: p.PaymentStatus(info.App), Version: n}
 			out.Files, _ = p.RecentFiles(ctx, info.App, 30)
+			if out.Unsaved = p.UnsavedPreviewChanges(info.App); len(out.Unsaved) > 0 {
+				out.UnsavedNote = platform.UnsavedNote
+			}
 			if def != nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
@@ -510,18 +522,30 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	type publishIn struct {
 		App     string `json:"app" jsonschema:"name of one of the signed-in user's apps, as list_apps returns it"`
 		Version int    `json:"version,omitempty" jsonschema:"version to make live; omit for the current preview version. Use an older version to roll back."`
+		Discard bool   `json:"discard_preview_changes,omitempty" jsonschema:"true only after the user agreed to publish without the rows listed in unsaved_preview_changes (they stay test data and are forgotten)"`
 	}
 	type publishOut struct {
 		platform.PublishResult
-		NeedsConfirmation bool   `json:"needs_confirmation,omitempty" jsonschema:"true when live has not changed yet: the user must open confirm_url and choose Publish"`
-		ConfirmURL        string `json:"confirm_url,omitempty" jsonschema:"give this link to the user; the version goes live when they confirm there"`
-		Version           int    `json:"version,omitempty" jsonschema:"the version that will go live"`
+		NeedsConfirmation bool                   `json:"needs_confirmation,omitempty" jsonschema:"true when live has not changed yet: the user must open confirm_url and choose Publish"`
+		ConfirmURL        string                 `json:"confirm_url,omitempty" jsonschema:"give this link to the user; the version goes live when they confirm there"`
+		Version           int                    `json:"version,omitempty" jsonschema:"the version that will go live"`
+		Unsaved           []platform.PreviewEdit `json:"unsaved_preview_changes,omitempty" jsonschema:"when set, no confirm_url was made: these rows were changed only in the preview's test data and would not be published"`
+		Note              string                 `json:"note,omitempty"`
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "publish", Title: toolAnnotations["publish"].Title, Annotations: toolAnnotations["publish"],
 		Description: "Ask to make a version live (also to roll back to an earlier version). This call changes nothing live: it only returns confirm_url. The user opens that link, signed in to Renoxium, and chooses Publish; only then does the version go live (live data is backed up first and only additive schema changes are applied). Ask the user before calling it. Write confirm_url in your reply as a full URL, and never say the version is live until the user says they confirmed."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in publishIn) (*mcp.CallToolResult, publishOut, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, publishOut{}, err
+			}
+			// The owner's data changed only on the preview is not in any
+			// version: publishing now would ship the old rows.
+			if unsaved := p.UnsavedPreviewChanges(in.App); len(unsaved) > 0 {
+				if !in.Discard {
+					return nil, publishOut{Unsaved: unsaved, Note: "Not ready to publish: " + platform.UnsavedNote +
+						" Then call publish again; or, only if the user agrees to drop them, call publish with discard_preview_changes true."}, nil
+				}
+				p.DiscardPreviewChanges(in.App)
 			}
 			if opts.ConfirmPublish == nil {
 				res, err := p.Publish(in.App, in.Version)
@@ -791,7 +815,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.TestAdminInput
 	}
 	mcp.AddTool(s, &mcp.Tool{Name: "change_preview_row", Title: toolAnnotations["change_preview_row"].Title, Annotations: toolAnnotations["change_preview_row"], InputSchema: inputSchema[rowIn](),
-		Description: "Add, change or delete one row of the app's private preview database as the owner would in the admin panel (with the admin panel's checks), then run the app's on_admin_change script, to test it. Only the preview changes; its data is discarded on the next change and nothing on the live site is modified. Returns the script's answer, the row after the change and the log."},
+		Description: "For test data only: business data the owner wants live (services, staff, prices, photos, settings) goes into the definition's seed rows with edit_app or patch_app, never only here, because publish does not take preview rows. Add, change or delete one row of the app's private preview database as the owner would in the admin panel (with the admin panel's checks), then run the app's on_admin_change script, to test it. Only the preview changes; its data is discarded on the next change and nothing on the live site is modified. Returns the script's answer, the row after the change and the log."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in rowIn) (*mcp.CallToolResult, platform.TestResponse, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.TestResponse{}, err

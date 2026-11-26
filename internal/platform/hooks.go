@@ -174,7 +174,7 @@ type TestAdminResult struct {
 	Action string         `json:"action"`
 	Table  string         `json:"table"`
 	ID     int64          `json:"id"`
-	Row    map[string]any `json:"row" jsonschema:"the row after the change; null after delete"`
+	Row    map[string]any `json:"row,omitempty" jsonschema:"the row after the change; left out after delete"`
 	Hook   string         `json:"hook,omitempty" jsonschema:"the on_admin_change script that ran"`
 }
 

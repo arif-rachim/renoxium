@@ -67,7 +67,7 @@ func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
 		pl.Ready = true
 	}
 	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(r, u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r),
-		"Rollback": version < info.LiveVersion, "Plan": pl})
+		"Rollback": version < info.LiveVersion, "Plan": pl, "Unsaved": platform.UnsavedSummary(s.platform.UnsavedPreviewChanges(app))})
 }
 
 func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
