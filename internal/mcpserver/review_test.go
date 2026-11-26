@@ -34,7 +34,9 @@ func TestWhatReviewersRead(t *testing.T) {
 		t.Errorf("instructions are %d characters; the reference belongs in get_example", len(instr))
 	}
 	const idRule = "Never ask users for government-issued ID numbers or ID documents (passport, Emirates ID, driver's licence, visa)."
-	for _, want := range []string{idRule, "there are no other operations", "You never execute them"} {
+	for _, want := range []string{idRule, "there are no other operations", "You never execute them",
+		// Ask about an existing app only when it does the same job for the same business.
+		"same business and same kind of app", "Otherwise create the new app without asking"} {
 		if !strings.Contains(instr, want) {
 			t.Errorf("instructions lack %q", want)
 		}

@@ -57,3 +57,26 @@ func TestUnsavedPreviewChangesBlockPublish(t *testing.T) {
 		t.Fatalf("publish discarding: %v", pub)
 	}
 }
+
+// The results that start building repeat the photo rule, which models
+// follow better there than in the server instructions.
+func TestBuildResultsSayNoWebImages(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "lina@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	for _, tc := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"get_example", map[string]any{}},
+		{"get_example", map[string]any{"name": "tasks"}},
+		{"create_app", map[string]any{"app": "lina-shop", "from_example": "store-uae"}},
+		{"create_app", map[string]any{"app": "lina-empty"}},
+	} {
+		out, errText := call(t, s, tc.tool, tc.args)
+		if errText != "" || !strings.Contains(fmt.Sprint(out["note"]), "do not search the web for images") {
+			t.Errorf("%s %v: note %v %s", tc.tool, tc.args, out["note"], errText)
+		}
+	}
+}

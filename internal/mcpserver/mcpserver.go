@@ -36,7 +36,8 @@ Every action is one of these tools; there are no other operations:
 How to work:
 1. Ask only what the business needs: name, what it sells or offers, prices, delivery fee, WhatsApp, language.
    No technical questions.
-2. Call list_apps. If the user already has an app for this business, ask: change it or make a new one?
+2. Call list_apps. If an existing app already does what the user asks (same business and same kind of app), ask:
+   change it or make a new one? Otherwise create the new app without asking.
 3. New app: get_example without a name lists the finished examples. Pick one and call create_app {app, from_example,
    business, settings, rows, check: true}: one call makes the app with the user's data and checks its home page.
    If none fits, write a definition from scratch (get_example with reference_only true; start from tasks or catalog),
@@ -380,6 +381,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Apply   *platform.ApplyResult `json:"apply,omitempty" jsonschema:"result of applying the example to the preview (checks of every page)"`
 		Outline *platform.Outline     `json:"outline,omitempty" jsonschema:"names and sizes of the example's parts; read them with get_app_parts {paths: [\"templates.css\"]}"`
 		Home    *homeCheck            `json:"home,omitempty" jsonschema:"with check: the home page as a phone's browser showed it"`
+		Note    string                `json:"note"`
 		platform.Leftovers
 	}
 	addTool(s, &mcp.Tool{Name: "create_app", Title: toolAnnotations["create_app"].Title, Annotations: toolAnnotations["create_app"], InputSchema: inputSchema[createIn](), Description: "Create a new app for the signed-in user and return its live and preview addresses. If list_apps shows the user already has an app for this business, ask first whether to change that one instead. With from_example, the preview starts as that finished example (complete definition, checked like apply_change), and the result has an outline of its parts, so the definition never has to be sent back; change it with edit_app. To save the user's messages and approvals, give the business's data in the same call: business (its name), settings (the settings row) and rows (e.g. the products), and check: true to have the home page checked in a browser too. The example's own legal name, address and contacts are cleared unless you set them (cleared_from_example); its texts, photos and sample rows that are still there are listed (kept_from_example, sample_rows_from_example): ask the owner for theirs. Without from_example the app is empty until apply_change. Nothing goes live until a confirmed publish. A free account may have 3 apps and a member (an owner who saved a card at Renoxium, which charges nothing) 50: when the app is refused for that, tell the user what the error says. Scripts in a definition are the app's own server-side code: they run only inside this app's sandbox on renoxium.com when a visitor uses the app, are never executed by you and cannot call other systems on your behalf."},
@@ -390,14 +392,14 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			}
 			if in.FromExample == "" {
 				info, err := p.CreateApp(user, in.App)
-				return nil, createOut{AppInfo: info}, err
+				return nil, createOut{AppInfo: info, Note: photoNote}, err
 			}
 			info, res, left, err := p.CreateForBusiness(ctx, user, in.App, in.FromExample,
 				platform.Customize{Business: in.Business, Settings: in.Settings, Rows: in.Rows, ForBusiness: true})
 			if err != nil {
 				return nil, createOut{}, err
 			}
-			out := createOut{AppInfo: info, Version: res.Version, Apply: &res, Leftovers: left}
+			out := createOut{AppInfo: info, Version: res.Version, Apply: &res, Leftovers: left, Note: photoNote}
 			if def, _, err := p.Definition(in.App, 0); err == nil {
 				o := platform.OutlineOf(def)
 				out.Outline = &o
@@ -616,6 +618,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Name       string              `json:"name,omitempty"`
 		Definition *appdef.App         `json:"definition,omitempty" jsonschema:"a complete app definition, valid for apply_change"`
 		Reference  string              `json:"reference,omitempty" jsonschema:"how app definitions are written: tables, templates, scripts, visitor accounts, payments, emails, uploads"`
+		Note       string              `json:"note"`
 	}
 	addTool(s, &mcp.Tool{Name: "get_example", Title: toolAnnotations["get_example"].Title, Annotations: toolAnnotations["get_example"],
 		Description: "List the finished example apps (names and descriptions only), or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. With reference_only true it returns only the reference. To build from an example, prefer create_app {from_example}, then read it with get_app_outline and get_app_parts. Reads only."},
@@ -624,12 +627,12 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				return nil, exampleOut{}, err
 			}
 			if in.ReferenceOnly {
-				return nil, exampleOut{Reference: reference}, nil
+				return nil, exampleOut{Reference: reference, Note: photoNote}, nil
 			}
 			// The list is small: the reference comes with the chosen example,
 			// so building an app does not receive it twice.
 			if in.Name == "" {
-				out := exampleOut{}
+				out := exampleOut{Note: photoNote}
 				for _, e := range examples.All() {
 					out.Examples = append(out.Examples, map[string]string{"name": e.Name, "description": e.Description})
 				}
@@ -643,7 +646,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err := json.Unmarshal(e.JSON, &def); err != nil {
 				return nil, exampleOut{}, err
 			}
-			return nil, exampleOut{Name: e.Name, Definition: &def, Reference: reference}, nil
+			return nil, exampleOut{Name: e.Name, Definition: &def, Reference: reference, Note: photoNote}, nil
 		})
 
 	type patchIn struct {
@@ -1020,6 +1023,10 @@ func openObjects(s *jsonschema.Schema) {
 		openObjects(d)
 	}
 }
+
+// photoNote is repeated in the results that start building, where models
+// follow it more reliably than the same rule in the instructions.
+const photoNote = "Use only photos the owner attaches in the chat or uploads in the admin panel; do not search the web for images or show web images."
 
 // cellSchema is a value of one column of a row: rows are flat, and a json
 // column's value is given as JSON text, as in the examples' seed rows.
