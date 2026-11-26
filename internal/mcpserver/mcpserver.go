@@ -784,7 +784,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		platform.ScreenshotInput
 	}
 	addTool(s, &mcp.Tool{Name: "screenshot_preview", Title: toolAnnotations["screenshot_preview"].Title, Annotations: toolAnnotations["screenshot_preview"],
-		Description: "See a page of the app's private preview as a visitor would: a PNG rendered by a real browser with the preview's data and fonts, on a phone (default), tablet or desktop, optionally the whole page and signed in as a test visitor (as_visitor, see create_test_visitor). Only GET pages of the preview; the live site is never opened. Also returns the page's status, its script errors and page_checks: in words, what looks wrong (images not loaded, text hard to read, CSS shown as text, sideways scrolling, overlapping text, empty dark blocks, content from other sites missing). Use it after a change to check the design, and read page_checks even when you cannot see images."},
+		Description: "See a page of the app's private preview as a visitor would: a PNG rendered by a real browser with the preview's data and fonts, on a phone (default), tablet or desktop (or up to 3 of them in one call with viewports), optionally the whole page and signed in as a test visitor (as_visitor, see create_test_visitor). Only GET pages of the preview; the live site is never opened. Also returns the page's status, its script errors and page_checks: in words, what looks wrong (images not loaded, text hard to read, CSS shown as text, sideways scrolling, overlapping text, empty dark blocks, content from other sites missing). Use it after a change to check the design, and read page_checks even when you cannot see images."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in shotIn) (*mcp.CallToolResult, platform.ScreenshotResult, error) {
 			if err := owns(p, req, in.App); err != nil {
 				return nil, platform.ScreenshotResult{}, err
@@ -797,8 +797,15 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				return nil, platform.ScreenshotResult{}, err
 			}
 			summary, _ := json.Marshal(res)
-			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.ImageContent{Data: res.PNG, MIMEType: "image/png"},
-				&mcp.TextContent{Text: string(summary)}}}, res, nil
+			pngs := res.PNGs
+			if len(pngs) == 0 {
+				pngs = [][]byte{res.PNG}
+			}
+			var content []mcp.Content
+			for _, png := range pngs {
+				content = append(content, &mcp.ImageContent{Data: png, MIMEType: "image/png"})
+			}
+			return &mcp.CallToolResult{Content: append(content, &mcp.TextContent{Text: string(summary)})}, res, nil
 		})
 
 	type jobsOut struct {

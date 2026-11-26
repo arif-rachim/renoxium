@@ -80,3 +80,25 @@ func TestBuildResultsSayNoWebImages(t *testing.T) {
 		}
 	}
 }
+
+// After publishing, the admin panel shows live data again: neither the
+// publish page nor the app's pages keep the "Preview data" banner.
+func TestPublishLeavesPreviewData(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "rana@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "rana-shop", "from_example": "store-uae"})
+	c.Get(e.base + "/apps/rana-shop/data-stage?stage=preview&back=/apps/rana-shop")
+	if resp, _ := c.Get(e.base + "/apps/rana-shop"); !strings.Contains(read(t, resp), "Preview data.") {
+		t.Fatal("the switch did not show preview data")
+	}
+	pub, _ := call(t, s, "publish", map[string]any{"app": "rana-shop"})
+	if resp, _ := c.Get(fmt.Sprint(pub["confirm_url"])); strings.Contains(read(t, resp), "Preview data.") {
+		t.Fatal("the publish page shows the preview data banner")
+	}
+	e.confirmPublish(c, pub)
+	if resp, _ := c.Get(e.base + "/apps/rana-shop"); strings.Contains(read(t, resp), "Preview data.") {
+		t.Fatal("after publishing, the app still shows preview data")
+	}
+}

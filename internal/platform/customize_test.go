@@ -165,3 +165,26 @@ func TestCreateForBusinessLeavesNoExampleIdentity(t *testing.T) {
 		t.Fatalf("only %d examples have a settings row", n)
 	}
 }
+
+// Empty placeholder rows in the starting data are reported (salma's four
+// blank, inactive services); the examples have none.
+func TestEmptySeedRowsWarning(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "blank")
+	def := catalog(t)
+	def.Seed["products"] = append(def.Seed["products"], map[string]any{"name": "", "price_aed": 0}, map[string]any{"name": " ", "price_aed": 0})
+	res, err := p.ApplyChange(ctx, "blank", def)
+	if err != nil || !res.OK || !strings.Contains(strings.Join(res.Warnings, " "), "seed.products: row") {
+		t.Fatalf("warnings: %v %q %q", err, res.Warnings, res.Problems)
+	}
+	for _, e := range examples.All() {
+		d, _ := appdef.Parse(e.JSON)
+		if w := emptySeedWarningsOf(d); len(w) > 0 {
+			t.Errorf("%s: %q", e.Name, w)
+		}
+	}
+}
+
+// emptySeedWarningsOf is ApplyChange's empty-row warning for a definition.
+func emptySeedWarningsOf(d *appdef.App) []string { return platform.EmptySeedWarnings(d) }

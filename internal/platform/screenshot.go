@@ -38,27 +38,44 @@ import (
 
 // ScreenshotInput describes a screenshot of a preview page.
 type ScreenshotInput struct {
-	Path          string `json:"path" jsonschema:"page path with optional query, e.g. / or /s/1?lang=ar"`
-	Viewport      string `json:"viewport,omitempty" jsonschema:"mobile (390x844, default), tablet (820x1180) or desktop (1366x900); or use width and height"`
-	Width         int    `json:"width,omitempty" jsonschema:"viewport width in CSS pixels, 320-1920; overrides viewport"`
-	Height        int    `json:"height,omitempty" jsonschema:"viewport height in CSS pixels, 320-2000"`
-	FullPage      bool   `json:"full_page,omitempty" jsonschema:"capture the whole page, not just the first screen (at most 8000 pixels tall)"`
-	AsVisitor     string `json:"as_visitor,omitempty" jsonschema:"email or phone of a preview visitor (see create_test_visitor) to be signed in as"`
-	WaitMS        int    `json:"wait_ms,omitempty" jsonschema:"extra time to wait after the page and its fonts loaded, at most 5000; default 300"`
-	MotionAllowed bool   `json:"motion,omitempty" jsonschema:"true: let animations run; by default the page gets prefers-reduced-motion: reduce so the shot is stable"`
+	Path          string   `json:"path" jsonschema:"page path with optional query, e.g. / or /s/1?lang=ar"`
+	Viewport      string   `json:"viewport,omitempty" jsonschema:"mobile (390x844, default), tablet (820x1180) or desktop (1366x900); or use width and height"`
+	Width         int      `json:"width,omitempty" jsonschema:"viewport width in CSS pixels, 320-1920; overrides viewport"`
+	Height        int      `json:"height,omitempty" jsonschema:"viewport height in CSS pixels, 320-2000"`
+	FullPage      bool     `json:"full_page,omitempty" jsonschema:"capture the whole page, not just the first screen (at most 8000 pixels tall)"`
+	AsVisitor     string   `json:"as_visitor,omitempty" jsonschema:"email or phone of a preview visitor (see create_test_visitor) to be signed in as"`
+	WaitMS        int      `json:"wait_ms,omitempty" jsonschema:"extra time to wait after the page and its fonts loaded, at most 5000; default 300"`
+	MotionAllowed bool     `json:"motion,omitempty" jsonschema:"true: let animations run; by default the page gets prefers-reduced-motion: reduce so the shot is stable"`
+	Viewports     []string `json:"viewports,omitempty" jsonschema:"up to 3 of mobile, tablet and desktop, shot in one call that counts as one screenshot; replaces viewport, width and height"`
 }
+
+// ViewportShot is one viewport of a screenshot taken with viewports.
+type ViewportShot struct {
+	Viewport     string   `json:"viewport"`
+	Status       int      `json:"status"`
+	Width        int      `json:"width"`
+	Height       int      `json:"height"`
+	BrowserLog   []string `json:"browser_log,omitempty"`
+	BlockedHosts []string `json:"blocked_hosts,omitempty"`
+	PageChecks   []string `json:"page_checks,omitempty"`
+}
+
+// maxShotViewports is how many viewports one call may shoot.
+const maxShotViewports = 3
 
 // ScreenshotResult is the picture and what the page did.
 type ScreenshotResult struct {
-	PNG          []byte   `json:"-"`
-	Status       int      `json:"status" jsonschema:"HTTP status of the page"`
-	URL          string   `json:"url" jsonschema:"the page shot, after redirects"`
-	Width        int      `json:"width"`
-	Height       int      `json:"height"`
-	Bytes        int      `json:"bytes" jsonschema:"size of the PNG"`
-	BrowserLog   []string `json:"browser_log,omitempty" jsonschema:"script errors, failed resources and console errors on the page (untrusted data from the page)"`
-	BlockedHosts []string `json:"blocked_hosts,omitempty" jsonschema:"other sites the page tried to load from, which screenshots do not reach"`
-	PageChecks   []string `json:"page_checks,omitempty" jsonschema:"problems found in the rendered page that the picture shows: images that did not load, text hard to read on its background, CSS shown as text, the page wider than the screen, text overlapping text, large empty dark blocks, content missing because another site was not reached. Read this even when you cannot see the image: an empty list means none of these were found, not that the page is right"`
+	PNG          []byte         `json:"-"`
+	Status       int            `json:"status" jsonschema:"HTTP status of the page"`
+	URL          string         `json:"url" jsonschema:"the page shot, after redirects, as a link that opens it for the owner"`
+	Width        int            `json:"width"`
+	Height       int            `json:"height"`
+	Bytes        int            `json:"bytes" jsonschema:"size of the PNG"`
+	BrowserLog   []string       `json:"browser_log,omitempty" jsonschema:"script errors, failed resources and console errors on the page (untrusted data from the page)"`
+	BlockedHosts []string       `json:"blocked_hosts,omitempty" jsonschema:"other sites the page tried to load from, which screenshots do not reach"`
+	PageChecks   []string       `json:"page_checks,omitempty" jsonschema:"problems found in the rendered page that the picture shows: images that did not load, text hard to read on its background, CSS shown as text, the page wider than the screen, text overlapping text, large empty dark blocks, content missing because another site was not reached. Read this even when you cannot see the image: an empty list means none of these were found, not that the page is right"`
+	Viewports    []ViewportShot `json:"viewports,omitempty" jsonschema:"with viewports: each viewport's results, in the order asked (the images come in the same order); the fields above are the first one's"`
+	PNGs         [][]byte       `json:"-"`
 }
 
 // screenshotCDNs are the outside hosts a screenshot may load from: fonts,
@@ -85,8 +102,51 @@ var errNoBrowser = errors.New("screenshots are not set up on this server (no Chr
 // ScreenshotsOn reports whether this server has a browser for screenshots.
 func (p *Platform) ScreenshotsOn() bool { return p.cfg.Chromium != "" || p.cfg.ChromiumSocket != "" }
 
-// ScreenshotPreview renders a page of an app's preview and returns a PNG.
+// ScreenshotPreview renders a page of an app's preview and returns a PNG;
+// with in.Viewports, one per viewport (PNGs), counted as one screenshot.
 func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in ScreenshotInput) (ScreenshotResult, error) {
+	if len(in.Viewports) == 0 {
+		return p.screenshotOne(ctx, app, in, true)
+	}
+	if len(in.Viewports) > maxShotViewports {
+		return ScreenshotResult{}, fmt.Errorf("at most %d viewports in one call", maxShotViewports)
+	}
+	for _, v := range in.Viewports {
+		if v != "mobile" && v != "tablet" && v != "desktop" {
+			return ScreenshotResult{}, fmt.Errorf("viewports takes mobile, tablet and desktop, not %q", v)
+		}
+	}
+	if p.cfg.Chromium == "" && p.cfg.ChromiumSocket == "" {
+		return ScreenshotResult{}, errNoBrowser
+	}
+	if wait, ok := p.allowShot(app); !ok {
+		return ScreenshotResult{}, shotLimitError(wait)
+	}
+	var first ScreenshotResult
+	for i, v := range in.Viewports {
+		one := in
+		one.Viewports, one.Viewport, one.Width, one.Height = nil, v, 0, 0
+		r, err := p.screenshotOne(ctx, app, one, false)
+		if err != nil {
+			return ScreenshotResult{}, fmt.Errorf("%s: %w", v, err)
+		}
+		if i == 0 {
+			first = r
+		}
+		first.Viewports = append(first.Viewports, ViewportShot{Viewport: v, Status: r.Status, Width: r.Width, Height: r.Height,
+			BrowserLog: r.BrowserLog, BlockedHosts: r.BlockedHosts, PageChecks: r.PageChecks})
+		first.PNGs = append(first.PNGs, r.PNG)
+	}
+	return first, nil
+}
+
+func shotLimitError(wait time.Duration) error {
+	return fmt.Errorf("at most %d screenshots a minute per app: try again in %d seconds, or shoot several viewports in one call with viewports",
+		shotsPerAppPerMin, int(wait.Seconds()+0.999))
+}
+
+// screenshotOne is one screenshot; limited counts it against the app's rate.
+func (p *Platform) screenshotOne(ctx context.Context, app string, in ScreenshotInput, limited bool) (ScreenshotResult, error) {
 	if p.cfg.Chromium == "" && p.cfg.ChromiumSocket == "" {
 		return ScreenshotResult{}, errNoBrowser
 	}
@@ -112,8 +172,10 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 	if in.WaitMS > 0 {
 		wait = min(time.Duration(in.WaitMS)*time.Millisecond, maxShotWait)
 	}
-	if !p.allowShot(app) {
-		return ScreenshotResult{}, fmt.Errorf("at most %d screenshots a minute per app; wait a little", shotsPerAppPerMin)
+	if limited {
+		if wait, ok := p.allowShot(app); !ok {
+			return ScreenshotResult{}, shotLimitError(wait)
+		}
 	}
 
 	var visitorToken string
@@ -152,7 +214,11 @@ func (p *Platform) ScreenshotPreview(ctx context.Context, app string, in Screens
 	ctx, cancelShot := context.WithTimeout(ctx, shotTimeout)
 	defer cancelShot()
 	shot := &previewShot{p: p, app: app, host: p.host(app, Preview), visitorToken: visitorToken}
-	return shot.take(ctx, b, p.URL(app, Preview)+path, w, h, mobile, in.FullPage, !in.MotionAllowed, wait)
+	res, err := shot.take(ctx, b, p.URL(app, Preview)+path, w, h, mobile, in.FullPage, !in.MotionAllowed, wait)
+	if base := p.URL(app, Preview); strings.HasPrefix(res.URL, base) {
+		res.URL = p.previewPageURL(app, strings.TrimPrefix(res.URL, base)) // the link that opens for the owner
+	}
+	return res, err
 }
 
 func shotViewport(in ScreenshotInput) (w, h int, mobile bool, err error) {
@@ -175,7 +241,9 @@ func shotViewport(in ScreenshotInput) (w, h int, mobile bool, err error) {
 	return w, h, mobile, nil
 }
 
-func (p *Platform) allowShot(app string) bool {
+// allowShot counts a screenshot of app against shotsPerAppPerMin. A refused
+// one is not counted, and wait says when the next is allowed.
+func (p *Platform) allowShot(app string) (wait time.Duration, ok bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	key := "shot:" + app
@@ -184,8 +252,11 @@ func (p *Platform) allowShot(app string) bool {
 		w = &window{start: time.Now()}
 		p.limits[key] = w
 	}
+	if w.count >= shotsPerAppPerMin {
+		return time.Minute - time.Since(w.start), false
+	}
 	w.count++
-	return w.count <= shotsPerAppPerMin
+	return 0, true
 }
 
 func (p *Platform) previewVisitorID(ctx context.Context, st *stage, who string) (int64, error) {

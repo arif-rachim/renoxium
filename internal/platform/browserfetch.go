@@ -134,3 +134,45 @@ func unusedTemplateWarnings(prev, def *appdef.App, seen map[string]bool) []strin
 	}
 	return out
 }
+
+// emptySeedWarnings names starting rows whose text columns are all blank
+// (no name, no description): placeholders, such as salma-beauty-studio's
+// four blank inactive services, that clutter the admin panel and are
+// published as rows. Tables without text columns are not looked at.
+func emptySeedWarnings(def *appdef.App) []string {
+	var out []string
+	for _, t := range def.Tables {
+		var text []string
+		for _, c := range t.Columns {
+			if c.Type == "text" {
+				text = append(text, c.Name)
+			}
+		}
+		if len(text) == 0 {
+			continue
+		}
+		var empty []string
+		for i, row := range def.Seed[t.Name] {
+			blank := true
+			for _, c := range text {
+				if s, ok := row[c].(string); ok && strings.TrimSpace(s) != "" {
+					blank = false
+				} else if !ok && row[c] != nil {
+					blank = false
+				}
+			}
+			if blank {
+				empty = append(empty, fmt.Sprint(i+1))
+			}
+		}
+		if len(empty) > 0 {
+			verb := "are"
+			if len(empty) == 1 {
+				verb = "is"
+			}
+			out = append(out, fmt.Sprintf("seed.%s: row %s %s empty (every text column is blank); remove placeholder rows instead of keeping them",
+				t.Name, strings.Join(empty, ", "), verb))
+		}
+	}
+	return out
+}
