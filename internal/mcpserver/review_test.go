@@ -76,6 +76,14 @@ func TestWhatReviewersRead(t *testing.T) {
 		json.Unmarshal(b, &schema)
 		checkSchema(t, tool.Name, schema)
 		checkTyped(t, tool.Name, schema)
+		// Results may gain fields: clients that keep an older tool list
+		// must not reject them ("Structured content does not match").
+		if tool.OutputSchema != nil {
+			out, _ := json.Marshal(tool.OutputSchema)
+			if strings.Contains(string(out), `"additionalProperties":false`) {
+				t.Errorf("%s: its output schema refuses fields added later", tool.Name)
+			}
+		}
 	}
 	// What a visitor does is one tool per operation: none takes an HTTP
 	// method, a stage or a command that would choose the operation.
