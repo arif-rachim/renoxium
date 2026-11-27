@@ -188,3 +188,39 @@ func TestEmptySeedRowsWarning(t *testing.T) {
 
 // emptySeedWarningsOf is ApplyChange's empty-row warning for a definition.
 func emptySeedWarningsOf(d *appdef.App) []string { return platform.EmptySeedWarnings(d) }
+
+// Whole numbers from rows are int64: {{printf "%.2f" .n}} printed
+// %!f(int64=34) on barakah-distribution's stock plan. printf now takes any
+// number for a number verb, and a mismatch that still reaches a page is
+// reported by the checks.
+func TestPrintfTakesAnyNumber(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "stock")
+	def := catalog(t)
+	def.Scripts["plan"] = `function handle(req) { return {template: "plan", data: {n: 34, f: 2.5, s: "7", word: "abc"}} }`
+	def.Templates["plan"] = `<p>{{printf "%.2f" .n}}|{{printf "%d" .f}}|{{printf "%.1f" .s}}|{{printf "%d%%" .n}}</p>`
+	def.Templates["oops"] = `<p>{{printf "%d" .word}}</p>`
+	def.Scripts["oops"] = `function handle(req) { return {template: "oops", data: {word: "abc"}} }`
+	def.Routes = append(def.Routes, appdef.Route{Method: "GET", Path: "/plan", Script: "plan"}, appdef.Route{Method: "GET", Path: "/oops", Script: "oops"})
+	res, err := p.ApplyChange(ctx, "stock", def)
+	if err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	page, _ := p.TestRequest(ctx, "stock", platform.TestRequestInput{Path: "/plan"})
+	if !strings.Contains(page.Body, "<p>34.00|3|7.0|34%</p>") {
+		t.Fatalf("plan: %s", page.Body)
+	}
+	var found bool
+	for _, c := range res.Checks {
+		if c.Route == "GET /oops" && strings.Contains(strings.Join(c.Warnings, " "), "a number did not format") {
+			found = true
+		}
+		if c.Route == "GET /plan" && len(c.Warnings) > 0 {
+			t.Errorf("plan warnings: %q", c.Warnings)
+		}
+	}
+	if !found {
+		t.Fatalf("checks: %+v", res.Checks)
+	}
+}

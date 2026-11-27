@@ -96,6 +96,7 @@ func (p *Platform) checkRoutesSeen(ctx context.Context, st *stage, def *appdef.A
 			c.Warnings = out.warnings
 			if strings.HasPrefix(out.contentType, "text/html") {
 				c.Warnings = append(c.Warnings, noValueWarnings(string(out.body))...)
+				c.Warnings = append(c.Warnings, badFormatWarnings(string(out.body))...)
 			}
 			// Another row may fit when this one is not found (a row of a
 			// different table, or one this visitor may not see).
@@ -305,7 +306,7 @@ func newStrictChecker(def *appdef.App) *strictChecker {
 }
 
 func (c *strictChecker) parse() error {
-	root := template.New("").Funcs(template.FuncMap{"rxget": lenientGet,
+	root := template.New("").Funcs(appdef.Funcs).Funcs(template.FuncMap{"rxget": lenientGet,
 		"rxseen": func(n string) string { c.seen[n] = true; return "" }}).Option("missingkey=error")
 	for n, src := range c.src {
 		// A mark at the end, so line and column numbers in errors stay the
@@ -480,6 +481,16 @@ func checkMissingKeys(ctx context.Context, out result, name string, data any) re
 	}
 	out.warnings = append(out.warnings, c.missing(name, data)...)
 	return out
+}
+
+// badFormatWarnings finds Go's mark for a value printed with the wrong verb
+// (%!f(int64=34)) in a rendered page.
+func badFormatWarnings(page string) []string {
+	m := appdef.BadFormatRE.FindString(page)
+	if m == "" {
+		return nil
+	}
+	return []string{fmt.Sprintf("a number did not format: the page shows %q; check the printf verb for that value", m)}
 }
 
 // noValueWarnings finds "<no value>" in a rendered page: a template read a

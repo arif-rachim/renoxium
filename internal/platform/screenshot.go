@@ -542,6 +542,8 @@ const pageAudit = `((W, H) => {
     if (seen.has(el)) continue;
     seen.add(el);
     const t = n.nodeValue;
+    const bad = t.match(/%!(?:[a-zA-Z]\([^)]{0,60}\)|\(EXTRA[^)]{0,60}\))/);
+    if (bad) add('format', 'a number did not format: the page shows ' + JSON.stringify(bad[0]) + ' (a printf verb that does not fit the value) in ' + where(el));
     if (!cssShown && /[^{}]{1,80}\{[^{}]*[a-z-]+\s*:[^{}]*;?[^{}]*\}/i.test(t) && /(color|margin|padding|display|font|background|border|width|height)\s*:/i.test(t)) {
       cssShown = true;
       add('css', 'CSS shows as text on the page (' + short(t) + '): a style rule is outside <style>...</style>, e.g. in css_extra');
