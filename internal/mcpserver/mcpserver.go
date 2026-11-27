@@ -418,11 +418,12 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 	type getAppOut struct {
 		platform.AppInfo
-		Payments    platform.PaymentStatus `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
-		Unsaved     []platform.PreviewEdit `json:"unsaved_preview_changes,omitempty" jsonschema:"rows of the business's data changed only in the preview's test data; publish does not take them"`
-		UnsavedNote string                 `json:"unsaved_note,omitempty"`
-		Version     int                    `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
-		Definition  *appdef.App            `json:"definition,omitempty"`
+		Payments    platform.PaymentStatus  `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		LastChange  *platform.ChangeSummary `json:"last_change,omitempty" jsonschema:"what the newest version changed and removed compared with the one before: check it after a turn that broke off"`
+		Unsaved     []platform.PreviewEdit  `json:"unsaved_preview_changes,omitempty" jsonschema:"rows of the business's data changed only in the preview's test data; publish does not take them"`
+		UnsavedNote string                  `json:"unsaved_note,omitempty"`
+		Version     int                     `json:"version" jsonschema:"version of the definition returned; 0 if none yet. Pass it as base_version to edit_app"`
+		Definition  *appdef.App             `json:"definition,omitempty"`
 	}
 	// readDefinition returns an app's addresses and a stored version of its
 	// definition, nil before the first change.
@@ -446,7 +447,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err != nil {
 				return nil, getAppOut{}, err
 			}
-			out := getAppOut{AppInfo: info, Payments: p.PaymentStatus(in.App), Version: n, Definition: def}
+			out := getAppOut{AppInfo: info, Payments: p.PaymentStatus(in.App), Version: n, Definition: def, LastChange: p.LastChange(in.App)}
 			if out.Unsaved = p.UnsavedPreviewChanges(in.App); len(out.Unsaved) > 0 {
 				out.UnsavedNote = platform.UnsavedNote
 			}
@@ -456,6 +457,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	type outlineOut struct {
 		platform.AppInfo
 		Payments    platform.PaymentStatus  `json:"payments" jsonschema:"whether live card payments work (Stripe connected by the owner); preview checkouts are always simulated, whatever this says"`
+		LastChange  *platform.ChangeSummary `json:"last_change,omitempty" jsonschema:"what the newest version changed and removed compared with the one before: check it after a turn that broke off"`
 		Unsaved     []platform.PreviewEdit  `json:"unsaved_preview_changes,omitempty" jsonschema:"rows of the business's data changed only in the preview's test data; publish does not take them"`
 		UnsavedNote string                  `json:"unsaved_note,omitempty"`
 		Files       []platform.UploadedFile `json:"files,omitempty" jsonschema:"the app's newest uploaded images (at most 30), including photos the owner added in the admin panel, with the preview rows that use them"`
@@ -469,7 +471,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err != nil {
 				return nil, outlineOut{}, err
 			}
-			out := outlineOut{AppInfo: info, Payments: p.PaymentStatus(info.App), Version: n}
+			out := outlineOut{AppInfo: info, Payments: p.PaymentStatus(info.App), Version: n, LastChange: p.LastChange(info.App)}
 			out.Files, _ = p.RecentFiles(ctx, info.App, 30)
 			if out.Unsaved = p.UnsavedPreviewChanges(info.App); len(out.Unsaved) > 0 {
 				out.UnsavedNote = platform.UnsavedNote
@@ -521,6 +523,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 				return nil, platform.ApplyResult{}, err
 			}
 			res, err := p.ApplyChange(ctx, in.App, &in.Definition)
+			res.Note = photoNote // a definition written from scratch is where design ideas get looked up on the web
 			return nil, res, err
 		})
 

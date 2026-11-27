@@ -170,3 +170,43 @@ func TestViewPageIsShortByDefault(t *testing.T) {
 		t.Fatalf("max_chars 15000: %d", len(body))
 	}
 }
+
+// A change that drops working parts says so (barakah-distribution's v11
+// lost the map and "Optimize route" while adding something else), get_app
+// summarises what the newest version changed, and a definition written
+// from scratch gets the photo note too.
+func TestChangesListWhatTheyRemove(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "zaid@dist.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "zaid-dist"})
+	route := `<div id="map"></div><p id="km"></p><button id="optimize" onclick="optimizeRoute()">Optimize route</button>
+<form method="post" action="/my-route/visit"><button>Check in</button></form><script>function optimizeRoute() {} function drawMap() {}</script>`
+	def := map[string]any{
+		"templates": map[string]any{"route": route, "stock": "<p>stock</p>"},
+		"routes": []any{map[string]any{"method": "GET", "path": "/my-route", "template": "route"},
+			map[string]any{"method": "GET", "path": "/stock", "template": "stock"}},
+	}
+	out, errText := call(t, s, "apply_change", map[string]any{"app": "zaid-dist", "definition": def})
+	if errText != "" || out["ok"] != true || !strings.Contains(fmt.Sprint(out["note"]), "do not search the web for images") {
+		t.Fatalf("first version: %v %s", out, errText)
+	}
+	def["templates"] = map[string]any{"route": `<h1>Today's shops</h1><form method="post" action="/my-route/visit"><button>Check in</button></form>`}
+	def["routes"] = []any{map[string]any{"method": "GET", "path": "/my-route", "template": "route"}}
+	out, _ = call(t, s, "apply_change", map[string]any{"app": "zaid-dist", "definition": def})
+	removed := fmt.Sprint(out["removed"])
+	for _, want := range []string{"route GET /stock", "template stock", "element id km, map, optimize", "script function drawMap, optimizeRoute"} {
+		if !strings.Contains(removed, want) {
+			t.Errorf("removed lacks %q: %s", want, removed)
+		}
+	}
+	if strings.Contains(removed, "/my-route/visit") {
+		t.Errorf("a kept form is listed: %s", removed)
+	}
+	app, _ := call(t, s, "get_app_outline", map[string]any{"app": "zaid-dist"})
+	last, _ := app["last_change"].(map[string]any)
+	if last["version"] != float64(2) || !strings.Contains(fmt.Sprint(last["changed"]), "changed template route") || !strings.Contains(fmt.Sprint(last["removed"]), "route GET /stock") {
+		t.Fatalf("last_change: %v", app["last_change"])
+	}
+}

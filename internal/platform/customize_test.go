@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arif-rachim/renoxium/examples"
 
@@ -255,5 +256,25 @@ func TestFailedAnswersSayWhy(t *testing.T) {
 	}
 	if !logged {
 		t.Fatal("get_logs does not say why the order failed")
+	}
+}
+
+// Logs are in UTC, and an assistant reported 20:01 UTC as UAE time. Every
+// event also carries the time in the app's time zone, with its offset.
+func TestLogsHaveLocalTime(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "clock")
+	if res, err := p.ApplyChange(ctx, "clock", catalog(t)); err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	r, _ := p.TestRequest(ctx, "clock", platform.TestRequestInput{Path: "/"})
+	if len(r.Logs) == 0 || !strings.HasSuffix(r.Logs[0].LocalTime, "+04:00 Asia/Dubai") || !strings.HasSuffix(r.Logs[0].Time, "Z") {
+		t.Fatalf("test request log: %+v", r.Logs)
+	}
+	events, _ := p.Logs("clock", applog.Filter{})
+	utc, _ := time.Parse(time.RFC3339Nano, events[0].Time)
+	if want := utc.In(time.FixedZone("", 4*3600)).Format("2006-01-02 15:04:05") + " +04:00 Asia/Dubai"; events[0].LocalTime != want {
+		t.Fatalf("local_time %q, want %q", events[0].LocalTime, want)
 	}
 }

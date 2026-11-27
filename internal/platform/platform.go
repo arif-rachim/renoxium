@@ -218,6 +218,8 @@ type ApplyResult struct {
 	Migrations []string `json:"migrations,omitempty" jsonschema:"schema changes applied to the preview database"`
 	Fixed      []string `json:"fixed,omitempty" jsonschema:"mistakes in the definition the platform repaired as it saved it"`
 	Warnings   []string `json:"warnings,omitempty" jsonschema:"parts of the definition saved as written that will not work for visitors, although the checks pass; fix them before telling the user the feature works"`
+	Removed    []string `json:"removed,omitempty" jsonschema:"what the version before had and this one does not (routes, templates, scripts, element ids, form targets, script functions); if the user did not ask for that, put it back, else tell them"`
+	Note       string   `json:"note,omitempty"`
 	Checks     []Check  `json:"checks,omitempty" jsonschema:"result of rendering every GET route on preview: parameters filled from preview rows, signed-in routes as a visitor"`
 	// OwnerActions are steps only the owner can take before http.fetch works.
 	OwnerActions []string `json:"owner_actions,omitempty" jsonschema:"steps only the owner can take, signed in to Renoxium (allow hosts, enter API keys, turn on test calls for the preview). Tell the user all of them now, in this reply, each with its full link, before testing or saying the feature works"`
@@ -659,6 +661,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	res.Checks, seen = p.checkRoutesSeen(ctx, st, def)
 	res.Warnings = append(res.Warnings, unusedTemplateWarnings(prev, def, seen)...)
 	res.Warnings = append(res.Warnings, p.browserChecks(ctx, st, prev, def)...)
+	res.Removed = removedParts(prev, def)
 	for _, problem := range checkSitemap(ctx, st) {
 		res.Checks = append(res.Checks, Check{Route: "GET " + SitemapPath, Status: http.StatusInternalServerError, Error: problem})
 	}
@@ -786,7 +789,50 @@ func (p *Platform) Logs(name string, f applog.Filter) ([]applog.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	return l.Query(f)
+	events, err := l.Query(f)
+	p.localTimes(name, events)
+	return events, err
+}
+
+// localTimes fills each event's local_time in the app's time zone.
+func (p *Platform) localTimes(app string, events []applog.Event) {
+	if len(events) == 0 {
+		return
+	}
+	loc := p.appLocation(app)
+	for i := range events {
+		if t, err := time.Parse(time.RFC3339Nano, events[i].Time); err == nil {
+			events[i].LocalTime = t.In(loc).Format("2006-01-02 15:04:05 -07:00") + " " + loc.String()
+		}
+	}
+}
+
+// appLocation is the app's time zone: its scheduled jobs' time zone, else a
+// time zone in its settings row (a column named timezone or time_zone),
+// else Asia/Dubai, where the platform's apps are. Logs are kept in UTC;
+// an assistant told "20:01 UTC" said "UAE time".
+func (p *Platform) appLocation(app string) *time.Location {
+	name := "Asia/Dubai"
+	if def, _, err := p.Definition(app, 0); err == nil && def != nil {
+		if def.Brand != nil && len(def.Seed[def.Brand.Table]) > 0 {
+			for _, k := range []string{"timezone", "time_zone"} {
+				if v, ok := def.Seed[def.Brand.Table][0][k].(string); ok && v != "" {
+					name = v
+				}
+			}
+		}
+		for _, j := range def.Jobs {
+			if j.Timezone != "" {
+				name = j.Timezone
+				break
+			}
+		}
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		loc, _ = time.LoadLocation("Asia/Dubai")
+	}
+	return loc
 }
 
 func (p *Platform) log(app string) (*applog.Log, error) {

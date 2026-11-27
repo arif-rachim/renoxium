@@ -411,6 +411,7 @@ func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop,
 	if rid != "" {
 		if l, err := p.log(app); err == nil {
 			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
+				p.localTimes(app, events)
 				out.Logs = events
 			}
 		}
@@ -617,6 +618,7 @@ func (p *Platform) testJob(ctx context.Context, app, stage, name string) (TestRe
 		out.Logs = []applog.Event{}
 		if l, err := p.log(app); err == nil {
 			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
+				p.localTimes(app, events)
 				out.Logs = events
 			}
 		}
