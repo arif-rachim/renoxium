@@ -18,7 +18,7 @@ import (
 
 // Test visitors and test sessions let an agent try signed-in flows on its
 // app's preview. Both exist only on preview: visitors are rows in the
-// preview database (dropped with it on the next change), and a session's
+// preview database (kept across changes, like every preview visitor), and a session's
 // cookies are kept in memory for the preview's own hosts only.
 
 // TestVisitor is a visitor account made on preview for testing.
@@ -76,7 +76,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	if len(name) > 100 {
 		return TestVisitor{}, errors.New("name: at most 100 characters")
 	}
-	note := "Preview only: this visitor is dropped with the preview data on the next change. Call view_page or submit_form with as_visitor set to act as them."
+	note := "Preview only: the preview keeps its visitors and their sign-ins across changes, and never copies them to the live site. Call view_page or submit_form with as_visitor set to act as them."
 	var v TestVisitor
 	var e, ph sql.NullString
 	var verified sql.NullString

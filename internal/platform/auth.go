@@ -446,11 +446,12 @@ func (p *Platform) verify(w http.ResponseWriter, r *http.Request, st *stage) {
 type authData struct {
 	CSRF, Next, Email, Name, Phone, Token, Error, Title, Message, Link string
 	WhatsApp                                                           bool
+	Preview                                                            bool // the owner's private preview: no message is sent
 }
 
 func (d authData) templateData() map[string]any {
 	return map[string]any{"csrf": d.CSRF, "next": d.Next, "email": d.Email, "name": d.Name, "phone": d.Phone, "token": d.Token,
-		"error": d.Error, "title": d.Title, "message": d.Message, "link": d.Link, "whatsapp": d.WhatsApp}
+		"error": d.Error, "title": d.Title, "message": d.Message, "link": d.Link, "whatsapp": d.WhatsApp, "preview": d.Preview}
 }
 
 // authPage renders the app's auth_<page> template if it defines one, else
@@ -458,6 +459,7 @@ func (d authData) templateData() map[string]any {
 func (p *Platform) authPage(w http.ResponseWriter, r *http.Request, st *stage, status int, page string, d authData) {
 	d.CSRF = p.csrf(w, r)
 	d.WhatsApp = p.whatsappAvailable(st)
+	d.Preview = st.name == Preview && !p.IsDemo(st.app)
 	// Only the platform's own pages: an app's template here would run the
 	// owner's markup and scripts on the page where visitors type passwords.
 	if d.Link == "/" {

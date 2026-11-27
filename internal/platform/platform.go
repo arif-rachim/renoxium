@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -693,6 +694,13 @@ func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []st
 		return nil, "", err
 	}
 	prev := p.dbPath(name, Preview)
+	// People testing the preview (the owner signed in as a salesman, test
+	// visitors) stay signed in across the change: their accounts and
+	// sessions are carried to the new preview data. The platform's own
+	// check visitors are not.
+	visitors, _ := tenantdb.SaveVisitors(prev, func(email string) bool {
+		return strings.HasPrefix(email, "check-") && strings.HasSuffix(email, "@example.com")
+	})
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		os.Remove(prev + suffix)
 	}
@@ -704,6 +712,9 @@ func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []st
 	migrations, err = tenantdb.Migrate(prev, def.Tables, def.Seed)
 	if err != nil {
 		return nil, "database migration failed on preview: " + err.Error(), nil
+	}
+	if err := tenantdb.RestoreVisitors(prev, visitors); err != nil {
+		slog.Warn("keep preview visitors", "app", name, "err", err) // they sign in again
 	}
 	return migrations, "", nil
 }

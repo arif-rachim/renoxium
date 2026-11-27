@@ -475,3 +475,58 @@ func TestWhatsAppOffOnLiveWithoutConfig(t *testing.T) {
 		t.Fatalf("as WhatsApp visitor: %+v", res)
 	}
 }
+
+// The owner testing a WhatsApp sign-in on the preview: no message is sent
+// (the code is in the logs), the page says so, asking again and again is
+// not limited to 3 codes in 15 minutes, and a change to the app does not
+// sign them out.
+func TestPreviewWhatsAppSignInForTesting(t *testing.T) {
+	codes := &codeBox{codes: map[string]string{}}
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", WhatsApp: codes}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	ctx := context.Background()
+	p.CreateApp("usr_test", "club")
+	def := membersApp()
+	delete(def.Templates, "auth_login")
+	if res, err := p.ApplyChange(ctx, "club", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	v := newVisitor(t, p, "club--preview.renoxium.test")
+	var w *httptest.ResponseRecorder
+	for i := 0; i < 5; i++ {
+		w = v.submit("/_rx/auth/phone", "/_rx/auth/phone", url.Values{"phone": {"+971501234567"}, "next": {"/account"}})
+		if w.Code != 200 {
+			t.Fatalf("code %d on preview: %d %s", i+1, w.Code, w.Body.String())
+		}
+	}
+	if body := w.Body.String(); !strings.Contains(body, "no WhatsApp message is sent") || strings.Contains(body, "We sent a code") {
+		t.Fatalf("code page: %s", body)
+	}
+	if len(codes.codes) != 0 {
+		t.Fatal("the preview sent a WhatsApp message")
+	}
+	events, _ := p.Logs("club", applog.Filter{Stage: platform.Preview})
+	var code string
+	for _, e := range events {
+		if m := regexp.MustCompile(`sign-in code (\d{6}) for`).FindStringSubmatch(e.Message); m != nil && code == "" {
+			code = m[1]
+		}
+	}
+	if w := v.submit("/_rx/auth/phone", "/_rx/auth/phone/verify", url.Values{"phone": {"+971501234567"}, "code": {code}, "name": {"Salesman"}, "next": {"/account"}}); w.Code != 303 {
+		t.Fatalf("verify: %d %s", w.Code, w.Body.String())
+	}
+	signedIn := func() bool { return strings.Contains(v.do("GET", "/account", nil).Body.String(), "Salesman") }
+	if !signedIn() {
+		t.Fatal("not signed in after the code")
+	}
+	def.Scripts["account"] += "\n// v2"
+	if res, err := p.ApplyChange(ctx, "club", def); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	if !signedIn() {
+		t.Fatal("a change signed the tester out of the preview")
+	}
+}
