@@ -654,6 +654,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 	var seen map[string]bool
 	res.Checks, seen = p.checkRoutesSeen(ctx, st, def)
 	res.Warnings = append(res.Warnings, unusedTemplateWarnings(prev, def, seen)...)
+	res.Warnings = append(res.Warnings, p.browserChecks(ctx, st, prev, def)...)
 	for _, problem := range checkSitemap(ctx, st) {
 		res.Checks = append(res.Checks, Check{Route: "GET " + SitemapPath, Status: http.StatusInternalServerError, Error: problem})
 	}
