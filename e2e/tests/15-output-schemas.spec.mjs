@@ -56,6 +56,7 @@ test('structured results match the declared output schemas', async ({ browser })
       await call('submit_form', { app, path: '/', form: {}, follow_redirects: true });
       await call('upload_as_visitor', { app, path: '/', field: 'photo', file_name: 'a.png', data_base64: PNG, as_visitor: v.email });
       const file = await call('upload_file', { app, data_base64: PNG });
+      await call('clear_test_rows', { app });
       // Every optional part of the outline at once: a file used by a preview row, unsaved preview rows.
       await call('change_preview_row', { app, action: 'update', table: 'services', id: 2, values: { image: file.url } });
       await call('get_app', { app });
