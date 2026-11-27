@@ -11,6 +11,7 @@ import (
 	"github.com/arif-rachim/renoxium/examples"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
@@ -222,5 +223,37 @@ func TestPrintfTakesAnyNumber(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("checks: %+v", res.Checks)
+	}
+}
+
+// "Save order" got a bare 400 and the page showed nothing; nobody could
+// tell why. On the preview, the log line of a 4xx or 5xx the app's script
+// gave says the route, the script and what it answered, and submit_form
+// returns the same reason.
+func TestFailedAnswersSayWhy(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "orders")
+	def := catalog(t)
+	def.Scripts["order"] = `function handle(req) { if (!req.form.qty) return {status: 400, json: {error: "qty is required"}}; return {status: 422, text: ""} }`
+	def.Routes = append(def.Routes, appdef.Route{Method: "POST", Path: "/my-route/order", Script: "order"})
+	if res, err := p.ApplyChange(ctx, "orders", def); err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	r, err := p.TestRequest(ctx, "orders", platform.TestRequestInput{Method: "POST", Path: "/my-route/order", Form: map[string]string{"shop": "1"}})
+	if err != nil || r.Status != 400 || !strings.Contains(r.Reason, "route POST /my-route/order, script order") || !strings.Contains(r.Reason, "qty is required") {
+		t.Fatalf("400: %v %+v", err, r.Reason)
+	}
+	r, _ = p.TestRequest(ctx, "orders", platform.TestRequestInput{Method: "POST", Path: "/my-route/order", Form: map[string]string{"qty": "2"}})
+	if r.Status != 422 || !strings.Contains(r.Reason, "empty body") {
+		t.Fatalf("422: %+v", r.Reason)
+	}
+	events, _ := p.Logs("orders", applog.Filter{Stage: platform.Preview})
+	var logged bool
+	for _, e := range events {
+		logged = logged || strings.Contains(e.Message, "POST /my-route/order -> 400") && strings.Contains(e.Message, "qty is required")
+	}
+	if !logged {
+		t.Fatal("get_logs does not say why the order failed")
 	}
 }

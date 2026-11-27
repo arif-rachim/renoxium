@@ -201,6 +201,8 @@ func (p *Platform) handle(st *stage, r *http.Request, rid string) result {
 	msg := fmt.Sprintf("%s %s -> %d in %s", r.Method, r.URL.Path, out.status, time.Since(start).Round(time.Microsecond))
 	if out.errMsg != "" {
 		msg += ": " + out.errMsg
+	} else if out.status >= 400 && st.name == Preview {
+		msg += ": " + p.answerReason(st, r, out) // on live the answer may hold a visitor's data
 	}
 	p.event(st, "server", level, rid, msg)
 	return out
@@ -295,6 +297,33 @@ func (p *Platform) dispatch(st *stage, r *http.Request, rid string) result {
 	default:
 		return result{status: status, contentType: "text/plain; charset=utf-8", body: []byte(resp.Text)}
 	}
+}
+
+// answerReason says why a request on the preview got a 4xx or 5xx answer
+// that the app's own script gave: the route and script, and what the
+// answer says, so the log and submit_form give the reason instead of a
+// bare status.
+func (p *Platform) answerReason(st *stage, r *http.Request, out result) string {
+	where := "no route matches"
+	if route, _ := st.def.Match(r.Method, r.URL.Path); route != nil {
+		where = "route " + route.Method + " " + route.Path
+		if route.Script != "" {
+			where += ", script " + route.Script
+		}
+		if route.Auth == "user" && out.status == http.StatusUnauthorized {
+			return where + ": the route needs a signed-in visitor and the request had none (send it as_visitor, or sign in again)"
+		}
+	}
+	body := strings.TrimSpace(string(out.body))
+	if strings.HasPrefix(out.contentType, "text/html") {
+		body = "an HTML page"
+	} else if r := []rune(body); len(r) > 300 {
+		body = string(r[:297]) + "..."
+	}
+	if body == "" {
+		return where + ": the script answered " + strconv.Itoa(out.status) + " with an empty body, so the visitor sees nothing; return a reason (e.g. {status: 400, json: {error: \"...\"}}) and show it on the page"
+	}
+	return where + ": the script answered " + body
 }
 
 func failure(status int, msg string) result {

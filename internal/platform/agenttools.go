@@ -72,6 +72,8 @@ type TestResponse struct {
 	Redirects []string `json:"redirects,omitempty" jsonschema:"redirects followed, in order, as status and target"`
 	// Admin is set for test_request {admin}: the row after the change.
 	Admin *TestAdminResult `json:"admin,omitempty"`
+	// Reason is why the app answered 4xx or 5xx, as the log has it.
+	Reason string `json:"reason,omitempty" jsonschema:"for a 4xx or 5xx answer: why, as get_logs has it (the script's error, or what the script answered)"`
 	// TestRows are the preview rows this test added (table#id).
 	TestRows     []string `json:"test_rows,omitempty" jsonschema:"rows this test added to the preview's data, as table#id; remove them with clear_test_rows when you are done testing"`
 	TestRowsNote string   `json:"test_rows_note,omitempty"`
@@ -399,6 +401,15 @@ func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop,
 		if l, err := p.log(app); err == nil {
 			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
 				out.Logs = events
+			}
+		}
+	}
+	if out.Status >= 400 {
+		for _, e := range out.Logs {
+			if e.Source == "server" && strings.Contains(e.Message, fmt.Sprintf(" -> %d in ", out.Status)) {
+				if _, reason, ok := strings.Cut(e.Message, ": "); ok {
+					out.Reason = reason
+				}
 			}
 		}
 	}
