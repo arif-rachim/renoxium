@@ -18,7 +18,7 @@ import (
 
 // Test visitors and test sessions let an agent try signed-in flows on its
 // app's preview. Both exist only on preview: visitors are rows in the
-// preview database (dropped with it on the next change), and a session's
+// preview database (kept across changes, like every preview visitor), and a session's
 // cookies are kept in memory for the preview's own hosts only.
 
 // TestVisitor is a visitor account made on preview for testing.
@@ -76,7 +76,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	if len(name) > 100 {
 		return TestVisitor{}, errors.New("name: at most 100 characters")
 	}
-	note := "Preview only: this visitor is dropped with the preview data on the next change. Call view_page or submit_form with as_visitor set to act as them."
+	note := "Preview only: the preview keeps its visitors and their sign-ins across changes, and never copies them to the live site. Call view_page or submit_form with as_visitor set to act as them."
 	var v TestVisitor
 	var e, ph sql.NullString
 	var verified sql.NullString
@@ -94,7 +94,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	var total int
 	st.admin.QueryRowContext(ctx, `SELECT count(*) FROM rx_test_visitors`).Scan(&total)
 	if total >= MaxTestVisitors {
-		return TestVisitor{}, fmt.Errorf("at most %d test visitors per preview; reuse one (the next change starts the preview afresh)", MaxTestVisitors)
+		return TestVisitor{}, fmt.Errorf("at most %d test visitors per preview; reuse one, or remove them with clear_test_rows", MaxTestVisitors)
 	}
 	res, err := st.admin.ExecContext(ctx, `INSERT INTO rx_users (email, phone, name, verified_at) VALUES (?, ?, ?, ?)`,
 		nullIfEmpty(email), nullIfEmpty(phone), name, now())
@@ -103,6 +103,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	}
 	id, _ := res.LastInsertId()
 	st.admin.ExecContext(ctx, `INSERT INTO rx_test_visitors (user_id) VALUES (?)`, id)
+	p.markTestVisitor(app, id)
 	return TestVisitor{ID: id, Email: email, Phone: phone, Name: name, Verified: true, Note: note}, nil
 }
 

@@ -19,7 +19,8 @@ const (
 // Event is one log entry.
 type Event struct {
 	ID        int64  `json:"id"`
-	Time      string `json:"time"`
+	Time      string `json:"time" jsonschema:"when, in UTC (RFC 3339, ending in Z)"`
+	LocalTime string `json:"local_time,omitempty" jsonschema:"the same moment in the app's time zone, with its offset, e.g. 2026-11-29 00:01 +04:00 Asia/Dubai: use this when telling the user a time"`
 	Stage     string `json:"stage"`
 	Version   int    `json:"version"`
 	Source    string `json:"source" jsonschema:"server or browser"`

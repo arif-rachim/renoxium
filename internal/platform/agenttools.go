@@ -43,7 +43,8 @@ type TestRequestInput struct {
 	Follow  bool   `json:"follow_redirects,omitempty" jsonschema:"follow redirects (up to 8, as GET) within the preview and its sign-in host, keeping the session's cookies; the response is the last page, redirects lists the hops and logs has every hop's log"`
 
 	// Admin makes an admin panel change on preview (see TestAdminInput).
-	Admin *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
+	Admin   *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
+	MaxBody int             `json:"-"` // where the body is cut; 0: maxTestBody
 }
 
 // liveTestKey marks the context of a test_request GET to live, whose
@@ -64,7 +65,7 @@ type TestResponse struct {
 	Status      int            `json:"status"`
 	ContentType string         `json:"content_type,omitempty"`
 	Location    string         `json:"location,omitempty" jsonschema:"redirect target, not followed"`
-	Body        string         `json:"body" jsonschema:"response body without the platform's telemetry script; long <style> blocks shortened to a note of their size; cut at 20000 characters"`
+	Body        string         `json:"body" jsonschema:"response body without the platform's telemetry script; long <style> blocks shortened to a note of their size; cut at 20000 characters (view_page: 8000 unless max_chars asks for more); truncated tells when it was cut"`
 	Truncated   bool           `json:"truncated,omitempty"`
 	RequestID   string         `json:"request_id"`
 	Logs        []applog.Event `json:"logs" jsonschema:"server log events of this request, including script console output and errors"`
@@ -72,6 +73,11 @@ type TestResponse struct {
 	Redirects []string `json:"redirects,omitempty" jsonschema:"redirects followed, in order, as status and target"`
 	// Admin is set for test_request {admin}: the row after the change.
 	Admin *TestAdminResult `json:"admin,omitempty"`
+	// Reason is why the app answered 4xx or 5xx, as the log has it.
+	Reason string `json:"reason,omitempty" jsonschema:"for a 4xx or 5xx answer: why, as get_logs has it (the script's error, or what the script answered)"`
+	// TestRows are the preview rows this test added (table#id).
+	TestRows     []string `json:"test_rows,omitempty" jsonschema:"rows this test added to the preview's data, as table#id; remove them with clear_test_rows when you are done testing"`
+	TestRowsNote string   `json:"test_rows_note,omitempty"`
 	// Payment is set when the request reached the preview's checkout.
 	Payment string `json:"payment,omitempty" jsonschema:"set when this request went to a checkout: on preview it is always the simulator (no money moves, Stripe is not used), so a paid preview order says nothing about live card payments; it also says whether the owner has connected Stripe for live"`
 }
@@ -79,6 +85,9 @@ type TestResponse struct {
 // maxTestBody is where a test response's body is cut; tests that run a page's
 // last script raise it.
 var maxTestBody = 20000
+
+// maxBodyKey carries a smaller body limit asked for by the caller.
+type maxBodyKey struct{}
 
 // styleBlock matches an inline stylesheet. test_request leaves out the CSS of long ones (a design system's stylesheet can
 // fill the whole body budget) so the agent still sees the page's content.
@@ -98,8 +107,21 @@ func shortenStyles(html string) string {
 
 // TestRequest sends one request to an app stage, as a visitor would.
 func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestInput) (TestResponse, error) {
+	if (in.Stage == "" || in.Stage == Preview) && in.Admin == nil {
+		var res TestResponse
+		rows, err := p.recordTestRows(ctx, app, func() (err error) { res, err = p.testRequest(ctx, app, in); return err })
+		res.TestRows, res.TestRowsNote = rows, TestRowsNote(rows)
+		return res, err
+	}
+	return p.testRequest(ctx, app, in)
+}
+
+func (p *Platform) testRequest(ctx context.Context, app string, in TestRequestInput) (TestResponse, error) {
 	if _, err := p.Info(app); err != nil {
 		return TestResponse{}, err
+	}
+	if in.MaxBody > 0 {
+		ctx = context.WithValue(ctx, maxBodyKey{}, in.MaxBody)
 	}
 	stage := in.Stage
 	if stage == "" {
@@ -373,8 +395,12 @@ func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop,
 	} else if strings.HasPrefix(out.ContentType, "text/html") {
 		text = shortenStyles(text)
 	}
-	if len(text) > maxTestBody {
-		cut := maxTestBody
+	limit := maxTestBody
+	if n, ok := ctx.Value(maxBodyKey{}).(int); ok && n < limit {
+		limit = n
+	}
+	if len(text) > limit {
+		cut := limit
 		for cut > 0 && !utf8.RuneStart(text[cut]) {
 			cut--
 		}
@@ -385,7 +411,17 @@ func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop,
 	if rid != "" {
 		if l, err := p.log(app); err == nil {
 			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
+				p.localTimes(app, events)
 				out.Logs = events
+			}
+		}
+	}
+	if out.Status >= 400 {
+		for _, e := range out.Logs {
+			if e.Source == "server" && strings.Contains(e.Message, fmt.Sprintf(" -> %d in ", out.Status)) {
+				if _, reason, ok := strings.Cut(e.Message, ": "); ok {
+					out.Reason = reason
+				}
 			}
 		}
 	}
@@ -540,10 +576,12 @@ func (p *Platform) TryScheduledJobs(ctx context.Context, app string) ([]JobRun, 
 	}
 	out := make([]JobRun, 0, len(st.def.Jobs))
 	for _, j := range st.def.Jobs {
-		res, err := p.testJob(ctx, app, Preview, j.Name)
+		var res TestResponse
+		rows, err := p.recordTestRows(ctx, app, func() (err error) { res, err = p.testJob(ctx, app, Preview, j.Name); return err })
 		if err != nil {
 			return out, err
 		}
+		res.TestRows, res.TestRowsNote = rows, TestRowsNote(rows)
 		schedule := "every " + j.Every
 		if j.DailyAt != "" {
 			tz := j.Timezone
@@ -580,6 +618,7 @@ func (p *Platform) testJob(ctx context.Context, app, stage, name string) (TestRe
 		out.Logs = []applog.Event{}
 		if l, err := p.log(app); err == nil {
 			if events, err := l.Query(applog.Filter{RequestID: rid, Limit: 50}); err == nil {
+				p.localTimes(app, events)
 				out.Logs = events
 			}
 		}

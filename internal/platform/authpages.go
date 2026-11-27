@@ -116,6 +116,7 @@ var authText = map[string][2]string{
 	"send_code":       {"Send code", "إرسال الرمز"},
 	"enter_code":      {"Enter the code", "أدخل الرمز"},
 	"code_sent":       {"We sent a code to %s on WhatsApp. It works for 10 minutes.", "أرسلنا رمزًا إلى %s عبر واتساب. صالح لمدة 10 دقائق."},
+	"code_preview":    {"Preview: no WhatsApp message is sent to %s. Ask your assistant for the code: it is in the app's logs. It works for 10 minutes.", "معاينة: لا تُرسل رسالة واتساب إلى %s. اطلب الرمز من مساعدك: إنه في سجلات التطبيق. صالح لمدة 10 دقائق."},
 	"code":            {"Code", "الرمز"},
 	"your_name_first": {"Your name (first time only)", "اسمك (أول مرة فقط)"},
 	"new_code":        {"Send a new code", "إرسال رمز جديد"},
@@ -250,7 +251,7 @@ a{color:var(--fg);text-decoration-color:var(--muted);text-underline-offset:3px}a
 <label for="phone">{{.t.wa_number}}</label><input id="phone" name="phone" type="tel" dir="ltr" autocomplete="tel" inputmode="tel" placeholder="+971 50 123 4567" required value="{{.phone}}">
 <button>{{.t.send_code}}</button></form><div class="or">{{.t.or}}</div><a class="btn alt" href="/_rx/auth/login?next={{.next}}&amp;lang={{.lang}}">{{.t.with_email}}</a>{{template "end" .}}{{end}}
 
-{{define "phone_code"}}{{template "top" .}}<h1>{{.t.enter_code}}</h1><p class="lead">{{fill .t.code_sent .phone}}</p>{{template "error" .}}
+{{define "phone_code"}}{{template "top" .}}<h1>{{.t.enter_code}}</h1><p class="lead">{{if .preview}}{{fill .t.code_preview .phone}}{{else}}{{fill .t.code_sent .phone}}{{end}}</p>{{template "error" .}}
 <form method="post" action="/_rx/auth/phone/verify">{{template "hidden" .}}<input type="hidden" name="phone" value="{{.phone}}">
 <label for="code">{{.t.code}}</label><input id="code" class="code" name="code" dir="ltr" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
 <label for="name">{{.t.your_name_first}}</label><input id="name" name="name" autocomplete="name">

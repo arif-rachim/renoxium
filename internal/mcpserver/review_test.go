@@ -59,7 +59,7 @@ func TestWhatReviewersRead(t *testing.T) {
 		"create_app": {false, false, false}, "apply_change": {false, true, true}, "patch_app": {false, true, true},
 		"upload_file": {false, false, true}, "publish": {false, false, false},
 		"view_page": {false, false, true}, "view_live_page": {true, false, false}, "submit_form": {false, true, true},
-		"upload_as_visitor": {false, false, false}, "try_scheduled_jobs": {false, true, true}, "change_preview_row": {false, true, true},
+		"upload_as_visitor": {false, false, false}, "try_scheduled_jobs": {false, true, true}, "clear_test_rows": {false, true, false}, "change_preview_row": {false, true, true},
 		"edit_app": {false, true, true}, "create_test_visitor": {false, false, false}, "screenshot_preview": {false, false, true},
 		"rename_app": {false, false, false}, "delete_app": {false, false, false},
 	}

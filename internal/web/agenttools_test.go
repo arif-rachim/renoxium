@@ -28,12 +28,25 @@ func TestAgentTestsCRUDOnPreview(t *testing.T) {
 	if _, has := list["reference"]; has {
 		t.Error("the list of examples carries the reference")
 	}
-	if ref, _ := ex["reference"].(string); !strings.Contains(ref, "payments.checkout") {
-		t.Error("the example lacks the reference")
+	// The reference comes as its core and an index (a free plan chat fills
+	// up fast); other parts on request.
+	if ref, _ := ex["reference"].(string); !strings.Contains(ref, "App definition") || !strings.Contains(ref, "- payments (") {
+		t.Error("the example lacks the reference's core and index")
 	}
 	refOnly, _ := call(t, s, "get_example", map[string]any{"reference_only": true})
-	if ref, _ := refOnly["reference"].(string); !strings.Contains(ref, "payments.checkout") || refOnly["definition"] != nil || refOnly["examples"] != nil {
-		t.Errorf("reference_only = %v keys", len(refOnly))
+	ref, _ := refOnly["reference"].(string)
+	if len(ref) > 8000 || strings.Contains(ref, "payments.checkout") || refOnly["definition"] != nil || refOnly["examples"] != nil {
+		t.Errorf("reference_only: %d characters, %v keys", len(ref), len(refOnly))
+	}
+	pay, _ := call(t, s, "get_example", map[string]any{"reference_only": true, "reference_parts": []any{"payments", "visitor-accounts"}})
+	if ref, _ := pay["reference"].(string); !strings.Contains(ref, "payments.checkout") || !strings.Contains(ref, "/_rx/auth/login") {
+		t.Error("reference_parts did not return the parts")
+	}
+	if all, _ := call(t, s, "get_example", map[string]any{"reference_only": true, "reference_parts": []any{"all"}}); len(all["reference"].(string)) < 20000 {
+		t.Error("reference_parts [all] is not the whole reference")
+	}
+	if _, errText := call(t, s, "get_example", map[string]any{"reference_only": true, "reference_parts": []any{"paymentz"}}); !strings.Contains(errText, "visitor-accounts") {
+		t.Errorf("unknown part: %q", errText)
 	}
 	call(t, s, "create_app", map[string]any{"app": "jack-tasks"})
 	applied, _ := call(t, s, "apply_change", map[string]any{"app": "jack-tasks", "definition": ex["definition"]})

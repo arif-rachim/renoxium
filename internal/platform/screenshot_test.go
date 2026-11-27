@@ -287,3 +287,43 @@ func TestScreenshotViewportsAndLimit(t *testing.T) {
 		t.Fatal("unknown viewport accepted")
 	}
 }
+
+// A page whose script does not even parse looks fine to every server-side
+// check; /my-route was blank in a real browser while view_page said
+// "Page loaded". page_checks says so in plain words, and the change that
+// broke the page says so in its warnings, signed-in pages included.
+func TestScriptErrorsAreProblems(t *testing.T) {
+	bin := chromium(t)
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Chromium: bin, ChromiumNoSandbox: true}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "route")
+	def := catalog(t)
+	def.Templates["myroute"] = `<!doctype html><html><head><title>r</title><meta name="viewport" content="width=device-width"></head><body><div id="list"></div>
+<script>const shops = [1, 2,;
+document.getElementById("list").textContent = shops.length;</script></body></html>`
+	def.Templates["fine"] = `<!doctype html><html><head><title>f</title><meta name="viewport" content="width=device-width"></head><body><p id="x"></p><script>document.getElementById("x").textContent = "ok";</script></body></html>`
+	def.Routes = append(def.Routes, appdef.Route{Method: "GET", Path: "/my-route", Template: "myroute", Auth: "user"},
+		appdef.Route{Method: "GET", Path: "/fine", Template: "fine"})
+	res, err := p.ApplyChange(ctx, "route", def)
+	if err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	got := strings.Join(res.Warnings, "\n")
+	if !strings.Contains(got, "GET /my-route (opened in a browser): a script on this page failed") || strings.Contains(got, "/fine") {
+		t.Fatalf("change warnings:\n%s", got)
+	}
+	v, _ := p.CreateTestVisitor(ctx, "route", platform.TestVisitorInput{Name: "Salesman"})
+	r, err := p.ScreenshotPreview(ctx, "route", platform.ScreenshotInput{Path: "/my-route", AsVisitor: v.Email})
+	if err != nil || !strings.Contains(strings.Join(r.PageChecks, " "), "a script on this page failed") || !strings.Contains(strings.Join(r.PageChecks, " "), "Unexpected token") {
+		t.Fatalf("page_checks: %v %q", err, r.PageChecks)
+	}
+	// A change that does not touch the page does not open it again.
+	def.Templates["fine"] += "<!-- -->"
+	if res, _ := p.ApplyChange(ctx, "route", def); strings.Contains(strings.Join(res.Warnings, " "), "/my-route") {
+		t.Fatalf("untouched page reported: %q", res.Warnings)
+	}
+}

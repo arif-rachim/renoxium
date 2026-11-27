@@ -71,6 +71,10 @@ func (p *Platform) servePhone(w http.ResponseWriter, r *http.Request, st *stage,
 	}
 }
 
+// previewCodesPerHour is how many sign-in codes one address may ask for on
+// an owner's preview, where no message is sent.
+const previewCodesPerHour = 30
+
 func (p *Platform) sendPhoneCode(w http.ResponseWriter, r *http.Request, st *stage) {
 	next := localPath(r.PostFormValue("next"))
 	phone, ok := whatsapp.Normalize(r.PostFormValue("phone"))
@@ -80,8 +84,17 @@ func (p *Platform) sendPhoneCode(w http.ResponseWriter, r *http.Request, st *sta
 		p.authPage(w, r, st, http.StatusBadRequest, "phone", data)
 		return
 	}
-	// Every code costs a WhatsApp message: limit per visitor address and per number.
-	if !p.allow("phone-ip:"+st.app+":"+p.clientIP(r), 10, time.Hour) || !p.allowDurable("phone:"+st.app+":"+phone, 3, 15*time.Minute) {
+	// Every code costs a WhatsApp message: limit per visitor address and per
+	// number. The owner's preview sends none (the code goes to the app's
+	// logs), and the owner signs in there again and again while testing:
+	// only a generous limit per address, against abuse.
+	if st.name == Preview && !p.IsDemo(st.app) {
+		if !p.allow("phone-preview:"+st.app+":"+p.clientIP(r), previewCodesPerHour, time.Hour) {
+			data.Error = "Too many codes requested from this address. Try again in an hour."
+			p.authPage(w, r, st, http.StatusTooManyRequests, "phone", data)
+			return
+		}
+	} else if !p.allow("phone-ip:"+st.app+":"+p.clientIP(r), 10, time.Hour) || !p.allowDurable("phone:"+st.app+":"+phone, 3, 15*time.Minute) {
 		data.Error = "Too many codes requested. Try again in 15 minutes."
 		p.authPage(w, r, st, http.StatusTooManyRequests, "phone", data)
 		return

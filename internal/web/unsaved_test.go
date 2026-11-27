@@ -2,6 +2,8 @@ package web_test
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -100,5 +102,111 @@ func TestPublishLeavesPreviewData(t *testing.T) {
 	e.confirmPublish(c, pub)
 	if resp, _ := c.Get(e.base + "/apps/rana-shop"); strings.Contains(read(t, resp), "Preview data.") {
 		t.Fatal("after publishing, the app still shows preview data")
+	}
+}
+
+// The assistant's test order stays in the preview's data and made the
+// owner's own test show "Order booked for tomorrow". submit_form says
+// which rows a test added, the admin panel's preview data tags them, and
+// clear_test_rows removes them and the test visitor, but not the owner's
+// rows or the starting data.
+func TestTestRowsAreMarkedAndCleared(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "omar@dist.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "omar-dist"})
+	def := map[string]any{
+		"tables":    []any{map[string]any{"name": "orders", "columns": []any{map[string]any{"name": "shop", "type": "text"}}}},
+		"seed":      map[string]any{"orders": []any{map[string]any{"shop": "Starter row"}}},
+		"templates": map[string]any{"home": "<p>{{len .orders}} orders</p>"},
+		"scripts": map[string]any{
+			"home":  `function handle(req) { return {template: "home", data: {orders: db.query("SELECT id FROM orders")}} }`,
+			"order": `function handle(req) { db.exec("INSERT INTO orders (shop) VALUES (?)", req.form.shop); return {redirect: "/"} }`,
+		},
+		"routes": []any{map[string]any{"method": "GET", "path": "/", "script": "home"}, map[string]any{"method": "POST", "path": "/order", "script": "order"}},
+	}
+	if out, errText := call(t, s, "apply_change", map[string]any{"app": "omar-dist", "definition": def}); errText != "" || out["ok"] != true {
+		t.Fatalf("apply: %v %s", out, errText)
+	}
+	v, _ := call(t, s, "create_test_visitor", map[string]any{"app": "omar-dist", "name": "Test Salesman"})
+	out, errText := call(t, s, "submit_form", map[string]any{"app": "omar-dist", "path": "/order", "form": map[string]any{"shop": "Al Noor Grocery"}, "as_visitor": v["email"]})
+	if errText != "" || fmt.Sprint(out["test_rows"]) != "[orders#2]" || !strings.Contains(fmt.Sprint(out["test_rows_note"]), "clear_test_rows") {
+		t.Fatalf("submit_form: %v %s", out, errText)
+	}
+	// The owner's own order on the preview data is not a test row.
+	c.Get(e.base + "/apps/omar-dist/data-stage?stage=preview&back=/apps/omar-dist/t/orders")
+	if r, err := c.PostForm(e.base+"/apps/omar-dist/t/orders/new", url.Values{"csrf": {e.csrf(c, "/apps/omar-dist/t/orders/new")}, "shop": {"Owner's shop"}}); err != nil || r.StatusCode != http.StatusSeeOther {
+		t.Fatalf("owner's row: %v %v", err, r)
+	}
+	resp, _ := c.Get(e.base + "/apps/omar-dist/t/orders")
+	if page := read(t, resp); strings.Count(page, ">test</span>") != 1 {
+		t.Fatalf("admin list should tag one test row: %s", page)
+	}
+	cleared, errText := call(t, s, "clear_test_rows", map[string]any{"app": "omar-dist"})
+	if errText != "" || fmt.Sprint(cleared["removed"]) != "map[orders:1 rx_users:1]" {
+		t.Fatalf("clear: %v %s", cleared, errText)
+	}
+	home, _ := call(t, s, "view_page", map[string]any{"app": "omar-dist", "path": "/"})
+	if !strings.Contains(fmt.Sprint(home["body"]), "2 orders") {
+		t.Fatalf("after clearing, the starting row and the owner's row stay: %v", home["body"])
+	}
+}
+
+// view_page returns 8000 characters unless asked for more, so a long page
+// does not fill a free plan chat; truncated says when it was cut.
+func TestViewPageIsShortByDefault(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "hala@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "hala-shop", "from_example": "store-uae"})
+	page, _ := call(t, s, "view_page", map[string]any{"app": "hala-shop", "path": "/"})
+	if body, _ := page["body"].(string); len(body) > 8000 || page["truncated"] != true {
+		t.Fatalf("default: %d characters, truncated %v", len(body), page["truncated"])
+	}
+	more, _ := call(t, s, "view_page", map[string]any{"app": "hala-shop", "path": "/", "max_chars": 15000})
+	if body, _ := more["body"].(string); len(body) <= 8000 || len(body) > 15000 {
+		t.Fatalf("max_chars 15000: %d", len(body))
+	}
+}
+
+// A change that drops working parts says so (barakah-distribution's v11
+// lost the map and "Optimize route" while adding something else), get_app
+// summarises what the newest version changed, and a definition written
+// from scratch gets the photo note too.
+func TestChangesListWhatTheyRemove(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "zaid@dist.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "zaid-dist"})
+	route := `<div id="map"></div><p id="km"></p><button id="optimize" onclick="optimizeRoute()">Optimize route</button>
+<form method="post" action="/my-route/visit"><button>Check in</button></form><script>function optimizeRoute() {} function drawMap() {}</script>`
+	def := map[string]any{
+		"templates": map[string]any{"route": route, "stock": "<p>stock</p>"},
+		"routes": []any{map[string]any{"method": "GET", "path": "/my-route", "template": "route"},
+			map[string]any{"method": "GET", "path": "/stock", "template": "stock"}},
+	}
+	out, errText := call(t, s, "apply_change", map[string]any{"app": "zaid-dist", "definition": def})
+	if errText != "" || out["ok"] != true || !strings.Contains(fmt.Sprint(out["note"]), "do not search the web for images") {
+		t.Fatalf("first version: %v %s", out, errText)
+	}
+	def["templates"] = map[string]any{"route": `<h1>Today's shops</h1><form method="post" action="/my-route/visit"><button>Check in</button></form>`}
+	def["routes"] = []any{map[string]any{"method": "GET", "path": "/my-route", "template": "route"}}
+	out, _ = call(t, s, "apply_change", map[string]any{"app": "zaid-dist", "definition": def})
+	removed := fmt.Sprint(out["removed"])
+	for _, want := range []string{"route GET /stock", "template stock", "element id km, map, optimize", "script function drawMap, optimizeRoute"} {
+		if !strings.Contains(removed, want) {
+			t.Errorf("removed lacks %q: %s", want, removed)
+		}
+	}
+	if strings.Contains(removed, "/my-route/visit") {
+		t.Errorf("a kept form is listed: %s", removed)
+	}
+	app, _ := call(t, s, "get_app_outline", map[string]any{"app": "zaid-dist"})
+	last, _ := app["last_change"].(map[string]any)
+	if last["version"] != float64(2) || !strings.Contains(fmt.Sprint(last["changed"]), "changed template route") || !strings.Contains(fmt.Sprint(last["removed"]), "route GET /stock") {
+		t.Fatalf("last_change: %v", app["last_change"])
 	}
 }

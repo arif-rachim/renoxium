@@ -7,10 +7,12 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arif-rachim/renoxium/examples"
 
 	"github.com/arif-rachim/renoxium/internal/appdef"
+	"github.com/arif-rachim/renoxium/internal/applog"
 	"github.com/arif-rachim/renoxium/internal/platform"
 )
 
@@ -188,3 +190,91 @@ func TestEmptySeedRowsWarning(t *testing.T) {
 
 // emptySeedWarningsOf is ApplyChange's empty-row warning for a definition.
 func emptySeedWarningsOf(d *appdef.App) []string { return platform.EmptySeedWarnings(d) }
+
+// Whole numbers from rows are int64: {{printf "%.2f" .n}} printed
+// %!f(int64=34) on barakah-distribution's stock plan. printf now takes any
+// number for a number verb, and a mismatch that still reaches a page is
+// reported by the checks.
+func TestPrintfTakesAnyNumber(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "stock")
+	def := catalog(t)
+	def.Scripts["plan"] = `function handle(req) { return {template: "plan", data: {n: 34, f: 2.5, s: "7", word: "abc"}} }`
+	def.Templates["plan"] = `<p>{{printf "%.2f" .n}}|{{printf "%d" .f}}|{{printf "%.1f" .s}}|{{printf "%d%%" .n}}</p>`
+	def.Templates["oops"] = `<p>{{printf "%d" .word}}</p>`
+	def.Scripts["oops"] = `function handle(req) { return {template: "oops", data: {word: "abc"}} }`
+	def.Routes = append(def.Routes, appdef.Route{Method: "GET", Path: "/plan", Script: "plan"}, appdef.Route{Method: "GET", Path: "/oops", Script: "oops"})
+	res, err := p.ApplyChange(ctx, "stock", def)
+	if err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	page, _ := p.TestRequest(ctx, "stock", platform.TestRequestInput{Path: "/plan"})
+	if !strings.Contains(page.Body, "<p>34.00|3|7.0|34%</p>") {
+		t.Fatalf("plan: %s", page.Body)
+	}
+	var found bool
+	for _, c := range res.Checks {
+		if c.Route == "GET /oops" && strings.Contains(strings.Join(c.Warnings, " "), "a number did not format") {
+			found = true
+		}
+		if c.Route == "GET /plan" && len(c.Warnings) > 0 {
+			t.Errorf("plan warnings: %q", c.Warnings)
+		}
+	}
+	if !found {
+		t.Fatalf("checks: %+v", res.Checks)
+	}
+}
+
+// "Save order" got a bare 400 and the page showed nothing; nobody could
+// tell why. On the preview, the log line of a 4xx or 5xx the app's script
+// gave says the route, the script and what it answered, and submit_form
+// returns the same reason.
+func TestFailedAnswersSayWhy(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "orders")
+	def := catalog(t)
+	def.Scripts["order"] = `function handle(req) { if (!req.form.qty) return {status: 400, json: {error: "qty is required"}}; return {status: 422, text: ""} }`
+	def.Routes = append(def.Routes, appdef.Route{Method: "POST", Path: "/my-route/order", Script: "order"})
+	if res, err := p.ApplyChange(ctx, "orders", def); err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	r, err := p.TestRequest(ctx, "orders", platform.TestRequestInput{Method: "POST", Path: "/my-route/order", Form: map[string]string{"shop": "1"}})
+	if err != nil || r.Status != 400 || !strings.Contains(r.Reason, "route POST /my-route/order, script order") || !strings.Contains(r.Reason, "qty is required") {
+		t.Fatalf("400: %v %+v", err, r.Reason)
+	}
+	r, _ = p.TestRequest(ctx, "orders", platform.TestRequestInput{Method: "POST", Path: "/my-route/order", Form: map[string]string{"qty": "2"}})
+	if r.Status != 422 || !strings.Contains(r.Reason, "empty body") {
+		t.Fatalf("422: %+v", r.Reason)
+	}
+	events, _ := p.Logs("orders", applog.Filter{Stage: platform.Preview})
+	var logged bool
+	for _, e := range events {
+		logged = logged || strings.Contains(e.Message, "POST /my-route/order -> 400") && strings.Contains(e.Message, "qty is required")
+	}
+	if !logged {
+		t.Fatal("get_logs does not say why the order failed")
+	}
+}
+
+// Logs are in UTC, and an assistant reported 20:01 UTC as UAE time. Every
+// event also carries the time in the app's time zone, with its offset.
+func TestLogsHaveLocalTime(t *testing.T) {
+	p := newPlatform(t)
+	ctx := context.Background()
+	p.CreateApp("usr_test", "clock")
+	if res, err := p.ApplyChange(ctx, "clock", catalog(t)); err != nil || !res.OK {
+		t.Fatal(err, res.Problems)
+	}
+	r, _ := p.TestRequest(ctx, "clock", platform.TestRequestInput{Path: "/"})
+	if len(r.Logs) == 0 || !strings.HasSuffix(r.Logs[0].LocalTime, "+04:00 Asia/Dubai") || !strings.HasSuffix(r.Logs[0].Time, "Z") {
+		t.Fatalf("test request log: %+v", r.Logs)
+	}
+	events, _ := p.Logs("clock", applog.Filter{})
+	utc, _ := time.Parse(time.RFC3339Nano, events[0].Time)
+	if want := utc.In(time.FixedZone("", 4*3600)).Format("2006-01-02 15:04:05") + " +04:00 Asia/Dubai"; events[0].LocalTime != want {
+		t.Fatalf("local_time %q, want %q", events[0].LocalTime, want)
+	}
+}

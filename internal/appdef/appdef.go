@@ -529,7 +529,7 @@ func (a *App) Validate() []string {
 // ParseTemplates builds one template set containing every named template,
 // so templates can include each other with {{template "name" .}}.
 func (a *App) ParseTemplates() (*template.Template, error) {
-	root := template.New("")
+	root := template.New("").Funcs(Funcs)
 	names := make([]string, 0, len(a.Templates))
 	for n := range a.Templates {
 		names = append(names, n)
