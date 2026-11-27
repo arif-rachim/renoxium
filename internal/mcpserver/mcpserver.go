@@ -31,7 +31,7 @@ Every action is one of these tools; there are no other operations:
 - read only: list_apps, get_app, get_app_outline, get_app_parts, get_example, get_logs, view_live_page
 - change the user's apps: create_app, apply_change, patch_app, edit_app, upload_file, publish, rename_app, delete_app
 - test on the private preview: view_page, submit_form, upload_as_visitor, create_test_visitor, screenshot_preview,
-  try_scheduled_jobs, change_preview_row
+  try_scheduled_jobs, change_preview_row, clear_test_rows
 
 How to work:
 1. Ask only what the business needs: name, what it sells or offers, prices, delivery fee, WhatsApp, language.
@@ -50,7 +50,8 @@ How to work:
 5. Changes reach only the private preview: show the user its preview_url. Test with view_page, submit_form
    (follow_redirects true) and screenshot_preview (create_test_visitor for signed-in pages); read get_logs when
    something is wrong. Never say something works while warnings, page_checks, a script error in browser_log,
-   blocked_hosts, owner_actions or a simulated payment say otherwise.
+   blocked_hosts, owner_actions or a simulated payment say otherwise. When done testing, call clear_test_rows, so
+   your test orders and visits do not get in the owner's way.
 6. Tell the user every owner_actions step and get_app's payments note at once. Write each link the user must open as
    a full URL. Name the app in every summary, so a new chat can go on.
 7. publish, rename_app and delete_app change nothing: they return confirm_url, and only the user, signed in to
@@ -811,6 +812,16 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	type jobsOut struct {
 		Runs []platform.JobRun `json:"runs" jsonschema:"one entry per scheduled job, in the order the definition lists them: its result and its log"`
 	}
+	addTool(s, &mcp.Tool{Name: "clear_test_rows", Title: toolAnnotations["clear_test_rows"].Title, Annotations: toolAnnotations["clear_test_rows"],
+		Description: "Remove from the app's private preview the rows your tests added (orders from submit_form, visits page scripts recorded, rows jobs made) and the accounts create_test_visitor made, so they do not get in the way when the owner tests: a test order can make a shop look already ordered, test counts can make totals wrong. Rows of the business's data, the owner's own test rows and the live site are not touched. Call it when you are done testing, before you give the preview to the owner."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in appName) (*mcp.CallToolResult, platform.ClearedTestRows, error) {
+			if err := owns(p, req, in.App); err != nil {
+				return nil, platform.ClearedTestRows{}, err
+			}
+			out, err := p.ClearTestRows(ctx, in.App)
+			return nil, out, err
+		})
+
 	addTool(s, &mcp.Tool{Name: "try_scheduled_jobs", Title: toolAnnotations["try_scheduled_jobs"].Title, Annotations: toolAnnotations["try_scheduled_jobs"],
 		Description: "Try the user's app's scheduled jobs on its private preview, to see that they work before publishing (a daily report, a reminder, cancelling unpaid orders): every job listed in the app's saved definition runs once, in the order listed, as its schedule would run it on the live site. It takes only the app: no job name, code or command. The jobs may add, change or delete preview data; the preview data is discarded on the next change and nothing on the live site is modified. Returns each job's result and log."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in appName) (*mcp.CallToolResult, jobsOut, error) {
@@ -997,6 +1008,7 @@ var toolAnnotations = map[string]*mcp.ToolAnnotations{
 	"create_test_visitor": write("Add a test visitor to the preview", false, false, false),
 	"screenshot_preview":  write("See a preview page", false, true, true),
 	"try_scheduled_jobs":  write("Try the scheduled jobs on the preview", true, false, true),
+	"clear_test_rows":     write("Remove the test rows from the preview", true, true, false),
 	"change_preview_row":  write("Change a preview row as the owner", true, false, true),
 	"publish":             write("Ask to publish a version (the user confirms)", false, true, false),
 	"rename_app":          write("Ask to rename an app (the user confirms)", false, true, false),

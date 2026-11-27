@@ -403,6 +403,7 @@ type cell struct {
 type listRow struct {
 	ID    int64
 	Cells []cell
+	Test  bool // the assistant's test row, in preview data
 }
 
 // defaultColumns picks what a table shows before the owner chooses: up to
@@ -524,9 +525,14 @@ func (s *Site) adminList(w http.ResponseWriter, r *http.Request) {
 	if info, err := s.platform.Info(app); err == nil {
 		liveURL = info.LiveURL
 	}
+	var tests map[int64]bool
+	if platform.PreviewData(r.Context()) {
+		tests = s.platform.TestRowIDs(app, table)
+	}
 	var list []listRow
 	for _, row := range rows {
 		lr := listRow{ID: row["id"].(int64)}
+		lr.Test = tests[lr.ID]
 		for i, c := range cols[1:] {
 			ce := cell{Label: c.Label, Title: i == 0}
 			switch types[c.Name] {

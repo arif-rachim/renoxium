@@ -370,6 +370,9 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	if err := pl.initPreviewEdits(); err != nil {
 		return nil, err
 	}
+	if err := pl.initTestRows(); err != nil {
+		return nil, err
+	}
 	if err := pl.ensureLimitTable(); err != nil {
 		db.Close()
 		return nil, err
@@ -687,6 +690,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []string, problem string, err error) {
 	p.dropStage(name, Preview)
 	p.DiscardPreviewChanges(name) // the preview's own edits go with its data
+	p.forgetTestRows(name)
 	p.dropTestSessions(name)
 	// Preview uploads belong to the throwaway preview data; they are never
 	// copied to or from live.

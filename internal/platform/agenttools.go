@@ -72,6 +72,9 @@ type TestResponse struct {
 	Redirects []string `json:"redirects,omitempty" jsonschema:"redirects followed, in order, as status and target"`
 	// Admin is set for test_request {admin}: the row after the change.
 	Admin *TestAdminResult `json:"admin,omitempty"`
+	// TestRows are the preview rows this test added (table#id).
+	TestRows     []string `json:"test_rows,omitempty" jsonschema:"rows this test added to the preview's data, as table#id; remove them with clear_test_rows when you are done testing"`
+	TestRowsNote string   `json:"test_rows_note,omitempty"`
 	// Payment is set when the request reached the preview's checkout.
 	Payment string `json:"payment,omitempty" jsonschema:"set when this request went to a checkout: on preview it is always the simulator (no money moves, Stripe is not used), so a paid preview order says nothing about live card payments; it also says whether the owner has connected Stripe for live"`
 }
@@ -98,6 +101,16 @@ func shortenStyles(html string) string {
 
 // TestRequest sends one request to an app stage, as a visitor would.
 func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestInput) (TestResponse, error) {
+	if (in.Stage == "" || in.Stage == Preview) && in.Admin == nil {
+		var res TestResponse
+		rows, err := p.recordTestRows(ctx, app, func() (err error) { res, err = p.testRequest(ctx, app, in); return err })
+		res.TestRows, res.TestRowsNote = rows, TestRowsNote(rows)
+		return res, err
+	}
+	return p.testRequest(ctx, app, in)
+}
+
+func (p *Platform) testRequest(ctx context.Context, app string, in TestRequestInput) (TestResponse, error) {
 	if _, err := p.Info(app); err != nil {
 		return TestResponse{}, err
 	}
@@ -540,10 +553,12 @@ func (p *Platform) TryScheduledJobs(ctx context.Context, app string) ([]JobRun, 
 	}
 	out := make([]JobRun, 0, len(st.def.Jobs))
 	for _, j := range st.def.Jobs {
-		res, err := p.testJob(ctx, app, Preview, j.Name)
+		var res TestResponse
+		rows, err := p.recordTestRows(ctx, app, func() (err error) { res, err = p.testJob(ctx, app, Preview, j.Name); return err })
 		if err != nil {
 			return out, err
 		}
+		res.TestRows, res.TestRowsNote = rows, TestRowsNote(rows)
 		schedule := "every " + j.Every
 		if j.DailyAt != "" {
 			tz := j.Timezone

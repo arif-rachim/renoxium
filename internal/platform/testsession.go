@@ -94,7 +94,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	var total int
 	st.admin.QueryRowContext(ctx, `SELECT count(*) FROM rx_test_visitors`).Scan(&total)
 	if total >= MaxTestVisitors {
-		return TestVisitor{}, fmt.Errorf("at most %d test visitors per preview; reuse one (the next change starts the preview afresh)", MaxTestVisitors)
+		return TestVisitor{}, fmt.Errorf("at most %d test visitors per preview; reuse one, or remove them with clear_test_rows", MaxTestVisitors)
 	}
 	res, err := st.admin.ExecContext(ctx, `INSERT INTO rx_users (email, phone, name, verified_at) VALUES (?, ?, ?, ?)`,
 		nullIfEmpty(email), nullIfEmpty(phone), name, now())
@@ -103,6 +103,7 @@ func (p *Platform) CreateTestVisitor(ctx context.Context, app string, in TestVis
 	}
 	id, _ := res.LastInsertId()
 	st.admin.ExecContext(ctx, `INSERT INTO rx_test_visitors (user_id) VALUES (?)`, id)
+	p.markTestVisitor(app, id)
 	return TestVisitor{ID: id, Email: email, Phone: phone, Name: name, Verified: true, Note: note}, nil
 }
 
