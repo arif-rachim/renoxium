@@ -194,7 +194,7 @@ type AppInfo struct {
 	LiveVersion    int    `json:"live_version" jsonschema:"version currently served on live_url; 0 means not published yet"`
 	PreviewVersion int    `json:"preview_version" jsonschema:"version currently served on preview_url; 0 means nothing applied yet"`
 	LiveURL        string `json:"live_url"`
-	PreviewURL     string `json:"preview_url" jsonschema:"opens the private preview for the owner; add a page path to open that page, e.g. <preview_url>/queue"`
+	PreviewURL     string `json:"preview_url" jsonschema:"the link to give the user: it opens the private preview for the owner signed in to Renoxium; add a page path to open that page, e.g. <preview_url>/queue. Never give the preview's own address (<app>--preview...): it answers 403 to a browser that did not come through this link"`
 }
 
 // Check is the result of rendering one route during ApplyChange.
@@ -366,6 +366,9 @@ func New(cfg Config, sb sandbox.Sandbox) (*Platform, error) {
 	if _, err := db.Exec(renameSchema); err != nil {
 		return nil, err
 	}
+	if err := pl.initPreviewEdits(); err != nil {
+		return nil, err
+	}
 	if err := pl.ensureLimitTable(); err != nil {
 		db.Close()
 		return nil, err
@@ -440,6 +443,16 @@ func (p *Platform) previewURL(app string) string {
 		return p.cfg.SiteURL + "/apps/" + app + "/preview"
 	}
 	return p.URL(app, Preview)
+}
+
+// previewPageURL is previewURL for one page of the preview (path with an
+// optional query): through the owner's dashboard when previews are private,
+// since the preview's own address answers 403 to a browser without access.
+func (p *Platform) previewPageURL(app, path string) string {
+	if path == "" || path == "/" {
+		return p.previewURL(app)
+	}
+	return p.previewURL(app) + path
 }
 
 // URL is the public address of an app stage.
@@ -600,6 +613,8 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 
 	p.change.Lock()
 	defer p.change.Unlock()
+	prev, _, _ := p.Definition(name, 0)  // to tell which templates this change touches
+	emptySeeds := emptySeedWarnings(def) // before the preview is seeded from def
 
 	// Build the preview database first; a failed migration leaves no new version.
 	migrations, problem, err := p.rebuildPreview(name, def)
@@ -631,12 +646,14 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 
 	p.db.Exec(`DELETE FROM versions WHERE app = ? AND n <= ? AND n != (SELECT live_version FROM apps WHERE name = ?)`, name, n-keepVersions, name)
 	res := ApplyResult{OK: true, Version: n, PreviewURL: p.previewURL(name), Migrations: migrations, Fixed: fixed,
-		Warnings: p.browserFetchWarnings(name, def)}
+		Warnings: append(p.browserFetchWarnings(name, def), emptySeeds...)}
 	st, err := p.loadStage(name, Preview)
 	if err != nil {
 		return res, err
 	}
-	res.Checks = p.checkRoutes(ctx, st, def)
+	var seen map[string]bool
+	res.Checks, seen = p.checkRoutesSeen(ctx, st, def)
+	res.Warnings = append(res.Warnings, unusedTemplateWarnings(prev, def, seen)...)
 	for _, problem := range checkSitemap(ctx, st) {
 		res.Checks = append(res.Checks, Check{Route: "GET " + SitemapPath, Status: http.StatusInternalServerError, Error: problem})
 	}
@@ -667,6 +684,7 @@ func (p *Platform) ApplyChange(ctx context.Context, name string, def *appdef.App
 // included. problem explains a failed migration. The caller holds p.change.
 func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []string, problem string, err error) {
 	p.dropStage(name, Preview)
+	p.DiscardPreviewChanges(name) // the preview's own edits go with its data
 	p.dropTestSessions(name)
 	// Preview uploads belong to the throwaway preview data; they are never
 	// copied to or from live.

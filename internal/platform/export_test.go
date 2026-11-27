@@ -3,6 +3,7 @@ package platform
 import (
 	"bytes"
 	"fmt"
+	"github.com/arif-rachim/renoxium/internal/appdef"
 	"testing"
 	"time"
 )
@@ -172,3 +173,6 @@ func UseWhatsApp(p *Platform, owner string, n int) {
 		p.addUsage(owner, "whatsapp")
 	}
 }
+
+// EmptySeedWarnings is emptySeedWarnings, for tests.
+func EmptySeedWarnings(def *appdef.App) []string { return emptySeedWarnings(def) }

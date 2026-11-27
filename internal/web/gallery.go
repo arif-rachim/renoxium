@@ -243,7 +243,7 @@ func (s *Site) useTemplate(w http.ResponseWriter, r *http.Request) {
 		if i > 1 {
 			name = strings.TrimRight(base[:min(len(base), 37)], "-") + "-" + strconv.Itoa(i)
 		}
-		if _, _, err = s.platform.CreateFromTemplate(r.Context(), u.ID, name, card.Name, business); err == nil ||
+		if _, _, err = s.platform.CreateCustomized(r.Context(), u.ID, name, card.Name, platform.Customize{Business: business, ForBusiness: true}); err == nil ||
 			!(strings.Contains(err.Error(), "already taken") || strings.Contains(err.Error(), "UNIQUE") || strings.Contains(err.Error(), "reserved")) {
 			break
 		}

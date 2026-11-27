@@ -68,6 +68,10 @@ func TestScreenshotPreview(t *testing.T) {
 	if home.Status != 200 || home.Width != 390 || home.Height != 844 {
 		t.Fatalf("home: %+v", home)
 	}
+	// The url opens for the owner; the preview's own host would answer 403.
+	if r := shot(platform.ScreenshotInput{Path: "/s/1?lang=ar"}); !strings.HasSuffix(r.URL, "/apps/bayti/preview/s/1?lang=ar") || strings.Contains(r.URL, "--preview") {
+		t.Fatalf("url: %s", r.URL)
+	}
 	full := shot(platform.ScreenshotInput{Path: "/s/1", FullPage: true})
 	if full.Status != 200 || full.Height <= 844 {
 		t.Fatalf("full service page: %d %dx%d %v", full.Status, full.Width, full.Height, full.BrowserLog)
@@ -247,5 +251,39 @@ func TestUnsandboxedChromiumIsRefused(t *testing.T) {
 	}
 	if _, err := p.ScreenshotPreview(ctx, "noor", platform.ScreenshotInput{Path: "/"}); err == nil || !strings.Contains(err.Error(), "screenshot helper") {
 		t.Fatalf("unsandboxed browser started in the platform's process: %v", err)
+	}
+}
+
+// Three viewports are one call that counts once; when the limit is
+// reached, the error says when to try again, and refused calls are not
+// counted.
+func TestScreenshotViewportsAndLimit(t *testing.T) {
+	bin := chromium(t)
+	p, err := platform.New(platform.Config{DataDir: t.TempDir(), AppsDomain: "renoxium.test", PublicScheme: "https", Chromium: bin, ChromiumNoSandbox: true}, sandbox.NewGoja())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	ctx := context.Background()
+	if _, res, err := p.CreateFromExample(ctx, "usr_test", "shots", "booking-uae"); err != nil || !res.OK {
+		t.Fatal(err, res)
+	}
+	r, err := p.ScreenshotPreview(ctx, "shots", platform.ScreenshotInput{Path: "/", Viewports: []string{"mobile", "tablet", "desktop"}})
+	if err != nil || len(r.PNGs) != 3 || len(r.Viewports) != 3 || r.Viewports[2].Width != 1366 || r.Viewports[1].Width != 820 {
+		t.Fatalf("viewports: %v %d %+v", err, len(r.PNGs), r.Viewports)
+	}
+	for i := 1; i < 10; i++ { // the viewports call was the first of 10
+		if _, err := p.ScreenshotPreview(ctx, "shots", platform.ScreenshotInput{Path: "/"}); err != nil {
+			t.Fatalf("shot %d: %v", i+1, err)
+		}
+	}
+	for i := 0; i < 2; i++ {
+		_, err := p.ScreenshotPreview(ctx, "shots", platform.ScreenshotInput{Path: "/"})
+		if err == nil || !strings.Contains(err.Error(), "try again in") || !strings.Contains(err.Error(), "viewports") {
+			t.Fatalf("over the limit: %v", err)
+		}
+	}
+	if _, err := p.ScreenshotPreview(ctx, "shots", platform.ScreenshotInput{Path: "/", Viewports: []string{"watch"}}); err == nil {
+		t.Fatal("unknown viewport accepted")
 	}
 }

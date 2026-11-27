@@ -57,7 +57,7 @@ func (p *Platform) DeleteApp(app string) error {
 	for _, stmt := range []string{
 		`DELETE FROM versions WHERE app = ?`, `DELETE FROM domains WHERE app = ?`, `DELETE FROM payment_accounts WHERE app = ?`,
 		`DELETE FROM app_files WHERE app = ?`, `DELETE FROM app_staff WHERE app = ?`, `DELETE FROM owner_alerts WHERE app = ?`, `DELETE FROM job_runs WHERE app = ?`, `DELETE FROM app_hosts WHERE app = ?`,
-		`DELETE FROM app_secrets WHERE app = ?`, `DELETE FROM private_files WHERE app = ?`,
+		`DELETE FROM app_secrets WHERE app = ?`, `DELETE FROM private_files WHERE app = ?`, `DELETE FROM preview_edits WHERE app = ?`,
 		`DELETE FROM apps WHERE name = ?`,
 	} {
 		if _, err := tx.Exec(stmt, app); err != nil {

@@ -66,8 +66,10 @@ func (s *Site) publishForm(w http.ResponseWriter, r *http.Request) {
 	if pl.Problem == "" {
 		pl.Ready = true
 	}
-	render(w, http.StatusOK, "publish", map[string]any{"Shell": s.shell(r, u, app, "Publish", "", false), "Info": info, "Version": version, "CSRF": s.csrfToken(w, r),
-		"Rollback": version < info.LiveVersion, "Plan": pl})
+	sh := s.shell(r, u, app, "Publish", "", false)
+	sh.PreviewData = false // the page is about what goes live, not the preview's test data
+	render(w, http.StatusOK, "publish", map[string]any{"Shell": sh, "Info": info, "Version": version, "CSRF": s.csrfToken(w, r),
+		"Rollback": version < info.LiveVersion, "Plan": pl, "Unsaved": platform.UnsavedSummary(s.platform.UnsavedPreviewChanges(app))})
 }
 
 func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
@@ -90,6 +92,8 @@ func (s *Site) publishConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.platform.Note(app, fmt.Sprintf("%s published version %d", u.Email, version))
+	// Just published: the owner now looks at live data, not the preview's.
+	http.SetCookie(w, &http.Cookie{Name: previewDataCookie, Path: "/apps/" + app, MaxAge: -1, HttpOnly: true, Secure: s.secure, SameSite: http.SameSiteLaxMode})
 	render(w, http.StatusOK, "notice", map[string]any{"Signed": true, "Title": "Published", "Message": fmt.Sprintf("Version %d is live at %s.", res.LiveVersion, res.LiveURL),
 		"Link": res.LiveURL, "LinkText": "Open the live site", "Back": "/apps/" + app})
 }

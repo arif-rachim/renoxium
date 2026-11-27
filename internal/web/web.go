@@ -1158,6 +1158,7 @@ Next: connect your AI assistant and ask it to change the names, prices and photo
 <p>Your agent asked to make version {{.Version}} of <strong>{{.Info.App}}</strong> live at <a href="{{.Info.LiveURL}}">{{.Info.LiveURL}}</a>.</p>
 <p class="muted">Live now: {{if .Info.LiveVersion}}version {{.Info.LiveVersion}}{{else}}nothing yet{{end}}. <a href="/apps/{{.Info.App}}/preview">Check the preview</a> first if you have not.</p>
 <p class="muted">Live data is backed up before the change.</p>
+{{with .Unsaved}}<p class="flash bad" role="status"><strong>Not in this version:</strong> these rows were changed only in the preview's test data and will not go live: {{.}}. Ask your assistant to save them in the app first.</p>{{end}}
 {{if .Plan.Ready}}<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
 <button>{{if .Rollback}}Roll back{{else}}Publish{{end}}</button>{{else}}<p class="flash" role="status">Before it goes live, choose how this app is paid for.</p>
 <a class="button" href="/apps/{{.Info.App}}/plan">Choose a plan</a>{{end}}</form>{{template "appbottom"}}{{end}}

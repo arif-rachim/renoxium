@@ -34,7 +34,9 @@ func TestWhatReviewersRead(t *testing.T) {
 		t.Errorf("instructions are %d characters; the reference belongs in get_example", len(instr))
 	}
 	const idRule = "Never ask users for government-issued ID numbers or ID documents (passport, Emirates ID, driver's licence, visa)."
-	for _, want := range []string{idRule, "there are no other operations", "You never execute them"} {
+	for _, want := range []string{idRule, "there are no other operations", "You never execute them",
+		// Ask about an existing app only when it does the same job for the same business.
+		"same business and same kind of app", "Otherwise create the new app without asking"} {
 		if !strings.Contains(instr, want) {
 			t.Errorf("instructions lack %q", want)
 		}
@@ -76,6 +78,14 @@ func TestWhatReviewersRead(t *testing.T) {
 		json.Unmarshal(b, &schema)
 		checkSchema(t, tool.Name, schema)
 		checkTyped(t, tool.Name, schema)
+		// Results may gain fields: clients that keep an older tool list
+		// must not reject them ("Structured content does not match").
+		if tool.OutputSchema != nil {
+			out, _ := json.Marshal(tool.OutputSchema)
+			if strings.Contains(string(out), `"additionalProperties":false`) {
+				t.Errorf("%s: its output schema refuses fields added later", tool.Name)
+			}
+		}
 	}
 	// What a visitor does is one tool per operation: none takes an HTTP
 	// method, a stage or a command that would choose the operation.

@@ -228,9 +228,16 @@ func (p *Platform) adminSave(ctx context.Context, st *stage, t appdef.Table, id 
 			return 0, nil, friendly(err)
 		}
 		p.event(st, "admin", "info", rid, fmt.Sprintf("%s added %s #%d", by, t.Name, newID))
+		if tracksPreviewEdit(st, t) {
+			p.notePreviewEdit(st, t, newID, "insert", nil, p.rowOf(ctx, st, t, newID))
+		}
 		return newID, p.afterAdminChange(ctx, st, t, "insert", newID, nil, by, rid), nil
 	}
 	before := p.hookRow(ctx, st, t, id)
+	var was map[string]any
+	if tracksPreviewEdit(st, t) {
+		was = p.rowOf(ctx, st, t, id)
+	}
 	sets := make([]string, len(cols))
 	for i, q := range quoted {
 		sets[i] = q + " = ?"
@@ -243,6 +250,9 @@ func (p *Platform) adminSave(ctx context.Context, st *stage, t appdef.Table, id 
 		return 0, nil, fmt.Errorf("row %d: %w", id, ErrNotFound)
 	}
 	p.event(st, "admin", "info", rid, fmt.Sprintf("%s changed %s #%d", by, t.Name, id))
+	if was != nil {
+		p.notePreviewEdit(st, t, id, "update", was, p.rowOf(ctx, st, t, id))
+	}
 	return id, p.afterAdminChange(ctx, st, t, "update", id, before, by, rid), nil
 }
 
@@ -266,6 +276,7 @@ func (p *Platform) adminDelete(ctx context.Context, st *stage, t appdef.Table, i
 		return nil, fmt.Errorf("row %d: %w", id, ErrNotFound)
 	}
 	p.event(st, "admin", "warn", rid, fmt.Sprintf("%s deleted %s #%d", by, t.Name, id))
+	p.notePreviewEdit(st, t, id, "delete", nil, nil)
 	return p.afterAdminChange(ctx, st, t, "delete", id, before, by, rid), nil
 }
 
