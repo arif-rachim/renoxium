@@ -86,16 +86,24 @@ func TestVisitorsAndSessionsOnPreview(t *testing.T) {
 		}
 	}
 
-	// The next change starts the preview afresh: visitors and sessions are gone.
+	// The next change rebuilds the preview's data but keeps its visitors,
+	// so people testing it stay signed in; the assistant's cookie jars
+	// (sessions) start afresh, and clear_test_rows removes test visitors.
 	def, n, _ := p.Definition("bayti", 0)
 	if res, _ := p.ApplyChange(ctx, "bayti", def); !res.OK || res.Version != n+1 {
 		t.Fatal("reapply")
 	}
-	if _, err := p.TestRequest(ctx, "bayti", platform.TestRequestInput{Path: "/bookings", UserEmail: v.Email}); err == nil {
-		t.Fatal("test visitor survived a change")
+	if _, err := p.TestRequest(ctx, "bayti", platform.TestRequestInput{Path: "/bookings", UserEmail: v.Email}); err != nil {
+		t.Fatalf("test visitor lost in a change: %v", err)
 	}
 	if r, _ := p.TestRequest(ctx, "bayti", platform.TestRequestInput{Path: "/bookings", Session: "s1"}); r.Status != 303 {
-		t.Fatalf("session survived a change: %d", r.Status)
+		t.Fatalf("cookie jar survived a change: %d", r.Status)
+	}
+	if _, err := p.ClearTestRows(ctx, "bayti"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.TestRequest(ctx, "bayti", platform.TestRequestInput{Path: "/bookings", UserEmail: v.Email}); err == nil {
+		t.Fatal("test visitor survived clear_test_rows")
 	}
 }
 

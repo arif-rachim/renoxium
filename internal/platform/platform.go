@@ -702,9 +702,13 @@ func (p *Platform) rebuildPreview(name string, def *appdef.App) (migrations []st
 	// visitors) stay signed in across the change: their accounts and
 	// sessions are carried to the new preview data. The platform's own
 	// check visitors are not.
-	visitors, _ := tenantdb.SaveVisitors(prev, func(email string) bool {
-		return strings.HasPrefix(email, "check-") && strings.HasSuffix(email, "@example.com")
-	})
+	// A template demo is public and shared: its reset signs everyone out.
+	var visitors []tenantdb.Visitor
+	if !p.IsDemo(name) {
+		visitors, _ = tenantdb.SaveVisitors(prev, func(email string) bool {
+			return strings.HasPrefix(email, "check-") && strings.HasSuffix(email, "@example.com")
+		})
+	}
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		os.Remove(prev + suffix)
 	}
