@@ -43,7 +43,8 @@ type TestRequestInput struct {
 	Follow  bool   `json:"follow_redirects,omitempty" jsonschema:"follow redirects (up to 8, as GET) within the preview and its sign-in host, keeping the session's cookies; the response is the last page, redirects lists the hops and logs has every hop's log"`
 
 	// Admin makes an admin panel change on preview (see TestAdminInput).
-	Admin *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
+	Admin   *TestAdminInput `json:"admin,omitempty" jsonschema:"instead of a request, add, change or delete a preview row as the owner would in the admin panel (same checks), then run on_admin_change; path is then ignored"`
+	MaxBody int             `json:"-"` // where the body is cut; 0: maxTestBody
 }
 
 // liveTestKey marks the context of a test_request GET to live, whose
@@ -64,7 +65,7 @@ type TestResponse struct {
 	Status      int            `json:"status"`
 	ContentType string         `json:"content_type,omitempty"`
 	Location    string         `json:"location,omitempty" jsonschema:"redirect target, not followed"`
-	Body        string         `json:"body" jsonschema:"response body without the platform's telemetry script; long <style> blocks shortened to a note of their size; cut at 20000 characters"`
+	Body        string         `json:"body" jsonschema:"response body without the platform's telemetry script; long <style> blocks shortened to a note of their size; cut at 20000 characters (view_page: 8000 unless max_chars asks for more); truncated tells when it was cut"`
 	Truncated   bool           `json:"truncated,omitempty"`
 	RequestID   string         `json:"request_id"`
 	Logs        []applog.Event `json:"logs" jsonschema:"server log events of this request, including script console output and errors"`
@@ -84,6 +85,9 @@ type TestResponse struct {
 // maxTestBody is where a test response's body is cut; tests that run a page's
 // last script raise it.
 var maxTestBody = 20000
+
+// maxBodyKey carries a smaller body limit asked for by the caller.
+type maxBodyKey struct{}
 
 // styleBlock matches an inline stylesheet. test_request leaves out the CSS of long ones (a design system's stylesheet can
 // fill the whole body budget) so the agent still sees the page's content.
@@ -115,6 +119,9 @@ func (p *Platform) TestRequest(ctx context.Context, app string, in TestRequestIn
 func (p *Platform) testRequest(ctx context.Context, app string, in TestRequestInput) (TestResponse, error) {
 	if _, err := p.Info(app); err != nil {
 		return TestResponse{}, err
+	}
+	if in.MaxBody > 0 {
+		ctx = context.WithValue(ctx, maxBodyKey{}, in.MaxBody)
 	}
 	stage := in.Stage
 	if stage == "" {
@@ -388,8 +395,12 @@ func (p *Platform) testSend(ctx context.Context, app, stage string, hop testHop,
 	} else if strings.HasPrefix(out.ContentType, "text/html") {
 		text = shortenStyles(text)
 	}
-	if len(text) > maxTestBody {
-		cut := maxTestBody
+	limit := maxTestBody
+	if n, ok := ctx.Value(maxBodyKey{}).(int); ok && n < limit {
+		limit = n
+	}
+	if len(text) > limit {
+		cut := limit
 		for cut > 0 && !utf8.RuneStart(text[cut]) {
 			cut--
 		}

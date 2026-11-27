@@ -42,7 +42,8 @@ How to work:
    business, settings, rows, check: true}: one call makes the app with the user's data and checks its home page.
    If none fits, write a definition from scratch (get_example with reference_only true; start from tasks or catalog),
    using the built-in visitor accounts, payments and emails.
-4. Changing an app: read the reference once (get_example with reference_only true) and the definition in parts
+4. Changing an app: read the reference once (get_example with reference_only true: its core and an index; ask for
+   the parts you need with reference_parts) and the definition in parts
    (get_app_outline, get_app_parts); change it with edit_app or patch_app (apply_change only for a definition
    written from scratch). Brand colour, font and logo go in the settings row; restyle in css_extra, not css.
    Data the owner wants live (services, staff, prices, photos) goes in seed rows; change_preview_row is test data.
@@ -439,7 +440,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		def, n, err := p.Definition(app, version)
 		return info, def, n, err
 	}
-	addTool(s, &mcp.Tool{Name: "get_app", Title: toolAnnotations["get_app"].Title, Annotations: toolAnnotations["get_app"], Description: "Read one of the user's apps: its addresses, live and preview versions and its whole stored definition (often 100-200 KB; get_app_outline and get_app_parts read less). Reads only."},
+	addTool(s, &mcp.Tool{Name: "get_app", Title: toolAnnotations["get_app"].Title, Annotations: toolAnnotations["get_app"], Description: "Read one of the user's apps: its addresses, live and preview versions and its whole stored definition. That is often 100-200 KB, which fills a free ChatGPT chat in a few calls: read the outline (get_app_outline) and the parts you need (get_app_parts) instead, and call this only when you need everything. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in getAppIn) (*mcp.CallToolResult, getAppOut, error) {
 			info, def, n, err := readDefinition(req, in.App, in.Version)
 			if err != nil {
@@ -611,8 +612,9 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 	}
 
 	type exampleIn struct {
-		Name          string `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
-		ReferenceOnly bool   `json:"reference_only,omitempty" jsonschema:"true: return only the reference for writing app definitions, e.g. before changing an existing app with patch_app"`
+		Name          string   `json:"name,omitempty" jsonschema:"example to return; omit to list the examples"`
+		ReferenceOnly bool     `json:"reference_only,omitempty" jsonschema:"true: return only the reference for writing app definitions, e.g. before changing an existing app with patch_app"`
+		Parts         []string `json:"reference_parts,omitempty" jsonschema:"parts of the reference to return, from the index the reference ends with, e.g. [\"visitor-accounts\", \"payments\"], or [\"all\"]; omit for its core and the index"`
 	}
 	type exampleOut struct {
 		Examples   []map[string]string `json:"examples,omitempty"`
@@ -622,13 +624,17 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		Note       string              `json:"note"`
 	}
 	addTool(s, &mcp.Tool{Name: "get_example", Title: toolAnnotations["get_example"].Title, Annotations: toolAnnotations["get_example"],
-		Description: "List the finished example apps (names and descriptions only), or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. With reference_only true it returns only the reference. To build from an example, prefer create_app {from_example}, then read it with get_app_outline and get_app_parts. Reads only."},
+		Description: "List the finished example apps (names and descriptions only), or return one complete, working app definition to copy from (tables, templates, scripts, routes, seed) together with the reference for writing app definitions. With reference_only true it returns only the reference: its core and an index; ask for other parts with reference_parts (they are long, and a free plan chat fills up). To build from an example, prefer create_app {from_example}, then read it with get_app_outline and get_app_parts. Reads only."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in exampleIn) (*mcp.CallToolResult, exampleOut, error) {
 			if _, err := userOf(req); err != nil {
 				return nil, exampleOut{}, err
 			}
+			ref, err := referenceFor(in.Parts)
+			if err != nil {
+				return nil, exampleOut{}, err
+			}
 			if in.ReferenceOnly {
-				return nil, exampleOut{Reference: reference, Note: photoNote}, nil
+				return nil, exampleOut{Reference: ref, Note: photoNote}, nil
 			}
 			// The list is small: the reference comes with the chosen example,
 			// so building an app does not receive it twice.
@@ -647,7 +653,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if err := json.Unmarshal(e.JSON, &def); err != nil {
 				return nil, exampleOut{}, err
 			}
-			return nil, exampleOut{Name: e.Name, Definition: &def, Reference: reference, Note: photoNote}, nil
+			return nil, exampleOut{Name: e.Name, Definition: &def, Reference: ref, Note: photoNote}, nil
 		})
 
 	type patchIn struct {
@@ -688,6 +694,7 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		AsVisitor string `json:"as_visitor,omitempty" jsonschema:"open the page signed in as the preview visitor with this email or WhatsApp number (see create_test_visitor)"`
 		Session   string `json:"session,omitempty" jsonschema:"name of a cookie jar kept between calls for an hour, e.g. s1, as a browser keeps cookies between pages"`
 		Follow    bool   `json:"follow_redirects,omitempty" jsonschema:"follow redirects (up to 8) within the preview, as a browser does; the answer is the last page and redirects lists the hops"`
+		MaxChars  int    `json:"max_chars,omitempty" jsonschema:"how much of the page to return, default 8000 characters, at most 20000; long pages fill a free plan chat, so ask for more only when you need the rest"`
 	}
 	addTool(s, &mcp.Tool{Name: "view_page", Title: toolAnnotations["view_page"].Title, Annotations: toolAnnotations["view_page"],
 		Description: "Open one page of the user's own app website on its private preview, as a visitor's browser would, and return the page: its status, HTML (or JSON) and the app's log for that page view. Use it to check that a page you built shows what it should. Only the preview is opened; nothing on the live site is modified. The page's own script may record the visit in the preview data, which is discarded on the next change. The HTML is rendered on the server: the browser's JavaScript does not run, so anything a page script fetches or draws is not in it; check that with screenshot_preview (page_checks). A change already opens the pages it touched that run scripts in a browser and lists failing scripts in its warnings."},
@@ -698,7 +705,8 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 			if in.Path == "" {
 				in.Path = "/"
 			}
-			res, err := p.TestRequest(ctx, in.App, platform.TestRequestInput{Path: in.Path, UserEmail: in.AsVisitor, Session: in.Session, Follow: in.Follow})
+			res, err := p.TestRequest(ctx, in.App, platform.TestRequestInput{Path: in.Path, UserEmail: in.AsVisitor, Session: in.Session, Follow: in.Follow,
+				MaxBody: viewChars(in.MaxChars)})
 			return nil, res, err
 		})
 
@@ -928,6 +936,15 @@ func New(p *platform.Platform, opts Options) *mcp.Server {
 		})
 
 	return s
+}
+
+// viewChars is view_page's body limit: 8000 characters unless asked for
+// more, at most platform's own 20000.
+func viewChars(n int) int {
+	if n <= 0 {
+		return 8000
+	}
+	return min(n, 20000)
 }
 
 // previewCodes keeps the preview's undelivered messages (sign-in codes,

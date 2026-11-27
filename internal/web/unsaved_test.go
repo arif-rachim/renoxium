@@ -152,3 +152,21 @@ func TestTestRowsAreMarkedAndCleared(t *testing.T) {
 		t.Fatalf("after clearing, the starting row and the owner's row stay: %v", home["body"])
 	}
 }
+
+// view_page returns 8000 characters unless asked for more, so a long page
+// does not fill a free plan chat; truncated says when it was cut.
+func TestViewPageIsShortByDefault(t *testing.T) {
+	e := newEnv(t)
+	c := e.browser()
+	e.signup(c, "hala@shop.ae")
+	s := e.mcpSession(e.connect(c, e.registerClient()).AccessToken)
+	call(t, s, "create_app", map[string]any{"app": "hala-shop", "from_example": "store-uae"})
+	page, _ := call(t, s, "view_page", map[string]any{"app": "hala-shop", "path": "/"})
+	if body, _ := page["body"].(string); len(body) > 8000 || page["truncated"] != true {
+		t.Fatalf("default: %d characters, truncated %v", len(body), page["truncated"])
+	}
+	more, _ := call(t, s, "view_page", map[string]any{"app": "hala-shop", "path": "/", "max_chars": 15000})
+	if body, _ := more["body"].(string); len(body) <= 8000 || len(body) > 15000 {
+		t.Fatalf("max_chars 15000: %d", len(body))
+	}
+}
